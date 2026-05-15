@@ -10,7 +10,7 @@ export type Product = {
   id: string; name: string; slug: string;
   price: number; promo_price: number | null;
   image_url: string | null; manufacturer: string | null;
-  on_sale: boolean; requires_prescription: boolean; controlled: boolean;
+  on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
 };
 
 export function ProductCard({ p }: { p: Product }) {
@@ -77,10 +77,10 @@ export function ProductCard({ p }: { p: Product }) {
           </Button>
         ) : (
           <div className="grid grid-cols-2 gap-1.5 mt-2">
-            <Button size="sm" onClick={handleAdd}>
+            <Button size="sm" onClick={handleAdd} className="hover:scale-[1.02] active:scale-95 transition-transform font-semibold">
               <ShoppingCart className="h-4 w-4 mr-1" /> Adicionar
             </Button>
-            <Button asChild size="sm" variant="outline" className="border-whatsapp text-whatsapp hover:bg-whatsapp hover:text-whatsapp-foreground">
+            <Button asChild size="sm" variant="outline" className="border-whatsapp text-whatsapp hover:bg-whatsapp hover:text-whatsapp-foreground hover:scale-[1.02] active:scale-95 transition-all font-semibold">
               <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-1" /> WhatsApp</a>
             </Button>
           </div>
