@@ -42,7 +42,12 @@ export default function AdminProducts() {
   });
 
   const openNew = () => { setEditing(empty); setImgFile(null); setOpen(true); };
-  const openEdit = (p: any) => { setEditing({ ...p, category_id: p.category_id || "" }); setImgFile(null); setOpen(true); };
+  const openEdit = (p: any) => { setEditing({ ...p, category_id: p.category_id || "", shelves: p.shelves || [] }); setImgFile(null); setOpen(true); };
+
+  const toggleShelf = (slug: string) => {
+    const cur: string[] = editing.shelves || [];
+    setEditing({ ...editing, shelves: cur.includes(slug) ? cur.filter((s) => s !== slug) : [...cur, slug] });
+  };
 
   const save = async () => {
     try {
