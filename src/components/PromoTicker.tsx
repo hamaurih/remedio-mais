@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
 const MESSAGES = [
-  "Ofertas especiais todos os dias",
+  "Preço baixo todo dia",
   "Peça pelo WhatsApp e retire na loja",
   "Entrega rápida em Campina Grande",
+  "Envie sua receita para análise",
 ];
 
 export function PromoTicker() {
@@ -19,13 +20,13 @@ export function PromoTicker() {
           {MESSAGES.map((m, idx) => (
             <span
               key={m}
-              className={`absolute inset-0 transition-all duration-500 ${idx === i ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}
+              className={`absolute inset-0 transition-opacity duration-700 ${idx === i ? "opacity-100" : "opacity-0"}`}
             >
               {m}
             </span>
           ))}
         </div>
-        <div className="sm:hidden font-medium">{MESSAGES[i]}</div>
+        <div className="sm:hidden font-medium transition-opacity duration-700" key={MESSAGES[i]}>{MESSAGES[i]}</div>
         <span className="hidden sm:inline font-semibold whitespace-nowrap">★ 4,9 no Google</span>
       </div>
     </div>
