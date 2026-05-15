@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-const empty = { id: "", title: "", subtitle: "", image_url: "", link: "", position: 0, active: true };
+const empty = { id: "", title: "", subtitle: "", cta_text: "", image_url: "", link: "", position: 0, active: true };
 
 export default function AdminBanners() {
   const qc = useQueryClient();
