@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Product } from "@/components/ProductCard";
 import { ProductCarousel } from "@/components/ProductCarousel";
 import { HeroSlider } from "@/components/HeroSlider";
+import { PromoMosaic } from "@/components/PromoMosaic";
 import { Link } from "react-router-dom";
 import {
   Truck, Store, MessageCircle, FileText, MapPin, Tag, Pill,
@@ -49,22 +50,24 @@ function Reveal({ children }: { children: React.ReactNode }) {
   return <div ref={ref} className={show ? "animate-fade-in-up" : "opacity-0"}>{children}</div>;
 }
 
-function Shelf({ title, link, items, loading }: { title: string; link?: string; items?: Product[]; loading?: boolean }) {
+function Shelf({ title, link, items, loading, alt }: { title: string; link?: string; items?: Product[]; loading?: boolean; alt?: boolean }) {
   return (
     <Reveal>
-      <section className="container py-6 md:py-8">
-        <div className="flex items-end justify-between mb-4">
-          <h2 className="text-xl md:text-2xl font-extrabold flex items-center gap-2">
-            <span className="inline-block w-1 h-6 bg-primary rounded-full" />
-            {title}
-          </h2>
-          {link && (
-            <Link to={link} className="text-sm text-primary font-bold hover:underline whitespace-nowrap">
-              Ver todos →
-            </Link>
-          )}
+      <section className={alt ? "bg-secondary/40" : ""}>
+        <div className="container py-6 md:py-8">
+          <div className="flex items-end justify-between mb-4">
+            <h2 className="text-xl md:text-2xl font-extrabold flex items-center gap-2">
+              <span className="inline-block w-1 h-6 bg-primary rounded-full" />
+              {title}
+            </h2>
+            {link && (
+              <Link to={link} className="text-sm text-primary font-bold hover:underline whitespace-nowrap">
+                Ver todos →
+              </Link>
+            )}
+          </div>
+          <ProductCarousel items={items} loading={loading} />
         </div>
-        <ProductCarousel items={items} loading={loading} />
       </section>
     </Reveal>
   );
