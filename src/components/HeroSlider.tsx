@@ -43,7 +43,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
 
   return (
     <section
-      className="relative overflow-hidden bg-gradient-soft"
+      className="relative overflow-hidden bg-gradient-soft md:rounded-xl md:mx-4 lg:mx-auto lg:container md:my-3"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={onTouchStart}
@@ -99,26 +99,26 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
             <button
               aria-label="Anterior"
               onClick={() => setIdx((i) => (i - 1 + data.length) % data.length)}
-              className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur hover:bg-background rounded-full h-10 w-10 items-center justify-center shadow-card transition-all"
+              className="flex absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 bg-background hover:bg-background text-primary rounded-full h-9 w-9 sm:h-[46px] sm:w-[46px] items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-70 hover:opacity-100 hover:scale-105 transition-all z-20"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
             <button
               aria-label="Próximo"
               onClick={() => setIdx((i) => (i + 1) % data.length)}
-              className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur hover:bg-background rounded-full h-10 w-10 items-center justify-center shadow-card transition-all"
+              className="flex absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-background hover:bg-background text-primary rounded-full h-9 w-9 sm:h-[46px] sm:w-[46px] items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-70 hover:opacity-100 hover:scale-105 transition-all z-20"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
 
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
               {data.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setIdx(i)}
                   className={cn(
-                    "h-2 rounded-full transition-all",
-                    i === idx ? "bg-primary w-8" : "bg-muted-foreground/40 w-2 hover:bg-muted-foreground/60"
+                    "h-2 rounded-full transition-all duration-300",
+                    i === idx ? "bg-primary w-7" : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/60"
                   )}
                   aria-label={`Slide ${i + 1}`}
                 />
