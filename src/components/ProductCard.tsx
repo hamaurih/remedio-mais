@@ -32,7 +32,7 @@ export function ProductCard({ p }: { p: Product }) {
   const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", waMsg);
 
   return (
-    <article className="group bg-card border rounded-xl overflow-hidden flex flex-col shadow-card hover:shadow-elevated transition-all">
+    <article className="group bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/30 transition-all duration-200 h-full">
       <Link to={`/produto/${p.slug}`} className="relative block aspect-square bg-secondary/40 overflow-hidden">
         <img
           src={p.image_url || productPlaceholder}
@@ -41,8 +41,13 @@ export function ProductCard({ p }: { p: Product }) {
           className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform"
         />
         {hasDiscount && (
-          <span className="absolute top-2 left-2 bg-tag text-tag-foreground text-xs font-bold px-2 py-1 rounded">
-            -{discount}%
+          <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[11px] font-bold px-2 py-1 rounded shadow-card">
+            Oferta -{discount}%
+          </span>
+        )}
+        {!hasDiscount && p.featured && (
+          <span className="absolute top-2 left-2 bg-tag text-tag-foreground text-[11px] font-bold px-2 py-1 rounded shadow-card">
+            Mais vendido
           </span>
         )}
         {p.requires_prescription && (
