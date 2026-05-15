@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, MessageCircle, Menu } from "lucide-react";
+import { Search, ShoppingCart, User, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
@@ -7,6 +7,7 @@ import { useCart } from "@/hooks/useCart";
 import { useState } from "react";
 import { buildWhatsAppLink } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
+import { PromoTicker } from "./PromoTicker";
 
 const CATS = [
   ["Ofertas", "ofertas"], ["Medicamentos", "medicamentos"], ["Genéricos", "genericos"],
@@ -29,14 +30,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
-      {/* Top bar */}
-      <div className="bg-primary text-primary-foreground text-xs">
-        <div className="container flex justify-between py-1.5">
-          <span className="hidden sm:inline">Atendimento rápido pelo WhatsApp · Entrega local em Campina Grande</span>
-          <span className="sm:hidden">Preço baixo todo dia</span>
-          <a href={wa} target="_blank" rel="noopener" className="font-semibold">Fale conosco</a>
-        </div>
-      </div>
+      <PromoTicker />
 
       <div className="container py-3 flex items-center gap-3">
         <Link to="/" className="flex items-center gap-2 shrink-0">
