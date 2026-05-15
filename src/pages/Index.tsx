@@ -144,6 +144,20 @@ export default function Index() {
       return (data || []) as Product[];
     },
   });
+  const buildShelf = (slug: string, shelf: string) =>
+    useQuery({
+      queryKey: [`shelf_${shelf}`],
+      queryFn: async () => {
+        const t = await shelfBy(shelf)();
+        if (t) return t;
+        const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
+        if (!cat) return [];
+        const { data } = await supabase.from("products").select("*").eq("active", true).eq("category_id", cat.id).limit(12);
+        return (data || []) as Product[];
+      },
+    });
+  const vitamins = buildShelf("vitaminas", "vitaminas-e-suplementos");
+  const firstaid = buildShelf("primeiros-socorros", "primeiros-socorros");
 
   return (
     <Layout>
@@ -209,20 +223,7 @@ export default function Index() {
       <Shelf title="Mamães e Bebês" link="/categoria/mamaes-e-bebes" items={babies.data} loading={babies.isLoading} />
       <Shelf title="Vitaminas e Suplementos" link="/categoria/vitaminas" items={vitamins.data} loading={vitamins.isLoading} alt />
       <Shelf title="Primeiros Socorros" link="/categoria/primeiros-socorros" items={firstaid.data} loading={firstaid.isLoading} />
-  const byCategory = (slug: string, shelf: string) =>
-    useQuery({
-      queryKey: [`shelf_${shelf}`],
-      queryFn: async () => {
-        const t = await shelfBy(shelf)();
-        if (t) return t;
-        const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
-        if (!cat) return [];
-        const { data } = await supabase.from("products").select("*").eq("active", true).eq("category_id", cat.id).limit(12);
-        return (data || []) as Product[];
-      },
-    });
-  const vitamins = byCategory("vitaminas", "vitaminas-e-suplementos");
-  const firstaid = byCategory("primeiros-socorros", "primeiros-socorros");
+
 
       {/* Prescription CTA */}
       <Reveal>
