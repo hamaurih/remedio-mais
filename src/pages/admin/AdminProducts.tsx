@@ -12,10 +12,18 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 
+const SHELVES = [
+  { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
+  { slug: "mais-vendidos", label: "Mais Vendidos" },
+  { slug: "medicamentos-populares", label: "Medicamentos Populares" },
+  { slug: "higiene-e-beleza", label: "Higiene e Beleza" },
+  { slug: "mamaes-e-bebes", label: "Mamães e Bebês" },
+];
+
 const empty = {
   id: "", name: "", slug: "", category_id: "", description: "", price: 0, promo_price: null as number | null,
   image_url: "", manufacturer: "", active_ingredient: "", stock: 0, featured: false, on_sale: false,
-  requires_prescription: false, controlled: false, tarja: "", active: true,
+  requires_prescription: false, controlled: false, tarja: "", active: true, shelves: [] as string[],
 };
 
 export default function AdminProducts() {
