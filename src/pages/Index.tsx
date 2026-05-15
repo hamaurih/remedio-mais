@@ -150,20 +150,23 @@ export default function Index() {
       {/* Hero slider */}
       <HeroSlider slides={banners as any} />
 
+      {/* Promo mosaic */}
+      <PromoMosaic />
+
       {/* Benefits */}
       <Reveal>
-        <section className="container mt-6 md:mt-8">
+        <section className="container mt-6 md:mt-10">
           <div className="flex md:grid md:grid-cols-5 gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory">
             {BENEFITS.map((b) => (
               <div
                 key={b.title}
-                className="snap-start shrink-0 w-[70%] sm:w-[45%] md:w-auto bg-card border border-border rounded-xl p-4 flex items-center gap-3 shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-200"
+                className="snap-start shrink-0 w-[60%] sm:w-[40%] md:w-auto bg-card border border-border rounded-[10px] p-4 flex flex-col items-start gap-2 shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300"
               >
-                <div className="bg-accent text-accent-foreground rounded-full p-2.5 shrink-0">
+                <div className="bg-accent text-primary rounded-full p-2.5">
                   <b.icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm leading-tight">{b.title}</div>
+                  <div className="font-bold text-sm leading-tight">{b.title}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{b.desc}</div>
                 </div>
               </div>
@@ -186,7 +189,7 @@ export default function Index() {
               <Link
                 key={d.slug}
                 to={`/categoria/${d.slug}`}
-                className={`snap-start shrink-0 w-32 md:w-auto bg-gradient-to-br ${d.color} border border-border rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center hover:shadow-elevated hover:border-primary/30 hover:scale-[1.03] transition-all duration-200 aspect-square md:aspect-[4/3]`}
+                className={`snap-start shrink-0 w-32 md:w-auto bg-gradient-to-br ${d.color} border border-border rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center hover:shadow-elevated hover:border-primary/40 hover:scale-[1.03] transition-all duration-300 aspect-square md:aspect-[4/3]`}
               >
                 <div className="bg-card text-primary rounded-full p-3 shadow-card">
                   <d.icon className="h-5 w-5 md:h-6 md:w-6" />
@@ -200,10 +203,13 @@ export default function Index() {
 
       {/* Shelves */}
       <Shelf title="Ofertas da Semana" link="/categoria/ofertas" items={offers.data} loading={offers.isLoading} />
-      <Shelf title="Mais Vendidos" items={bestsellers.data} loading={bestsellers.isLoading} />
+      <Shelf title="Mais Vendidos" items={bestsellers.data} loading={bestsellers.isLoading} alt />
       <Shelf title="Medicamentos Populares" link="/categoria/medicamentos" items={meds.data} loading={meds.isLoading} />
-      <Shelf title="Higiene e Beleza" link="/categoria/higiene-pessoal" items={hygiene.data} loading={hygiene.isLoading} />
+      <Shelf title="Higiene e Beleza" link="/categoria/higiene-pessoal" items={hygiene.data} loading={hygiene.isLoading} alt />
       <Shelf title="Mamães e Bebês" link="/categoria/mamaes-e-bebes" items={babies.data} loading={babies.isLoading} />
+      <Shelf title="Vitaminas e Suplementos" link="/categoria/vitaminas" items={vitamins.data} loading={vitamins.isLoading} alt />
+      <Shelf title="Primeiros Socorros" link="/categoria/primeiros-socorros" items={firstaid.data} loading={firstaid.isLoading} />
+
 
       {/* Prescription CTA */}
       <Reveal>
