@@ -32,55 +32,70 @@ export function ProductCard({ p }: { p: Product }) {
   const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", waMsg);
 
   return (
-    <article className="group bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/30 transition-all duration-200 h-full">
-      <Link to={`/produto/${p.slug}`} className="relative block aspect-square bg-secondary/40 overflow-hidden">
+    <article className="group bg-card border border-[hsl(0_0%_94%)] rounded-[10px] overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 h-full">
+      <Link to={`/produto/${p.slug}`} className="relative block bg-secondary/40 overflow-hidden" style={{ aspectRatio: "1 / 1" }}>
         <img
           src={p.image_url || productPlaceholder}
           alt={p.name}
           loading="lazy"
-          className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform"
+          className="w-full h-full object-contain p-3 md:p-4 group-hover:scale-[1.03] transition-transform duration-300"
         />
         {hasDiscount && (
-          <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[11px] font-bold px-2 py-1 rounded shadow-card">
-            Oferta -{discount}%
+          <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shadow-card">
+            Oferta
           </span>
         )}
         {!hasDiscount && p.featured && (
-          <span className="absolute top-2 left-2 bg-tag text-tag-foreground text-[11px] font-bold px-2 py-1 rounded shadow-card">
+          <span className="absolute top-2 left-2 bg-tag text-tag-foreground text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shadow-card">
             Mais vendido
           </span>
         )}
-        {p.requires_prescription && (
+        {hasDiscount && (
+          <span className="absolute top-2 right-2 bg-primary-dark text-primary-foreground text-[11px] font-extrabold px-2 py-1 rounded-md">
+            -{discount}%
+          </span>
+        )}
+        {p.requires_prescription && !hasDiscount && (
           <span className="absolute top-2 right-2 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-1 rounded">
             Receita
           </span>
         )}
       </Link>
 
-      <div className="p-3 flex flex-col gap-1.5 flex-1">
-        <Link to={`/produto/${p.slug}`} className="font-medium text-sm line-clamp-2 hover:text-primary min-h-[2.5rem]">
+      <div className="p-3 md:p-4 flex flex-col gap-1 flex-1">
+        <Link to={`/produto/${p.slug}`} className="font-medium text-sm leading-snug line-clamp-2 hover:text-primary min-h-[2.5rem]">
           {p.name}
         </Link>
-        {p.manufacturer && <div className="text-xs text-muted-foreground">{p.manufacturer}</div>}
+        {p.manufacturer && <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{p.manufacturer}</div>}
 
         <div className="mt-auto pt-2">
-          {hasDiscount && (
-            <div className="text-xs text-muted-foreground line-through">{formatBRL(p.price)}</div>
+          {hasDiscount ? (
+            <div className="text-xs text-muted-foreground line-through h-4">{formatBRL(p.price)}</div>
+          ) : (
+            <div className="h-4" />
           )}
-          <div className="text-xl price leading-none">{formatBRL(finalPrice)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">Retire na loja ou peça pelo WhatsApp</div>
+          <div className="text-[22px] md:text-[26px] font-extrabold leading-none text-primary">{formatBRL(finalPrice)}</div>
+          <div className="text-[10px] md:text-[11px] text-muted-foreground mt-1">Retire na loja ou peça pelo WhatsApp</div>
         </div>
 
         {p.controlled ? (
-          <Button asChild size="sm" variant="outline" className="mt-2">
+          <Button asChild size="sm" variant="outline" className="mt-3 rounded-full">
             <Link to="/enviar-receita"><FileText className="h-4 w-4 mr-1" /> Enviar receita</Link>
           </Button>
         ) : (
-          <div className="grid grid-cols-2 gap-1.5 mt-2">
-            <Button size="sm" onClick={handleAdd} className="hover:scale-[1.02] active:scale-95 transition-transform font-semibold">
+          <div className="grid grid-cols-2 gap-1.5 mt-3">
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              className="h-10 rounded-full font-semibold bg-primary hover:bg-primary-dark active:scale-95 transition-all"
+            >
               <ShoppingCart className="h-4 w-4 mr-1" /> Adicionar
             </Button>
-            <Button asChild size="sm" variant="outline" className="border-whatsapp text-whatsapp hover:bg-whatsapp hover:text-whatsapp-foreground hover:scale-[1.02] active:scale-95 transition-all font-semibold">
+            <Button
+              asChild
+              size="sm"
+              className="h-10 rounded-full font-semibold bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
+            >
               <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-1" /> WhatsApp</a>
             </Button>
           </div>

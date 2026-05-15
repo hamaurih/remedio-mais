@@ -45,24 +45,20 @@ export function ProductCarousel({ items, loading }: { items?: Product[]; loading
         ))}
       </div>
 
-      <Button
-        size="icon"
-        variant="outline"
+      <button
         onClick={() => scroll(-1)}
-        className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 bg-background shadow-elevated rounded-full h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 bg-background text-primary rounded-full h-11 w-11 items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-0 group-hover:opacity-100 hover:scale-105 transition-all z-10"
         aria-label="Anterior"
       >
         <ChevronLeft className="h-5 w-5" />
-      </Button>
-      <Button
-        size="icon"
-        variant="outline"
+      </button>
+      <button
         onClick={() => scroll(1)}
-        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 bg-background shadow-elevated rounded-full h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 bg-background text-primary rounded-full h-11 w-11 items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-0 group-hover:opacity-100 hover:scale-105 transition-all z-10"
         aria-label="Próximo"
       >
         <ChevronRight className="h-5 w-5" />
-      </Button>
+      </button>
     </div>
   );
 }
