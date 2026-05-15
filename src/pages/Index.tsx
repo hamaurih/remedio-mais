@@ -5,7 +5,7 @@ import { ProductCard, Product } from "@/components/ProductCard";
 import { Section } from "@/components/Section";
 import heroImg from "@/assets/hero-pharmacy.jpg";
 import { Link } from "react-router-dom";
-import { Truck, Store, MessageCircle, FileText, Star, MapPin, Tag, Pill, Thermometer, Wind, Sun, Droplet, Baby, Sparkles, ShoppingBag, HeartPulse, Bandage, Capsule } from "lucide-react";
+import { Truck, Store, MessageCircle, FileText, Star, MapPin, Tag, Pill, Thermometer, Wind, Sun, Droplet, Baby, Sparkles, ShoppingBag, HeartPulse, Bandage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 
