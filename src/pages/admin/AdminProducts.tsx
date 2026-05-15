@@ -12,10 +12,18 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 
+const SHELVES = [
+  { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
+  { slug: "mais-vendidos", label: "Mais Vendidos" },
+  { slug: "medicamentos-populares", label: "Medicamentos Populares" },
+  { slug: "higiene-e-beleza", label: "Higiene e Beleza" },
+  { slug: "mamaes-e-bebes", label: "Mamães e Bebês" },
+];
+
 const empty = {
   id: "", name: "", slug: "", category_id: "", description: "", price: 0, promo_price: null as number | null,
   image_url: "", manufacturer: "", active_ingredient: "", stock: 0, featured: false, on_sale: false,
-  requires_prescription: false, controlled: false, tarja: "", active: true,
+  requires_prescription: false, controlled: false, tarja: "", active: true, shelves: [] as string[],
 };
 
 export default function AdminProducts() {
@@ -34,7 +42,12 @@ export default function AdminProducts() {
   });
 
   const openNew = () => { setEditing(empty); setImgFile(null); setOpen(true); };
-  const openEdit = (p: any) => { setEditing({ ...p, category_id: p.category_id || "" }); setImgFile(null); setOpen(true); };
+  const openEdit = (p: any) => { setEditing({ ...p, category_id: p.category_id || "", shelves: p.shelves || [] }); setImgFile(null); setOpen(true); };
+
+  const toggleShelf = (slug: string) => {
+    const cur: string[] = editing.shelves || [];
+    setEditing({ ...editing, shelves: cur.includes(slug) ? cur.filter((s) => s !== slug) : [...cur, slug] });
+  };
 
   const save = async () => {
     try {
@@ -126,6 +139,23 @@ export default function AdminProducts() {
             <div className="flex items-center gap-2"><Switch checked={editing.on_sale} onCheckedChange={(v) => setEditing({ ...editing, on_sale: v })} /><Label>Em promoção</Label></div>
             <div className="flex items-center gap-2"><Switch checked={editing.requires_prescription} onCheckedChange={(v) => setEditing({ ...editing, requires_prescription: v })} /><Label>Exige receita</Label></div>
             <div className="flex items-center gap-2"><Switch checked={editing.controlled} onCheckedChange={(v) => setEditing({ ...editing, controlled: v })} /><Label>Controlado</Label></div>
+
+            <div className="col-span-2 space-y-2 border-t pt-3 mt-2">
+              <Label className="font-bold">Aparece nas vitrines da home</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {SHELVES.map((s) => (
+                  <label key={s.slug} className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-secondary">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={(editing.shelves || []).includes(s.slug)}
+                      onChange={() => toggleShelf(s.slug)}
+                    />
+                    {s.label}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <Button className="w-full" onClick={save}>Salvar</Button>
         </DialogContent>

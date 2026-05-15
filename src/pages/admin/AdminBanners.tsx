@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-const empty = { id: "", title: "", subtitle: "", image_url: "", link: "", position: 0, active: true };
+const empty = { id: "", title: "", subtitle: "", cta_text: "", image_url: "", link: "", position: 0, active: true };
 
 export default function AdminBanners() {
   const qc = useQueryClient();
@@ -76,6 +76,7 @@ export default function AdminBanners() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>Título</Label><Input value={editing.title || ""} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></div>
             <div className="space-y-1"><Label>Subtítulo</Label><Input value={editing.subtitle || ""} onChange={(e) => setEditing({ ...editing, subtitle: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Texto do botão (CTA)</Label><Input value={editing.cta_text || ""} onChange={(e) => setEditing({ ...editing, cta_text: e.target.value })} placeholder="Ver ofertas" /></div>
             <div className="space-y-1"><Label>Link</Label><Input value={editing.link || ""} onChange={(e) => setEditing({ ...editing, link: e.target.value })} /></div>
             <div className="space-y-1"><Label>Imagem</Label><Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
             <div className="space-y-1"><Label>Posição</Label><Input type="number" value={editing.position} onChange={(e) => setEditing({ ...editing, position: e.target.value })} /></div>

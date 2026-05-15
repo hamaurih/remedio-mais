@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          cta_text: string | null
           id: string
           image_url: string | null
           link: string | null
@@ -29,6 +30,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          cta_text?: string | null
           id?: string
           image_url?: string | null
           link?: string | null
@@ -40,6 +42,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          cta_text?: string | null
           id?: string
           image_url?: string | null
           link?: string | null
@@ -208,6 +211,7 @@ export type Database = {
           price: number
           promo_price: number | null
           requires_prescription: boolean
+          shelves: string[]
           slug: string
           stock: number
           tarja: string | null
@@ -229,6 +233,7 @@ export type Database = {
           price?: number
           promo_price?: number | null
           requires_prescription?: boolean
+          shelves?: string[]
           slug: string
           stock?: number
           tarja?: string | null
@@ -250,6 +255,7 @@ export type Database = {
           price?: number
           promo_price?: number | null
           requires_prescription?: boolean
+          shelves?: string[]
           slug?: string
           stock?: number
           tarja?: string | null
