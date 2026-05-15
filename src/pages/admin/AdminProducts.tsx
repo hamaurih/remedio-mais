@@ -139,6 +139,23 @@ export default function AdminProducts() {
             <div className="flex items-center gap-2"><Switch checked={editing.on_sale} onCheckedChange={(v) => setEditing({ ...editing, on_sale: v })} /><Label>Em promoção</Label></div>
             <div className="flex items-center gap-2"><Switch checked={editing.requires_prescription} onCheckedChange={(v) => setEditing({ ...editing, requires_prescription: v })} /><Label>Exige receita</Label></div>
             <div className="flex items-center gap-2"><Switch checked={editing.controlled} onCheckedChange={(v) => setEditing({ ...editing, controlled: v })} /><Label>Controlado</Label></div>
+
+            <div className="col-span-2 space-y-2 border-t pt-3 mt-2">
+              <Label className="font-bold">Aparece nas vitrines da home</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {SHELVES.map((s) => (
+                  <label key={s.slug} className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-secondary">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={(editing.shelves || []).includes(s.slug)}
+                      onChange={() => toggleShelf(s.slug)}
+                    />
+                    {s.label}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <Button className="w-full" onClick={save}>Salvar</Button>
         </DialogContent>
