@@ -126,13 +126,16 @@ export default function Index() {
       <Reveal><BenefitCards /></Reveal>
       <Reveal><DepartmentCarousel /></Reveal>
 
-      {/* Shelves */}
+      {/* Shelves & sections in requested order */}
       <Reveal>
         <ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/categoria/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay />
       </Reveal>
       <Reveal>
         <ProductShelf title="Mais Vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" />
       </Reveal>
+
+      <Reveal><PrescriptionCTA /></Reveal>
+
       <Reveal>
         <ProductShelf title="Medicamentos Populares" viewAllLink="/categoria/medicamentos" products={meds.data} loading={meds.isLoading} backgroundVariant="white" />
       </Reveal>
@@ -149,11 +152,6 @@ export default function Index() {
         <ProductShelf title="Primeiros Socorros" viewAllLink="/categoria/primeiros-socorros" products={firstaid.data} loading={firstaid.isLoading} backgroundVariant="white" />
       </Reveal>
 
-
-      {/* Prescription CTA */}
-      <Reveal><PrescriptionCTA /></Reveal>
-
-      {/* Google Rating */}
       <Reveal><GoogleRatingBlock /></Reveal>
 
       {/* Location */}
