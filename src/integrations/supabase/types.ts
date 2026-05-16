@@ -19,10 +19,14 @@ export type Database = {
           active: boolean
           created_at: string
           cta_text: string | null
+          end_date: string | null
           id: string
           image_url: string | null
           link: string | null
+          mobile_image_url: string | null
+          placement: string
           position: number
+          start_date: string | null
           subtitle: string | null
           title: string | null
           updated_at: string
@@ -31,10 +35,14 @@ export type Database = {
           active?: boolean
           created_at?: string
           cta_text?: string | null
+          end_date?: string | null
           id?: string
           image_url?: string | null
           link?: string | null
+          mobile_image_url?: string | null
+          placement?: string
           position?: number
+          start_date?: string | null
           subtitle?: string | null
           title?: string | null
           updated_at?: string
@@ -43,10 +51,14 @@ export type Database = {
           active?: boolean
           created_at?: string
           cta_text?: string | null
+          end_date?: string | null
           id?: string
           image_url?: string | null
           link?: string | null
+          mobile_image_url?: string | null
+          placement?: string
           position?: number
+          start_date?: string | null
           subtitle?: string | null
           title?: string | null
           updated_at?: string
@@ -57,30 +69,42 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          description: string | null
           icon: string | null
           id: string
+          image_url: string | null
           name: string
           position: number
+          show_in_menu: boolean
+          show_on_home: boolean
           slug: string
           updated_at: string
         }
         Insert: {
           active?: boolean
           created_at?: string
+          description?: string | null
           icon?: string | null
           id?: string
+          image_url?: string | null
           name: string
           position?: number
+          show_in_menu?: boolean
+          show_on_home?: boolean
           slug: string
           updated_at?: string
         }
         Update: {
           active?: boolean
           created_at?: string
+          description?: string | null
           icon?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           position?: number
+          show_in_menu?: boolean
+          show_on_home?: boolean
           slug?: string
           updated_at?: string
         }
@@ -139,6 +163,7 @@ export type Database = {
           notes: string | null
           status: string
           total: number
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -150,6 +175,7 @@ export type Database = {
           notes?: string | null
           status?: string
           total?: number
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -161,6 +187,7 @@ export type Database = {
           notes?: string | null
           status?: string
           total?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -171,8 +198,10 @@ export type Database = {
           customer_phone: string
           file_url: string | null
           id: string
+          internal_notes: string | null
           notes: string | null
           status: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -180,8 +209,10 @@ export type Database = {
           customer_phone: string
           file_url?: string | null
           id?: string
+          internal_notes?: string | null
           notes?: string | null
           status?: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -189,8 +220,10 @@ export type Database = {
           customer_phone?: string
           file_url?: string | null
           id?: string
+          internal_notes?: string | null
           notes?: string | null
           status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -198,20 +231,33 @@ export type Database = {
         Row: {
           active: boolean
           active_ingredient: string | null
+          barcode: string | null
           category_id: string | null
           controlled: boolean
           created_at: string
+          custom_warning: string | null
           description: string | null
+          discount_percentage: number | null
           featured: boolean
+          gallery_images: string[]
           id: string
           image_url: string | null
           manufacturer: string | null
+          minimum_stock: number
           name: string
           on_sale: boolean
           price: number
+          product_badge: string | null
           promo_price: number | null
+          promotion_end: string | null
+          promotion_start: string | null
           requires_prescription: boolean
+          seo_description: string | null
+          seo_keywords: string | null
+          seo_title: string | null
           shelves: string[]
+          short_description: string | null
+          sku: string | null
           slug: string
           stock: number
           tarja: string | null
@@ -220,20 +266,33 @@ export type Database = {
         Insert: {
           active?: boolean
           active_ingredient?: string | null
+          barcode?: string | null
           category_id?: string | null
           controlled?: boolean
           created_at?: string
+          custom_warning?: string | null
           description?: string | null
+          discount_percentage?: number | null
           featured?: boolean
+          gallery_images?: string[]
           id?: string
           image_url?: string | null
           manufacturer?: string | null
+          minimum_stock?: number
           name: string
           on_sale?: boolean
           price?: number
+          product_badge?: string | null
           promo_price?: number | null
+          promotion_end?: string | null
+          promotion_start?: string | null
           requires_prescription?: boolean
+          seo_description?: string | null
+          seo_keywords?: string | null
+          seo_title?: string | null
           shelves?: string[]
+          short_description?: string | null
+          sku?: string | null
           slug: string
           stock?: number
           tarja?: string | null
@@ -242,20 +301,33 @@ export type Database = {
         Update: {
           active?: boolean
           active_ingredient?: string | null
+          barcode?: string | null
           category_id?: string | null
           controlled?: boolean
           created_at?: string
+          custom_warning?: string | null
           description?: string | null
+          discount_percentage?: number | null
           featured?: boolean
+          gallery_images?: string[]
           id?: string
           image_url?: string | null
           manufacturer?: string | null
+          minimum_stock?: number
           name?: string
           on_sale?: boolean
           price?: number
+          product_badge?: string | null
           promo_price?: number | null
+          promotion_end?: string | null
+          promotion_start?: string | null
           requires_prescription?: boolean
+          seo_description?: string | null
+          seo_keywords?: string | null
+          seo_title?: string | null
           shelves?: string[]
+          short_description?: string | null
+          sku?: string | null
           slug?: string
           stock?: number
           tarja?: string | null
@@ -292,34 +364,64 @@ export type Database = {
       store_settings: {
         Row: {
           address: string | null
+          afe: string | null
+          cnpj: string | null
+          crf: string | null
           delivery_fee: number | null
+          footer_text: string | null
           hero_subtitle: string | null
           hero_title: string | null
           hours: string | null
           id: number
           instagram: string | null
+          legal_name: string | null
+          pharmacist_name: string | null
+          sanitary_license: string | null
+          sanitary_notice: string | null
+          served_neighborhoods: string | null
+          store_name: string | null
           updated_at: string
           whatsapp: string | null
         }
         Insert: {
           address?: string | null
+          afe?: string | null
+          cnpj?: string | null
+          crf?: string | null
           delivery_fee?: number | null
+          footer_text?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
           hours?: string | null
           id?: number
           instagram?: string | null
+          legal_name?: string | null
+          pharmacist_name?: string | null
+          sanitary_license?: string | null
+          sanitary_notice?: string | null
+          served_neighborhoods?: string | null
+          store_name?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
         Update: {
           address?: string | null
+          afe?: string | null
+          cnpj?: string | null
+          crf?: string | null
           delivery_fee?: number | null
+          footer_text?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
           hours?: string | null
           id?: number
           instagram?: string | null
+          legal_name?: string | null
+          pharmacist_name?: string | null
+          sanitary_license?: string | null
+          sanitary_notice?: string | null
+          served_neighborhoods?: string | null
+          store_name?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
