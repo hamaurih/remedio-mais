@@ -145,53 +145,8 @@ export default function Index() {
       {/* Promo mosaic */}
       <PromoMosaic />
 
-      {/* Benefits */}
-      <Reveal>
-        <section className="container mt-6 md:mt-10">
-          <div className="flex md:grid md:grid-cols-5 gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory">
-            {BENEFITS.map((b) => (
-              <div
-                key={b.title}
-                className="snap-start shrink-0 w-[60%] sm:w-[40%] md:w-auto bg-card border border-border rounded-[10px] p-4 flex flex-col items-start gap-2 shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300"
-              >
-                <div className="bg-accent text-primary rounded-full p-2.5">
-                  <b.icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-sm leading-tight">{b.title}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{b.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </Reveal>
-
-      {/* Departamentos */}
-      <Reveal>
-        <section className="container py-8 md:py-10">
-          <div className="flex items-end justify-between mb-4">
-            <h2 className="text-xl md:text-2xl font-extrabold flex items-center gap-2">
-              <span className="inline-block w-1 h-6 bg-primary rounded-full" />
-              Navegue por Departamento
-            </h2>
-          </div>
-          <div className="flex md:grid md:grid-cols-4 lg:grid-cols-8 gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory">
-            {DEPARTAMENTOS.map((d) => (
-              <Link
-                key={d.slug}
-                to={`/categoria/${d.slug}`}
-                className={`snap-start shrink-0 w-32 md:w-auto bg-gradient-to-br ${d.color} border border-border rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center hover:shadow-elevated hover:border-primary/40 hover:scale-[1.03] transition-all duration-300 aspect-square md:aspect-[4/3]`}
-              >
-                <div className="bg-card text-primary rounded-full p-3 shadow-card">
-                  <d.icon className="h-5 w-5 md:h-6 md:w-6" />
-                </div>
-                <div className="text-xs md:text-sm font-bold leading-tight">{d.name}</div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </Reveal>
+      <Reveal><BenefitCards /></Reveal>
+      <Reveal><DepartmentCarousel /></Reveal>
 
       {/* Shelves */}
       <Shelf title="Ofertas da Semana" link="/categoria/ofertas" items={offers.data} loading={offers.isLoading} />
@@ -204,33 +159,14 @@ export default function Index() {
 
 
       {/* Prescription CTA */}
-      <Reveal>
-        <section className="container py-8">
-          <div className="bg-gradient-hero text-primary-foreground rounded-2xl p-6 md:p-10 grid md:grid-cols-[1fr_auto] items-center gap-4 shadow-elevated relative overflow-hidden">
-            <div className="absolute -right-10 -top-10 opacity-10">
-              <Stethoscope className="h-48 w-48" />
-            </div>
-            <div className="relative">
-              <h3 className="text-2xl md:text-3xl font-extrabold">Tem receita médica?</h3>
-              <p className="opacity-90 mt-1 max-w-xl">Envie pelo site e nossa equipe analisa rapidinho. Venda sujeita à apresentação e conferência da receita.</p>
-            </div>
-            <Button asChild size="lg" variant="secondary" className="relative font-bold">
-              <Link to="/enviar-receita"><FileText className="h-5 w-5 mr-2" /> Enviar receita</Link>
-            </Button>
-          </div>
-        </section>
-      </Reveal>
+      <Reveal><PrescriptionCTA /></Reveal>
 
-      {/* Rating + Location */}
+      {/* Google Rating */}
+      <Reveal><GoogleRatingBlock /></Reveal>
+
+      {/* Location */}
       <Reveal>
-        <section className="container py-8 grid md:grid-cols-2 gap-4">
-          <div className="bg-card border rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow">
-            <div className="flex items-center gap-2 text-tag">
-              {[...Array(5)].map((_, i) => <Star key={i} className="h-6 w-6 fill-current" />)}
-              <span className="text-3xl font-extrabold text-foreground ml-2">4,9</span>
-            </div>
-            <p className="text-muted-foreground mt-2">Mais de 62 avaliações no Google. Atendimento que faz a diferença.</p>
-          </div>
+        <section className="container py-4">
           <div className="bg-card border rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow">
             <div className="flex items-start gap-3">
               <MapPin className="h-6 w-6 text-primary shrink-0" />
