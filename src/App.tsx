@@ -19,6 +19,8 @@ import AdminBanners from "./pages/admin/AdminBanners.tsx";
 import AdminOrders from "./pages/admin/AdminOrders.tsx";
 import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
+import AdminOffers from "./pages/admin/AdminOffers.tsx";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -36,11 +38,13 @@ const App = () => (
           <Route path="/enviar-receita" element={<SendPrescription />} />
           <Route path="/buscar" element={<Search />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="produtos" element={<AdminProducts />} />
             <Route path="categorias" element={<AdminCategories />} />
             <Route path="banners" element={<AdminBanners />} />
+            <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
             <Route path="config" element={<AdminSettings />} />

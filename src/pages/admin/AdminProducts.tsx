@@ -320,9 +320,12 @@ export default function AdminProducts() {
               </div>
               <div className="space-y-1 pt-2 border-t">
                 <Label>Selo do produto</Label>
-                <Select value={editing.product_badge || ""} onValueChange={(v) => setEditing({ ...editing, product_badge: v })}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>{BADGES.map((b) => <SelectItem key={b || "none"} value={b || "none"}>{b || "Nenhum"}</SelectItem>)}</SelectContent>
+                <Select value={editing.product_badge || "none"} onValueChange={(v) => setEditing({ ...editing, product_badge: v === "none" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {BADGES.filter(Boolean).map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
             </TabsContent>
