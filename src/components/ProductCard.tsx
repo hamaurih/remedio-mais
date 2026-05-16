@@ -11,6 +11,28 @@ export type Product = {
   price: number; promo_price: number | null;
   image_url: string | null; manufacturer: string | null;
   on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
+  created_at?: string | null;
+};
+
+type BadgeKind = "oferta" | "generico" | "mais-vendido" | "novo" | null;
+
+function resolveBadge(p: Product, hasDiscount: boolean): BadgeKind {
+  if (hasDiscount) return "oferta";
+  const txt = `${p.name} ${p.manufacturer ?? ""}`.toLowerCase();
+  if (/gen[eé]rico/.test(txt)) return "generico";
+  if (p.featured) return "mais-vendido";
+  if (p.created_at) {
+    const days = (Date.now() - new Date(p.created_at).getTime()) / 86400000;
+    if (days <= 30) return "novo";
+  }
+  return null;
+}
+
+const BADGE_STYLE: Record<Exclude<BadgeKind, null>, { label: string; cls: string }> = {
+  oferta: { label: "Oferta", cls: "bg-primary text-primary-foreground" },
+  generico: { label: "Genérico", cls: "bg-emerald-600 text-white" },
+  "mais-vendido": { label: "Mais vendido", cls: "bg-tag text-tag-foreground" },
+  novo: { label: "Novo", cls: "bg-sky-600 text-white" },
 };
 
 export function ProductCard({ p }: { p: Product }) {
@@ -18,6 +40,7 @@ export function ProductCard({ p }: { p: Product }) {
   const finalPrice = p.promo_price ?? p.price;
   const hasDiscount = !!p.promo_price && p.promo_price < p.price;
   const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
+  const badge = resolveBadge(p, hasDiscount);
 
   const handleAdd = () => {
     if (p.controlled) {
@@ -32,71 +55,85 @@ export function ProductCard({ p }: { p: Product }) {
   const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", waMsg);
 
   return (
-    <article className="group bg-card border border-[hsl(0_0%_94%)] rounded-[10px] overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 h-full">
-      <Link to={`/produto/${p.slug}`} className="relative block bg-secondary/40 overflow-hidden" style={{ aspectRatio: "1 / 1" }}>
+    <article className="group bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 h-full">
+      <Link
+        to={`/produto/${p.slug}`}
+        className="relative block bg-secondary/30 overflow-hidden"
+        style={{ aspectRatio: "1 / 1" }}
+      >
         <img
           src={p.image_url || productPlaceholder}
           alt={p.name}
           loading="lazy"
-          className="w-full h-full object-contain p-3 md:p-4 group-hover:scale-[1.03] transition-transform duration-300"
+          className="w-full h-full object-contain p-2 md:p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
         />
-        {hasDiscount && (
-          <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shadow-card">
-            Oferta
-          </span>
-        )}
-        {!hasDiscount && p.featured && (
-          <span className="absolute top-2 left-2 bg-tag text-tag-foreground text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shadow-card">
-            Mais vendido
+        {badge && (
+          <span
+            className={`absolute top-2 left-2 ${BADGE_STYLE[badge].cls} text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shadow-card`}
+          >
+            {BADGE_STYLE[badge].label}
           </span>
         )}
         {hasDiscount && (
-          <span className="absolute top-2 right-2 bg-primary-dark text-primary-foreground text-[11px] font-extrabold px-2 py-1 rounded-md">
+          <span className="absolute top-2 right-2 bg-primary-dark text-primary-foreground text-[11px] font-extrabold px-2 py-1 rounded-md shadow-card">
             -{discount}%
           </span>
         )}
         {p.requires_prescription && !hasDiscount && (
-          <span className="absolute top-2 right-2 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-1 rounded">
+          <span className="absolute bottom-2 right-2 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-1 rounded">
             Receita
           </span>
         )}
       </Link>
 
       <div className="p-3 md:p-4 flex flex-col gap-1 flex-1">
-        <Link to={`/produto/${p.slug}`} className="font-medium text-sm leading-snug line-clamp-2 hover:text-primary min-h-[2.5rem]">
+        <Link
+          to={`/produto/${p.slug}`}
+          className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary min-h-[2.5rem]"
+        >
           {p.name}
         </Link>
-        {p.manufacturer && <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{p.manufacturer}</div>}
+        {p.manufacturer && (
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">
+            {p.manufacturer}
+          </div>
+        )}
 
         <div className="mt-auto pt-2">
-          {hasDiscount ? (
-            <div className="text-xs text-muted-foreground line-through h-4">{formatBRL(p.price)}</div>
-          ) : (
-            <div className="h-4" />
-          )}
-          <div className="text-[22px] md:text-[26px] font-extrabold leading-none text-primary">{formatBRL(finalPrice)}</div>
-          <div className="text-[10px] md:text-[11px] text-muted-foreground mt-1">Retire na loja ou peça pelo WhatsApp</div>
+          <div className="h-4 text-xs text-muted-foreground line-through">
+            {hasDiscount ? formatBRL(p.price) : "\u00A0"}
+          </div>
+          <div className="text-[22px] md:text-[26px] font-extrabold leading-none text-primary">
+            {formatBRL(finalPrice)}
+          </div>
+          <div className="text-[10px] md:text-[11px] text-muted-foreground mt-1">
+            Retire na loja ou peça pelo WhatsApp
+          </div>
         </div>
 
         {p.controlled ? (
-          <Button asChild size="sm" variant="outline" className="mt-3 rounded-full">
-            <Link to="/enviar-receita"><FileText className="h-4 w-4 mr-1" /> Enviar receita</Link>
+          <Button asChild size="sm" variant="outline" className="mt-3 rounded-full h-10">
+            <Link to="/enviar-receita">
+              <FileText className="h-4 w-4 mr-1" /> Enviar receita
+            </Link>
           </Button>
         ) : (
-          <div className="grid grid-cols-2 gap-1.5 mt-3">
+          <div className="mt-3 flex items-stretch gap-1.5">
             <Button
-              size="sm"
               onClick={handleAdd}
-              className="h-10 rounded-full font-semibold bg-primary hover:bg-primary-dark active:scale-95 transition-all"
+              className="flex-1 h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all"
             >
               <ShoppingCart className="h-4 w-4 mr-1" /> Adicionar
             </Button>
             <Button
               asChild
-              size="sm"
-              className="h-10 rounded-full font-semibold bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
+              size="icon"
+              aria-label="Comprar pelo WhatsApp"
+              className="h-10 w-10 shrink-0 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
             >
-              <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-1" /> WhatsApp</a>
+              <a href={wa} target="_blank" rel="noopener">
+                <MessageCircle className="h-4 w-4" />
+              </a>
             </Button>
           </div>
         )}
