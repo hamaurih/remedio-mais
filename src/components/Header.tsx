@@ -99,24 +99,7 @@ export function Header() {
         </form>
       </div>
 
-      {/* Categories */}
-      <nav className="border-t bg-background">
-        <div className="container overflow-x-auto scrollbar-hide">
-          <ul className="flex gap-1 py-2 whitespace-nowrap text-sm">
-            {CATS.map(([name, slug]) => (
-              <li key={slug}>
-                <Link
-                  to={`/categoria/${slug}`}
-                  className="px-3 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-medium relative group"
-                >
-                  <span>{name}</span>
-                  <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </nav>
+      <CategoryNav categories={CATS} />
     </header>
   );
 }
