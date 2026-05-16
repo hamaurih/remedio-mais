@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,7 +20,7 @@ import AdminOrders from "./pages/admin/AdminOrders.tsx";
 import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
 import AdminOffers from "./pages/admin/AdminOffers.tsx";
-import { Navigate } from "react-router-dom";
+
 
 const queryClient = new QueryClient();
 
