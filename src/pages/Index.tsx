@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Product } from "@/components/ProductCard";
-import { ProductCarousel } from "@/components/ProductCarousel";
+import { ProductShelf } from "@/components/ProductShelf";
 import { HeroSlider } from "@/components/HeroSlider";
 import { PromoMosaic } from "@/components/PromoMosaic";
 import { BenefitCards } from "@/components/BenefitCards";
@@ -28,28 +28,6 @@ function Reveal({ children }: { children: React.ReactNode }) {
   return <div ref={ref} className={show ? "animate-fade-in-up" : "opacity-0"}>{children}</div>;
 }
 
-function Shelf({ title, link, items, loading, alt }: { title: string; link?: string; items?: Product[]; loading?: boolean; alt?: boolean }) {
-  return (
-    <Reveal>
-      <section className={alt ? "bg-secondary/40" : ""}>
-        <div className="container py-6 md:py-8">
-          <div className="flex items-end justify-between mb-4">
-            <h2 className="text-xl md:text-2xl font-extrabold flex items-center gap-2">
-              <span className="inline-block w-1 h-6 bg-primary rounded-full" />
-              {title}
-            </h2>
-            {link && (
-              <Link to={link} className="text-sm text-primary font-bold hover:underline whitespace-nowrap">
-                Ver todos →
-              </Link>
-            )}
-          </div>
-          <ProductCarousel items={items} loading={loading} />
-        </div>
-      </section>
-    </Reveal>
-  );
-}
 
 export default function Index() {
   const { data: settings } = useStoreSettings();
@@ -149,13 +127,27 @@ export default function Index() {
       <Reveal><DepartmentCarousel /></Reveal>
 
       {/* Shelves */}
-      <Shelf title="Ofertas da Semana" link="/categoria/ofertas" items={offers.data} loading={offers.isLoading} />
-      <Shelf title="Mais Vendidos" items={bestsellers.data} loading={bestsellers.isLoading} alt />
-      <Shelf title="Medicamentos Populares" link="/categoria/medicamentos" items={meds.data} loading={meds.isLoading} />
-      <Shelf title="Higiene e Beleza" link="/categoria/higiene-pessoal" items={hygiene.data} loading={hygiene.isLoading} alt />
-      <Shelf title="Mamães e Bebês" link="/categoria/mamaes-e-bebes" items={babies.data} loading={babies.isLoading} />
-      <Shelf title="Vitaminas e Suplementos" link="/categoria/vitaminas" items={vitamins.data} loading={vitamins.isLoading} alt />
-      <Shelf title="Primeiros Socorros" link="/categoria/primeiros-socorros" items={firstaid.data} loading={firstaid.isLoading} />
+      <Reveal>
+        <ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/categoria/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay />
+      </Reveal>
+      <Reveal>
+        <ProductShelf title="Mais Vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" />
+      </Reveal>
+      <Reveal>
+        <ProductShelf title="Medicamentos Populares" viewAllLink="/categoria/medicamentos" products={meds.data} loading={meds.isLoading} backgroundVariant="white" />
+      </Reveal>
+      <Reveal>
+        <ProductShelf title="Higiene e Beleza" viewAllLink="/categoria/higiene-pessoal" products={hygiene.data} loading={hygiene.isLoading} backgroundVariant="light" />
+      </Reveal>
+      <Reveal>
+        <ProductShelf title="Mamães e Bebês" viewAllLink="/categoria/mamaes-e-bebes" products={babies.data} loading={babies.isLoading} backgroundVariant="white" />
+      </Reveal>
+      <Reveal>
+        <ProductShelf title="Vitaminas e Suplementos" viewAllLink="/categoria/vitaminas" products={vitamins.data} loading={vitamins.isLoading} backgroundVariant="light" />
+      </Reveal>
+      <Reveal>
+        <ProductShelf title="Primeiros Socorros" viewAllLink="/categoria/primeiros-socorros" products={firstaid.data} loading={firstaid.isLoading} backgroundVariant="white" />
+      </Reveal>
 
 
       {/* Prescription CTA */}
