@@ -5,38 +5,16 @@ import { Product } from "@/components/ProductCard";
 import { ProductCarousel } from "@/components/ProductCarousel";
 import { HeroSlider } from "@/components/HeroSlider";
 import { PromoMosaic } from "@/components/PromoMosaic";
+import { BenefitCards } from "@/components/BenefitCards";
+import { DepartmentCarousel } from "@/components/DepartmentCarousel";
+import { PrescriptionCTA } from "@/components/PrescriptionCTA";
+import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
 import { Link } from "react-router-dom";
-import {
-  Truck, Store, MessageCircle, FileText, MapPin, Tag, Pill,
-  Thermometer, Wind, Sun, Droplet, Baby, Sparkles, ShoppingBag, HeartPulse, Bandage,
-  BadgePercent, Stethoscope, Star,
-} from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useEffect, useRef, useState } from "react";
-
-const ICONS: Record<string, any> = {
-  Tag, Pill, Capsule: Pill, Thermometer, Wind, Sun, Droplet, Baby, Sparkles, ShoppingBag, BandageIcon: Bandage, HeartPulse,
-};
-
-const DEPARTAMENTOS = [
-  { name: "Ofertas", slug: "ofertas", icon: Tag, color: "from-primary/15 to-primary/5" },
-  { name: "Medicamentos", slug: "medicamentos", icon: Pill, color: "from-blue-500/15 to-blue-500/5" },
-  { name: "Genéricos", slug: "genericos", icon: BadgePercent, color: "from-green-500/15 to-green-500/5" },
-  { name: "Mamães e Bebês", slug: "mamaes-e-bebes", icon: Baby, color: "from-pink-400/20 to-pink-400/5" },
-  { name: "Higiene e Beleza", slug: "higiene-pessoal", icon: Sparkles, color: "from-purple-500/15 to-purple-500/5" },
-  { name: "Vitaminas", slug: "vitaminas", icon: Sun, color: "from-amber-500/20 to-amber-500/5" },
-  { name: "Primeiros Socorros", slug: "primeiros-socorros", icon: Bandage, color: "from-red-500/15 to-red-500/5" },
-  { name: "Conveniência", slug: "conveniencia", icon: ShoppingBag, color: "from-teal-500/15 to-teal-500/5" },
-];
-
-const BENEFITS = [
-  { icon: Truck, title: "Entrega rápida", desc: "Em Campina Grande" },
-  { icon: Store, title: "Retire na loja", desc: "Reserve online" },
-  { icon: MessageCircle, title: "Peça pelo WhatsApp", desc: "Atendimento humano" },
-  { icon: FileText, title: "Envie sua receita", desc: "Análise da farmácia" },
-  { icon: BadgePercent, title: "Preço baixo todo dia", desc: "Ofertas reais" },
-];
+import type { Product as ProductType } from "@/components/ProductCard";
 
 function Reveal({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
