@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export default function AdminSettings() {
@@ -22,19 +23,54 @@ export default function AdminSettings() {
     if (error) toast.error(error.message); else toast.success("Configurações salvas");
   };
 
+  const set = (k: string) => (e: any) => setS({ ...s, [k]: e.target.value });
+
   if (loading) return <div className="p-6">Carregando...</div>;
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-6 max-w-3xl">
       <h1 className="text-2xl font-extrabold mb-6">Configurações da loja</h1>
-      <div className="bg-card border rounded-xl p-6 shadow-card space-y-3">
-        <div className="space-y-1"><Label>WhatsApp (somente números, com DDI)</Label><Input value={s.whatsapp || ""} onChange={(e) => setS({ ...s, whatsapp: e.target.value })} placeholder="5583999286000" /></div>
-        <div className="space-y-1"><Label>Endereço</Label><Textarea value={s.address || ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
-        <div className="space-y-1"><Label>Instagram (URL)</Label><Input value={s.instagram || ""} onChange={(e) => setS({ ...s, instagram: e.target.value })} /></div>
-        <div className="space-y-1"><Label>Horário</Label><Input value={s.hours || ""} onChange={(e) => setS({ ...s, hours: e.target.value })} /></div>
-        <div className="space-y-1"><Label>Taxa de entrega padrão</Label><Input type="number" step="0.01" value={s.delivery_fee || 0} onChange={(e) => setS({ ...s, delivery_fee: e.target.value })} /></div>
-        <div className="space-y-1"><Label>Título do hero</Label><Input value={s.hero_title || ""} onChange={(e) => setS({ ...s, hero_title: e.target.value })} /></div>
-        <div className="space-y-1"><Label>Subtítulo do hero</Label><Textarea value={s.hero_subtitle || ""} onChange={(e) => setS({ ...s, hero_subtitle: e.target.value })} /></div>
-        <Button onClick={save}>Salvar</Button>
+      <div className="bg-card border rounded-xl p-6 shadow-card">
+        <Tabs defaultValue="loja">
+          <TabsList className="flex-wrap h-auto">
+            <TabsTrigger value="loja">Loja</TabsTrigger>
+            <TabsTrigger value="entrega">Entrega</TabsTrigger>
+            <TabsTrigger value="home">Home</TabsTrigger>
+            <TabsTrigger value="legal">Legal / Sanitário</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="loja" className="space-y-3 pt-3">
+            <div className="space-y-1"><Label>Nome da loja</Label><Input value={s.store_name || ""} onChange={set("store_name")} /></div>
+            <div className="space-y-1"><Label>WhatsApp (só números, com DDI)</Label><Input value={s.whatsapp || ""} onChange={set("whatsapp")} placeholder="5583999286000" /></div>
+            <div className="space-y-1"><Label>Endereço</Label><Textarea value={s.address || ""} onChange={set("address")} /></div>
+            <div className="space-y-1"><Label>Instagram (URL)</Label><Input value={s.instagram || ""} onChange={set("instagram")} /></div>
+            <div className="space-y-1"><Label>Horário de funcionamento</Label><Input value={s.hours || ""} onChange={set("hours")} /></div>
+          </TabsContent>
+
+          <TabsContent value="entrega" className="space-y-3 pt-3">
+            <div className="space-y-1"><Label>Taxa de entrega padrão (R$)</Label><Input type="number" step="0.01" value={s.delivery_fee || 0} onChange={set("delivery_fee")} /></div>
+            <div className="space-y-1"><Label>Bairros atendidos</Label><Textarea rows={4} value={s.served_neighborhoods || ""} onChange={set("served_neighborhoods")} placeholder="Centro, Catolé, Liberdade..." /></div>
+          </TabsContent>
+
+          <TabsContent value="home" className="space-y-3 pt-3">
+            <div className="space-y-1"><Label>Título do hero</Label><Input value={s.hero_title || ""} onChange={set("hero_title")} /></div>
+            <div className="space-y-1"><Label>Subtítulo do hero</Label><Textarea value={s.hero_subtitle || ""} onChange={set("hero_subtitle")} /></div>
+            <div className="space-y-1"><Label>Texto do rodapé</Label><Textarea value={s.footer_text || ""} onChange={set("footer_text")} /></div>
+          </TabsContent>
+
+          <TabsContent value="legal" className="space-y-3 pt-3">
+            <div className="space-y-1"><Label>Razão social</Label><Input value={s.legal_name || ""} onChange={set("legal_name")} /></div>
+            <div className="space-y-1"><Label>CNPJ</Label><Input value={s.cnpj || ""} onChange={set("cnpj")} /></div>
+            <div className="space-y-1"><Label>Farmacêutico responsável</Label><Input value={s.pharmacist_name || ""} onChange={set("pharmacist_name")} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>CRF</Label><Input value={s.crf || ""} onChange={set("crf")} /></div>
+              <div className="space-y-1"><Label>Licença sanitária</Label><Input value={s.sanitary_license || ""} onChange={set("sanitary_license")} /></div>
+            </div>
+            <div className="space-y-1"><Label>AFE</Label><Input value={s.afe || ""} onChange={set("afe")} /></div>
+            <div className="space-y-1"><Label>Aviso sanitário padrão</Label><Textarea value={s.sanitary_notice || ""} onChange={set("sanitary_notice")} placeholder="A persistirem os sintomas..." /></div>
+          </TabsContent>
+        </Tabs>
+
+        <Button className="mt-6" onClick={save}>Salvar tudo</Button>
       </div>
     </div>
   );
