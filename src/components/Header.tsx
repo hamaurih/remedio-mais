@@ -8,14 +8,21 @@ import { useState } from "react";
 import { buildWhatsAppLink } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { PromoTicker } from "./PromoTicker";
+import { CategoryNav } from "./CategoryNav";
 
 const CATS = [
-  ["Ofertas", "ofertas"], ["Medicamentos", "medicamentos"], ["Genéricos", "genericos"],
-  ["Dor e Febre", "dor-e-febre"], ["Gripe e Resfriado", "gripe-e-resfriado"],
-  ["Vitaminas", "vitaminas"], ["Higiene Pessoal", "higiene-pessoal"],
-  ["Mamães e Bebês", "mamaes-e-bebes"], ["Dermocosméticos", "dermocosmeticos"],
-  ["Conveniência", "conveniencia"], ["Primeiros Socorros", "primeiros-socorros"],
-  ["Aparelhos de Saúde", "aparelhos-de-saude"],
+  { name: "Ofertas", slug: "ofertas" },
+  { name: "Medicamentos", slug: "medicamentos" },
+  { name: "Genéricos", slug: "genericos" },
+  { name: "Dor e Febre", slug: "dor-e-febre" },
+  { name: "Gripe e Resfriado", slug: "gripe-e-resfriado" },
+  { name: "Vitaminas", slug: "vitaminas" },
+  { name: "Higiene Pessoal", slug: "higiene-pessoal" },
+  { name: "Mamães e Bebês", slug: "mamaes-e-bebes" },
+  { name: "Dermocosméticos", slug: "dermocosmeticos" },
+  { name: "Conveniência", slug: "conveniencia" },
+  { name: "Primeiros Socorros", slug: "primeiros-socorros" },
+  { name: "Aparelhos de Saúde", slug: "aparelhos-de-saude" },
 ];
 
 export function Header() {
@@ -92,24 +99,7 @@ export function Header() {
         </form>
       </div>
 
-      {/* Categories */}
-      <nav className="border-t bg-background">
-        <div className="container overflow-x-auto scrollbar-hide">
-          <ul className="flex gap-1 py-2 whitespace-nowrap text-sm">
-            {CATS.map(([name, slug]) => (
-              <li key={slug}>
-                <Link
-                  to={`/categoria/${slug}`}
-                  className="px-3 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-medium relative group"
-                >
-                  <span>{name}</span>
-                  <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </nav>
+      <CategoryNav categories={CATS} />
     </header>
   );
 }
