@@ -510,6 +510,13 @@ Deno.serve(async (req) => {
     let result: any;
     switch (action) {
       case "test-connection": result = await actionTestConnection(); break;
+      case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
+      case "preview-url": {
+        const s = await getSettings();
+        const endpoint = body.endpoint || "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+        result = { baseUrl: s.base_url, endpoint, finalUrl: buildUrl(s.base_url, endpoint) };
+        break;
+      }
       case "sync-products": result = await actionSyncProducts(trigger, !!body.changed); break;
       case "sync-categories": result = await actionSyncCategories(trigger); break;
       case "sync-stock": result = await actionSyncStock(trigger); break;
