@@ -241,10 +241,27 @@ export default function AdminTrier() {
             <Button variant="outline" onClick={() => call("test-connection", {}, "Conexão testada")} disabled={busy !== null}>
               <Plug className="h-4 w-4 mr-2" />Testar conexão
             </Button>
-            <Button variant="outline" onClick={() => call("test-products-endpoint", {}, "Endpoint de produtos testado")} disabled={busy !== null}>
+            <Button variant="outline" onClick={async () => { const d = await call("test-products-endpoint", {}, "Endpoint de produtos testado"); if (d) setLastTestResult(d); }} disabled={busy !== null}>
               <Package className="h-4 w-4 mr-2" />Testar endpoint de produtos
             </Button>
           </div>
+
+          {lastTestResult && (
+            <div className="bg-card border rounded-xl p-4 space-y-2">
+              <h2 className="font-bold flex items-center gap-2">
+                Resultado do último teste
+                <Badge variant={lastTestResult.ok ? "default" : "destructive"}>HTTP {lastTestResult.status ?? "—"}</Badge>
+              </h2>
+              <div className="text-xs font-mono break-all space-y-1">
+                <div><span className="text-muted-foreground">URL:</span> {lastTestResult.finalUrl}</div>
+                {lastTestResult.count != null && <div><span className="text-muted-foreground">Itens retornados:</span> {lastTestResult.count}</div>}
+                {lastTestResult.error && <div className="text-destructive">Erro: {lastTestResult.error}</div>}
+                {lastTestResult.body && (
+                  <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ---------- PRODUTOS ---------- */}
