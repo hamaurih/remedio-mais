@@ -335,12 +335,12 @@ export default function AdminTrier() {
             <h2 className="font-bold">URL final montada</h2>
             <p className="text-xs text-muted-foreground">Token nunca é exibido. Esta é a URL exata que a edge function vai chamar.</p>
             {(() => {
-              const base = normalizeBaseUrl(form.base_url || "", form.environment || "homologacao");
-              const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+              const base = normalizeBaseUrl(form.base_url || "");
+              const endpoint = buildTestProductsPath(form.branch_code || "1", form.ecommerce_filter ?? "");
               const tokenMasked = tokenInput ? maskToken(tokenInput) : "";
               return (
                 <div className="space-y-1 text-xs font-mono break-all">
-                  <div><span className="text-muted-foreground">ambiente:</span> {form.environment === "producao" ? "Produção" : "Homologação"}</div>
+                  <div><span className="text-muted-foreground">ambiente:</span> {form.environment || "gateway"}</div>
                   <div><span className="text-muted-foreground">baseUrl:</span> {base || "—"}</div>
                   <div><span className="text-muted-foreground">endpoint:</span> {endpoint}</div>
                   <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? buildTrierUrl(base, endpoint) : "—"}</span></div>
