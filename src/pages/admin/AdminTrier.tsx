@@ -782,3 +782,19 @@ function JobsTable({ jobs }: { jobs: any[] }) {
     </div>
   );
 }
+
+function StatusPill({ label, value, tone }: { label: string; value: number | string; tone: "default" | "success" | "info" | "warn" | "error" }) {
+  const toneCls = {
+    default: "bg-muted text-foreground",
+    success: "bg-whatsapp/10 text-whatsapp",
+    info: "bg-primary/10 text-primary",
+    warn: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+    error: "bg-destructive/10 text-destructive",
+  }[tone];
+  return (
+    <div className={`rounded-lg p-2 ${toneCls}`}>
+      <div className="text-lg font-extrabold">{value}</div>
+      <div className="text-xs">{label}</div>
+    </div>
+  );
+}
