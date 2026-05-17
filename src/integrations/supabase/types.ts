@@ -163,6 +163,13 @@ export type Database = {
           notes: string | null
           status: string
           total: number
+          trier_error_message: string | null
+          trier_last_status_check_at: string | null
+          trier_numero_nota: string | null
+          trier_sent: boolean
+          trier_sent_at: string | null
+          trier_status: string | null
+          trier_status_code: number | null
           updated_at: string
         }
         Insert: {
@@ -175,6 +182,13 @@ export type Database = {
           notes?: string | null
           status?: string
           total?: number
+          trier_error_message?: string | null
+          trier_last_status_check_at?: string | null
+          trier_numero_nota?: string | null
+          trier_sent?: boolean
+          trier_sent_at?: string | null
+          trier_status?: string | null
+          trier_status_code?: number | null
           updated_at?: string
         }
         Update: {
@@ -187,6 +201,13 @@ export type Database = {
           notes?: string | null
           status?: string
           total?: number
+          trier_error_message?: string | null
+          trier_last_status_check_at?: string | null
+          trier_numero_nota?: string | null
+          trier_sent?: boolean
+          trier_sent_at?: string | null
+          trier_status?: string | null
+          trier_status_code?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -258,6 +279,9 @@ export type Database = {
           laboratory: string | null
           laboratory_code: string | null
           last_synced_at: string | null
+          last_trier_sync_at: string | null
+          lock_manual_price: boolean
+          lock_manual_stock: boolean
           manufacturer: string | null
           max_discount_percentage: number | null
           medicine_list_type: string | null
@@ -278,10 +302,13 @@ export type Database = {
           short_description: string | null
           sku: string | null
           slug: string
+          source: string | null
           stock: number
           stock_quantity: number | null
+          sync_with_trier: boolean
           tags: string | null
           tarja: string | null
+          trier_barcode: string | null
           trier_product_id: string | null
           updated_at: string
         }
@@ -315,6 +342,9 @@ export type Database = {
           laboratory?: string | null
           laboratory_code?: string | null
           last_synced_at?: string | null
+          last_trier_sync_at?: string | null
+          lock_manual_price?: boolean
+          lock_manual_stock?: boolean
           manufacturer?: string | null
           max_discount_percentage?: number | null
           medicine_list_type?: string | null
@@ -335,10 +365,13 @@ export type Database = {
           short_description?: string | null
           sku?: string | null
           slug: string
+          source?: string | null
           stock?: number
           stock_quantity?: number | null
+          sync_with_trier?: boolean
           tags?: string | null
           tarja?: string | null
+          trier_barcode?: string | null
           trier_product_id?: string | null
           updated_at?: string
         }
@@ -372,6 +405,9 @@ export type Database = {
           laboratory?: string | null
           laboratory_code?: string | null
           last_synced_at?: string | null
+          last_trier_sync_at?: string | null
+          lock_manual_price?: boolean
+          lock_manual_stock?: boolean
           manufacturer?: string | null
           max_discount_percentage?: number | null
           medicine_list_type?: string | null
@@ -392,10 +428,13 @@ export type Database = {
           short_description?: string | null
           sku?: string | null
           slug?: string
+          source?: string | null
           stock?: number
           stock_quantity?: number | null
+          sync_with_trier?: boolean
           tags?: string | null
           tarja?: string | null
+          trier_barcode?: string | null
           trier_product_id?: string | null
           updated_at?: string
         }
@@ -490,6 +529,221 @@ export type Database = {
           store_name?: string | null
           updated_at?: string
           whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      trier_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          message: string
+          order_id: string | null
+          product_id: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message: string
+          order_id?: string | null
+          product_id?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message?: string
+          order_id?: string | null
+          product_id?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      trier_product_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          product_id: string | null
+          sync_status: string | null
+          trier_barcode: string | null
+          trier_name: string | null
+          trier_product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          product_id?: string | null
+          sync_status?: string | null
+          trier_barcode?: string | null
+          trier_name?: string | null
+          trier_product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          product_id?: string | null
+          sync_status?: string | null
+          trier_barcode?: string | null
+          trier_name?: string | null
+          trier_product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trier_product_mappings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trier_settings: {
+        Row: {
+          base_url: string
+          bearer_token: string | null
+          branch_code: string | null
+          check_order_status_enabled: boolean
+          created_at: string
+          ecommerce_filter_enabled: boolean
+          environment: string
+          id: number
+          last_connection_status: string | null
+          last_connection_test_at: string | null
+          last_sync_categories_at: string | null
+          last_sync_discounts_at: string | null
+          last_sync_prices_at: string | null
+          last_sync_products_at: string | null
+          last_sync_stock_at: string | null
+          page_size: number
+          schedule_discounts_minutes: number
+          schedule_prices_minutes: number
+          schedule_products_minutes: number
+          schedule_stock_minutes: number
+          send_orders_enabled: boolean
+          sync_categories_enabled: boolean
+          sync_discounts_enabled: boolean
+          sync_prices_enabled: boolean
+          sync_products_enabled: boolean
+          sync_stock_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          base_url?: string
+          bearer_token?: string | null
+          branch_code?: string | null
+          check_order_status_enabled?: boolean
+          created_at?: string
+          ecommerce_filter_enabled?: boolean
+          environment?: string
+          id?: number
+          last_connection_status?: string | null
+          last_connection_test_at?: string | null
+          last_sync_categories_at?: string | null
+          last_sync_discounts_at?: string | null
+          last_sync_prices_at?: string | null
+          last_sync_products_at?: string | null
+          last_sync_stock_at?: string | null
+          page_size?: number
+          schedule_discounts_minutes?: number
+          schedule_prices_minutes?: number
+          schedule_products_minutes?: number
+          schedule_stock_minutes?: number
+          send_orders_enabled?: boolean
+          sync_categories_enabled?: boolean
+          sync_discounts_enabled?: boolean
+          sync_prices_enabled?: boolean
+          sync_products_enabled?: boolean
+          sync_stock_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string
+          bearer_token?: string | null
+          branch_code?: string | null
+          check_order_status_enabled?: boolean
+          created_at?: string
+          ecommerce_filter_enabled?: boolean
+          environment?: string
+          id?: number
+          last_connection_status?: string | null
+          last_connection_test_at?: string | null
+          last_sync_categories_at?: string | null
+          last_sync_discounts_at?: string | null
+          last_sync_prices_at?: string | null
+          last_sync_products_at?: string | null
+          last_sync_stock_at?: string | null
+          page_size?: number
+          schedule_discounts_minutes?: number
+          schedule_prices_minutes?: number
+          schedule_products_minutes?: number
+          schedule_stock_minutes?: number
+          send_orders_enabled?: boolean
+          sync_categories_enabled?: boolean
+          sync_discounts_enabled?: boolean
+          sync_prices_enabled?: boolean
+          sync_products_enabled?: boolean
+          sync_stock_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trier_sync_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          records_checked: number | null
+          records_created: number | null
+          records_failed: number | null
+          records_ignored: number | null
+          records_updated: number | null
+          started_at: string
+          status: string
+          sync_type: string
+          trigger: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          records_checked?: number | null
+          records_created?: number | null
+          records_failed?: number | null
+          records_ignored?: number | null
+          records_updated?: number | null
+          started_at?: string
+          status?: string
+          sync_type: string
+          trigger?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          records_checked?: number | null
+          records_created?: number | null
+          records_failed?: number | null
+          records_ignored?: number | null
+          records_updated?: number | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          trigger?: string
         }
         Relationships: []
       }
