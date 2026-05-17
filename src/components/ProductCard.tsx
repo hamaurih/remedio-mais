@@ -11,6 +11,7 @@ export type Product = {
   price: number; promo_price: number | null;
   image_url: string | null; manufacturer: string | null;
   on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
+  stock?: number; cart_quantity_limit?: number | null;
   created_at?: string | null;
 };
 
@@ -42,9 +43,14 @@ export function ProductCard({ p }: { p: Product }) {
   const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
   const badge = resolveBadge(p, hasDiscount);
 
+  const outOfStock = typeof p.stock === "number" && p.stock <= 0;
   const handleAdd = () => {
     if (p.controlled) {
       toast.error("Medicamento controlado. Envie sua receita para análise.");
+      return;
+    }
+    if (outOfStock) {
+      toast.error("Produto indisponível no momento.");
       return;
     }
     addToCart({ id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
@@ -79,9 +85,14 @@ export function ProductCard({ p }: { p: Product }) {
             -{discount}%
           </span>
         )}
-        {p.requires_prescription && !hasDiscount && (
+        {p.requires_prescription && !hasDiscount && !outOfStock && (
           <span className="absolute bottom-2 right-2 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-1 rounded">
             Receita
+          </span>
+        )}
+        {outOfStock && (
+          <span className="absolute bottom-2 left-2 right-2 bg-muted text-muted-foreground text-[10px] font-bold uppercase tracking-wide text-center py-1 rounded">
+            Indisponível
           </span>
         )}
       </Link>
@@ -121,14 +132,15 @@ export function ProductCard({ p }: { p: Product }) {
           <div className="mt-3 flex items-stretch gap-1.5">
             <Button
               onClick={handleAdd}
-              className="flex-1 h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all"
+              disabled={outOfStock}
+              className="flex-1 h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-60"
             >
-              <ShoppingCart className="h-4 w-4 mr-1" /> Adicionar
+              <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : "Adicionar"}
             </Button>
             <Button
               asChild
               size="icon"
-              aria-label="Comprar pelo WhatsApp"
+              aria-label={outOfStock ? "Consultar pelo WhatsApp" : "Comprar pelo WhatsApp"}
               className="h-10 w-10 shrink-0 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
             >
               <a href={wa} target="_blank" rel="noopener">
