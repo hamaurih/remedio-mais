@@ -231,18 +231,36 @@ export type Database = {
         Row: {
           active: boolean
           active_ingredient: string | null
+          active_ingredient_code: string | null
           barcode: string | null
+          cart_quantity_limit: number | null
+          category_external_id: string | null
           category_id: string | null
+          category_name: string | null
           controlled: boolean
           created_at: string
           custom_warning: string | null
+          department_external_id: string | null
+          department_name: string | null
           description: string | null
           discount_percentage: number | null
+          ecommerce_enabled: boolean | null
+          ecommerce_name: string | null
+          ecommerce_price: number | null
+          ecommerce_stock_quantity: number | null
           featured: boolean
           gallery_images: string[]
+          group_code: string | null
+          group_name: string | null
           id: string
           image_url: string | null
+          is_active: boolean | null
+          laboratory: string | null
+          laboratory_code: string | null
+          last_synced_at: string | null
           manufacturer: string | null
+          max_discount_percentage: number | null
+          medicine_list_type: string | null
           minimum_stock: number
           name: string
           on_sale: boolean
@@ -252,6 +270,7 @@ export type Database = {
           promotion_end: string | null
           promotion_start: string | null
           requires_prescription: boolean
+          sale_observation: string | null
           seo_description: string | null
           seo_keywords: string | null
           seo_title: string | null
@@ -260,24 +279,45 @@ export type Database = {
           sku: string | null
           slug: string
           stock: number
+          stock_quantity: number | null
+          tags: string | null
           tarja: string | null
+          trier_product_id: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
           active_ingredient?: string | null
+          active_ingredient_code?: string | null
           barcode?: string | null
+          cart_quantity_limit?: number | null
+          category_external_id?: string | null
           category_id?: string | null
+          category_name?: string | null
           controlled?: boolean
           created_at?: string
           custom_warning?: string | null
+          department_external_id?: string | null
+          department_name?: string | null
           description?: string | null
           discount_percentage?: number | null
+          ecommerce_enabled?: boolean | null
+          ecommerce_name?: string | null
+          ecommerce_price?: number | null
+          ecommerce_stock_quantity?: number | null
           featured?: boolean
           gallery_images?: string[]
+          group_code?: string | null
+          group_name?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean | null
+          laboratory?: string | null
+          laboratory_code?: string | null
+          last_synced_at?: string | null
           manufacturer?: string | null
+          max_discount_percentage?: number | null
+          medicine_list_type?: string | null
           minimum_stock?: number
           name: string
           on_sale?: boolean
@@ -287,6 +327,7 @@ export type Database = {
           promotion_end?: string | null
           promotion_start?: string | null
           requires_prescription?: boolean
+          sale_observation?: string | null
           seo_description?: string | null
           seo_keywords?: string | null
           seo_title?: string | null
@@ -295,24 +336,45 @@ export type Database = {
           sku?: string | null
           slug: string
           stock?: number
+          stock_quantity?: number | null
+          tags?: string | null
           tarja?: string | null
+          trier_product_id?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
           active_ingredient?: string | null
+          active_ingredient_code?: string | null
           barcode?: string | null
+          cart_quantity_limit?: number | null
+          category_external_id?: string | null
           category_id?: string | null
+          category_name?: string | null
           controlled?: boolean
           created_at?: string
           custom_warning?: string | null
+          department_external_id?: string | null
+          department_name?: string | null
           description?: string | null
           discount_percentage?: number | null
+          ecommerce_enabled?: boolean | null
+          ecommerce_name?: string | null
+          ecommerce_price?: number | null
+          ecommerce_stock_quantity?: number | null
           featured?: boolean
           gallery_images?: string[]
+          group_code?: string | null
+          group_name?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean | null
+          laboratory?: string | null
+          laboratory_code?: string | null
+          last_synced_at?: string | null
           manufacturer?: string | null
+          max_discount_percentage?: number | null
+          medicine_list_type?: string | null
           minimum_stock?: number
           name?: string
           on_sale?: boolean
@@ -322,6 +384,7 @@ export type Database = {
           promotion_end?: string | null
           promotion_start?: string | null
           requires_prescription?: boolean
+          sale_observation?: string | null
           seo_description?: string | null
           seo_keywords?: string | null
           seo_title?: string | null
@@ -330,7 +393,10 @@ export type Database = {
           sku?: string | null
           slug?: string
           stock?: number
+          stock_quantity?: number | null
+          tags?: string | null
           tarja?: string | null
+          trier_product_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -424,6 +490,48 @@ export type Database = {
           store_name?: string | null
           updated_at?: string
           whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      trier_sync_logs: {
+        Row: {
+          details: Json | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          items_created: number | null
+          items_fetched: number | null
+          items_skipped: number | null
+          items_updated: number | null
+          started_at: string
+          status: string
+          trigger: string
+        }
+        Insert: {
+          details?: Json | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          items_created?: number | null
+          items_fetched?: number | null
+          items_skipped?: number | null
+          items_updated?: number | null
+          started_at?: string
+          status?: string
+          trigger?: string
+        }
+        Update: {
+          details?: Json | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          items_created?: number | null
+          items_fetched?: number | null
+          items_skipped?: number | null
+          items_updated?: number | null
+          started_at?: string
+          status?: string
+          trigger?: string
         }
         Relationships: []
       }
