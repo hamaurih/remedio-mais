@@ -49,7 +49,8 @@ const App = () => (
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
             <Route path="config" element={<AdminSettings />} />
-            <Route path="trier" element={<AdminTrierSync />} />
+            <Route path="integrations/trier" element={<AdminTrier />} />
+            <Route path="integrations/trier/:sub" element={<AdminTrier />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
