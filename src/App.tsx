@@ -20,7 +20,7 @@ import AdminOrders from "./pages/admin/AdminOrders.tsx";
 import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
 import AdminOffers from "./pages/admin/AdminOffers.tsx";
-import AdminTrierSync from "./pages/admin/AdminTrierSync.tsx";
+import AdminTrier from "./pages/admin/AdminTrier.tsx";
 
 
 const queryClient = new QueryClient();
