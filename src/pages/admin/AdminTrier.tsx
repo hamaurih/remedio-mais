@@ -85,6 +85,7 @@ export default function AdminTrier() {
 
   // ----- Calls helper -----
   const [busy, setBusy] = useState<string | null>(null);
+  const [lastTestResult, setLastTestResult] = useState<any>(null);
   const call = async (action: string, body: any = {}, label = action) => {
     setBusy(action);
     try {
@@ -219,12 +220,48 @@ export default function AdminTrier() {
             <p className="text-xs text-muted-foreground">Cron roda a cada 15min e decide o que executar com base nesses intervalos. Tipos desativados acima são ignorados.</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="bg-card border rounded-xl p-4 space-y-2">
+            <h2 className="font-bold">URL final montada</h2>
+            <p className="text-xs text-muted-foreground">Token nunca é exibido. Esta é a URL exata que a edge function vai chamar.</p>
+            {(() => {
+              const base = (form.base_url || "").trim().replace(/\/+$/, "").replace(/\/rest\/.*$/i, "");
+              const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+              return (
+                <div className="space-y-1 text-xs font-mono break-all">
+                  <div><span className="text-muted-foreground">baseUrl:</span> {base || "—"}</div>
+                  <div><span className="text-muted-foreground">endpoint:</span> {endpoint}</div>
+                  <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? `${base}${endpoint}` : "—"}</span></div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={saveSettings}>Salvar configurações</Button>
             <Button variant="outline" onClick={() => call("test-connection", {}, "Conexão testada")} disabled={busy !== null}>
               <Plug className="h-4 w-4 mr-2" />Testar conexão
             </Button>
+            <Button variant="outline" onClick={async () => { const d = await call("test-products-endpoint", {}, "Endpoint de produtos testado"); if (d) setLastTestResult(d); }} disabled={busy !== null}>
+              <Package className="h-4 w-4 mr-2" />Testar endpoint de produtos
+            </Button>
           </div>
+
+          {lastTestResult && (
+            <div className="bg-card border rounded-xl p-4 space-y-2">
+              <h2 className="font-bold flex items-center gap-2">
+                Resultado do último teste
+                <Badge variant={lastTestResult.ok ? "default" : "destructive"}>HTTP {lastTestResult.status ?? "—"}</Badge>
+              </h2>
+              <div className="text-xs font-mono break-all space-y-1">
+                <div><span className="text-muted-foreground">URL:</span> {lastTestResult.finalUrl}</div>
+                {lastTestResult.count != null && <div><span className="text-muted-foreground">Itens retornados:</span> {lastTestResult.count}</div>}
+                {lastTestResult.error && <div className="text-destructive">Erro: {lastTestResult.error}</div>}
+                {lastTestResult.body && (
+                  <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ---------- PRODUTOS ---------- */}

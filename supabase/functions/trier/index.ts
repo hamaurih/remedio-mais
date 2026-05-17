@@ -23,12 +23,28 @@ const slugify = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+function normalizeBaseUrl(raw: string): string {
+  let b = (raw || "").trim();
+  // remove trailing slash(es)
+  b = b.replace(/\/+$/, "");
+  // if someone pasted full endpoint, strip the /rest/... part
+  const restIdx = b.toLowerCase().indexOf("/rest/");
+  if (restIdx > 0) b = b.slice(0, restIdx);
+  return b;
+}
+
+function buildUrl(baseUrl: string, endpoint: string): string {
+  const base = normalizeBaseUrl(baseUrl);
+  const ep = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${base}${ep}`.replace(/([^:])\/{2,}/g, "$1/");
+}
+
 async function getSettings(): Promise<Settings> {
   const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
   if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
   const token = data.bearer_token || FALLBACK_TOKEN || null;
   if (!token) throw new Error("Bearer Token não configurado. Vá em /admin/integrations/trier → Configuração.");
-  return { ...data, bearer_token: token };
+  return { ...data, base_url: normalizeBaseUrl(data.base_url), bearer_token: token };
 }
 
 async function log(type: string, status: string, message: string, details?: any) {
@@ -43,26 +59,45 @@ async function log(type: string, status: string, message: string, details?: any)
 }
 
 async function trierGet(s: Settings, path: string): Promise<any> {
-  const url = `${s.base_url}${path}`;
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${s.bearer_token}`, Accept: "application/json" },
-  });
+  const url = buildUrl(s.base_url, path);
+  let r: Response;
+  try {
+    r = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${s.bearer_token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (e: any) {
+    await log("api_call", "error", `GET falhou (network): ${e.message}`, { baseUrl: s.base_url, endpoint: path, finalUrl: url, error: e.message });
+    throw new Error(`Falha de rede ao chamar Trier: ${e.message}`);
+  }
   const text = await r.text();
   if (!r.ok) {
-    await log("api_call", "error", `GET ${path} → ${r.status}`, { url: path, status: r.status, body: text.slice(0, 500) });
-    throw new Error(`Trier ${r.status}: ${text.slice(0, 200)}`);
+    await log("api_call", "error", `GET ${path} → HTTP ${r.status}`, {
+      baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status, body: text.slice(0, 1000),
+    });
+    throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
   }
+  await log("api_call", "success", `GET ${path} → HTTP ${r.status}`, {
+    baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status,
+  });
   try { return JSON.parse(text); } catch { return text; }
 }
 
 async function trierPost(s: Settings, path: string, body: any): Promise<any> {
-  const r = await fetch(`${s.base_url}${path}`, {
+  const url = buildUrl(s.base_url, path);
+  const r = await fetch(url, {
     method: "POST",
     headers: { Authorization: `Bearer ${s.bearer_token}`, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(body),
   });
   const text = await r.text();
-  if (!r.ok) throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
+  if (!r.ok) {
+    await log("api_call", "error", `POST ${path} → HTTP ${r.status}`, { baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status, body: text.slice(0, 1000) });
+    throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
+  }
   try { return JSON.parse(text); } catch { return text; }
 }
 
@@ -446,6 +481,34 @@ async function actionScheduled() {
   return { ok: true, results };
 }
 
+async function actionTestProductsEndpoint() {
+  const s = await getSettings();
+  const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+  const finalUrl = buildUrl(s.base_url, endpoint);
+  try {
+    const r = await fetch(finalUrl, {
+      headers: {
+        Authorization: `Bearer ${s.bearer_token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    const text = await r.text();
+    const bodyPreview = text.slice(0, 1500);
+    await log("api_call", r.ok ? "success" : "error", `Teste endpoint produtos → HTTP ${r.status}`, {
+      baseUrl: s.base_url, endpoint, finalUrl, status: r.status, body: bodyPreview,
+    });
+    let count: number | null = null;
+    try { const j = JSON.parse(text); count = extractList(j).length; } catch { /* ignore */ }
+    return { ok: r.ok, status: r.status, baseUrl: s.base_url, endpoint, finalUrl, body: bodyPreview, count };
+  } catch (e: any) {
+    await log("api_call", "error", "Teste endpoint produtos falhou (network)", {
+      baseUrl: s.base_url, endpoint, finalUrl, error: e.message,
+    });
+    return { ok: false, baseUrl: s.base_url, endpoint, finalUrl, error: e.message };
+  }
+}
+
 // ---------- AUTH ----------
 async function requireAdmin(req: Request) {
   const auth = req.headers.get("Authorization");
@@ -475,6 +538,13 @@ Deno.serve(async (req) => {
     let result: any;
     switch (action) {
       case "test-connection": result = await actionTestConnection(); break;
+      case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
+      case "preview-url": {
+        const s = await getSettings();
+        const endpoint = body.endpoint || "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+        result = { baseUrl: s.base_url, endpoint, finalUrl: buildUrl(s.base_url, endpoint) };
+        break;
+      }
       case "sync-products": result = await actionSyncProducts(trigger, !!body.changed); break;
       case "sync-categories": result = await actionSyncCategories(trigger); break;
       case "sync-stock": result = await actionSyncStock(trigger); break;
