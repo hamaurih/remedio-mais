@@ -444,15 +444,45 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
 
-  const mapped = mapProduct(t);
+  const mapped: any = mapProduct(t);
+  const autoShelves: string[] = mapped._shelves || [];
+  const catNameForLink: string = mapped._category_name_for_link || "Medicamentos";
+  delete mapped._shelves;
+  delete mapped._category_name_for_link;
+  // Garantir que nunca enviamos discount_percentage (coluna gerada/restrita)
+  delete mapped.discount_percentage;
+
+  // Resolver/criar categoria
+  let categoryId: string | null = null;
+  try {
+    const catSlug = slugify(catNameForLink);
+    const { data: existCat } = await supabase.from("categories").select("id").eq("slug", catSlug).maybeSingle();
+    if (existCat) categoryId = existCat.id;
+    else {
+      const { data: newCat } = await supabase.from("categories")
+        .insert({ name: catNameForLink, slug: catSlug, active: true, show_in_menu: true, show_on_home: true })
+        .select("id").single();
+      if (newCat) categoryId = newCat.id;
+    }
+  } catch (_) { /* ignora erro de categoria */ }
+  if (categoryId) mapped.category_id = categoryId;
+
   let payload: any = mapped;
 
   if (existing) {
     if (existing.sync_with_trier === false) return { skipped: true, reason: "sync_desativado_no_produto", trier_id: trierId, name };
-    if (opts.onlyStock) payload = { stock: mapped.stock, ecommerce_stock_quantity: mapped.ecommerce_stock_quantity, stock_quantity: mapped.stock_quantity, active: mapped.active, last_trier_sync_at: mapped.last_trier_sync_at };
-    if (opts.onlyPrice) payload = { price: mapped.price, ecommerce_price: mapped.ecommerce_price, promo_price: mapped.promo_price, on_sale: mapped.on_sale, discount_percentage: mapped.discount_percentage, last_trier_sync_at: mapped.last_trier_sync_at };
+    if (opts.onlyStock) payload = { stock: mapped.stock, ecommerce_stock_quantity: mapped.ecommerce_stock_quantity, stock_quantity: mapped.stock_quantity, last_trier_sync_at: mapped.last_trier_sync_at };
+    if (opts.onlyPrice) payload = { price: mapped.price, ecommerce_price: mapped.ecommerce_price, promo_price: mapped.promo_price, on_sale: mapped.on_sale, last_trier_sync_at: mapped.last_trier_sync_at };
     if (existing.lock_manual_price) { delete payload.price; delete payload.ecommerce_price; delete payload.promo_price; delete payload.on_sale; }
     if (existing.lock_manual_stock) { delete payload.stock; delete payload.ecommerce_stock_quantity; delete payload.stock_quantity; }
+    delete payload.discount_percentage;
+
+    // Mesclar prateleiras sem perder as manuais
+    if (!opts.onlyStock && !opts.onlyPrice) {
+      const { data: curProd } = await supabase.from("products").select("shelves").eq("id", existing.id).maybeSingle();
+      const cur: string[] = (curProd?.shelves as string[]) || [];
+      payload.shelves = Array.from(new Set([...cur, ...autoShelves]));
+    }
 
     const { error } = await supabase.from("products").update(payload).eq("id", existing.id);
     if (error) return { failed: true, error: `update: ${error.message}`, trier_id: trierId, name };
@@ -463,6 +493,7 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
     return { updated: true, trier_id: trierId, name };
   } else {
     if (opts.onlyStock || opts.onlyPrice) return { skipped: true, reason: "sem_mapeamento_ainda", trier_id: trierId, name };
+    mapped.shelves = autoShelves;
     const { data: ins, error } = await supabase.from("products").insert(mapped).select("id").single();
     if (error) return { failed: true, error: `insert: ${error.message}`, trier_id: trierId, name };
     await supabase.from("trier_product_mappings").insert({
