@@ -272,27 +272,40 @@ export default function AdminTrier() {
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Ambiente</Label>
-                <Select value={form.environment || "homologacao"} onValueChange={(v) => setForm({
+                <Select value={form.environment || "gateway"} onValueChange={(v) => setForm({
                   ...form, environment: v,
-                  base_url: v === "homologacao" ? "https://homologacao.triersistemas.com.br/sgfpod1" : form.base_url,
+                  base_url: v === "gateway" ? GATEWAY_BASE_URL : form.base_url,
                 })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="homologacao">Homologação</SelectItem>
+                    <SelectItem value="gateway">Gateway Trier</SelectItem>
+                    <SelectItem value="homologacao">Homologação (legado)</SelectItem>
                     <SelectItem value="producao">Produção</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://..." /></div>
+              <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder={GATEWAY_BASE_URL} /></div>
               <div className="space-y-1 md:col-span-2">
                 <Label>Bearer Token</Label>
-                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem Bearer)"} />
-                <p className="text-xs text-muted-foreground">Token nunca é exibido após salvo. Mostrado apenas mascarado.</p>
+                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem prefixo Bearer)"} />
+                <p className="text-xs text-muted-foreground">Aceita "Bearer eyJ..." ou somente "eyJ...". Nunca exibido após salvo.</p>
               </div>
-              <div className="space-y-1"><Label>Código da filial (opcional)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} /></div>
-              <div className="space-y-1"><Label>Tamanho da página</Label><Input type="number" value={form.page_size || 100} onChange={(e) => setForm({ ...form, page_size: Number(e.target.value) })} /></div>
+              <div className="space-y-1"><Label>Código da filial (codFilial)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} placeholder="1" /></div>
+              <div className="space-y-1"><Label>Tamanho da página</Label><Input type="number" value={form.page_size || 150} onChange={(e) => setForm({ ...form, page_size: Number(e.target.value) })} /></div>
+              <div className="space-y-1">
+                <Label>Integração Ecommerce (parâmetro)</Label>
+                <Select value={form.ecommerce_filter ?? ""} onValueChange={(v) => setForm({ ...form, ecommerce_filter: v === "__empty__" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__empty__">vazio (recomendado)</SelectItem>
+                    <SelectItem value="true">true</SelectItem>
+                    <SelectItem value="false">false</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1"><Label>Processa Custo Médio</Label><Input value="false" disabled /></div>
             </div>
-            <p className="text-xs text-muted-foreground border-t pt-2">⚠️ A produção pode usar endereço local ou externo, dependendo de IP fixo, DDNS e NAT da porta 4647 da farmácia.</p>
+            <p className="text-xs text-muted-foreground border-t pt-2">⚠️ Padrão: Gateway Trier em HTTPS. Use Produção apenas se configurado IP/DDNS local.</p>
           </div>
 
           <div className="bg-card border rounded-xl p-4 space-y-2">
