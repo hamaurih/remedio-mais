@@ -4,6 +4,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
+const HOMOLOGATION_BASE_URL = "https://homologacao.triersistemas.com.br/sgfpod1";
 
 type Settings = {
   environment: string; base_url: string; bearer_token: string | null;
@@ -23,82 +24,221 @@ const slugify = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-function normalizeBaseUrl(raw: string): string {
-  let b = (raw || "").trim();
-  // remove trailing slash(es)
-  b = b.replace(/\/+$/, "");
-  // if someone pasted full endpoint, strip the /rest/... part
-  const restIdx = b.toLowerCase().indexOf("/rest/");
-  if (restIdx > 0) b = b.slice(0, restIdx);
-  return b;
+function cleanTrierToken(input: string): string {
+  return (input || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/\r?\n|\r/g, "")
+    .replace(/^Bearer\s+/i, "")
+    .trim();
 }
 
-function buildUrl(baseUrl: string, endpoint: string): string {
-  const base = normalizeBaseUrl(baseUrl);
-  const ep = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  return `${base}${ep}`.replace(/([^:])\/{2,}/g, "$1/");
+function maskToken(token: string | null | undefined): string {
+  const clean = cleanTrierToken(token || "");
+  if (!clean) return "";
+  if (clean.length <= 6) return `${clean.slice(0, 1)}...${clean.slice(-1)}`;
+  return `${clean.slice(0, 3)}...${clean.slice(-3)}`;
+}
+
+function normalizeBaseUrl(raw: string, environment = "homologacao"): string {
+  let base = (raw || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/\r?\n|\r/g, "")
+    .replace(/\/+$/, "");
+
+  if (!base && environment === "homologacao") {
+    return HOMOLOGATION_BASE_URL;
+  }
+
+  if (environment === "homologacao" && /^http:\/\//i.test(base)) {
+    base = `https://${base.slice(7)}`;
+  }
+
+  const restIdx = base.toLowerCase().indexOf("/rest/");
+  if (restIdx > 0) base = base.slice(0, restIdx);
+
+  if (/^https?:\/\/homologacao\.triersistemas\.com\.br(\/.*)?$/i.test(base)) {
+    return HOMOLOGATION_BASE_URL;
+  }
+
+  return base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1").replace(/\/+$/, "");
+}
+
+function buildTrierUrl(baseUrl: string, endpoint: string): string {
+  const cleanBase = baseUrl.replace(/\/+$/, "");
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${cleanBase}${cleanEndpoint}`;
+}
+
+function buildTrierHeaders(token: string): HeadersInit {
+  const clean = cleanTrierToken(token);
+  return {
+    Authorization: `Bearer ${clean}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+}
+
+function friendlyTrierMessage(status?: number, body?: string, fallback?: string): string {
+  const normalizedBody = (body || "").toLowerCase();
+  if (status === 401) {
+    return "Erro 401: token não reconhecido pela Trier. Verifique se o token é de homologação, se está ativo, se foi colado sem aspas e se não está duplicando o prefixo Bearer.";
+  }
+  if (status === 500 && normalizedBody.includes("endpoint não localizado")) {
+    return "Endpoint não localizado. Verifique Base URL e caminho /rest/integracao/...";
+  }
+  return fallback || (status ? `A Trier respondeu com HTTP ${status}.` : "Falha ao conectar com a Trier.");
+}
+
+function sanitizeLogDetails(details: any): any {
+  if (details == null) return details;
+  if (Array.isArray(details)) return details.map(sanitizeLogDetails);
+
+  if (typeof details === "object") {
+    const sanitized: Record<string, any> = {};
+    for (const [key, value] of Object.entries(details)) {
+      if (value == null) {
+        sanitized[key] = value;
+        continue;
+      }
+
+      if (/authorization/i.test(key)) {
+        const masked = maskToken(String(value));
+        sanitized[key] = masked ? `Bearer ${masked}` : "Bearer [masked]";
+        continue;
+      }
+
+      if (/(bearer_)?token/i.test(key)) {
+        sanitized[key] = maskToken(String(value)) || "[masked]";
+        continue;
+      }
+
+      sanitized[key] = sanitizeLogDetails(value);
+    }
+    return sanitized;
+  }
+
+  if (typeof details === "string") {
+    return details.replace(/Bearer\s+([A-Za-z0-9._=-]+)/gi, (_match, token) => `Bearer ${maskToken(token) || "[masked]"}`);
+  }
+
+  return details;
 }
 
 async function getSettings(): Promise<Settings> {
   const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
   if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
-  const token = data.bearer_token || FALLBACK_TOKEN || null;
-  if (!token) throw new Error("Bearer Token não configurado. Vá em /admin/integrations/trier → Configuração.");
-  return { ...data, base_url: normalizeBaseUrl(data.base_url), bearer_token: token };
+  const normalizedBaseUrl = normalizeBaseUrl(data.base_url, data.environment);
+  const token = cleanTrierToken(data.bearer_token || FALLBACK_TOKEN || "");
+
+  const patch: Record<string, any> = {};
+  if (data.base_url !== normalizedBaseUrl) patch.base_url = normalizedBaseUrl;
+  if (data.bearer_token && data.bearer_token !== token) patch.bearer_token = token;
+  if (Object.keys(patch).length > 0) {
+    await supabase.from("trier_settings").update(patch).eq("id", 1);
+  }
+
+  if (!token) throw new Error("Token Trier não informado.");
+  return { ...data, base_url: normalizedBaseUrl, bearer_token: token };
 }
 
 async function log(type: string, status: string, message: string, details?: any) {
-  // Strip Authorization if present
-  if (details && typeof details === "object") {
-    const safe = JSON.parse(JSON.stringify(details));
-    if (safe.headers) delete safe.headers.Authorization;
-    if (safe.Authorization) delete safe.Authorization;
-    details = safe;
+  await supabase.from("trier_logs").insert({ type, status, message, details: sanitizeLogDetails(details) });
+}
+
+async function requestTrier(s: Settings, path: string, init: RequestInit = {}) {
+  const url = buildTrierUrl(s.base_url, path);
+  const method = init.method || "GET";
+  const tokenMasked = maskToken(s.bearer_token);
+  const authorizationHeaderMasked = `Authorization: Bearer ${tokenMasked}`;
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      headers: buildTrierHeaders(s.bearer_token),
+    });
+    const text = await response.text();
+    const body = text.slice(0, 1500);
+    const responseTimeMs = Date.now() - startedAt;
+    const message = response.ok
+      ? "Conexão com a Trier realizada com sucesso."
+      : friendlyTrierMessage(response.status, body);
+
+    await log("api_call", response.ok ? "success" : "error", `${method} ${path} → HTTP ${response.status}`, {
+      environment: s.environment,
+      baseUrl: s.base_url,
+      endpoint: path,
+      finalUrl: url,
+      tokenMasked,
+      authorizationHeaderMasked,
+      status: response.status,
+      responseTimeMs,
+      body,
+      message,
+    });
+
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { json = null; }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      environment: s.environment,
+      baseUrl: s.base_url,
+      endpoint: path,
+      finalUrl: url,
+      tokenMasked,
+      authorizationHeaderMasked,
+      responseTimeMs,
+      body,
+      message,
+      text,
+      json,
+    };
+  } catch (e: any) {
+    const responseTimeMs = Date.now() - startedAt;
+    const message = `Falha de rede ao chamar Trier: ${e.message}`;
+    await log("api_call", "error", `${method} ${path} → falha de rede`, {
+      environment: s.environment,
+      baseUrl: s.base_url,
+      endpoint: path,
+      finalUrl: url,
+      tokenMasked,
+      authorizationHeaderMasked,
+      responseTimeMs,
+      error: e.message,
+      message,
+    });
+    return {
+      ok: false,
+      environment: s.environment,
+      baseUrl: s.base_url,
+      endpoint: path,
+      finalUrl: url,
+      tokenMasked,
+      authorizationHeaderMasked,
+      responseTimeMs,
+      message,
+      error: e.message,
+    };
   }
-  await supabase.from("trier_logs").insert({ type, status, message, details });
 }
 
 async function trierGet(s: Settings, path: string): Promise<any> {
-  const url = buildUrl(s.base_url, path);
-  let r: Response;
-  try {
-    r = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${s.bearer_token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-  } catch (e: any) {
-    await log("api_call", "error", `GET falhou (network): ${e.message}`, { baseUrl: s.base_url, endpoint: path, finalUrl: url, error: e.message });
-    throw new Error(`Falha de rede ao chamar Trier: ${e.message}`);
-  }
-  const text = await r.text();
-  if (!r.ok) {
-    await log("api_call", "error", `GET ${path} → HTTP ${r.status}`, {
-      baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status, body: text.slice(0, 1000),
-    });
-    throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
-  }
-  await log("api_call", "success", `GET ${path} → HTTP ${r.status}`, {
-    baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status,
-  });
-  try { return JSON.parse(text); } catch { return text; }
+  const response = await requestTrier(s, path, { method: "GET" });
+  if (!response.ok) throw new Error(response.message);
+  return response.json ?? response.text;
 }
 
 async function trierPost(s: Settings, path: string, body: any): Promise<any> {
-  const url = buildUrl(s.base_url, path);
-  const r = await fetch(url, {
+  const response = await requestTrier(s, path, {
     method: "POST",
-    headers: { Authorization: `Bearer ${s.bearer_token}`, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(body),
   });
-  const text = await r.text();
-  if (!r.ok) {
-    await log("api_call", "error", `POST ${path} → HTTP ${r.status}`, { baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status, body: text.slice(0, 1000) });
-    throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
-  }
-  try { return JSON.parse(text); } catch { return text; }
+  if (!response.ok) throw new Error(response.message);
+  return response.json ?? response.text;
 }
 
 function extractList(json: any): any[] {
