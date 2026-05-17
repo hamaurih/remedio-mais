@@ -126,7 +126,7 @@ function sanitizeLogDetails(details: any): any {
   return details;
 }
 
-async function getSettings(): Promise<Settings> {
+async function getSettings(options: { requireToken?: boolean } = {}): Promise<Settings> {
   const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
   if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
   const normalizedBaseUrl = normalizeBaseUrl(data.base_url, data.environment);
@@ -139,7 +139,7 @@ async function getSettings(): Promise<Settings> {
     await supabase.from("trier_settings").update(patch).eq("id", 1);
   }
 
-  if (!token) throw new Error("Token Trier não informado.");
+  if (!token && options.requireToken !== false) throw new Error("Token Trier não informado.");
   return { ...data, base_url: normalizedBaseUrl, bearer_token: token };
 }
 
@@ -363,14 +363,39 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
 
 // ---------- ACTIONS ----------
 async function actionTestConnection() {
-  const s = await getSettings();
-  try {
-    await trierGet(s, "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1");
+  const s = await getSettings({ requireToken: false });
+  if (!s.bearer_token) {
     await supabase.from("trier_settings").update({
-      last_connection_test_at: new Date().toISOString(), last_connection_status: "ok",
+      last_connection_test_at: new Date().toISOString(), last_connection_status: "error",
     }).eq("id", 1);
-    await log("connection", "success", "Conexão com Trier OK", { env: s.environment });
-    return { ok: true };
+    return {
+      ok: false,
+      environment: s.environment,
+      baseUrl: s.base_url,
+      endpoint: "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1",
+      finalUrl: buildTrierUrl(s.base_url, "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1"),
+      tokenMasked: "",
+      authorizationHeaderMasked: "",
+      message: "Token Trier não informado.",
+    };
+  }
+  try {
+    const response = await requestTrier(s, "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1", { method: "GET" });
+    await supabase.from("trier_settings").update({
+      last_connection_test_at: new Date().toISOString(), last_connection_status: response.ok ? "ok" : "error",
+    }).eq("id", 1);
+    await log("connection", response.ok ? "success" : "error", response.message, {
+      environment: response.environment,
+      baseUrl: response.baseUrl,
+      endpoint: response.endpoint,
+      finalUrl: response.finalUrl,
+      tokenMasked: response.tokenMasked,
+      authorizationHeaderMasked: response.authorizationHeaderMasked,
+      status: response.status,
+      responseTimeMs: response.responseTimeMs,
+      body: response.body,
+    });
+    return response;
   } catch (e: any) {
     await supabase.from("trier_settings").update({
       last_connection_test_at: new Date().toISOString(), last_connection_status: "error",
@@ -622,25 +647,27 @@ async function actionScheduled() {
 }
 
 async function actionTestProductsEndpoint() {
-  const s = await getSettings();
+  const s = await getSettings({ requireToken: false });
   const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
-  const finalUrl = buildUrl(s.base_url, endpoint);
+  const finalUrl = buildTrierUrl(s.base_url, endpoint);
+  if (!s.bearer_token) {
+    return {
+      ok: false,
+      environment: s.environment,
+      baseUrl: s.base_url,
+      endpoint,
+      finalUrl,
+      tokenMasked: "",
+      authorizationHeaderMasked: "",
+      message: "Token Trier não informado.",
+      body: "",
+    };
+  }
   try {
-    const r = await fetch(finalUrl, {
-      headers: {
-        Authorization: `Bearer ${s.bearer_token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-    const text = await r.text();
-    const bodyPreview = text.slice(0, 1500);
-    await log("api_call", r.ok ? "success" : "error", `Teste endpoint produtos → HTTP ${r.status}`, {
-      baseUrl: s.base_url, endpoint, finalUrl, status: r.status, body: bodyPreview,
-    });
+    const response = await requestTrier(s, endpoint, { method: "GET" });
     let count: number | null = null;
-    try { const j = JSON.parse(text); count = extractList(j).length; } catch { /* ignore */ }
-    return { ok: r.ok, status: r.status, baseUrl: s.base_url, endpoint, finalUrl, body: bodyPreview, count };
+    try { count = extractList(response.json ?? []).length; } catch { /* ignore */ }
+    return { ...response, count };
   } catch (e: any) {
     await log("api_call", "error", "Teste endpoint produtos falhou (network)", {
       baseUrl: s.base_url, endpoint, finalUrl, error: e.message,
@@ -682,7 +709,7 @@ Deno.serve(async (req) => {
       case "preview-url": {
         const s = await getSettings();
         const endpoint = body.endpoint || "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
-        result = { baseUrl: s.base_url, endpoint, finalUrl: buildUrl(s.base_url, endpoint) };
+        result = { baseUrl: s.base_url, endpoint, finalUrl: buildTrierUrl(s.base_url, endpoint) };
         break;
       }
       case "sync-products": result = await actionSyncProducts(trigger, !!body.changed); break;
