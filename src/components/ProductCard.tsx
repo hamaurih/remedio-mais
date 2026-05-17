@@ -85,9 +85,14 @@ export function ProductCard({ p }: { p: Product }) {
             -{discount}%
           </span>
         )}
-        {p.requires_prescription && !hasDiscount && (
+        {p.requires_prescription && !hasDiscount && !outOfStock && (
           <span className="absolute bottom-2 right-2 bg-accent text-accent-foreground text-[10px] font-semibold px-2 py-1 rounded">
             Receita
+          </span>
+        )}
+        {outOfStock && (
+          <span className="absolute bottom-2 left-2 right-2 bg-muted text-muted-foreground text-[10px] font-bold uppercase tracking-wide text-center py-1 rounded">
+            Indisponível
           </span>
         )}
       </Link>
