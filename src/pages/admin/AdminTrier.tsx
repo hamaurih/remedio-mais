@@ -220,6 +220,21 @@ export default function AdminTrier() {
   });
 
   const [logDetail, setLogDetail] = useState<any>(null);
+  const [diagnose, setDiagnose] = useState<any>(null);
+  const runDiagnose = async () => {
+    setBusy("diagnose-products-page");
+    setDiagnose(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "diagnose-products-page" } });
+      if (error) throw error;
+      setDiagnose(data);
+      if (data?.ok) toast.success(data.message || "Diagnóstico concluído");
+      else toast.error(data?.message || "Falha no diagnóstico");
+      qc.invalidateQueries({ queryKey: ["trier_logs"] });
+      qc.invalidateQueries({ queryKey: ["trier_mappings"] });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
 
   return (
     <div className="p-6 space-y-4">
@@ -411,7 +426,57 @@ export default function AdminTrier() {
             <Button variant="outline" onClick={() => call("sync-categories", { trigger: "manual" }, "Categorias sincronizadas")} disabled={busy !== null}>
               <Tag className="h-4 w-4 mr-2" />Sincronizar categorias
             </Button>
+            <Button variant="default" onClick={runDiagnose} disabled={busy !== null}>
+              <Eye className={`h-4 w-4 mr-2 ${busy === "diagnose-products-page" ? "animate-spin" : ""}`} />
+              Sincronizar 1 página e diagnosticar
+            </Button>
           </div>
+
+          {diagnose && (
+            <div className="bg-card border rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-bold">Diagnóstico da página</h3>
+                <Badge variant={diagnose.ok ? "secondary" : "destructive"}>HTTP {diagnose.status ?? "—"}</Badge>
+                <Badge variant="outline">{diagnose.stage}</Badge>
+              </div>
+              <p className="text-sm">{diagnose.message}</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
+                <StatusPill label="Retornados" value={diagnose.count ?? 0} tone="default" />
+                <StatusPill label="Criados" value={diagnose.created ?? 0} tone="success" />
+                <StatusPill label="Atualizados" value={diagnose.updated ?? 0} tone="info" />
+                <StatusPill label="Ignorados" value={diagnose.ignored ?? 0} tone="warn" />
+                <StatusPill label="Com erro" value={diagnose.failed ?? 0} tone="error" />
+              </div>
+              <div className="text-xs font-mono break-all space-y-1">
+                <div><span className="text-muted-foreground">URL:</span> {diagnose.finalUrl}</div>
+                <div><span className="text-muted-foreground">Tempo:</span> {diagnose.responseTimeMs} ms</div>
+              </div>
+              {diagnose.ignored_reasons && Object.keys(diagnose.ignored_reasons).length > 0 && (
+                <div className="text-xs">
+                  <div className="text-muted-foreground mb-1">Motivos de ignorados:</div>
+                  <ul className="ml-4">{Object.entries(diagnose.ignored_reasons).map(([k, v]: any) => <li key={k}>{k}: <b>{v}</b></li>)}</ul>
+                </div>
+              )}
+              {Array.isArray(diagnose.errors) && diagnose.errors.length > 0 && (
+                <div className="text-xs">
+                  <div className="text-destructive mb-1">Erros do banco (até 20):</div>
+                  <ul className="ml-4 space-y-1">{diagnose.errors.map((e: any, i: number) => <li key={i}><b>{e.trier_id}</b> {e.name} — {e.error}</li>)}</ul>
+                </div>
+              )}
+              {diagnose.firstItemKeys && (
+                <div className="text-xs">
+                  <div className="text-muted-foreground mb-1">Chaves do 1º produto retornado:</div>
+                  <div className="font-mono bg-muted p-2 rounded break-all">{(diagnose.firstItemKeys as string[]).join(", ")}</div>
+                </div>
+              )}
+              {diagnose.firstItemJson && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">Primeiro produto retornado (JSON)</summary>
+                  <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap font-mono mt-1">{diagnose.firstItemJson}</pre>
+                </details>
+              )}
+            </div>
+          )}
           <JobsTable jobs={(jobs || []).filter((j: any) => j.sync_type.startsWith("products") || j.sync_type === "categories")} />
           <div className="bg-card border rounded-xl overflow-hidden">
             <div className="p-3 border-b font-bold">Produtos vinculados à Trier ({mappings?.length || 0})</div>
@@ -569,16 +634,79 @@ export default function AdminTrier() {
       </Tabs>
 
       <Dialog open={!!logDetail} onOpenChange={(o) => !o && setLogDetail(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Detalhe do log</DialogTitle></DialogHeader>
-          {logDetail && (
-            <div className="space-y-2 text-sm">
-              <div><b>Data:</b> {new Date(logDetail.created_at).toLocaleString("pt-BR")}</div>
-              <div><b>Tipo:</b> {logDetail.type} · <b>Status:</b> {logDetail.status}</div>
-              <div><b>Mensagem:</b> {logDetail.message}</div>
-              <pre className="bg-secondary p-3 rounded text-xs overflow-x-auto max-h-80">{JSON.stringify(logDetail.details, null, 2)}</pre>
-            </div>
-          )}
+          {logDetail && (() => {
+            const d = logDetail.details || {};
+            const isApi = logDetail.type === "api_call";
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="flex gap-2 flex-wrap text-xs">
+                  <Badge variant="outline">{logDetail.type}</Badge>
+                  <Badge variant={logDetail.status === "error" ? "destructive" : "secondary"}>{logDetail.status}</Badge>
+                  <span className="text-muted-foreground">{new Date(logDetail.created_at).toLocaleString("pt-BR")}</span>
+                </div>
+                <div><b>Mensagem:</b> {logDetail.message}</div>
+                {isApi && (
+                  <div className="space-y-1 text-xs font-mono break-all bg-muted/40 p-3 rounded">
+                    {d.method && <div><span className="text-muted-foreground">Método:</span> {d.method}</div>}
+                    {d.finalUrl && <div><span className="text-muted-foreground">URL chamada:</span> {d.finalUrl}</div>}
+                    {d.queryParams && Object.keys(d.queryParams).length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Query params:</span>
+                        <ul className="ml-4">
+                          {Object.entries(d.queryParams).map(([k, v]: any) => <li key={k}>{k} = {String(v) || <i className="text-muted-foreground">(vazio)</i>}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {d.authorizationHeaderMasked && <div><span className="text-muted-foreground">Header:</span> {d.authorizationHeaderMasked}</div>}
+                    <div><span className="text-muted-foreground">Status HTTP:</span> {d.status ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Tempo:</span> {d.responseTimeMs != null ? `${d.responseTimeMs} ms` : "—"}</div>
+                    <div><span className="text-muted-foreground">Registros:</span> {d.count ?? "—"}</div>
+                    {d.error && <div className="text-destructive"><span className="text-muted-foreground">Erro:</span> {d.error}</div>}
+                  </div>
+                )}
+                {d.firstItemKeys && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Chaves do primeiro produto:</div>
+                    <div className="font-mono bg-muted p-2 rounded break-all">{(d.firstItemKeys as string[]).join(", ")}</div>
+                  </div>
+                )}
+                {d.firstItemJson && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Primeiro produto (≤2000 chars):</div>
+                    <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap font-mono">{d.firstItemJson}</pre>
+                  </div>
+                )}
+                {d.ignored_reasons && Object.keys(d.ignored_reasons).length > 0 && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Motivos de produtos ignorados:</div>
+                    <ul className="ml-4">
+                      {Object.entries(d.ignored_reasons).map(([k, v]: any) => <li key={k}>{k}: <b>{v}</b></li>)}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(d.errors) && d.errors.length > 0 && (
+                  <div className="text-xs">
+                    <div className="text-destructive mb-1">Erros no banco (primeiros {d.errors.length}):</div>
+                    <ul className="ml-4 space-y-1">
+                      {d.errors.map((e: any, i: number) => <li key={i}><b>{e.trier_id}</b> {e.name} — {e.error}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {d.body && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground">Corpo bruto da resposta</summary>
+                    <pre className="bg-muted p-2 rounded max-h-48 overflow-auto whitespace-pre-wrap mt-1">{d.body}</pre>
+                  </details>
+                )}
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">JSON completo do log</summary>
+                  <pre className="bg-secondary p-3 rounded overflow-x-auto max-h-80 mt-1">{JSON.stringify(d, null, 2)}</pre>
+                </details>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
@@ -651,6 +779,22 @@ function JobsTable({ jobs }: { jobs: any[] }) {
           {jobs.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">Sem execuções.</td></tr>}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function StatusPill({ label, value, tone }: { label: string; value: number | string; tone: "default" | "success" | "info" | "warn" | "error" }) {
+  const toneCls = {
+    default: "bg-muted text-foreground",
+    success: "bg-whatsapp/10 text-whatsapp",
+    info: "bg-primary/10 text-primary",
+    warn: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+    error: "bg-destructive/10 text-destructive",
+  }[tone];
+  return (
+    <div className={`rounded-lg p-2 ${toneCls}`}>
+      <div className="text-lg font-extrabold">{value}</div>
+      <div className="text-xs">{label}</div>
     </div>
   );
 }
