@@ -11,6 +11,7 @@ export type Product = {
   price: number; promo_price: number | null;
   image_url: string | null; manufacturer: string | null;
   on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
+  stock?: number; cart_quantity_limit?: number | null;
   created_at?: string | null;
 };
 
