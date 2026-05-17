@@ -246,7 +246,7 @@ export default function AdminTrier() {
               <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://..." /></div>
               <div className="space-y-1 md:col-span-2">
                 <Label>Bearer Token</Label>
-                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={settings?.bearer_token ? `Atual: ${maskToken(settings.bearer_token)} — deixe vazio para manter` : "Cole o token aqui"} />
+                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem Bearer)"} />
                 <p className="text-xs text-muted-foreground">Token nunca é exibido após salvo. Mostrado apenas mascarado.</p>
               </div>
               <div className="space-y-1"><Label>Código da filial (opcional)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} /></div>
