@@ -569,16 +569,79 @@ export default function AdminTrier() {
       </Tabs>
 
       <Dialog open={!!logDetail} onOpenChange={(o) => !o && setLogDetail(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Detalhe do log</DialogTitle></DialogHeader>
-          {logDetail && (
-            <div className="space-y-2 text-sm">
-              <div><b>Data:</b> {new Date(logDetail.created_at).toLocaleString("pt-BR")}</div>
-              <div><b>Tipo:</b> {logDetail.type} · <b>Status:</b> {logDetail.status}</div>
-              <div><b>Mensagem:</b> {logDetail.message}</div>
-              <pre className="bg-secondary p-3 rounded text-xs overflow-x-auto max-h-80">{JSON.stringify(logDetail.details, null, 2)}</pre>
-            </div>
-          )}
+          {logDetail && (() => {
+            const d = logDetail.details || {};
+            const isApi = logDetail.type === "api_call";
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="flex gap-2 flex-wrap text-xs">
+                  <Badge variant="outline">{logDetail.type}</Badge>
+                  <Badge variant={logDetail.status === "error" ? "destructive" : "secondary"}>{logDetail.status}</Badge>
+                  <span className="text-muted-foreground">{new Date(logDetail.created_at).toLocaleString("pt-BR")}</span>
+                </div>
+                <div><b>Mensagem:</b> {logDetail.message}</div>
+                {isApi && (
+                  <div className="space-y-1 text-xs font-mono break-all bg-muted/40 p-3 rounded">
+                    {d.method && <div><span className="text-muted-foreground">Método:</span> {d.method}</div>}
+                    {d.finalUrl && <div><span className="text-muted-foreground">URL chamada:</span> {d.finalUrl}</div>}
+                    {d.queryParams && Object.keys(d.queryParams).length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Query params:</span>
+                        <ul className="ml-4">
+                          {Object.entries(d.queryParams).map(([k, v]: any) => <li key={k}>{k} = {String(v) || <i className="text-muted-foreground">(vazio)</i>}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {d.authorizationHeaderMasked && <div><span className="text-muted-foreground">Header:</span> {d.authorizationHeaderMasked}</div>}
+                    <div><span className="text-muted-foreground">Status HTTP:</span> {d.status ?? "—"}</div>
+                    <div><span className="text-muted-foreground">Tempo:</span> {d.responseTimeMs != null ? `${d.responseTimeMs} ms` : "—"}</div>
+                    <div><span className="text-muted-foreground">Registros:</span> {d.count ?? "—"}</div>
+                    {d.error && <div className="text-destructive"><span className="text-muted-foreground">Erro:</span> {d.error}</div>}
+                  </div>
+                )}
+                {d.firstItemKeys && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Chaves do primeiro produto:</div>
+                    <div className="font-mono bg-muted p-2 rounded break-all">{(d.firstItemKeys as string[]).join(", ")}</div>
+                  </div>
+                )}
+                {d.firstItemJson && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Primeiro produto (≤2000 chars):</div>
+                    <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap font-mono">{d.firstItemJson}</pre>
+                  </div>
+                )}
+                {d.ignored_reasons && Object.keys(d.ignored_reasons).length > 0 && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Motivos de produtos ignorados:</div>
+                    <ul className="ml-4">
+                      {Object.entries(d.ignored_reasons).map(([k, v]: any) => <li key={k}>{k}: <b>{v}</b></li>)}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(d.errors) && d.errors.length > 0 && (
+                  <div className="text-xs">
+                    <div className="text-destructive mb-1">Erros no banco (primeiros {d.errors.length}):</div>
+                    <ul className="ml-4 space-y-1">
+                      {d.errors.map((e: any, i: number) => <li key={i}><b>{e.trier_id}</b> {e.name} — {e.error}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {d.body && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground">Corpo bruto da resposta</summary>
+                    <pre className="bg-muted p-2 rounded max-h-48 overflow-auto whitespace-pre-wrap mt-1">{d.body}</pre>
+                  </details>
+                )}
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">JSON completo do log</summary>
+                  <pre className="bg-secondary p-3 rounded overflow-x-auto max-h-80 mt-1">{JSON.stringify(d, null, 2)}</pre>
+                </details>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
