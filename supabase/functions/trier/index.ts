@@ -481,6 +481,34 @@ async function actionScheduled() {
   return { ok: true, results };
 }
 
+async function actionTestProductsEndpoint() {
+  const s = await getSettings();
+  const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+  const finalUrl = buildUrl(s.base_url, endpoint);
+  try {
+    const r = await fetch(finalUrl, {
+      headers: {
+        Authorization: `Bearer ${s.bearer_token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    const text = await r.text();
+    const bodyPreview = text.slice(0, 1500);
+    await log("api_call", r.ok ? "success" : "error", `Teste endpoint produtos → HTTP ${r.status}`, {
+      baseUrl: s.base_url, endpoint, finalUrl, status: r.status, body: bodyPreview,
+    });
+    let count: number | null = null;
+    try { const j = JSON.parse(text); count = extractList(j).length; } catch { /* ignore */ }
+    return { ok: r.ok, status: r.status, baseUrl: s.base_url, endpoint, finalUrl, body: bodyPreview, count };
+  } catch (e: any) {
+    await log("api_call", "error", "Teste endpoint produtos falhou (network)", {
+      baseUrl: s.base_url, endpoint, finalUrl, error: e.message,
+    });
+    return { ok: false, baseUrl: s.base_url, endpoint, finalUrl, error: e.message };
+  }
+}
+
 // ---------- AUTH ----------
 async function requireAdmin(req: Request) {
   const auth = req.headers.get("Authorization");
