@@ -751,6 +751,17 @@ Deno.serve(async (req) => {
       await requireAdmin(req);
     }
 
+    // Sync actions can exceed the 150s edge timeout — run them in background.
+    const runAsync = (syncType: string, fn: () => Promise<any>) => {
+      const p = (async () => {
+        try { await fn(); }
+        catch (e: any) { await log("error", syncType, `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
+      })();
+      // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(p);
+      return { ok: true, async: true, started: true, sync_type: syncType, message: "Sincronização iniciada em background. Acompanhe em Jobs/Logs." };
+    };
+
     let result: any;
     switch (action) {
       case "test-connection": result = await actionTestConnection(); break;
@@ -761,16 +772,16 @@ Deno.serve(async (req) => {
         result = { baseUrl: s.base_url, endpoint, finalUrl: buildTrierUrl(s.base_url, endpoint) };
         break;
       }
-      case "sync-products": result = await actionSyncProducts(trigger, !!body.changed); break;
-      case "sync-categories": result = await actionSyncCategories(trigger); break;
-      case "sync-stock": result = await actionSyncStock(trigger); break;
-      case "sync-prices": result = await actionSyncPrices(trigger); break;
-      case "sync-discounts": result = await actionSyncDiscounts(trigger); break;
-      case "sync-all": result = await actionSyncAll(trigger); break;
+      case "sync-products": result = runAsync("products", () => actionSyncProducts(trigger, !!body.changed)); break;
+      case "sync-categories": result = runAsync("categories", () => actionSyncCategories(trigger)); break;
+      case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
+      case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;
+      case "sync-discounts": result = runAsync("discounts", () => actionSyncDiscounts(trigger)); break;
+      case "sync-all": result = runAsync("all", () => actionSyncAll(trigger)); break;
       case "send-order": result = await actionSendOrder(body.order_id); break;
       case "check-order-status": result = await actionCheckOrderStatus(body.order_ids); break;
       case "update-order-status": result = await actionUpdateOrderStatus(body.order_id, body.status); break;
-      case "scheduled": result = await actionScheduled(); break;
+      case "scheduled": result = runAsync("scheduled", () => actionScheduled()); break;
       default: return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
