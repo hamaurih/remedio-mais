@@ -184,36 +184,39 @@ async function requestTrier(s: Settings, path: string, init: RequestInit = {}, c
   const method = init.method || "GET";
   const tokenMasked = maskToken(s.bearer_token);
   const authHeaderMasked = `Authorization: Bearer ${tokenMasked}`;
+  const qs = path.includes("?") ? path.split("?")[1] : "";
+  const queryParams: Record<string, string> = {};
+  if (qs) new URLSearchParams(qs).forEach((v, k) => { queryParams[k] = v; });
 
   const r = await fetchTrierWithRetry(url, s.bearer_token || "", init, ctx);
-  const bodyTruncated = r.body.slice(0, 1200);
+  const bodyTruncated = r.body.slice(0, 2000);
   const message = r.ok ? "Conexão com a Trier realizada com sucesso." : (r.error ? `Falha de rede: ${r.error}` : friendlyTrierMessage(r.status, r.body));
-
-  await log("api_call", r.ok ? "success" : "error", `${method} ${path} → HTTP ${r.status ?? "ERR"}`, {
-    baseUrl: s.base_url, endpoint: path, finalUrl: url,
-    tokenMasked, authorizationHeaderMasked: authHeaderMasked,
-    status: r.status, responseTimeMs: r.responseTimeMs,
-    body: bodyTruncated, page: ctx.page, message,
-  });
 
   let json: any = null;
   try { json = JSON.parse(r.body); } catch { /* ignore */ }
+  const list = json ? extractList(json) : [];
+  const count = Array.isArray(list) ? list.length : null;
+  const firstItem = count && count > 0 ? list[0] : null;
+  const firstItemKeys = firstItem && typeof firstItem === "object" ? Object.keys(firstItem) : null;
+  let firstItemJson: string | null = null;
+  try { firstItemJson = firstItem ? JSON.stringify(firstItem, null, 2).slice(0, 2000) : null; } catch { /* ignore */ }
+
+  await log("api_call", r.ok ? "success" : "error", `${method} ${path.split("?")[0]} → HTTP ${r.status ?? "ERR"} · ${count ?? "?"} registros`, {
+    baseUrl: s.base_url, endpoint: path, finalUrl: url, method,
+    queryParams,
+    tokenMasked, authorizationHeaderMasked: authHeaderMasked,
+    status: r.status, responseTimeMs: r.responseTimeMs,
+    count, firstItemKeys, firstItemJson,
+    body: bodyTruncated, page: ctx.page, message,
+    error: r.error || null,
+  });
 
   return {
-    ok: r.ok,
-    status: r.status,
-    environment: s.environment,
-    baseUrl: s.base_url,
-    endpoint: path,
-    finalUrl: url,
-    tokenMasked,
-    authorizationHeaderMasked: authHeaderMasked,
-    responseTimeMs: r.responseTimeMs,
-    body: bodyTruncated,
-    text: r.body,
-    json,
-    message,
-    error: r.error,
+    ok: r.ok, status: r.status, environment: s.environment,
+    baseUrl: s.base_url, endpoint: path, finalUrl: url,
+    queryParams, tokenMasked, authorizationHeaderMasked: authHeaderMasked,
+    responseTimeMs: r.responseTimeMs, body: bodyTruncated, text: r.body,
+    json, count, firstItemKeys, firstItemJson, message, error: r.error,
   };
 }
 
