@@ -850,6 +850,7 @@ Deno.serve(async (req) => {
     switch (action) {
       case "test-connection": result = await actionTestConnection(); break;
       case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
+      case "diagnose-products-page": result = await actionDiagnoseProductsPage(); break;
       case "preview-url": {
         const s = await getSettings({ requireToken: false });
         const endpoint = buildTestProductsPath(s);
