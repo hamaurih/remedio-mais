@@ -301,63 +301,90 @@ async function finishJob(id: string, patch: any) {
 }
 
 // ---------- MAPPERS ----------
-function pickLaboratory(t: any): string | null {
-  const candidates = [
-    t.laboratorio, t.nomeLaboratorio, t.descricaoLaboratorio, t.laboratorioDescricao,
-    t.fabricante, t.nomeFabricante, t.descricaoFabricante,
-    t.marca, t.nomeMarca,
-    t.fornecedor, t.nomeFornecedor,
-  ];
-  for (const c of candidates) {
-    if (c != null && String(c).trim() !== "") return String(c).trim();
+function firstNonEmpty(...values: any[]): any {
+  for (const v of values) {
+    if (v == null) continue;
+    const s = typeof v === "string" ? v.trim() : v;
+    if (s === "" || s === undefined || s === null) continue;
+    return s;
   }
   return null;
 }
 
+function pickCode(t: any): string {
+  const v = firstNonEmpty(t.codigo, t.id, t.codProduto, t.codigoProduto, t.codigo_produto, t.produtoId, t.idProduto);
+  return v != null ? String(v) : "";
+}
 function pickName(t: any): string {
-  return (
-    t.nomeEcommerce || t.nome || t.nomeProduto || t.descricaoProduto || t.descricao || t.apresentacao || "Sem nome"
-  );
+  const v = firstNonEmpty(t.nomeEcommerce, t.nome, t.nomeProduto, t.descricaoProduto, t.descricao, t.apresentacao, t.descricaoCompleta);
+  return v != null ? String(v) : "";
 }
-
-function pickStock(t: any): number {
-  const v = t.quantidadeEstoque ?? t.estoque ?? t.saldoEstoque ?? 0;
+function pickPriceNum(t: any): number | null {
+  const v = firstNonEmpty(t.valorVendaEcommerce, t.valorVenda, t.precoVenda, t.preco, t.valor_venda, t.preco_venda, t.valor);
+  if (v == null) return null;
   const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n : null;
 }
-
-function pickPrice(t: any): number {
-  const v = t.valorVenda ?? t.precoVenda ?? 0;
+function pickStockNum(t: any): number | null {
+  const v = firstNonEmpty(t.quantidadeEstoqueEcommerce, t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
+  if (v == null) return null;
   const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n : null;
+}
+function pickBarcode(t: any): string | null {
+  const v = firstNonEmpty(t.codigoBarras, t.ean, t.gtin, t.barcode, t.codigo_barras);
+  return v != null ? String(v) : null;
+}
+function pickLaboratory(t: any): string | null {
+  const v = firstNonEmpty(t.nomeLaboratorio, t.laboratorio, t.descricaoLaboratorio, t.laboratorioDescricao, t.fabricante, t.nomeFabricante, t.descricaoFabricante, t.marca, t.nomeMarca, t.fornecedor, t.nomeFornecedor);
+  return v != null ? String(v) : null;
+}
+function pickCategoryName(t: any): string | null {
+  const v = firstNonEmpty(t.nomeCategoria, t.categoria, t.descricaoCategoria);
+  return v != null ? String(v) : null;
+}
+function pickGroupName(t: any): string | null {
+  const v = firstNonEmpty(t.nomeGrupo, t.grupo, t.descricaoGrupo);
+  return v != null ? String(v) : null;
+}
+function pickActive(t: any): boolean {
+  if (t.ativo === false || t.ativo === "false" || t.ativo === 0) return false;
+  return true;
 }
 
 function mapProduct(t: any) {
-  const price = pickPrice(t);
-  const ecomPrice = t.valorVendaEcommerce != null ? Number(t.valorVendaEcommerce) : null;
-  const finalPrice = ecomPrice ?? price;
-  const promo = ecomPrice != null && ecomPrice < price ? ecomPrice : null;
-  const stockEcom = t.quantidadeEstoqueEcommerce != null ? Number(t.quantidadeEstoqueEcommerce) : null;
-  const stock = stockEcom ?? pickStock(t);
+  const code = pickCode(t);
+  const name = pickName(t);
+  const ecomPriceRaw = t.valorVendaEcommerce;
+  const ecomPrice = ecomPriceRaw != null && ecomPriceRaw !== "" && Number.isFinite(Number(ecomPriceRaw)) ? Number(ecomPriceRaw) : null;
+  const basePrice = pickPriceNum(t);
+  const finalPrice = ecomPrice ?? basePrice ?? 0;
+  const promo = ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null;
+  const stockEcom = t.quantidadeEstoqueEcommerce != null && t.quantidadeEstoqueEcommerce !== "" ? Number(t.quantidadeEstoqueEcommerce) : null;
+  const stockBase = pickStockNum(t);
+  const stock = stockEcom ?? stockBase ?? 0;
   const ecomEnabled = t.integracaoEcommerce ?? false;
+  const isActive = pickActive(t);
   const tarja = t.tipoLista || null;
   const lab = pickLaboratory(t);
-  const name = pickName(t);
+  const obs: string[] = [];
+  if (basePrice == null && ecomPrice == null) obs.push("precisa revisar: sem preço na Trier");
+  if (stockEcom == null && stockBase == null) obs.push("indisponível: sem estoque na Trier");
   return {
-    trier_product_id: String(t.codigo ?? t.id ?? ""),
-    name,
+    trier_product_id: code,
+    name: name || "Sem nome",
     ecommerce_name: t.nomeEcommerce ?? null,
-    slug: slugify(name + "-" + String(t.codigo ?? "")),
+    slug: slugify((name || "produto") + "-" + code),
     description: t.descricaoEcommerce ?? t.descricaoProduto ?? t.descricao ?? null,
-    barcode: t.codigoBarras ?? null,
-    trier_barcode: t.codigoBarras ?? null,
+    barcode: pickBarcode(t),
+    trier_barcode: pickBarcode(t),
     laboratory: lab,
     laboratory_code: t.codigoLaboratorio ?? null,
     manufacturer: lab,
     group_code: t.codigoGrupo ?? null,
-    group_name: t.nomeGrupo ?? t.grupo ?? null,
+    group_name: pickGroupName(t),
     category_external_id: t.codigoCategoria ?? null,
-    category_name: t.nomeCategoria ?? t.categoria ?? null,
+    category_name: pickCategoryName(t),
     department_external_id: t.codigoDepartamento ?? null,
     department_name: t.nomeDepartamento ?? null,
     active_ingredient: t.nomePrincipioAtivo ?? null,
@@ -367,14 +394,14 @@ function mapProduct(t: any) {
     promo_price: promo,
     on_sale: promo != null,
     stock,
-    stock_quantity: t.quantidadeEstoque != null ? Number(t.quantidadeEstoque) : null,
+    stock_quantity: stockBase,
     ecommerce_stock_quantity: stockEcom,
-    is_active: t.ativo ?? true,
+    is_active: isActive,
     ecommerce_enabled: ecomEnabled,
-    active: (t.ativo ?? true) && ecomEnabled && stock > 0,
+    active: isActive && stock > 0,
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     discount_percentage: t.percentualDesconto != null ? Number(t.percentualDesconto) : null,
-    sale_observation: t.observacaoVenda ?? null,
+    sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
     tarja: ["VERMELHA", "vermelha"].includes(tarja) ? "vermelha" : (["PRETA", "preta"].includes(tarja) ? "preta" : null),
     requires_prescription: ["VERMELHA", "PRETA", "vermelha", "preta"].includes(tarja),
@@ -385,40 +412,48 @@ function mapProduct(t: any) {
   };
 }
 
-async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyPrice?: boolean } = {}) {
-  const trierId = String(t.codigo ?? t.id ?? "");
-  if (!trierId) return { skipped: true };
+type UpsertResult = {
+  created?: boolean; updated?: boolean; skipped?: boolean; failed?: boolean;
+  reason?: string; error?: string; trier_id?: string; name?: string;
+};
 
-  const { data: existing } = await supabase.from("products")
+async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyPrice?: boolean } = {}): Promise<UpsertResult> {
+  const trierId = pickCode(t);
+  const name = pickName(t);
+  if (!trierId) return { skipped: true, reason: "sem_codigo" };
+  if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
+
+  const { data: existing, error: selErr } = await supabase.from("products")
     .select("id, lock_manual_price, lock_manual_stock, sync_with_trier")
     .eq("trier_product_id", trierId).maybeSingle();
+  if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
 
   const mapped = mapProduct(t);
   let payload: any = mapped;
 
   if (existing) {
-    if (existing.sync_with_trier === false) return { skipped: true };
+    if (existing.sync_with_trier === false) return { skipped: true, reason: "sync_desativado_no_produto", trier_id: trierId, name };
     if (opts.onlyStock) payload = { stock: mapped.stock, ecommerce_stock_quantity: mapped.ecommerce_stock_quantity, stock_quantity: mapped.stock_quantity, active: mapped.active, last_trier_sync_at: mapped.last_trier_sync_at };
     if (opts.onlyPrice) payload = { price: mapped.price, ecommerce_price: mapped.ecommerce_price, promo_price: mapped.promo_price, on_sale: mapped.on_sale, discount_percentage: mapped.discount_percentage, last_trier_sync_at: mapped.last_trier_sync_at };
     if (existing.lock_manual_price) { delete payload.price; delete payload.ecommerce_price; delete payload.promo_price; delete payload.on_sale; }
     if (existing.lock_manual_stock) { delete payload.stock; delete payload.ecommerce_stock_quantity; delete payload.stock_quantity; }
 
     const { error } = await supabase.from("products").update(payload).eq("id", existing.id);
-    if (error) return { failed: true, error: error.message };
+    if (error) return { failed: true, error: `update: ${error.message}`, trier_id: trierId, name };
     await supabase.from("trier_product_mappings").upsert({
       product_id: existing.id, trier_product_id: trierId, trier_barcode: mapped.barcode, trier_name: mapped.name,
       last_synced_at: new Date().toISOString(), sync_status: "ok",
     }, { onConflict: "trier_product_id" });
-    return { updated: true };
+    return { updated: true, trier_id: trierId, name };
   } else {
-    if (opts.onlyStock || opts.onlyPrice) return { skipped: true };
+    if (opts.onlyStock || opts.onlyPrice) return { skipped: true, reason: "sem_mapeamento_ainda", trier_id: trierId, name };
     const { data: ins, error } = await supabase.from("products").insert(mapped).select("id").single();
-    if (error) return { failed: true, error: error.message };
+    if (error) return { failed: true, error: `insert: ${error.message}`, trier_id: trierId, name };
     await supabase.from("trier_product_mappings").insert({
       product_id: ins.id, trier_product_id: trierId, trier_barcode: mapped.barcode, trier_name: mapped.name,
       last_synced_at: new Date().toISOString(), sync_status: "ok",
     });
-    return { created: true };
+    return { created: true, trier_id: trierId, name };
   }
 }
 
