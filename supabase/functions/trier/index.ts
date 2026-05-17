@@ -23,12 +23,28 @@ const slugify = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+function normalizeBaseUrl(raw: string): string {
+  let b = (raw || "").trim();
+  // remove trailing slash(es)
+  b = b.replace(/\/+$/, "");
+  // if someone pasted full endpoint, strip the /rest/... part
+  const restIdx = b.toLowerCase().indexOf("/rest/");
+  if (restIdx > 0) b = b.slice(0, restIdx);
+  return b;
+}
+
+function buildUrl(baseUrl: string, endpoint: string): string {
+  const base = normalizeBaseUrl(baseUrl);
+  const ep = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${base}${ep}`.replace(/([^:])\/{2,}/g, "$1/");
+}
+
 async function getSettings(): Promise<Settings> {
   const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
   if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
   const token = data.bearer_token || FALLBACK_TOKEN || null;
   if (!token) throw new Error("Bearer Token não configurado. Vá em /admin/integrations/trier → Configuração.");
-  return { ...data, bearer_token: token };
+  return { ...data, base_url: normalizeBaseUrl(data.base_url), bearer_token: token };
 }
 
 async function log(type: string, status: string, message: string, details?: any) {
