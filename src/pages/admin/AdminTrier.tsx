@@ -51,10 +51,47 @@ const SYNC_TYPES: Record<string, string> = {
   categories: "Categorias", stock: "Estoque", prices: "Preços", discounts: "Descontos",
 };
 
+function cleanTrierToken(input: string) {
+  return (input || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/\r?\n|\r/g, "")
+    .replace(/^(Bearer\s+)+/i, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function normalizeBaseUrl(baseUrl: string, environment: string) {
+  let base = (baseUrl || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/\r?\n|\r/g, "")
+    .replace(/\/+$/, "")
+    .replace(/\/rest\/.*$/i, "");
+
+  if (environment === "homologacao" && /^http:\/\//i.test(base)) {
+    base = `https://${base.slice(7)}`;
+  }
+
+  if (/^https?:\/\/homologacao\.triersistemas\.com\.br(\/.*)?$/i.test(base)) {
+    return "https://homologacao.triersistemas.com.br/sgfpod1";
+  }
+
+  return base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1").replace(/\/+$/, "");
+}
+
+function buildTrierUrl(baseUrl: string, endpoint: string) {
+  const cleanBase = baseUrl.replace(/\/+$/, "");
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${cleanBase}${cleanEndpoint}`;
+}
+
 function maskToken(t: string | null | undefined) {
   if (!t) return "";
-  if (t.length <= 8) return "••••";
-  return "•".repeat(Math.max(0, t.length - 4)) + t.slice(-4);
+  const token = cleanTrierToken(t);
+  if (!token) return "";
+  if (token.length <= 6) return `${token.slice(0, 1)}...${token.slice(-1)}`;
+  return `${token.slice(0, 3)}...${token.slice(-3)}`;
 }
 
 export default function AdminTrier() {
@@ -68,15 +105,18 @@ export default function AdminTrier() {
   // ----- Settings -----
   const { data: settings } = useQuery({
     queryKey: ["trier_settings"],
-    queryFn: async () => (await supabase.from("trier_settings").select("*").eq("id", 1).single()).data,
+    queryFn: async () => (await supabase.from("trier_settings").select("id, environment, base_url, branch_code, page_size, ecommerce_filter_enabled, sync_products_enabled, sync_categories_enabled, sync_stock_enabled, sync_prices_enabled, sync_discounts_enabled, send_orders_enabled, check_order_status_enabled, schedule_products_minutes, schedule_stock_minutes, schedule_prices_minutes, schedule_discounts_minutes, last_connection_test_at, last_connection_status, last_sync_products_at, last_sync_categories_at, last_sync_stock_at, last_sync_prices_at, last_sync_discounts_at").eq("id", 1).single()).data,
   });
   const [form, setForm] = useState<any>({});
   const [tokenInput, setTokenInput] = useState("");
   useEffect(() => { if (settings) setForm(settings); }, [settings]);
 
   const saveSettings = async () => {
-    const payload = { ...form };
-    if (tokenInput) payload.bearer_token = tokenInput;
+    const payload = {
+      ...form,
+      base_url: normalizeBaseUrl(form.base_url || "", form.environment || "homologacao"),
+    };
+    if (tokenInput) payload.bearer_token = cleanTrierToken(tokenInput);
     delete payload.id; delete payload.created_at; delete payload.updated_at;
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
@@ -101,6 +141,44 @@ export default function AdminTrier() {
       return data;
     } catch (e: any) { toast.error(e.message); return null; }
     finally { setBusy(null); }
+  };
+
+  const runConnectionTest = async () => {
+    setBusy("test-connection");
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "test-connection" } });
+      if (error) throw error;
+      setLastTestResult(data);
+      if (data?.ok) toast.success("Conexão Trier validada");
+      else toast.error(data?.message || "Falha ao validar conexão Trier");
+      qc.invalidateQueries({ queryKey: ["trier_logs"] });
+      qc.invalidateQueries({ queryKey: ["trier_settings"] });
+      return data;
+    } catch (e: any) {
+      toast.error(e.message);
+      return null;
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runProductsTest = async () => {
+    setBusy("test-products-endpoint");
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "test-products-endpoint" } });
+      if (error) throw error;
+      setLastTestResult(data);
+      if (data?.ok) toast.success("Teste de produtos Trier concluído");
+      else toast.error(data?.message || "Falha ao testar produtos Trier");
+      qc.invalidateQueries({ queryKey: ["trier_logs"] });
+      qc.invalidateQueries({ queryKey: ["trier_settings"] });
+      return data;
+    } catch (e: any) {
+      toast.error(e.message);
+      return null;
+    } finally {
+      setBusy(null);
+    }
   };
 
   // ----- Data queries -----
@@ -162,7 +240,7 @@ export default function AdminTrier() {
             <Card title="Último sync preços" value={settings?.last_sync_prices_at ? new Date(settings.last_sync_prices_at).toLocaleString("pt-BR") : "—"} />
           </div>
           <div className="flex gap-2 mt-4 flex-wrap">
-            <Button onClick={() => call("test-connection", {}, "Conexão testada")} disabled={busy !== null}><Plug className="h-4 w-4 mr-2" />Testar conexão</Button>
+            <Button onClick={runConnectionTest} disabled={busy !== null}><Plug className="h-4 w-4 mr-2" />Testar conexão</Button>
             <Button onClick={() => call("sync-all", { trigger: "manual" }, "Sincronização completa")} disabled={busy !== null} variant="secondary"><RefreshCw className={`h-4 w-4 mr-2 ${busy === "sync-all" ? "animate-spin" : ""}`} />Sincronizar tudo</Button>
           </div>
         </TabsContent>
@@ -188,7 +266,7 @@ export default function AdminTrier() {
               <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://..." /></div>
               <div className="space-y-1 md:col-span-2">
                 <Label>Bearer Token</Label>
-                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={settings?.bearer_token ? `Atual: ${maskToken(settings.bearer_token)} — deixe vazio para manter` : "Cole o token aqui"} />
+                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem Bearer)"} />
                 <p className="text-xs text-muted-foreground">Token nunca é exibido após salvo. Mostrado apenas mascarado.</p>
               </div>
               <div className="space-y-1"><Label>Código da filial (opcional)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} /></div>
@@ -224,13 +302,17 @@ export default function AdminTrier() {
             <h2 className="font-bold">URL final montada</h2>
             <p className="text-xs text-muted-foreground">Token nunca é exibido. Esta é a URL exata que a edge function vai chamar.</p>
             {(() => {
-              const base = (form.base_url || "").trim().replace(/\/+$/, "").replace(/\/rest\/.*$/i, "");
+              const base = normalizeBaseUrl(form.base_url || "", form.environment || "homologacao");
               const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+              const tokenMasked = tokenInput ? maskToken(tokenInput) : "";
               return (
                 <div className="space-y-1 text-xs font-mono break-all">
+                  <div><span className="text-muted-foreground">ambiente:</span> {form.environment === "producao" ? "Produção" : "Homologação"}</div>
                   <div><span className="text-muted-foreground">baseUrl:</span> {base || "—"}</div>
                   <div><span className="text-muted-foreground">endpoint:</span> {endpoint}</div>
-                  <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? `${base}${endpoint}` : "—"}</span></div>
+                  <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? buildTrierUrl(base, endpoint) : "—"}</span></div>
+                  <div><span className="text-muted-foreground">token mascarado:</span> {tokenMasked || "será mascarado após o teste"}</div>
+                  <div><span className="text-muted-foreground">header mascarado:</span> {tokenMasked ? `Authorization: Bearer ${tokenMasked}` : "Authorization: Bearer ***"}</div>
                 </div>
               );
             })()}
@@ -238,11 +320,11 @@ export default function AdminTrier() {
 
           <div className="flex gap-2 flex-wrap">
             <Button onClick={saveSettings}>Salvar configurações</Button>
-            <Button variant="outline" onClick={() => call("test-connection", {}, "Conexão testada")} disabled={busy !== null}>
+            <Button variant="outline" onClick={runConnectionTest} disabled={busy !== null}>
               <Plug className="h-4 w-4 mr-2" />Testar conexão
             </Button>
-            <Button variant="outline" onClick={async () => { const d = await call("test-products-endpoint", {}, "Endpoint de produtos testado"); if (d) setLastTestResult(d); }} disabled={busy !== null}>
-              <Package className="h-4 w-4 mr-2" />Testar endpoint de produtos
+            <Button variant="outline" onClick={runProductsTest} disabled={busy !== null}>
+              <Package className="h-4 w-4 mr-2" />Testar Produtos Trier
             </Button>
           </div>
 
@@ -252,10 +334,18 @@ export default function AdminTrier() {
                 Resultado do último teste
                 <Badge variant={lastTestResult.ok ? "default" : "destructive"}>HTTP {lastTestResult.status ?? "—"}</Badge>
               </h2>
+              {lastTestResult.message && <p className="text-sm text-muted-foreground">{lastTestResult.message}</p>}
               <div className="text-xs font-mono break-all space-y-1">
-                <div><span className="text-muted-foreground">URL:</span> {lastTestResult.finalUrl}</div>
+                <div><span className="text-muted-foreground">Ambiente:</span> {lastTestResult.environment === "producao" ? "Produção" : "Homologação"}</div>
+                <div><span className="text-muted-foreground">Base URL usada:</span> {lastTestResult.baseUrl || "—"}</div>
+                <div><span className="text-muted-foreground">Endpoint usado:</span> {lastTestResult.endpoint || "—"}</div>
+                <div><span className="text-muted-foreground">URL final montada:</span> {lastTestResult.finalUrl || "—"}</div>
+                <div><span className="text-muted-foreground">Token mascarado:</span> {lastTestResult.tokenMasked || "—"}</div>
+                <div><span className="text-muted-foreground">Header mascarado:</span> {lastTestResult.authorizationHeaderMasked || "—"}</div>
+                <div><span className="text-muted-foreground">Status HTTP:</span> {lastTestResult.status ?? "—"}</div>
+                <div><span className="text-muted-foreground">Tempo de resposta:</span> {lastTestResult.responseTimeMs != null ? `${lastTestResult.responseTimeMs} ms` : "—"}</div>
                 {lastTestResult.count != null && <div><span className="text-muted-foreground">Itens retornados:</span> {lastTestResult.count}</div>}
-                {lastTestResult.error && <div className="text-destructive">Erro: {lastTestResult.error}</div>}
+                {lastTestResult.error && <div className="text-destructive">Erro técnico: {lastTestResult.error}</div>}
                 {lastTestResult.body && (
                   <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
                 )}
