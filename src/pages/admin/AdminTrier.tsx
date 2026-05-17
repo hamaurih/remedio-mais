@@ -61,22 +61,17 @@ function cleanTrierToken(input: string) {
     .trim();
 }
 
-function normalizeBaseUrl(baseUrl: string, environment: string) {
+const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
+
+function normalizeBaseUrl(baseUrl: string) {
   let base = (baseUrl || "")
     .trim()
     .replace(/^['"]+|['"]+$/g, "")
     .replace(/\r?\n|\r/g, "")
     .replace(/\/+$/, "")
     .replace(/\/rest\/.*$/i, "");
-
-  if (environment === "homologacao" && /^http:\/\//i.test(base)) {
-    base = `https://${base.slice(7)}`;
-  }
-
-  if (/^https?:\/\/homologacao\.triersistemas\.com\.br(\/.*)?$/i.test(base)) {
-    return "https://homologacao.triersistemas.com.br/sgfpod1";
-  }
-
+  if (!base) return GATEWAY_BASE_URL;
+  base = base.replace(/^http:\/\//i, "https://");
   return base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1").replace(/\/+$/, "");
 }
 
@@ -84,6 +79,17 @@ function buildTrierUrl(baseUrl: string, endpoint: string) {
   const cleanBase = baseUrl.replace(/\/+$/, "");
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   return `${cleanBase}${cleanEndpoint}`;
+}
+
+function buildTestProductsPath(branch: string, ecomFilter: string) {
+  const params = new URLSearchParams();
+  if (branch) params.set("codFilial", String(branch));
+  params.set("primeiroRegistro", "0");
+  params.set("quantidadeRegistros", "150");
+  params.set("ativo", "true");
+  params.set("integracaoEcommerce", ecomFilter || "");
+  params.set("processaCustoMedio", "false");
+  return `/rest/integracao/produto/obter-todos-v1?${params.toString()}`;
 }
 
 function maskToken(t: string | null | undefined) {
