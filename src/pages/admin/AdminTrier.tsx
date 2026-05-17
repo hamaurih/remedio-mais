@@ -369,18 +369,30 @@ export default function AdminTrier() {
               </h2>
               {lastTestResult.message && <p className="text-sm text-muted-foreground">{lastTestResult.message}</p>}
               <div className="text-xs font-mono break-all space-y-1">
-                <div><span className="text-muted-foreground">Ambiente:</span> {lastTestResult.environment === "producao" ? "Produção" : "Homologação"}</div>
+                <div><span className="text-muted-foreground">Ambiente:</span> {lastTestResult.environment || "—"}</div>
                 <div><span className="text-muted-foreground">Base URL usada:</span> {lastTestResult.baseUrl || "—"}</div>
                 <div><span className="text-muted-foreground">Endpoint usado:</span> {lastTestResult.endpoint || "—"}</div>
                 <div><span className="text-muted-foreground">URL final montada:</span> {lastTestResult.finalUrl || "—"}</div>
+                {lastTestResult.queryParams && (
+                  <div><span className="text-muted-foreground">Query params:</span> {Object.entries(lastTestResult.queryParams).map(([k, v]) => `${k}=${v}`).join("&")}</div>
+                )}
                 <div><span className="text-muted-foreground">Token mascarado:</span> {lastTestResult.tokenMasked || "—"}</div>
                 <div><span className="text-muted-foreground">Header mascarado:</span> {lastTestResult.authorizationHeaderMasked || "—"}</div>
                 <div><span className="text-muted-foreground">Status HTTP:</span> {lastTestResult.status ?? "—"}</div>
                 <div><span className="text-muted-foreground">Tempo de resposta:</span> {lastTestResult.responseTimeMs != null ? `${lastTestResult.responseTimeMs} ms` : "—"}</div>
-                {lastTestResult.count != null && <div><span className="text-muted-foreground">Itens retornados:</span> {lastTestResult.count}</div>}
+                {lastTestResult.count != null && <div><span className="text-muted-foreground">Registros retornados:</span> {lastTestResult.count}</div>}
                 {lastTestResult.error && <div className="text-destructive">Erro técnico: {lastTestResult.error}</div>}
+                {lastTestResult.firstItemJson && (
+                  <div className="space-y-1">
+                    <div className="text-muted-foreground">Primeiro produto retornado (≤1000 chars):</div>
+                    <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.firstItemJson}</pre>
+                  </div>
+                )}
                 {lastTestResult.body && (
-                  <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
+                  <div className="space-y-1">
+                    <div className="text-muted-foreground">Corpo bruto (≤1200 chars):</div>
+                    <pre className="bg-muted p-2 rounded max-h-48 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
+                  </div>
                 )}
               </div>
             </div>
