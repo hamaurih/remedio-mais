@@ -43,9 +43,14 @@ export function ProductCard({ p }: { p: Product }) {
   const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
   const badge = resolveBadge(p, hasDiscount);
 
+  const outOfStock = typeof p.stock === "number" && p.stock <= 0;
   const handleAdd = () => {
     if (p.controlled) {
       toast.error("Medicamento controlado. Envie sua receita para análise.");
+      return;
+    }
+    if (outOfStock) {
+      toast.error("Produto indisponível no momento.");
       return;
     }
     addToCart({ id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
