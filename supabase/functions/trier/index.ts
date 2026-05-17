@@ -4,11 +4,22 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
-const HOMOLOGATION_BASE_URL = "https://homologacao.triersistemas.com.br/sgfpod1";
+
+const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
+const PAGE_SIZE = 150;
+const RETRY_MAX = 6;
+const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_NETWORK_CODES = ["ECONNRESET", "ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNREFUSED", "EAI_AGAIN"];
+const PAUSE_BETWEEN_PAGES_MS = 400;
 
 type Settings = {
-  environment: string; base_url: string; bearer_token: string | null;
-  page_size: number; ecommerce_filter_enabled: boolean;
+  environment: string;
+  base_url: string;
+  bearer_token: string | null;
+  branch_code: string | null;
+  page_size: number;
+  ecommerce_filter: string; // "", "true" or "false"
+  ecommerce_filter_enabled: boolean;
   sync_products_enabled: boolean; sync_categories_enabled: boolean;
   sync_stock_enabled: boolean; sync_prices_enabled: boolean;
   sync_discounts_enabled: boolean;
@@ -24,46 +35,46 @@ const slugify = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-function cleanTrierToken(input: string): string {
-  return (input || "")
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function normalizeAuthorization(input: string): string {
+  const cleaned = (input || "")
     .trim()
-    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/^['"]|['"]$/g, "")
     .replace(/\r?\n|\r/g, "")
-    .replace(/^(Bearer\s+)+/i, "")
-    .replace(/\s+/g, "")
     .trim();
+  if (!cleaned) return "";
+  if (cleaned.toLowerCase().startsWith("bearer ")) return cleaned;
+  return `Bearer ${cleaned}`;
 }
 
-function maskToken(token: string | null | undefined): string {
-  const clean = cleanTrierToken(token || "");
-  if (!clean) return "";
-  if (clean.length <= 6) return `${clean.slice(0, 1)}...${clean.slice(-1)}`;
-  return `${clean.slice(0, 3)}...${clean.slice(-3)}`;
+function maskToken(raw: string | null | undefined): string {
+  const cleaned = (raw || "").replace(/^(Bearer\s+)+/i, "").trim();
+  if (!cleaned) return "";
+  if (cleaned.length <= 6) return `${cleaned.slice(0, 1)}...${cleaned.slice(-1)}`;
+  return `${cleaned.slice(0, 4)}...${cleaned.slice(-4)}`;
 }
 
-function normalizeBaseUrl(raw: string, environment = "homologacao"): string {
+function maskAuthorizationHeader(authHeader: string): string {
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  return `Bearer ${maskToken(token)}`;
+}
+
+function normalizeBaseUrl(raw: string): string {
   let base = (raw || "")
     .trim()
     .replace(/^['"]+|['"]+$/g, "")
     .replace(/\r?\n|\r/g, "")
     .replace(/\/+$/, "");
-
-  if (!base && environment === "homologacao") {
-    return HOMOLOGATION_BASE_URL;
-  }
-
-  if (environment === "homologacao" && /^http:\/\//i.test(base)) {
-    base = `https://${base.slice(7)}`;
-  }
-
+  if (!base) return GATEWAY_BASE_URL;
+  // Strip any /rest/... suffix
   const restIdx = base.toLowerCase().indexOf("/rest/");
   if (restIdx > 0) base = base.slice(0, restIdx);
-
-  if (/^https?:\/\/homologacao\.triersistemas\.com\.br(\/.*)?$/i.test(base)) {
-    return HOMOLOGATION_BASE_URL;
-  }
-
-  return base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1").replace(/\/+$/, "");
+  // Force HTTPS
+  base = base.replace(/^http:\/\//i, "https://");
+  // /api-sgf is doc only; replace with /sgfpod1
+  base = base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1");
+  return base.replace(/\/+$/, "");
 }
 
 function buildTrierUrl(baseUrl: string, endpoint: string): string {
@@ -73,173 +84,149 @@ function buildTrierUrl(baseUrl: string, endpoint: string): string {
 }
 
 function buildTrierHeaders(token: string): HeadersInit {
-  const clean = cleanTrierToken(token);
   return {
-    Authorization: `Bearer ${clean}`,
+    Authorization: normalizeAuthorization(token),
     Accept: "application/json",
     "Content-Type": "application/json",
   };
 }
 
 function friendlyTrierMessage(status?: number, body?: string, fallback?: string): string {
-  const normalizedBody = (body || "").toLowerCase();
-  if (status === 401) {
-    return "Erro 401: token não reconhecido pela Trier. Verifique se o token é de homologação, se está ativo, se foi colado sem aspas e se não está duplicando o prefixo Bearer.";
-  }
-  if (status === 500 && normalizedBody.includes("endpoint não localizado")) {
-    return "Endpoint não localizado. Verifique Base URL e caminho /rest/integracao/...";
-  }
-  return fallback || (status ? `A Trier respondeu com HTTP ${status}.` : "Falha ao conectar com a Trier.");
+  const b = (body || "").toLowerCase();
+  if (status === 401) return "Erro 401: token não reconhecido pelo Gateway Trier. Verifique se o token é válido, sem aspas e sem espaços extras.";
+  if (status === 500 && b.includes("endpoint não localizado")) return "Endpoint não localizado. Verifique Base URL e caminho /rest/integracao/...";
+  if (status === 403) return "Erro 403: token sem permissão para este recurso.";
+  if (status === 404) return "Erro 404: endpoint inexistente nesta Base URL.";
+  return fallback || (status ? `Trier respondeu HTTP ${status}.` : "Falha ao conectar com a Trier.");
 }
 
 function sanitizeLogDetails(details: any): any {
   if (details == null) return details;
   if (Array.isArray(details)) return details.map(sanitizeLogDetails);
-
   if (typeof details === "object") {
-    const sanitized: Record<string, any> = {};
-    for (const [key, value] of Object.entries(details)) {
-      if (value == null) {
-        sanitized[key] = value;
-        continue;
-      }
-
-      if (/authorization/i.test(key)) {
-        const masked = maskToken(String(value));
-        sanitized[key] = masked ? `Bearer ${masked}` : "Bearer [masked]";
-        continue;
-      }
-
-      if (/(bearer_)?token/i.test(key)) {
-        sanitized[key] = maskToken(String(value)) || "[masked]";
-        continue;
-      }
-
-      sanitized[key] = sanitizeLogDetails(value);
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(details)) {
+      if (v == null) { out[k] = v; continue; }
+      if (/authorization/i.test(k)) { out[k] = `Bearer ${maskToken(String(v))}` || "Bearer [masked]"; continue; }
+      if (/(bearer_)?token/i.test(k)) { out[k] = maskToken(String(v)) || "[masked]"; continue; }
+      out[k] = sanitizeLogDetails(v);
     }
-    return sanitized;
+    return out;
   }
-
   if (typeof details === "string") {
-    return details.replace(/Bearer\s+([A-Za-z0-9._=-]+)/gi, (_match, token) => `Bearer ${maskToken(token) || "[masked]"}`);
+    return details.replace(/Bearer\s+([A-Za-z0-9._=-]+)/gi, (_m, t) => `Bearer ${maskToken(t) || "[masked]"}`);
   }
-
   return details;
 }
 
-async function getSettings(options: { requireToken?: boolean } = {}): Promise<Settings> {
+async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Settings> {
   const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
   if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
-  const normalizedBaseUrl = normalizeBaseUrl(data.base_url, data.environment);
-  const token = cleanTrierToken(data.bearer_token || FALLBACK_TOKEN || "");
+  const baseUrl = normalizeBaseUrl(data.base_url);
+  const token = (data.bearer_token || FALLBACK_TOKEN || "").trim();
 
-  const patch: Record<string, any> = {};
-  if (data.base_url !== normalizedBaseUrl) patch.base_url = normalizedBaseUrl;
-  if (data.bearer_token && data.bearer_token !== token) patch.bearer_token = token;
-  if (Object.keys(patch).length > 0) {
-    await supabase.from("trier_settings").update(patch).eq("id", 1);
+  if (data.base_url !== baseUrl) {
+    await supabase.from("trier_settings").update({ base_url: baseUrl }).eq("id", 1);
   }
 
-  if (!token && options.requireToken !== false) throw new Error("Token Trier não informado.");
-  return { ...data, base_url: normalizedBaseUrl, bearer_token: token };
+  if (!token && opts.requireToken !== false) throw new Error("Token Trier não informado.");
+  return {
+    ...data,
+    base_url: baseUrl,
+    bearer_token: token,
+    ecommerce_filter: data.ecommerce_filter ?? "",
+    page_size: data.page_size || PAGE_SIZE,
+    branch_code: data.branch_code || "1",
+  };
 }
 
 async function log(type: string, status: string, message: string, details?: any) {
   await supabase.from("trier_logs").insert({ type, status, message, details: sanitizeLogDetails(details) });
 }
 
-async function requestTrier(s: Settings, path: string, init: RequestInit = {}) {
+function isRetryableNetwork(err: any): boolean {
+  const msg = String(err?.message || err || "");
+  return RETRY_NETWORK_CODES.some((c) => msg.includes(c));
+}
+
+async function fetchTrierWithRetry(url: string, token: string, init: RequestInit = {}, ctx: { page?: number } = {}): Promise<{ ok: boolean; status?: number; body: string; responseTimeMs: number; error?: string }> {
+  let attempt = 0;
+  let lastErr: any;
+  while (attempt < RETRY_MAX) {
+    attempt++;
+    const startedAt = Date.now();
+    try {
+      const res = await fetch(url, { ...init, headers: buildTrierHeaders(token) });
+      const text = await res.text();
+      const responseTimeMs = Date.now() - startedAt;
+      if (!res.ok && RETRY_HTTP_STATUSES.has(res.status) && attempt < RETRY_MAX) {
+        await log("api_retry", "info", `Retry attempt ${attempt} (HTTP ${res.status}) page=${ctx.page ?? "-"}`, { url, status: res.status, attempt });
+        await sleep(400 * attempt * attempt); // progressive backoff
+        continue;
+      }
+      return { ok: res.ok, status: res.status, body: text, responseTimeMs };
+    } catch (e: any) {
+      lastErr = e;
+      const responseTimeMs = Date.now() - startedAt;
+      if (isRetryableNetwork(e) && attempt < RETRY_MAX) {
+        await log("api_retry", "info", `Retry attempt ${attempt} (network) page=${ctx.page ?? "-"}`, { url, error: String(e.message || e), attempt });
+        await sleep(400 * attempt * attempt);
+        continue;
+      }
+      return { ok: false, body: "", responseTimeMs, error: String(e?.message || e) };
+    }
+  }
+  return { ok: false, body: "", responseTimeMs: 0, error: String(lastErr?.message || lastErr || "unknown") };
+}
+
+async function requestTrier(s: Settings, path: string, init: RequestInit = {}, ctx: { page?: number } = {}) {
   const url = buildTrierUrl(s.base_url, path);
   const method = init.method || "GET";
   const tokenMasked = maskToken(s.bearer_token);
-  const authorizationHeaderMasked = `Authorization: Bearer ${tokenMasked}`;
-  const startedAt = Date.now();
+  const authHeaderMasked = `Authorization: Bearer ${tokenMasked}`;
 
-  try {
-    const response = await fetch(url, {
-      ...init,
-      headers: buildTrierHeaders(s.bearer_token),
-    });
-    const text = await response.text();
-    const body = text.slice(0, 1500);
-    const responseTimeMs = Date.now() - startedAt;
-    const message = response.ok
-      ? "Conexão com a Trier realizada com sucesso."
-      : friendlyTrierMessage(response.status, body);
+  const r = await fetchTrierWithRetry(url, s.bearer_token || "", init, ctx);
+  const bodyTruncated = r.body.slice(0, 1200);
+  const message = r.ok ? "Conexão com a Trier realizada com sucesso." : (r.error ? `Falha de rede: ${r.error}` : friendlyTrierMessage(r.status, r.body));
 
-    await log("api_call", response.ok ? "success" : "error", `${method} ${path} → HTTP ${response.status}`, {
-      environment: s.environment,
-      baseUrl: s.base_url,
-      endpoint: path,
-      finalUrl: url,
-      tokenMasked,
-      authorizationHeaderMasked,
-      status: response.status,
-      responseTimeMs,
-      body,
-      message,
-    });
+  await log("api_call", r.ok ? "success" : "error", `${method} ${path} → HTTP ${r.status ?? "ERR"}`, {
+    baseUrl: s.base_url, endpoint: path, finalUrl: url,
+    tokenMasked, authorizationHeaderMasked: authHeaderMasked,
+    status: r.status, responseTimeMs: r.responseTimeMs,
+    body: bodyTruncated, page: ctx.page, message,
+  });
 
-    let json: any = null;
-    try { json = JSON.parse(text); } catch { json = null; }
+  let json: any = null;
+  try { json = JSON.parse(r.body); } catch { /* ignore */ }
 
-    return {
-      ok: response.ok,
-      status: response.status,
-      environment: s.environment,
-      baseUrl: s.base_url,
-      endpoint: path,
-      finalUrl: url,
-      tokenMasked,
-      authorizationHeaderMasked,
-      responseTimeMs,
-      body,
-      message,
-      text,
-      json,
-    };
-  } catch (e: any) {
-    const responseTimeMs = Date.now() - startedAt;
-    const message = `Falha de rede ao chamar Trier: ${e.message}`;
-    await log("api_call", "error", `${method} ${path} → falha de rede`, {
-      environment: s.environment,
-      baseUrl: s.base_url,
-      endpoint: path,
-      finalUrl: url,
-      tokenMasked,
-      authorizationHeaderMasked,
-      responseTimeMs,
-      error: e.message,
-      message,
-    });
-    return {
-      ok: false,
-      environment: s.environment,
-      baseUrl: s.base_url,
-      endpoint: path,
-      finalUrl: url,
-      tokenMasked,
-      authorizationHeaderMasked,
-      responseTimeMs,
-      message,
-      error: e.message,
-    };
-  }
+  return {
+    ok: r.ok,
+    status: r.status,
+    environment: s.environment,
+    baseUrl: s.base_url,
+    endpoint: path,
+    finalUrl: url,
+    tokenMasked,
+    authorizationHeaderMasked: authHeaderMasked,
+    responseTimeMs: r.responseTimeMs,
+    body: bodyTruncated,
+    text: r.body,
+    json,
+    message,
+    error: r.error,
+  };
 }
 
-async function trierGet(s: Settings, path: string): Promise<any> {
-  const response = await requestTrier(s, path, { method: "GET" });
-  if (!response.ok) throw new Error(response.message);
-  return response.json ?? response.text;
+async function trierGet(s: Settings, path: string, ctx: { page?: number } = {}): Promise<any> {
+  const r = await requestTrier(s, path, { method: "GET" }, ctx);
+  if (!r.ok) throw new Error(r.message);
+  return r.json ?? r.text;
 }
 
 async function trierPost(s: Settings, path: string, body: any): Promise<any> {
-  const response = await requestTrier(s, path, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(response.message);
-  return response.json ?? response.text;
+  const r = await requestTrier(s, path, { method: "POST", body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(r.message);
+  return r.json ?? r.text;
 }
 
 function extractList(json: any): any[] {
@@ -247,17 +234,55 @@ function extractList(json: any): any[] {
   return json?.content || json?.data || json?.items || json?.produtos || json?.list || [];
 }
 
-async function paginate(s: Settings, buildPath: (offset: number, pageSize: number) => string): Promise<any[]> {
-  const pageSize = s.page_size || 100;
-  let offset = 0;
+function ecommerceParam(s: Settings): string {
+  const v = (s.ecommerce_filter ?? "").trim().toLowerCase();
+  if (v === "true" || v === "false") return v;
+  return ""; // empty = send no value
+}
+
+function buildProductsQuery(s: Settings, offset: number, pageSize: number, extras: Record<string, string> = {}): string {
+  const params = new URLSearchParams();
+  if (s.branch_code) params.set("codFilial", String(s.branch_code));
+  params.set("primeiroRegistro", String(offset));
+  params.set("quantidadeRegistros", String(pageSize));
+  params.set("ativo", "true");
+  // integracaoEcommerce: sempre enviar a chave, valor pode ser vazio
+  params.set("integracaoEcommerce", ecommerceParam(s));
+  params.set("processaCustoMedio", "false");
+  for (const [k, v] of Object.entries(extras)) params.set(k, v);
+  return params.toString();
+}
+
+async function paginateProducts(s: Settings, endpointPath: string, extras: Record<string, string> = {}): Promise<any[]> {
+  const all: any[] = [];
+  let page = 0;
+  while (true) {
+    const offset = page * PAGE_SIZE;
+    const qs = buildProductsQuery(s, offset, PAGE_SIZE, extras);
+    const path = `${endpointPath}?${qs}`;
+    const json = await trierGet(s, path, { page });
+    const list = extractList(json);
+    all.push(...list);
+    if (list.length < PAGE_SIZE) break;
+    page++;
+    if (page > 500) break; // safety
+    await sleep(PAUSE_BETWEEN_PAGES_MS);
+  }
+  return all;
+}
+
+async function paginateSimple(s: Settings, buildPath: (offset: number, pageSize: number) => string): Promise<any[]> {
+  const pageSize = PAGE_SIZE;
+  let offset = 0, page = 0;
   const all: any[] = [];
   while (true) {
-    const json = await trierGet(s, buildPath(offset, pageSize));
+    const json = await trierGet(s, buildPath(offset, pageSize), { page });
     const list = extractList(json);
     all.push(...list);
     if (list.length < pageSize) break;
-    offset += pageSize;
-    if (offset > 50000) break; // safety
+    offset += pageSize; page++;
+    if (offset > 75000) break;
+    await sleep(PAUSE_BETWEEN_PAGES_MS);
   }
   return all;
 }
@@ -273,30 +298,63 @@ async function finishJob(id: string, patch: any) {
 }
 
 // ---------- MAPPERS ----------
+function pickLaboratory(t: any): string | null {
+  const candidates = [
+    t.laboratorio, t.nomeLaboratorio, t.descricaoLaboratorio, t.laboratorioDescricao,
+    t.fabricante, t.nomeFabricante, t.descricaoFabricante,
+    t.marca, t.nomeMarca,
+    t.fornecedor, t.nomeFornecedor,
+  ];
+  for (const c of candidates) {
+    if (c != null && String(c).trim() !== "") return String(c).trim();
+  }
+  return null;
+}
+
+function pickName(t: any): string {
+  return (
+    t.nomeEcommerce || t.nome || t.nomeProduto || t.descricaoProduto || t.descricao || t.apresentacao || "Sem nome"
+  );
+}
+
+function pickStock(t: any): number {
+  const v = t.quantidadeEstoque ?? t.estoque ?? t.saldoEstoque ?? 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function pickPrice(t: any): number {
+  const v = t.valorVenda ?? t.precoVenda ?? 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function mapProduct(t: any) {
-  const price = Number(t.valorVenda ?? 0);
+  const price = pickPrice(t);
   const ecomPrice = t.valorVendaEcommerce != null ? Number(t.valorVendaEcommerce) : null;
   const finalPrice = ecomPrice ?? price;
   const promo = ecomPrice != null && ecomPrice < price ? ecomPrice : null;
   const stockEcom = t.quantidadeEstoqueEcommerce != null ? Number(t.quantidadeEstoqueEcommerce) : null;
-  const stock = stockEcom ?? Number(t.quantidadeEstoque ?? 0);
+  const stock = stockEcom ?? pickStock(t);
   const ecomEnabled = t.integracaoEcommerce ?? false;
   const tarja = t.tipoLista || null;
+  const lab = pickLaboratory(t);
+  const name = pickName(t);
   return {
     trier_product_id: String(t.codigo ?? t.id ?? ""),
-    name: t.nomeEcommerce || t.nome || "Sem nome",
+    name,
     ecommerce_name: t.nomeEcommerce ?? null,
-    slug: slugify(t.nomeEcommerce || t.nome || String(t.codigo)),
-    description: t.descricaoEcommerce ?? null,
+    slug: slugify(name + "-" + String(t.codigo ?? "")),
+    description: t.descricaoEcommerce ?? t.descricaoProduto ?? t.descricao ?? null,
     barcode: t.codigoBarras ?? null,
     trier_barcode: t.codigoBarras ?? null,
-    laboratory: t.nomeLaboratorio ?? null,
+    laboratory: lab,
     laboratory_code: t.codigoLaboratorio ?? null,
-    manufacturer: t.nomeLaboratorio ?? null,
+    manufacturer: lab,
     group_code: t.codigoGrupo ?? null,
-    group_name: t.nomeGrupo ?? null,
+    group_name: t.nomeGrupo ?? t.grupo ?? null,
     category_external_id: t.codigoCategoria ?? null,
-    category_name: t.nomeCategoria ?? null,
+    category_name: t.nomeCategoria ?? t.categoria ?? null,
     department_external_id: t.codigoDepartamento ?? null,
     department_name: t.nomeDepartamento ?? null,
     active_ingredient: t.nomePrincipioAtivo ?? null,
@@ -328,7 +386,6 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
   const trierId = String(t.codigo ?? t.id ?? "");
   if (!trierId) return { skipped: true };
 
-  // find existing by trier_product_id
   const { data: existing } = await supabase.from("products")
     .select("id, lock_manual_price, lock_manual_stock, sync_with_trier")
     .eq("trier_product_id", trierId).maybeSingle();
@@ -363,47 +420,72 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
 }
 
 // ---------- ACTIONS ----------
+function buildTestProductsPath(s: Settings): string {
+  const qs = buildProductsQuery(s, 0, PAGE_SIZE);
+  return `/rest/integracao/produto/obter-todos-v1?${qs}`;
+}
+
 async function actionTestConnection() {
   const s = await getSettings({ requireToken: false });
+  const endpoint = buildTestProductsPath(s);
+  const finalUrl = buildTrierUrl(s.base_url, endpoint);
   if (!s.bearer_token) {
     await supabase.from("trier_settings").update({
       last_connection_test_at: new Date().toISOString(), last_connection_status: "error",
     }).eq("id", 1);
     return {
-      ok: false,
-      environment: s.environment,
-      baseUrl: s.base_url,
-      endpoint: "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1",
-      finalUrl: buildTrierUrl(s.base_url, "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1"),
-      tokenMasked: "",
-      authorizationHeaderMasked: "",
-      message: "Token Trier não informado.",
+      ok: false, environment: s.environment, baseUrl: s.base_url, endpoint, finalUrl,
+      tokenMasked: "", authorizationHeaderMasked: "", message: "Token Trier não informado.",
     };
   }
-  try {
-    const response = await requestTrier(s, "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=1", { method: "GET" });
-    await supabase.from("trier_settings").update({
-      last_connection_test_at: new Date().toISOString(), last_connection_status: response.ok ? "ok" : "error",
-    }).eq("id", 1);
-    await log("connection", response.ok ? "success" : "error", response.message, {
-      environment: response.environment,
-      baseUrl: response.baseUrl,
-      endpoint: response.endpoint,
-      finalUrl: response.finalUrl,
-      tokenMasked: response.tokenMasked,
-      authorizationHeaderMasked: response.authorizationHeaderMasked,
-      status: response.status,
-      responseTimeMs: response.responseTimeMs,
-      body: response.body,
-    });
-    return response;
-  } catch (e: any) {
-    await supabase.from("trier_settings").update({
-      last_connection_test_at: new Date().toISOString(), last_connection_status: "error",
-    }).eq("id", 1);
-    await log("connection", "error", "Falha na conexão com Trier", { error: e.message });
-    return { ok: false, error: e.message };
+  const response = await requestTrier(s, endpoint, { method: "GET" });
+  await supabase.from("trier_settings").update({
+    last_connection_test_at: new Date().toISOString(),
+    last_connection_status: response.ok ? "ok" : "error",
+  }).eq("id", 1);
+  await log("connection", response.ok ? "success" : "error", response.message, {
+    baseUrl: response.baseUrl, endpoint: response.endpoint, finalUrl: response.finalUrl,
+    tokenMasked: response.tokenMasked, authorizationHeaderMasked: response.authorizationHeaderMasked,
+    status: response.status, responseTimeMs: response.responseTimeMs, body: response.body,
+  });
+  return response;
+}
+
+async function actionTestProductsEndpoint() {
+  const s = await getSettings({ requireToken: false });
+  const endpoint = buildTestProductsPath(s);
+  const finalUrl = buildTrierUrl(s.base_url, endpoint);
+  const qs = endpoint.split("?")[1] || "";
+  const queryParamsObj: Record<string, string> = {};
+  new URLSearchParams(qs).forEach((v, k) => { queryParamsObj[k] = v; });
+
+  if (!s.bearer_token) {
+    return {
+      ok: false, environment: s.environment, baseUrl: s.base_url, endpoint, finalUrl,
+      queryParams: queryParamsObj,
+      tokenMasked: "", authorizationHeaderMasked: "",
+      message: "Token Trier não informado.", body: "",
+    };
   }
+
+  const response = await requestTrier(s, endpoint, { method: "GET" });
+  let count: number | null = null;
+  let firstItemJson: string | null = null;
+  try {
+    const list = extractList(response.json ?? []);
+    count = list.length;
+    if (list.length > 0) {
+      const safeFirst = JSON.stringify(list[0], null, 2);
+      firstItemJson = safeFirst.slice(0, 1000);
+    }
+  } catch { /* ignore */ }
+
+  return {
+    ...response,
+    queryParams: queryParamsObj,
+    count,
+    firstItemJson,
+  };
 }
 
 async function actionSyncProducts(trigger = "manual", changed = false) {
@@ -411,18 +493,14 @@ async function actionSyncProducts(trigger = "manual", changed = false) {
   const job = await startJob(changed ? "products_changed" : "products", trigger);
   let created = 0, updated = 0, failed = 0, ignored = 0;
   try {
-    const ativo = "true";
-    const ecom = s.ecommerce_filter_enabled ? "true" : "false";
     let list: any[];
     if (changed) {
       const since = s.last_sync_products_at || new Date(Date.now() - 7 * 86400000).toISOString();
       const dataInicial = since.slice(0, 10);
       const dataFinal = new Date().toISOString().slice(0, 10);
-      list = await paginate(s, (o, q) =>
-        `/rest/integracao/produto/obter-alterados-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&dataInicial=${dataInicial}&dataFinal=${dataFinal}&integracaoEcommerce=${ecom}&processaCustoMedio=false`);
+      list = await paginateProducts(s, "/rest/integracao/produto/obter-alterados-v1", { dataInicial, dataFinal });
     } else {
-      list = await paginate(s, (o, q) =>
-        `/rest/integracao/produto/obter-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&ativo=${ativo}&integracaoEcommerce=${ecom}&processaCustoMedio=false`);
+      list = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1");
     }
     for (const t of list) {
       const r = await upsertProductFromTrier(t);
@@ -433,12 +511,13 @@ async function actionSyncProducts(trigger = "manual", changed = false) {
     }
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
     await finishJob(job.id, { status: "success", records_checked: list.length, records_created: created, records_updated: updated, records_failed: failed, records_ignored: ignored });
-    await log("products", "success", `Produtos sincronizados: ${created} criados, ${updated} atualizados`, { changed });
+    await log("products", "success", `Produtos sincronizados: ${created} criados, ${updated} atualizados`, { changed, total: list.length });
     return { ok: true, total: list.length, created, updated, failed, ignored };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: e.message, records_created: created, records_updated: updated, records_failed: failed });
-    await log("products", "error", "Erro na sincronização de produtos", { error: e.message });
-    return { ok: false, error: e.message };
+    const msg = String(e?.message || e).slice(0, 1200);
+    await finishJob(job.id, { status: "error", error_message: msg, records_created: created, records_updated: updated, records_failed: failed });
+    await log("products", "error", "Erro na sincronização de produtos", { error: msg });
+    return { ok: false, error: msg };
   }
 }
 
@@ -447,7 +526,7 @@ async function actionSyncCategories(trigger = "manual") {
   const job = await startJob("categories", trigger);
   let created = 0, updated = 0, failed = 0;
   try {
-    const list = await paginate(s, (o, q) => `/rest/integracao/categoria/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}`);
+    const list = await paginateSimple(s, (o, q) => `/rest/integracao/categoria/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}`);
     for (const c of list) {
       const ext = String(c.codigo ?? "");
       if (!ext) continue;
@@ -465,7 +544,7 @@ async function actionSyncCategories(trigger = "manual") {
     await finishJob(job.id, { status: "success", records_checked: list.length, records_created: created, records_updated: updated, records_failed: failed });
     return { ok: true, total: list.length, created, updated, failed };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: e.message });
+    await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
   }
 }
@@ -475,8 +554,8 @@ async function actionSyncStock(trigger = "manual") {
   const job = await startJob("stock", trigger);
   let updated = 0, ignored = 0, failed = 0;
   try {
-    const ecom = s.ecommerce_filter_enabled ? "true" : "false";
-    const list = await paginate(s, (o, q) => `/rest/integracao/estoque/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&integracaoEcommerce=${ecom}`);
+    const ecom = ecommerceParam(s);
+    const list = await paginateSimple(s, (o, q) => `/rest/integracao/estoque/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&integracaoEcommerce=${ecom}`);
     for (const t of list) {
       const r = await upsertProductFromTrier(t, { onlyStock: true });
       if (r.updated) updated++;
@@ -487,7 +566,7 @@ async function actionSyncStock(trigger = "manual") {
     await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
     return { ok: true, total: list.length, updated, failed, ignored };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: e.message });
+    await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
   }
 }
@@ -497,7 +576,7 @@ async function actionSyncPrices(trigger = "manual") {
   const job = await startJob("prices", trigger);
   let updated = 0, ignored = 0, failed = 0;
   try {
-    const list = await paginate(s, (o, q) => `/rest/integracao/produto/precificacao/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
+    const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/precificacao/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
     for (const t of list) {
       const r = await upsertProductFromTrier(t, { onlyPrice: true });
       if (r.updated) updated++;
@@ -508,7 +587,7 @@ async function actionSyncPrices(trigger = "manual") {
     await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
     return { ok: true, total: list.length, updated, failed, ignored };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: e.message });
+    await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
   }
 }
@@ -518,7 +597,7 @@ async function actionSyncDiscounts(trigger = "manual") {
   const job = await startJob("discounts", trigger);
   let updated = 0, ignored = 0, failed = 0;
   try {
-    const list = await paginate(s, (o, q) => `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
+    const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
     for (const t of list) {
       const r = await upsertProductFromTrier(t, { onlyPrice: true });
       if (r.updated) updated++;
@@ -529,7 +608,7 @@ async function actionSyncDiscounts(trigger = "manual") {
     await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
     return { ok: true, total: list.length, updated, failed, ignored };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: e.message });
+    await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
   }
 }
@@ -588,8 +667,8 @@ async function actionSendOrder(orderId: string) {
     await log("order_send", "success", `Pedido ${orderId} enviado para Trier`, { order_id: orderId });
     return { ok: true, response: res };
   } catch (e: any) {
-    await supabase.from("orders").update({ trier_error_message: e.message }).eq("id", orderId);
-    await log("order_send", "error", `Erro ao enviar pedido ${orderId}`, { error: e.message, order_id: orderId });
+    await supabase.from("orders").update({ trier_error_message: String(e.message).slice(0, 1200) }).eq("id", orderId);
+    await log("order_send", "error", `Erro ao enviar pedido ${orderId}`, { error: String(e.message).slice(0, 1200), order_id: orderId });
     return { ok: false, error: e.message };
   }
 }
@@ -620,7 +699,7 @@ async function actionCheckOrderStatus(orderIds?: string[]) {
         updated++;
       }
     } catch (e: any) {
-      await log("order_status", "error", "Erro consultando status", { error: e.message });
+      await log("order_status", "error", "Erro consultando status", { error: String(e.message).slice(0, 1200) });
     }
   }
   return { ok: true, updated };
@@ -647,36 +726,6 @@ async function actionScheduled() {
   return { ok: true, results };
 }
 
-async function actionTestProductsEndpoint() {
-  const s = await getSettings({ requireToken: false });
-  const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
-  const finalUrl = buildTrierUrl(s.base_url, endpoint);
-  if (!s.bearer_token) {
-    return {
-      ok: false,
-      environment: s.environment,
-      baseUrl: s.base_url,
-      endpoint,
-      finalUrl,
-      tokenMasked: "",
-      authorizationHeaderMasked: "",
-      message: "Token Trier não informado.",
-      body: "",
-    };
-  }
-  try {
-    const response = await requestTrier(s, endpoint, { method: "GET" });
-    let count: number | null = null;
-    try { count = extractList(response.json ?? []).length; } catch { /* ignore */ }
-    return { ...response, count };
-  } catch (e: any) {
-    await log("api_call", "error", "Teste endpoint produtos falhou (network)", {
-      baseUrl: s.base_url, endpoint, finalUrl, error: e.message,
-    });
-    return { ok: false, baseUrl: s.base_url, endpoint, finalUrl, error: e.message };
-  }
-}
-
 // ---------- AUTH ----------
 async function requireAdmin(req: Request) {
   const auth = req.headers.get("Authorization");
@@ -698,7 +747,6 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const trigger = body.trigger || url.searchParams.get("trigger") || "manual";
 
-    // Scheduled call from cron uses service key directly
     if (action !== "scheduled") {
       await requireAdmin(req);
     }
@@ -708,8 +756,8 @@ Deno.serve(async (req) => {
       case "test-connection": result = await actionTestConnection(); break;
       case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
       case "preview-url": {
-        const s = await getSettings();
-        const endpoint = body.endpoint || "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+        const s = await getSettings({ requireToken: false });
+        const endpoint = buildTestProductsPath(s);
         result = { baseUrl: s.base_url, endpoint, finalUrl: buildTrierUrl(s.base_url, endpoint) };
         break;
       }
