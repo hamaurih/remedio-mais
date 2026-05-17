@@ -370,7 +370,24 @@ function mapProduct(t: any) {
   const obs: string[] = [];
   if (basePrice == null && ecomPrice == null) obs.push("precisa revisar: sem preço na Trier");
   if (stockEcom == null && stockBase == null) obs.push("indisponível: sem estoque na Trier");
+
+  // ---- shelves automáticas ----
+  const catName = pickCategoryName(t) || "";
+  const grpName = pickGroupName(t) || "";
+  const depName = (t.nomeDepartamento || "") as string;
+  const haystack = `${catName} ${grpName} ${depName}`.toUpperCase();
+  const shelves = new Set<string>();
+  if (promo != null) shelves.add("ofertas-da-semana");
+  if (/GEN[EÉ]RICOS?/.test(haystack)) { shelves.add("medicamentos-populares"); shelves.add("ofertas-da-semana"); }
+  if (/HIGIENE|BELEZA|PERFUMARIA|DERMO/.test(haystack)) shelves.add("higiene-e-beleza");
+  if (/BEB[EÊ]|INFANTIL|FRALDA/.test(haystack)) shelves.add("mamaes-e-bebes");
+  if (/VITAMINA|SUPLEMENTO/.test(haystack)) shelves.add("vitaminas-e-suplementos");
+  if (/CURATIVO|GAZE|ESPARADRAPO|PRIMEIROS SOCORROS/.test(haystack)) shelves.add("primeiros-socorros");
+  if (shelves.size === 0) shelves.add("medicamentos-populares");
+
   return {
+    _shelves: Array.from(shelves),
+    _category_name_for_link: catName || grpName || depName || "Medicamentos",
     trier_product_id: code,
     name: name || "Sem nome",
     ecommerce_name: t.nomeEcommerce ?? null,
