@@ -59,26 +59,45 @@ async function log(type: string, status: string, message: string, details?: any)
 }
 
 async function trierGet(s: Settings, path: string): Promise<any> {
-  const url = `${s.base_url}${path}`;
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${s.bearer_token}`, Accept: "application/json" },
-  });
+  const url = buildUrl(s.base_url, path);
+  let r: Response;
+  try {
+    r = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${s.bearer_token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (e: any) {
+    await log("api_call", "error", `GET falhou (network): ${e.message}`, { baseUrl: s.base_url, endpoint: path, finalUrl: url, error: e.message });
+    throw new Error(`Falha de rede ao chamar Trier: ${e.message}`);
+  }
   const text = await r.text();
   if (!r.ok) {
-    await log("api_call", "error", `GET ${path} → ${r.status}`, { url: path, status: r.status, body: text.slice(0, 500) });
-    throw new Error(`Trier ${r.status}: ${text.slice(0, 200)}`);
+    await log("api_call", "error", `GET ${path} → HTTP ${r.status}`, {
+      baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status, body: text.slice(0, 1000),
+    });
+    throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
   }
+  await log("api_call", "success", `GET ${path} → HTTP ${r.status}`, {
+    baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status,
+  });
   try { return JSON.parse(text); } catch { return text; }
 }
 
 async function trierPost(s: Settings, path: string, body: any): Promise<any> {
-  const r = await fetch(`${s.base_url}${path}`, {
+  const url = buildUrl(s.base_url, path);
+  const r = await fetch(url, {
     method: "POST",
     headers: { Authorization: `Bearer ${s.bearer_token}`, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(body),
   });
   const text = await r.text();
-  if (!r.ok) throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
+  if (!r.ok) {
+    await log("api_call", "error", `POST ${path} → HTTP ${r.status}`, { baseUrl: s.base_url, endpoint: path, finalUrl: url, status: r.status, body: text.slice(0, 1000) });
+    throw new Error(`Trier ${r.status}: ${text.slice(0, 300)}`);
+  }
   try { return JSON.parse(text); } catch { return text; }
 }
 
