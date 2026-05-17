@@ -29,7 +29,8 @@ function cleanTrierToken(input: string): string {
     .trim()
     .replace(/^['"]+|['"]+$/g, "")
     .replace(/\r?\n|\r/g, "")
-    .replace(/^Bearer\s+/i, "")
+    .replace(/^(Bearer\s+)+/i, "")
+    .replace(/\s+/g, "")
     .trim();
 }
 
