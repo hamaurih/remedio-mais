@@ -61,22 +61,17 @@ function cleanTrierToken(input: string) {
     .trim();
 }
 
-function normalizeBaseUrl(baseUrl: string, environment: string) {
+const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
+
+function normalizeBaseUrl(baseUrl: string) {
   let base = (baseUrl || "")
     .trim()
     .replace(/^['"]+|['"]+$/g, "")
     .replace(/\r?\n|\r/g, "")
     .replace(/\/+$/, "")
     .replace(/\/rest\/.*$/i, "");
-
-  if (environment === "homologacao" && /^http:\/\//i.test(base)) {
-    base = `https://${base.slice(7)}`;
-  }
-
-  if (/^https?:\/\/homologacao\.triersistemas\.com\.br(\/.*)?$/i.test(base)) {
-    return "https://homologacao.triersistemas.com.br/sgfpod1";
-  }
-
+  if (!base) return GATEWAY_BASE_URL;
+  base = base.replace(/^http:\/\//i, "https://");
   return base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1").replace(/\/+$/, "");
 }
 
@@ -84,6 +79,17 @@ function buildTrierUrl(baseUrl: string, endpoint: string) {
   const cleanBase = baseUrl.replace(/\/+$/, "");
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   return `${cleanBase}${cleanEndpoint}`;
+}
+
+function buildTestProductsPath(branch: string, ecomFilter: string) {
+  const params = new URLSearchParams();
+  if (branch) params.set("codFilial", String(branch));
+  params.set("primeiroRegistro", "0");
+  params.set("quantidadeRegistros", "150");
+  params.set("ativo", "true");
+  params.set("integracaoEcommerce", ecomFilter || "");
+  params.set("processaCustoMedio", "false");
+  return `/rest/integracao/produto/obter-todos-v1?${params.toString()}`;
 }
 
 function maskToken(t: string | null | undefined) {
@@ -105,18 +111,32 @@ export default function AdminTrier() {
   // ----- Settings -----
   const { data: settings } = useQuery({
     queryKey: ["trier_settings"],
-    queryFn: async () => (await supabase.from("trier_settings").select("id, environment, base_url, branch_code, page_size, ecommerce_filter_enabled, sync_products_enabled, sync_categories_enabled, sync_stock_enabled, sync_prices_enabled, sync_discounts_enabled, send_orders_enabled, check_order_status_enabled, schedule_products_minutes, schedule_stock_minutes, schedule_prices_minutes, schedule_discounts_minutes, last_connection_test_at, last_connection_status, last_sync_products_at, last_sync_categories_at, last_sync_stock_at, last_sync_prices_at, last_sync_discounts_at").eq("id", 1).single()).data,
+    queryFn: async () => (await supabase.from("trier_settings").select("*").eq("id", 1).single()).data,
   });
   const [form, setForm] = useState<any>({});
   const [tokenInput, setTokenInput] = useState("");
-  useEffect(() => { if (settings) setForm(settings); }, [settings]);
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        ...settings,
+        environment: settings.environment || "gateway",
+        base_url: settings.base_url || GATEWAY_BASE_URL,
+        branch_code: settings.branch_code || "1",
+        page_size: settings.page_size || 150,
+        ecommerce_filter: (settings as any).ecommerce_filter ?? "",
+      });
+    }
+  }, [settings]);
 
   const saveSettings = async () => {
-    const payload = {
+    const payload: any = {
       ...form,
-      base_url: normalizeBaseUrl(form.base_url || "", form.environment || "homologacao"),
+      base_url: normalizeBaseUrl(form.base_url || ""),
+      branch_code: form.branch_code || "1",
+      page_size: Number(form.page_size) || 150,
+      ecommerce_filter: form.ecommerce_filter ?? "",
     };
-    if (tokenInput) payload.bearer_token = cleanTrierToken(tokenInput);
+    if (tokenInput) payload.bearer_token = tokenInput.trim().replace(/^['"]|['"]$/g, "").replace(/^Bearer\s+/i, "").trim();
     delete payload.id; delete payload.created_at; delete payload.updated_at;
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
@@ -212,7 +232,7 @@ export default function AdminTrier() {
           {settings?.last_connection_status === "ok" && <Badge variant="secondary" className="bg-whatsapp/10 text-whatsapp">Conectado</Badge>}
           {settings?.last_connection_status === "error" && <Badge variant="destructive">Falha</Badge>}
           {!settings?.last_connection_status && <Badge variant="outline">Nunca testado</Badge>}
-          <Badge variant="outline">{settings?.environment === "producao" ? "PRODUÇÃO" : "Homologação"}</Badge>
+          <Badge variant="outline">{(settings as any)?.environment === "producao" ? "PRODUÇÃO" : (settings as any)?.environment === "homologacao" ? "Homologação" : "Gateway"}</Badge>
         </div>
       </div>
 
@@ -252,32 +272,45 @@ export default function AdminTrier() {
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Ambiente</Label>
-                <Select value={form.environment || "homologacao"} onValueChange={(v) => setForm({
+                <Select value={form.environment || "gateway"} onValueChange={(v) => setForm({
                   ...form, environment: v,
-                  base_url: v === "homologacao" ? "https://homologacao.triersistemas.com.br/sgfpod1" : form.base_url,
+                  base_url: v === "gateway" ? GATEWAY_BASE_URL : form.base_url,
                 })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="homologacao">Homologação</SelectItem>
+                    <SelectItem value="gateway">Gateway Trier</SelectItem>
+                    <SelectItem value="homologacao">Homologação (legado)</SelectItem>
                     <SelectItem value="producao">Produção</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://..." /></div>
+              <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder={GATEWAY_BASE_URL} /></div>
               <div className="space-y-1 md:col-span-2">
                 <Label>Bearer Token</Label>
-                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem Bearer)"} />
-                <p className="text-xs text-muted-foreground">Token nunca é exibido após salvo. Mostrado apenas mascarado.</p>
+                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem prefixo Bearer)"} />
+                <p className="text-xs text-muted-foreground">Aceita "Bearer eyJ..." ou somente "eyJ...". Nunca exibido após salvo.</p>
               </div>
-              <div className="space-y-1"><Label>Código da filial (opcional)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} /></div>
-              <div className="space-y-1"><Label>Tamanho da página</Label><Input type="number" value={form.page_size || 100} onChange={(e) => setForm({ ...form, page_size: Number(e.target.value) })} /></div>
+              <div className="space-y-1"><Label>Código da filial (codFilial)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} placeholder="1" /></div>
+              <div className="space-y-1"><Label>Tamanho da página</Label><Input type="number" value={form.page_size || 150} onChange={(e) => setForm({ ...form, page_size: Number(e.target.value) })} /></div>
+              <div className="space-y-1">
+                <Label>Integração Ecommerce (parâmetro)</Label>
+                <Select value={form.ecommerce_filter ?? ""} onValueChange={(v) => setForm({ ...form, ecommerce_filter: v === "__empty__" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__empty__">vazio (recomendado)</SelectItem>
+                    <SelectItem value="true">true</SelectItem>
+                    <SelectItem value="false">false</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1"><Label>Processa Custo Médio</Label><Input value="false" disabled /></div>
             </div>
-            <p className="text-xs text-muted-foreground border-t pt-2">⚠️ A produção pode usar endereço local ou externo, dependendo de IP fixo, DDNS e NAT da porta 4647 da farmácia.</p>
+            <p className="text-xs text-muted-foreground border-t pt-2">⚠️ Padrão: Gateway Trier em HTTPS. Use Produção apenas se configurado IP/DDNS local.</p>
           </div>
 
           <div className="bg-card border rounded-xl p-4 space-y-2">
-            <h2 className="font-bold">Filtros e flags de sincronização</h2>
-            <FlagRow label="Aplicar filtro integracaoEcommerce=true" checked={!!form.ecommerce_filter_enabled} onChange={(v) => setForm({ ...form, ecommerce_filter_enabled: v })} />
+            <h2 className="font-bold">Flags de sincronização</h2>
+            <p className="text-xs text-muted-foreground">O parâmetro <code>integracaoEcommerce</code> é configurado acima (vazio / true / false).</p>
             <FlagRow label="Sincronizar produtos" checked={!!form.sync_products_enabled} onChange={(v) => setForm({ ...form, sync_products_enabled: v })} />
             <FlagRow label="Sincronizar categorias" checked={!!form.sync_categories_enabled} onChange={(v) => setForm({ ...form, sync_categories_enabled: v })} />
             <FlagRow label="Sincronizar estoque" checked={!!form.sync_stock_enabled} onChange={(v) => setForm({ ...form, sync_stock_enabled: v })} />
@@ -302,12 +335,12 @@ export default function AdminTrier() {
             <h2 className="font-bold">URL final montada</h2>
             <p className="text-xs text-muted-foreground">Token nunca é exibido. Esta é a URL exata que a edge function vai chamar.</p>
             {(() => {
-              const base = normalizeBaseUrl(form.base_url || "", form.environment || "homologacao");
-              const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+              const base = normalizeBaseUrl(form.base_url || "");
+              const endpoint = buildTestProductsPath(form.branch_code || "1", form.ecommerce_filter ?? "");
               const tokenMasked = tokenInput ? maskToken(tokenInput) : "";
               return (
                 <div className="space-y-1 text-xs font-mono break-all">
-                  <div><span className="text-muted-foreground">ambiente:</span> {form.environment === "producao" ? "Produção" : "Homologação"}</div>
+                  <div><span className="text-muted-foreground">ambiente:</span> {form.environment || "gateway"}</div>
                   <div><span className="text-muted-foreground">baseUrl:</span> {base || "—"}</div>
                   <div><span className="text-muted-foreground">endpoint:</span> {endpoint}</div>
                   <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? buildTrierUrl(base, endpoint) : "—"}</span></div>
@@ -336,18 +369,30 @@ export default function AdminTrier() {
               </h2>
               {lastTestResult.message && <p className="text-sm text-muted-foreground">{lastTestResult.message}</p>}
               <div className="text-xs font-mono break-all space-y-1">
-                <div><span className="text-muted-foreground">Ambiente:</span> {lastTestResult.environment === "producao" ? "Produção" : "Homologação"}</div>
+                <div><span className="text-muted-foreground">Ambiente:</span> {lastTestResult.environment || "—"}</div>
                 <div><span className="text-muted-foreground">Base URL usada:</span> {lastTestResult.baseUrl || "—"}</div>
                 <div><span className="text-muted-foreground">Endpoint usado:</span> {lastTestResult.endpoint || "—"}</div>
                 <div><span className="text-muted-foreground">URL final montada:</span> {lastTestResult.finalUrl || "—"}</div>
+                {lastTestResult.queryParams && (
+                  <div><span className="text-muted-foreground">Query params:</span> {Object.entries(lastTestResult.queryParams).map(([k, v]) => `${k}=${v}`).join("&")}</div>
+                )}
                 <div><span className="text-muted-foreground">Token mascarado:</span> {lastTestResult.tokenMasked || "—"}</div>
                 <div><span className="text-muted-foreground">Header mascarado:</span> {lastTestResult.authorizationHeaderMasked || "—"}</div>
                 <div><span className="text-muted-foreground">Status HTTP:</span> {lastTestResult.status ?? "—"}</div>
                 <div><span className="text-muted-foreground">Tempo de resposta:</span> {lastTestResult.responseTimeMs != null ? `${lastTestResult.responseTimeMs} ms` : "—"}</div>
-                {lastTestResult.count != null && <div><span className="text-muted-foreground">Itens retornados:</span> {lastTestResult.count}</div>}
+                {lastTestResult.count != null && <div><span className="text-muted-foreground">Registros retornados:</span> {lastTestResult.count}</div>}
                 {lastTestResult.error && <div className="text-destructive">Erro técnico: {lastTestResult.error}</div>}
+                {lastTestResult.firstItemJson && (
+                  <div className="space-y-1">
+                    <div className="text-muted-foreground">Primeiro produto retornado (≤1000 chars):</div>
+                    <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.firstItemJson}</pre>
+                  </div>
+                )}
                 {lastTestResult.body && (
-                  <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
+                  <div className="space-y-1">
+                    <div className="text-muted-foreground">Corpo bruto (≤1200 chars):</div>
+                    <pre className="bg-muted p-2 rounded max-h-48 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
+                  </div>
                 )}
               </div>
             </div>

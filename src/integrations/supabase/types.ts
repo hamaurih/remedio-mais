@@ -616,6 +616,7 @@ export type Database = {
           branch_code: string | null
           check_order_status_enabled: boolean
           created_at: string
+          ecommerce_filter: string
           ecommerce_filter_enabled: boolean
           environment: string
           id: number
@@ -645,6 +646,7 @@ export type Database = {
           branch_code?: string | null
           check_order_status_enabled?: boolean
           created_at?: string
+          ecommerce_filter?: string
           ecommerce_filter_enabled?: boolean
           environment?: string
           id?: number
@@ -674,6 +676,7 @@ export type Database = {
           branch_code?: string | null
           check_order_status_enabled?: boolean
           created_at?: string
+          ecommerce_filter?: string
           ecommerce_filter_enabled?: boolean
           environment?: string
           id?: number
