@@ -309,8 +309,8 @@ export default function AdminTrier() {
           </div>
 
           <div className="bg-card border rounded-xl p-4 space-y-2">
-            <h2 className="font-bold">Filtros e flags de sincronização</h2>
-            <FlagRow label="Aplicar filtro integracaoEcommerce=true" checked={!!form.ecommerce_filter_enabled} onChange={(v) => setForm({ ...form, ecommerce_filter_enabled: v })} />
+            <h2 className="font-bold">Flags de sincronização</h2>
+            <p className="text-xs text-muted-foreground">O parâmetro <code>integracaoEcommerce</code> é configurado acima (vazio / true / false).</p>
             <FlagRow label="Sincronizar produtos" checked={!!form.sync_products_enabled} onChange={(v) => setForm({ ...form, sync_products_enabled: v })} />
             <FlagRow label="Sincronizar categorias" checked={!!form.sync_categories_enabled} onChange={(v) => setForm({ ...form, sync_categories_enabled: v })} />
             <FlagRow label="Sincronizar estoque" checked={!!form.sync_stock_enabled} onChange={(v) => setForm({ ...form, sync_stock_enabled: v })} />
