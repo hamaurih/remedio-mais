@@ -220,6 +220,21 @@ export default function AdminTrier() {
   });
 
   const [logDetail, setLogDetail] = useState<any>(null);
+  const [diagnose, setDiagnose] = useState<any>(null);
+  const runDiagnose = async () => {
+    setBusy("diagnose-products-page");
+    setDiagnose(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "diagnose-products-page" } });
+      if (error) throw error;
+      setDiagnose(data);
+      if (data?.ok) toast.success(data.message || "Diagnóstico concluído");
+      else toast.error(data?.message || "Falha no diagnóstico");
+      qc.invalidateQueries({ queryKey: ["trier_logs"] });
+      qc.invalidateQueries({ queryKey: ["trier_mappings"] });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  };
 
   return (
     <div className="p-6 space-y-4">
