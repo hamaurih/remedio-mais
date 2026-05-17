@@ -85,6 +85,7 @@ export default function AdminTrier() {
 
   // ----- Calls helper -----
   const [busy, setBusy] = useState<string | null>(null);
+  const [lastTestResult, setLastTestResult] = useState<any>(null);
   const call = async (action: string, body: any = {}, label = action) => {
     setBusy(action);
     try {
