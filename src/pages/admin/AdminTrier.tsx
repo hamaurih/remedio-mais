@@ -51,10 +51,46 @@ const SYNC_TYPES: Record<string, string> = {
   categories: "Categorias", stock: "Estoque", prices: "Preços", discounts: "Descontos",
 };
 
+function cleanTrierToken(input: string) {
+  return (input || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/\r?\n|\r/g, "")
+    .replace(/^Bearer\s+/i, "")
+    .trim();
+}
+
+function normalizeBaseUrl(baseUrl: string, environment: string) {
+  let base = (baseUrl || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/\r?\n|\r/g, "")
+    .replace(/\/+$/, "")
+    .replace(/\/rest\/.*$/i, "");
+
+  if (environment === "homologacao" && /^http:\/\//i.test(base)) {
+    base = `https://${base.slice(7)}`;
+  }
+
+  if (/^https?:\/\/homologacao\.triersistemas\.com\.br(\/.*)?$/i.test(base)) {
+    return "https://homologacao.triersistemas.com.br/sgfpod1";
+  }
+
+  return base.replace(/\/api-sgf(\/.*)?$/i, "/sgfpod1").replace(/\/+$/, "");
+}
+
+function buildTrierUrl(baseUrl: string, endpoint: string) {
+  const cleanBase = baseUrl.replace(/\/+$/, "");
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${cleanBase}${cleanEndpoint}`;
+}
+
 function maskToken(t: string | null | undefined) {
   if (!t) return "";
-  if (t.length <= 8) return "••••";
-  return "•".repeat(Math.max(0, t.length - 4)) + t.slice(-4);
+  const token = cleanTrierToken(t);
+  if (!token) return "";
+  if (token.length <= 6) return `${token.slice(0, 1)}...${token.slice(-1)}`;
+  return `${token.slice(0, 3)}...${token.slice(-3)}`;
 }
 
 export default function AdminTrier() {
@@ -68,15 +104,18 @@ export default function AdminTrier() {
   // ----- Settings -----
   const { data: settings } = useQuery({
     queryKey: ["trier_settings"],
-    queryFn: async () => (await supabase.from("trier_settings").select("*").eq("id", 1).single()).data,
+    queryFn: async () => (await supabase.from("trier_settings").select("id, environment, base_url, branch_code, page_size, ecommerce_filter_enabled, sync_products_enabled, sync_categories_enabled, sync_stock_enabled, sync_prices_enabled, sync_discounts_enabled, send_orders_enabled, check_order_status_enabled, schedule_products_minutes, schedule_stock_minutes, schedule_prices_minutes, schedule_discounts_minutes, last_connection_test_at, last_connection_status, last_sync_products_at, last_sync_categories_at, last_sync_stock_at, last_sync_prices_at, last_sync_discounts_at").eq("id", 1).single()).data,
   });
   const [form, setForm] = useState<any>({});
   const [tokenInput, setTokenInput] = useState("");
   useEffect(() => { if (settings) setForm(settings); }, [settings]);
 
   const saveSettings = async () => {
-    const payload = { ...form };
-    if (tokenInput) payload.bearer_token = tokenInput;
+    const payload = {
+      ...form,
+      base_url: normalizeBaseUrl(form.base_url || "", form.environment || "homologacao"),
+    };
+    if (tokenInput) payload.bearer_token = cleanTrierToken(tokenInput);
     delete payload.id; delete payload.created_at; delete payload.updated_at;
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
@@ -101,6 +140,25 @@ export default function AdminTrier() {
       return data;
     } catch (e: any) { toast.error(e.message); return null; }
     finally { setBusy(null); }
+  };
+
+  const runProductsTest = async () => {
+    setBusy("test-products-endpoint");
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "test-products-endpoint" } });
+      if (error) throw error;
+      setLastTestResult(data);
+      if (data?.ok) toast.success("Teste de produtos Trier concluído");
+      else toast.error(data?.message || "Falha ao testar produtos Trier");
+      qc.invalidateQueries({ queryKey: ["trier_logs"] });
+      qc.invalidateQueries({ queryKey: ["trier_settings"] });
+      return data;
+    } catch (e: any) {
+      toast.error(e.message);
+      return null;
+    } finally {
+      setBusy(null);
+    }
   };
 
   // ----- Data queries -----
