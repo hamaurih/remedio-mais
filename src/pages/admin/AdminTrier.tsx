@@ -111,18 +111,32 @@ export default function AdminTrier() {
   // ----- Settings -----
   const { data: settings } = useQuery({
     queryKey: ["trier_settings"],
-    queryFn: async () => (await supabase.from("trier_settings").select("id, environment, base_url, branch_code, page_size, ecommerce_filter_enabled, sync_products_enabled, sync_categories_enabled, sync_stock_enabled, sync_prices_enabled, sync_discounts_enabled, send_orders_enabled, check_order_status_enabled, schedule_products_minutes, schedule_stock_minutes, schedule_prices_minutes, schedule_discounts_minutes, last_connection_test_at, last_connection_status, last_sync_products_at, last_sync_categories_at, last_sync_stock_at, last_sync_prices_at, last_sync_discounts_at").eq("id", 1).single()).data,
+    queryFn: async () => (await supabase.from("trier_settings").select("*").eq("id", 1).single()).data,
   });
   const [form, setForm] = useState<any>({});
   const [tokenInput, setTokenInput] = useState("");
-  useEffect(() => { if (settings) setForm(settings); }, [settings]);
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        ...settings,
+        environment: settings.environment || "gateway",
+        base_url: settings.base_url || GATEWAY_BASE_URL,
+        branch_code: settings.branch_code || "1",
+        page_size: settings.page_size || 150,
+        ecommerce_filter: (settings as any).ecommerce_filter ?? "",
+      });
+    }
+  }, [settings]);
 
   const saveSettings = async () => {
-    const payload = {
+    const payload: any = {
       ...form,
-      base_url: normalizeBaseUrl(form.base_url || "", form.environment || "homologacao"),
+      base_url: normalizeBaseUrl(form.base_url || ""),
+      branch_code: form.branch_code || "1",
+      page_size: Number(form.page_size) || 150,
+      ecommerce_filter: form.ecommerce_filter ?? "",
     };
-    if (tokenInput) payload.bearer_token = cleanTrierToken(tokenInput);
+    if (tokenInput) payload.bearer_token = tokenInput.trim().replace(/^['"]|['"]$/g, "").replace(/^Bearer\s+/i, "").trim();
     delete payload.id; delete payload.created_at; delete payload.updated_at;
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
