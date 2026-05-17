@@ -142,6 +142,25 @@ export default function AdminTrier() {
     finally { setBusy(null); }
   };
 
+  const runConnectionTest = async () => {
+    setBusy("test-connection");
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "test-connection" } });
+      if (error) throw error;
+      setLastTestResult(data);
+      if (data?.ok) toast.success("Conexão Trier validada");
+      else toast.error(data?.message || "Falha ao validar conexão Trier");
+      qc.invalidateQueries({ queryKey: ["trier_logs"] });
+      qc.invalidateQueries({ queryKey: ["trier_settings"] });
+      return data;
+    } catch (e: any) {
+      toast.error(e.message);
+      return null;
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const runProductsTest = async () => {
     setBusy("test-products-endpoint");
     try {
@@ -220,7 +239,7 @@ export default function AdminTrier() {
             <Card title="Último sync preços" value={settings?.last_sync_prices_at ? new Date(settings.last_sync_prices_at).toLocaleString("pt-BR") : "—"} />
           </div>
           <div className="flex gap-2 mt-4 flex-wrap">
-            <Button onClick={() => call("test-connection", {}, "Conexão testada")} disabled={busy !== null}><Plug className="h-4 w-4 mr-2" />Testar conexão</Button>
+            <Button onClick={runConnectionTest} disabled={busy !== null}><Plug className="h-4 w-4 mr-2" />Testar conexão</Button>
             <Button onClick={() => call("sync-all", { trigger: "manual" }, "Sincronização completa")} disabled={busy !== null} variant="secondary"><RefreshCw className={`h-4 w-4 mr-2 ${busy === "sync-all" ? "animate-spin" : ""}`} />Sincronizar tudo</Button>
           </div>
         </TabsContent>
@@ -282,13 +301,17 @@ export default function AdminTrier() {
             <h2 className="font-bold">URL final montada</h2>
             <p className="text-xs text-muted-foreground">Token nunca é exibido. Esta é a URL exata que a edge function vai chamar.</p>
             {(() => {
-              const base = (form.base_url || "").trim().replace(/\/+$/, "").replace(/\/rest\/.*$/i, "");
+              const base = normalizeBaseUrl(form.base_url || "", form.environment || "homologacao");
               const endpoint = "/rest/integracao/produto/obter-todos-v1?primeiroRegistro=0&quantidadeRegistros=50";
+              const tokenMasked = tokenInput ? maskToken(tokenInput) : "";
               return (
                 <div className="space-y-1 text-xs font-mono break-all">
+                  <div><span className="text-muted-foreground">ambiente:</span> {form.environment === "producao" ? "Produção" : "Homologação"}</div>
                   <div><span className="text-muted-foreground">baseUrl:</span> {base || "—"}</div>
                   <div><span className="text-muted-foreground">endpoint:</span> {endpoint}</div>
-                  <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? `${base}${endpoint}` : "—"}</span></div>
+                  <div><span className="text-muted-foreground">URL final:</span> <span className="text-primary">{base ? buildTrierUrl(base, endpoint) : "—"}</span></div>
+                  <div><span className="text-muted-foreground">token mascarado:</span> {tokenMasked || "será mascarado após o teste"}</div>
+                  <div><span className="text-muted-foreground">header mascarado:</span> {tokenMasked ? `Authorization: Bearer ${tokenMasked}` : "Authorization: Bearer ***"}</div>
                 </div>
               );
             })()}
@@ -296,11 +319,11 @@ export default function AdminTrier() {
 
           <div className="flex gap-2 flex-wrap">
             <Button onClick={saveSettings}>Salvar configurações</Button>
-            <Button variant="outline" onClick={() => call("test-connection", {}, "Conexão testada")} disabled={busy !== null}>
+            <Button variant="outline" onClick={runConnectionTest} disabled={busy !== null}>
               <Plug className="h-4 w-4 mr-2" />Testar conexão
             </Button>
-            <Button variant="outline" onClick={async () => { const d = await call("test-products-endpoint", {}, "Endpoint de produtos testado"); if (d) setLastTestResult(d); }} disabled={busy !== null}>
-              <Package className="h-4 w-4 mr-2" />Testar endpoint de produtos
+            <Button variant="outline" onClick={runProductsTest} disabled={busy !== null}>
+              <Package className="h-4 w-4 mr-2" />Testar Produtos Trier
             </Button>
           </div>
 
@@ -310,10 +333,18 @@ export default function AdminTrier() {
                 Resultado do último teste
                 <Badge variant={lastTestResult.ok ? "default" : "destructive"}>HTTP {lastTestResult.status ?? "—"}</Badge>
               </h2>
+              {lastTestResult.message && <p className="text-sm text-muted-foreground">{lastTestResult.message}</p>}
               <div className="text-xs font-mono break-all space-y-1">
-                <div><span className="text-muted-foreground">URL:</span> {lastTestResult.finalUrl}</div>
+                <div><span className="text-muted-foreground">Ambiente:</span> {lastTestResult.environment === "producao" ? "Produção" : "Homologação"}</div>
+                <div><span className="text-muted-foreground">Base URL usada:</span> {lastTestResult.baseUrl || "—"}</div>
+                <div><span className="text-muted-foreground">Endpoint usado:</span> {lastTestResult.endpoint || "—"}</div>
+                <div><span className="text-muted-foreground">URL final montada:</span> {lastTestResult.finalUrl || "—"}</div>
+                <div><span className="text-muted-foreground">Token mascarado:</span> {lastTestResult.tokenMasked || "—"}</div>
+                <div><span className="text-muted-foreground">Header mascarado:</span> {lastTestResult.authorizationHeaderMasked || "—"}</div>
+                <div><span className="text-muted-foreground">Status HTTP:</span> {lastTestResult.status ?? "—"}</div>
+                <div><span className="text-muted-foreground">Tempo de resposta:</span> {lastTestResult.responseTimeMs != null ? `${lastTestResult.responseTimeMs} ms` : "—"}</div>
                 {lastTestResult.count != null && <div><span className="text-muted-foreground">Itens retornados:</span> {lastTestResult.count}</div>}
-                {lastTestResult.error && <div className="text-destructive">Erro: {lastTestResult.error}</div>}
+                {lastTestResult.error && <div className="text-destructive">Erro técnico: {lastTestResult.error}</div>}
                 {lastTestResult.body && (
                   <pre className="bg-muted p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{lastTestResult.body}</pre>
                 )}
