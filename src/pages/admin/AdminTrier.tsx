@@ -232,7 +232,7 @@ export default function AdminTrier() {
           {settings?.last_connection_status === "ok" && <Badge variant="secondary" className="bg-whatsapp/10 text-whatsapp">Conectado</Badge>}
           {settings?.last_connection_status === "error" && <Badge variant="destructive">Falha</Badge>}
           {!settings?.last_connection_status && <Badge variant="outline">Nunca testado</Badge>}
-          <Badge variant="outline">{settings?.environment === "producao" ? "PRODUÇÃO" : "Homologação"}</Badge>
+          <Badge variant="outline">{(settings as any)?.environment === "producao" ? "PRODUÇÃO" : (settings as any)?.environment === "homologacao" ? "Homologação" : "Gateway"}</Badge>
         </div>
       </div>
 
