@@ -526,10 +526,21 @@ async function actionTestProductsEndpoint() {
   };
 }
 
+function summarizeResults(results: UpsertResult[]) {
+  const created = results.filter((r) => r.created).length;
+  const updated = results.filter((r) => r.updated).length;
+  const failed = results.filter((r) => r.failed).length;
+  const ignored = results.filter((r) => r.skipped).length;
+  const ignored_reasons: Record<string, number> = {};
+  for (const r of results) if (r.skipped && r.reason) ignored_reasons[r.reason] = (ignored_reasons[r.reason] || 0) + 1;
+  const errors = results.filter((r) => r.failed).slice(0, 20).map((r) => ({ trier_id: r.trier_id, name: r.name, error: r.error }));
+  const sampleIgnored = results.filter((r) => r.skipped).slice(0, 10).map((r) => ({ trier_id: r.trier_id, name: r.name, reason: r.reason }));
+  return { created, updated, failed, ignored, ignored_reasons, errors, sampleIgnored };
+}
+
 async function actionSyncProducts(trigger = "manual", changed = false) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
-  let created = 0, updated = 0, failed = 0, ignored = 0;
   try {
     let list: any[];
     if (changed) {
@@ -540,23 +551,58 @@ async function actionSyncProducts(trigger = "manual", changed = false) {
     } else {
       list = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1");
     }
-    for (const t of list) {
-      const r = await upsertProductFromTrier(t);
-      if (r.created) created++;
-      else if (r.updated) updated++;
-      else if (r.failed) failed++;
-      else ignored++;
-    }
+    const results: UpsertResult[] = [];
+    for (const t of list) results.push(await upsertProductFromTrier(t));
+    const sum = summarizeResults(results);
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
-    await finishJob(job.id, { status: "success", records_checked: list.length, records_created: created, records_updated: updated, records_failed: failed, records_ignored: ignored });
-    await log("products", "success", `Produtos sincronizados: ${created} criados, ${updated} atualizados`, { changed, total: list.length });
-    return { ok: true, total: list.length, created, updated, failed, ignored };
+    await finishJob(job.id, { status: sum.failed > 0 ? "partial" : "success", records_checked: list.length, records_created: sum.created, records_updated: sum.updated, records_failed: sum.failed, records_ignored: sum.ignored });
+    const msg = list.length === 0
+      ? "A Trier respondeu com sucesso, mas não retornou produtos para esses filtros."
+      : `Produtos: ${list.length} retornados · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro`;
+    await log("products", sum.failed > 0 ? "error" : "success", msg, { changed, total: list.length, ...sum });
+    return { ok: true, total: list.length, ...sum };
   } catch (e: any) {
     const msg = String(e?.message || e).slice(0, 1200);
-    await finishJob(job.id, { status: "error", error_message: msg, records_created: created, records_updated: updated, records_failed: failed });
+    await finishJob(job.id, { status: "error", error_message: msg });
     await log("products", "error", "Erro na sincronização de produtos", { error: msg });
     return { ok: false, error: msg };
   }
+}
+
+async function actionDiagnoseProductsPage() {
+  const s = await getSettings();
+  const qs = buildProductsQuery(s, 0, 150);
+  const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  const response = await requestTrier(s, path, { method: "GET" }, { page: 0 });
+  if (!response.ok) {
+    return {
+      ok: false, stage: "api", message: response.message,
+      finalUrl: response.finalUrl, queryParams: response.queryParams,
+      status: response.status, responseTimeMs: response.responseTimeMs,
+      body: response.body, error: response.error,
+    };
+  }
+  const list = extractList(response.json ?? []);
+  if (list.length === 0) {
+    return {
+      ok: true, stage: "empty",
+      message: "A Trier respondeu com sucesso, mas não retornou produtos para esses filtros.",
+      finalUrl: response.finalUrl, queryParams: response.queryParams,
+      status: response.status, responseTimeMs: response.responseTimeMs,
+      count: 0, firstItemJson: null, firstItemKeys: null,
+    };
+  }
+  const results: UpsertResult[] = [];
+  for (const t of list) results.push(await upsertProductFromTrier(t));
+  const sum = summarizeResults(results);
+  return {
+    ok: true, stage: "done",
+    message: `${list.length} produtos retornados · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro`,
+    finalUrl: response.finalUrl, queryParams: response.queryParams,
+    status: response.status, responseTimeMs: response.responseTimeMs,
+    count: list.length, firstItemJson: response.firstItemJson, firstItemKeys: response.firstItemKeys,
+    ...sum,
+  };
 }
 
 async function actionSyncCategories(trigger = "manual") {
