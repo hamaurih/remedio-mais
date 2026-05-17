@@ -132,14 +132,15 @@ export function ProductCard({ p }: { p: Product }) {
           <div className="mt-3 flex items-stretch gap-1.5">
             <Button
               onClick={handleAdd}
-              className="flex-1 h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all"
+              disabled={outOfStock}
+              className="flex-1 h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-60"
             >
-              <ShoppingCart className="h-4 w-4 mr-1" /> Adicionar
+              <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : "Adicionar"}
             </Button>
             <Button
               asChild
               size="icon"
-              aria-label="Comprar pelo WhatsApp"
+              aria-label={outOfStock ? "Consultar pelo WhatsApp" : "Comprar pelo WhatsApp"}
               className="h-10 w-10 shrink-0 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
             >
               <a href={wa} target="_blank" rel="noopener">
