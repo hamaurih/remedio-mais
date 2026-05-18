@@ -58,6 +58,30 @@ export default function AdminSettings() {
             <div className="space-y-1"><Label>Bairros atendidos</Label><Textarea rows={4} value={s.served_neighborhoods || ""} onChange={set("served_neighborhoods")} placeholder="Centro, Catolé, Liberdade..." /></div>
           </TabsContent>
 
+          <TabsContent value="pix" className="space-y-3 pt-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!s.pix_discount_enabled}
+                onChange={(e) => setS({ ...s, pix_discount_enabled: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-semibold">Ativar desconto Pix global</span>
+            </label>
+            <div className="space-y-1">
+              <Label>Percentual de desconto Pix (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={s.pix_discount_percentage ?? 0}
+                onChange={set("pix_discount_percentage")}
+                placeholder="10"
+              />
+              <p className="text-xs text-muted-foreground">Usado quando o produto não tem desconto Pix próprio.</p>
+            </div>
+
           <TabsContent value="home" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Título do hero</Label><Input value={s.hero_title || ""} onChange={set("hero_title")} /></div>
             <div className="space-y-1"><Label>Subtítulo do hero</Label><Textarea value={s.hero_subtitle || ""} onChange={set("hero_subtitle")} /></div>
