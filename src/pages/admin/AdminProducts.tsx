@@ -114,6 +114,8 @@ export default function AdminProducts() {
         promotion_end: editing.promotion_end || null,
         tarja: editing.tarja || null,
         product_badge: editing.product_badge || null,
+        pix_discount_percentage: editing.pix_discount_percentage ? Number(editing.pix_discount_percentage) : null,
+        cart_quantity_limit: editing.cart_quantity_limit ? Number(editing.cart_quantity_limit) : null,
       };
       delete payload.categories;
       delete payload.discount_percentage; // generated column
