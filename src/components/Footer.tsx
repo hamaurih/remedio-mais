@@ -1,6 +1,7 @@
 import { MapPin, Phone, Instagram, Clock } from "lucide-react";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
+import logoRed from "@/assets/logo-red.jpeg";
 
 export function Footer() {
   const { data: s } = useStoreSettings();
@@ -8,10 +9,7 @@ export function Footer() {
     <footer className="mt-16 bg-secondary/60 border-t">
       <div className="container py-10 grid gap-8 md:grid-cols-4">
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-9 h-9 bg-gradient-hero rounded-lg flex items-center justify-center text-primary-foreground font-extrabold">A+</div>
-            <div className="font-extrabold">Atacadão dos Medicamentos</div>
-          </div>
+          <img src={logoRed} alt="Atacadão dos Medicamentos" className="h-10 w-auto object-contain mb-3" />
           <p className="text-sm text-muted-foreground">Preço baixo todo dia, atendimento rápido e entrega local em Campina Grande - PB.</p>
         </div>
         <div>

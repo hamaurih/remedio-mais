@@ -9,6 +9,7 @@ import { buildWhatsAppLink } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { PromoTicker } from "./PromoTicker";
 import { CategoryNav } from "./CategoryNav";
+import logoRed from "@/assets/logo-red.jpeg";
 
 const CATS = [
   { name: "Ofertas", slug: "ofertas" },
@@ -41,12 +42,8 @@ export function Header() {
 
       <div className="container py-3">
         <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-10 h-10 bg-gradient-hero rounded-lg flex items-center justify-center text-primary-foreground font-extrabold text-lg shadow-elevated">A+</div>
-            <div className="leading-tight">
-              <div className="font-extrabold text-base">Atacadão</div>
-              <div className="text-[11px] text-muted-foreground -mt-0.5">dos Medicamentos</div>
-            </div>
+          <Link to="/" className="flex items-center shrink-0" aria-label="Atacadão dos Medicamentos">
+            <img src={logoRed} alt="Atacadão dos Medicamentos" className="h-10 md:h-12 w-auto object-contain" />
           </Link>
 
           <form
