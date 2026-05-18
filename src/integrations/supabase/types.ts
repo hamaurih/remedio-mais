@@ -288,6 +288,7 @@ export type Database = {
           minimum_stock: number
           name: string
           on_sale: boolean
+          pix_discount_percentage: number | null
           price: number
           product_badge: string | null
           promo_price: number | null
@@ -351,6 +352,7 @@ export type Database = {
           minimum_stock?: number
           name: string
           on_sale?: boolean
+          pix_discount_percentage?: number | null
           price?: number
           product_badge?: string | null
           promo_price?: number | null
@@ -414,6 +416,7 @@ export type Database = {
           minimum_stock?: number
           name?: string
           on_sale?: boolean
+          pix_discount_percentage?: number | null
           price?: number
           product_badge?: string | null
           promo_price?: number | null
@@ -481,6 +484,8 @@ export type Database = {
           instagram: string | null
           legal_name: string | null
           pharmacist_name: string | null
+          pix_discount_enabled: boolean
+          pix_discount_percentage: number
           sanitary_license: string | null
           sanitary_notice: string | null
           served_neighborhoods: string | null
@@ -502,6 +507,8 @@ export type Database = {
           instagram?: string | null
           legal_name?: string | null
           pharmacist_name?: string | null
+          pix_discount_enabled?: boolean
+          pix_discount_percentage?: number
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
@@ -523,6 +530,8 @@ export type Database = {
           instagram?: string | null
           legal_name?: string | null
           pharmacist_name?: string | null
+          pix_discount_enabled?: boolean
+          pix_discount_percentage?: number
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
