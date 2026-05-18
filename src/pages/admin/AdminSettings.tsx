@@ -81,6 +81,7 @@ export default function AdminSettings() {
               />
               <p className="text-xs text-muted-foreground">Usado quando o produto não tem desconto Pix próprio.</p>
             </div>
+          </TabsContent>
 
           <TabsContent value="home" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Título do hero</Label><Input value={s.hero_title || ""} onChange={set("hero_title")} /></div>
