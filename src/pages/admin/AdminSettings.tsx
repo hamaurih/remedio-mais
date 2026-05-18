@@ -18,7 +18,13 @@ export default function AdminSettings() {
   }, []);
 
   const save = async () => {
-    const payload = { ...s, id: 1, delivery_fee: Number(s.delivery_fee || 0) };
+    const payload = {
+      ...s,
+      id: 1,
+      delivery_fee: Number(s.delivery_fee || 0),
+      pix_discount_enabled: !!s.pix_discount_enabled,
+      pix_discount_percentage: Number(s.pix_discount_percentage || 0),
+    };
     const { error } = await supabase.from("store_settings").upsert(payload);
     if (error) toast.error(error.message); else toast.success("Configurações salvas");
   };
