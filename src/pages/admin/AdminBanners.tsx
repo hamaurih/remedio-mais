@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 const PLACEMENTS = [
