@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 const PLACEMENTS = [
@@ -78,7 +79,12 @@ export default function AdminBanners() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-extrabold">Banners</h1>
-        <Button onClick={() => { setEditing(empty); setFile(null); setMobileFile(null); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Novo</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/admin/banners/gerador"><Wand2 className="h-4 w-4 mr-2" /> Gerador de Banner</Link>
+          </Button>
+          <Button onClick={() => { setEditing(empty); setFile(null); setMobileFile(null); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Novo</Button>
+        </div>
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {data?.map((b: any) => (

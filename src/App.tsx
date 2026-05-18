@@ -21,6 +21,7 @@ import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
 import AdminOffers from "./pages/admin/AdminOffers.tsx";
 import AdminTrier from "./pages/admin/AdminTrier.tsx";
+import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="produtos" element={<AdminProducts />} />
             <Route path="categorias" element={<AdminCategories />} />
             <Route path="banners" element={<AdminBanners />} />
+            <Route path="banners/gerador" element={<AdminBannerGenerator />} />
             <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
