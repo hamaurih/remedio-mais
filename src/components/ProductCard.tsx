@@ -5,6 +5,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
 import { toast } from "sonner";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { openQuickView } from "@/lib/quickview";
 
 export type Product = {
   id: string; name: string; slug: string;
