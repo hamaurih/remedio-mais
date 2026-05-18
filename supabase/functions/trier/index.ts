@@ -375,14 +375,15 @@ function mapProduct(t: any) {
   const catName = pickCategoryName(t) || "";
   const grpName = pickGroupName(t) || "";
   const depName = (t.nomeDepartamento || "") as string;
-  const haystack = `${catName} ${grpName} ${depName}`.toUpperCase();
+  const haystack = `${catName} ${grpName} ${depName} ${name}`.toUpperCase();
   const shelves = new Set<string>();
   if (promo != null) shelves.add("ofertas-da-semana");
-  if (/GEN[EÉ]RICOS?/.test(haystack)) { shelves.add("medicamentos-populares"); shelves.add("ofertas-da-semana"); }
-  if (/HIGIENE|BELEZA|PERFUMARIA|DERMO/.test(haystack)) shelves.add("higiene-e-beleza");
-  if (/BEB[EÊ]|INFANTIL|FRALDA/.test(haystack)) shelves.add("mamaes-e-bebes");
-  if (/VITAMINA|SUPLEMENTO/.test(haystack)) shelves.add("vitaminas-e-suplementos");
-  if (/CURATIVO|GAZE|ESPARADRAPO|PRIMEIROS SOCORROS/.test(haystack)) shelves.add("primeiros-socorros");
+  if (t.maisVendido === true || t.destaque === true) shelves.add("mais-vendidos");
+  if (/GEN[EÉ]RICOS?|SIMILAR|MEDICAMENTO/.test(haystack)) shelves.add("medicamentos-populares");
+  if (/HIGIENE|BELEZA|PERFUMARIA|DERMO|SHAMPOO|SAB[OÃ]/.test(haystack)) shelves.add("higiene-e-beleza");
+  if (/BEB[EÊ]|INFANTIL|FRALDA|MAM[ÃA]E|MAMADEIRA/.test(haystack)) shelves.add("mamaes-e-bebes");
+  if (/VITAMINA|SUPLEMENTO|NUTRI|MINERAL/.test(haystack)) shelves.add("vitaminas-e-suplementos");
+  if (/CURATIVO|GAZE|ESPARADRAPO|ANTISS[ÉE]PTICO|PRIMEIROS SOCORROS|BAND-?AID/.test(haystack)) shelves.add("primeiros-socorros");
   if (shelves.size === 0) shelves.add("medicamentos-populares");
 
   return {
