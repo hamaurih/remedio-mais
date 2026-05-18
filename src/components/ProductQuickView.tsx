@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, MessageCircle, FileText, Minus, Plus, AlertCircle, X } from "lucide-react";
+import { ShoppingCart, MessageCircle, FileText, Minus, Plus, AlertCircle } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
