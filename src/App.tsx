@@ -21,6 +21,7 @@ import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
 import AdminOffers from "./pages/admin/AdminOffers.tsx";
 import AdminTrier from "./pages/admin/AdminTrier.tsx";
+import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 
 
 const queryClient = new QueryClient();
