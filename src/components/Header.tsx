@@ -9,7 +9,7 @@ import { buildWhatsAppLink } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { PromoTicker } from "./PromoTicker";
 import { CategoryNav } from "./CategoryNav";
-import logoRed from "@/assets/logo-red.jpeg";
+import logoRed from "@/assets/logo-red.png";
 
 const CATS = [
   { name: "Ofertas", slug: "ofertas" },
@@ -43,7 +43,19 @@ export function Header() {
       <div className="container py-3">
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center shrink-0" aria-label="Atacadão dos Medicamentos">
-            <img src={logoRed} alt="Atacadão dos Medicamentos" className="h-10 md:h-12 w-auto object-contain" />
+            <img
+              src={logoRed}
+              alt="Farmácia Atacadão dos Medicamentos"
+              className="h-12 md:h-16 w-auto object-contain"
+              onError={(e) => {
+                const t = e.currentTarget;
+                t.style.display = "none";
+                t.insertAdjacentHTML(
+                  "afterend",
+                  '<span class="text-primary font-extrabold text-lg md:text-xl">Atacadão dos Medicamentos</span>'
+                );
+              }}
+            />
           </Link>
 
           <form

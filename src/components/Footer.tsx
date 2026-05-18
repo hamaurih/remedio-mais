@@ -1,7 +1,7 @@
 import { MapPin, Phone, Instagram, Clock } from "lucide-react";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
-import logoRed from "@/assets/logo-red.jpeg";
+import logoRed from "@/assets/logo-red.png";
 
 export function Footer() {
   const { data: s } = useStoreSettings();
