@@ -18,7 +18,13 @@ export default function AdminSettings() {
   }, []);
 
   const save = async () => {
-    const payload = { ...s, id: 1, delivery_fee: Number(s.delivery_fee || 0) };
+    const payload = {
+      ...s,
+      id: 1,
+      delivery_fee: Number(s.delivery_fee || 0),
+      pix_discount_enabled: !!s.pix_discount_enabled,
+      pix_discount_percentage: Number(s.pix_discount_percentage || 0),
+    };
     const { error } = await supabase.from("store_settings").upsert(payload);
     if (error) toast.error(error.message); else toast.success("Configurações salvas");
   };
@@ -34,6 +40,7 @@ export default function AdminSettings() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="loja">Loja</TabsTrigger>
             <TabsTrigger value="entrega">Entrega</TabsTrigger>
+            <TabsTrigger value="pix">Pix</TabsTrigger>
             <TabsTrigger value="home">Home</TabsTrigger>
             <TabsTrigger value="legal">Legal / Sanitário</TabsTrigger>
           </TabsList>
@@ -49,6 +56,31 @@ export default function AdminSettings() {
           <TabsContent value="entrega" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Taxa de entrega padrão (R$)</Label><Input type="number" step="0.01" value={s.delivery_fee || 0} onChange={set("delivery_fee")} /></div>
             <div className="space-y-1"><Label>Bairros atendidos</Label><Textarea rows={4} value={s.served_neighborhoods || ""} onChange={set("served_neighborhoods")} placeholder="Centro, Catolé, Liberdade..." /></div>
+          </TabsContent>
+
+          <TabsContent value="pix" className="space-y-3 pt-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!s.pix_discount_enabled}
+                onChange={(e) => setS({ ...s, pix_discount_enabled: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-semibold">Ativar desconto Pix global</span>
+            </label>
+            <div className="space-y-1">
+              <Label>Percentual de desconto Pix (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={s.pix_discount_percentage ?? 0}
+                onChange={set("pix_discount_percentage")}
+                placeholder="10"
+              />
+              <p className="text-xs text-muted-foreground">Usado quando o produto não tem desconto Pix próprio.</p>
+            </div>
           </TabsContent>
 
           <TabsContent value="home" className="space-y-3 pt-3">

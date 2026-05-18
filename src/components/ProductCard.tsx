@@ -5,6 +5,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
 import { toast } from "sonner";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { openQuickView } from "@/lib/quickview";
 
 export type Product = {
   id: string; name: string; slug: string;
@@ -62,10 +63,12 @@ export function ProductCard({ p }: { p: Product }) {
 
   return (
     <article className="group bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 h-full">
-      <Link
-        to={`/produto/${p.slug}`}
-        className="relative block bg-secondary/30 overflow-hidden"
+      <button
+        type="button"
+        onClick={() => openQuickView(p)}
+        className="relative block bg-secondary/30 overflow-hidden text-left w-full"
         style={{ aspectRatio: "1 / 1" }}
+        aria-label={`Ver ${p.name}`}
       >
         <img
           src={p.image_url || productPlaceholder}
@@ -95,15 +98,16 @@ export function ProductCard({ p }: { p: Product }) {
             Indisponível
           </span>
         )}
-      </Link>
+      </button>
 
       <div className="p-3 md:p-4 flex flex-col gap-1 flex-1">
-        <Link
-          to={`/produto/${p.slug}`}
-          className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary min-h-[2.5rem]"
+        <button
+          type="button"
+          onClick={() => openQuickView(p)}
+          className="font-semibold text-sm leading-snug line-clamp-2 hover:text-primary min-h-[2.5rem] text-left"
         >
           {p.name}
-        </Link>
+        </button>
         {p.manufacturer && (
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">
             {p.manufacturer}

@@ -114,6 +114,8 @@ export default function AdminProducts() {
         promotion_end: editing.promotion_end || null,
         tarja: editing.tarja || null,
         product_badge: editing.product_badge || null,
+        pix_discount_percentage: editing.pix_discount_percentage ? Number(editing.pix_discount_percentage) : null,
+        cart_quantity_limit: editing.cart_quantity_limit ? Number(editing.cart_quantity_limit) : null,
       };
       delete payload.categories;
       delete payload.discount_percentage; // generated column
@@ -291,6 +293,8 @@ export default function AdminProducts() {
                 <div className="flex items-center gap-2 mt-6"><Switch checked={editing.on_sale} onCheckedChange={(v) => setEditing({ ...editing, on_sale: v })} /><Label>Em promoção</Label></div>
                 <div className="space-y-1"><Label>Início da promoção</Label><Input type="datetime-local" value={editing.promotion_start?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_start: e.target.value || null })} /></div>
                 <div className="space-y-1"><Label>Fim da promoção</Label><Input type="datetime-local" value={editing.promotion_end?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_end: e.target.value || null })} /></div>
+                <div className="space-y-1"><Label>Desconto Pix do produto (%)</Label><Input type="number" step="0.01" min="0" max="100" value={editing.pix_discount_percentage ?? ""} onChange={(e) => setEditing({ ...editing, pix_discount_percentage: e.target.value || null })} placeholder="usa o global se vazio" /></div>
+                <div className="space-y-1"><Label>Limite por carrinho</Label><Input type="number" min="1" value={editing.cart_quantity_limit ?? ""} onChange={(e) => setEditing({ ...editing, cart_quantity_limit: e.target.value || null })} placeholder="sem limite" /></div>
               </div>
             </TabsContent>
 
