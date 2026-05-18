@@ -40,6 +40,7 @@ export default function AdminSettings() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="loja">Loja</TabsTrigger>
             <TabsTrigger value="entrega">Entrega</TabsTrigger>
+            <TabsTrigger value="pix">Pix</TabsTrigger>
             <TabsTrigger value="home">Home</TabsTrigger>
             <TabsTrigger value="legal">Legal / Sanitário</TabsTrigger>
           </TabsList>
