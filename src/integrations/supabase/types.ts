@@ -821,7 +821,78 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      store_settings_public: {
+        Row: {
+          address: string | null
+          afe: string | null
+          cnpj: string | null
+          crf: string | null
+          delivery_fee: number | null
+          footer_text: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
+          hours: string | null
+          id: number | null
+          instagram: string | null
+          legal_name: string | null
+          pharmacist_name: string | null
+          pix_discount_enabled: boolean | null
+          pix_discount_percentage: number | null
+          sanitary_license: string | null
+          sanitary_notice: string | null
+          served_neighborhoods: string | null
+          store_name: string | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          afe?: string | null
+          cnpj?: string | null
+          crf?: string | null
+          delivery_fee?: number | null
+          footer_text?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          hours?: string | null
+          id?: number | null
+          instagram?: string | null
+          legal_name?: string | null
+          pharmacist_name?: string | null
+          pix_discount_enabled?: boolean | null
+          pix_discount_percentage?: number | null
+          sanitary_license?: string | null
+          sanitary_notice?: string | null
+          served_neighborhoods?: string | null
+          store_name?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          afe?: string | null
+          cnpj?: string | null
+          crf?: string | null
+          delivery_fee?: number | null
+          footer_text?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          hours?: string | null
+          id?: number | null
+          instagram?: string | null
+          legal_name?: string | null
+          pharmacist_name?: string | null
+          pix_discount_enabled?: boolean | null
+          pix_discount_percentage?: number | null
+          sanitary_license?: string | null
+          sanitary_notice?: string | null
+          served_neighborhoods?: string | null
+          store_name?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
