@@ -10,6 +10,7 @@ const items = [
   { to: "/admin/produtos", label: "Produtos", icon: Package },
   { to: "/admin/categorias", label: "Categorias", icon: Tags },
   { to: "/admin/banners", label: "Banners", icon: ImageIcon },
+  { to: "/admin/promo-banner", label: "Faixa Promo (5 blocos)", icon: Tag },
   { to: "/admin/ofertas", label: "Ofertas", icon: Tag },
   { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag },
   { to: "/admin/receitas", label: "Receitas", icon: FileText },
