@@ -15,7 +15,7 @@ export function useStoreSettings() {
   return useQuery({
     queryKey: ["store_settings"],
     queryFn: async (): Promise<StoreSettings> => {
-      const { data, error } = await supabase.from("store_settings").select("*").eq("id", 1).maybeSingle();
+      const { data, error } = await (supabase as any).from("store_settings_public").select("*").eq("id", 1).maybeSingle();
       if (error) throw error;
       return (data as StoreSettings) ?? {
         whatsapp: "5583999286000", address: null, instagram: null, hours: null,
