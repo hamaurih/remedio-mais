@@ -32,7 +32,8 @@ export default function SendPrescription() {
       let file_url: string | null = null;
       if (file) {
         if (file.size > 10 * 1024 * 1024) { toast.error("Arquivo até 10 MB"); setSubmitting(false); return; }
-        const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const path = `public/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage.from("prescriptions").upload(path, file);
         if (upErr) throw upErr;
         file_url = path;
