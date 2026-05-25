@@ -896,7 +896,6 @@ export type Database = {
           sanitary_notice: string | null
           served_neighborhoods: string | null
           store_name: string | null
-          updated_at: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -919,7 +918,6 @@ export type Database = {
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
           store_name?: string | null
-          updated_at?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -942,7 +940,6 @@ export type Database = {
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
           store_name?: string | null
-          updated_at?: string | null
           whatsapp?: string | null
         }
         Relationships: []

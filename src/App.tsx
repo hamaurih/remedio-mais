@@ -27,7 +27,16 @@ import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
 
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Storefront should pick up admin changes quickly without manual refresh
+      staleTime: 30_000,
+      refetchOnWindowFocus: "always",
+      refetchOnReconnect: "always",
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
