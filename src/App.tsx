@@ -10,6 +10,7 @@ import Product from "./pages/Product.tsx";
 import Cart from "./pages/Cart.tsx";
 import SendPrescription from "./pages/SendPrescription.tsx";
 import Search from "./pages/Search.tsx";
+import Departamentos from "./pages/Departamentos.tsx";
 import Auth from "./pages/Auth.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
