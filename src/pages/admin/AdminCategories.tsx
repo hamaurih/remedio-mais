@@ -13,7 +13,9 @@ import { toast } from "sonner";
 const empty: any = {
   id: "", name: "", slug: "", description: "", icon: "", image_url: "",
   position: 0, active: true, show_in_menu: true, show_on_home: true,
+  link: "", band_color: "#E11D2E",
 };
+
 
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
