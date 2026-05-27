@@ -161,11 +161,13 @@ export type Database = {
       categories: {
         Row: {
           active: boolean
+          band_color: string | null
           created_at: string
           description: string | null
           icon: string | null
           id: string
           image_url: string | null
+          link: string | null
           name: string
           position: number
           show_in_menu: boolean
@@ -175,11 +177,13 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          band_color?: string | null
           created_at?: string
           description?: string | null
           icon?: string | null
           id?: string
           image_url?: string | null
+          link?: string | null
           name: string
           position?: number
           show_in_menu?: boolean
@@ -189,11 +193,13 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          band_color?: string | null
           created_at?: string
           description?: string | null
           icon?: string | null
           id?: string
           image_url?: string | null
+          link?: string | null
           name?: string
           position?: number
           show_in_menu?: boolean

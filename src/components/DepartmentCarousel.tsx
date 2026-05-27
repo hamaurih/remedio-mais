@@ -1,24 +1,32 @@
 import { Link } from "react-router-dom";
-import {
-  Tag, Pill, BadgePercent, Thermometer, Wind, Sun, Sparkles, Baby,
-  Droplet, ShoppingBag, Bandage, Stethoscope,
-} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-const DEPARTAMENTOS = [
-  { name: "Ofertas", slug: "ofertas", icon: Tag },
-  { name: "Medicamentos e Saúde", slug: "medicamentos", icon: Stethoscope },
-  { name: "Genéricos", slug: "genericos", icon: BadgePercent },
-  { name: "Dor e Febre", slug: "dor-e-febre", icon: Thermometer },
-  { name: "Gripe e Resfriado", slug: "gripe-e-resfriado", icon: Wind },
-  { name: "Vitaminas", slug: "vitaminas", icon: Sun },
-  { name: "Higiene Pessoal", slug: "higiene-pessoal", icon: Droplet },
-  { name: "Mamães e Bebês", slug: "mamaes-e-bebes", icon: Baby },
-  { name: "Dermocosméticos", slug: "dermocosmeticos", icon: Sparkles },
-  { name: "Conveniência", slug: "conveniencia", icon: ShoppingBag },
-  { name: "Primeiros Socorros", slug: "primeiros-socorros", icon: Bandage },
-];
+type Dept = {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  link: string | null;
+  band_color: string | null;
+};
 
 export function DepartmentCarousel() {
+  const { data = [] } = useQuery({
+    queryKey: ["home_departments"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("categories")
+        .select("id,name,slug,image_url,link,band_color")
+        .eq("active", true)
+        .eq("show_on_home", true)
+        .order("position", { ascending: true });
+      return (data || []) as Dept[];
+    },
+  });
+
+  if (!data.length) return null;
+
   return (
     <section className="container py-8 md:py-10">
       <div className="flex items-end justify-between mb-4">
@@ -28,18 +36,36 @@ export function DepartmentCarousel() {
         </h2>
       </div>
       <div className="flex md:grid md:grid-cols-4 lg:grid-cols-6 gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory">
-        {DEPARTAMENTOS.map((d) => (
-          <Link
-            key={d.slug}
-            to={`/categoria/${d.slug}`}
-            className="snap-start shrink-0 w-28 md:w-auto bg-secondary/60 border border-border rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center hover:shadow-elevated hover:border-primary/40 hover:scale-[1.04] transition-all duration-300 aspect-square md:aspect-[4/3]"
-          >
-            <div className="bg-card text-primary rounded-full p-3 shadow-card">
-              <d.icon className="h-5 w-5 md:h-6 md:w-6" />
-            </div>
-            <div className="text-xs md:text-sm font-bold leading-tight">{d.name}</div>
-          </Link>
-        ))}
+        {data.map((d) => {
+          const href = d.link?.trim() ? d.link : `/categoria/${d.slug}`;
+          const color = d.band_color || "#E11D2E";
+          return (
+            <Link
+              key={d.id}
+              to={href}
+              className="snap-start shrink-0 w-36 md:w-auto bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:shadow-elevated hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+            >
+              <div className="aspect-square bg-secondary/40 flex items-center justify-center overflow-hidden">
+                {d.image_url ? (
+                  <img
+                    src={d.image_url}
+                    alt={d.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-secondary to-muted" />
+                )}
+              </div>
+              <div
+                className="px-2 py-2.5 text-center text-white text-xs md:text-sm font-bold leading-tight min-h-[42px] flex items-center justify-center"
+                style={{ backgroundColor: color }}
+              >
+                {d.name}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
