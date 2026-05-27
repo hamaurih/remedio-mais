@@ -114,8 +114,17 @@ export default function AdminCategories() {
               {editing.image_url && <img src={editing.image_url} alt="" className="w-24 h-24 object-cover rounded mb-2" />}
               <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </div>
+            <div className="space-y-1"><Label>Link customizado (opcional)</Label><Input value={editing.link || ""} onChange={(e) => setEditing({ ...editing, link: e.target.value })} placeholder={`/categoria/${editing.slug || "slug"}`} /></div>
+            <div className="space-y-1">
+              <Label>Cor da faixa inferior</Label>
+              <div className="flex items-center gap-2">
+                <Input type="color" value={editing.band_color || "#E11D2E"} onChange={(e) => setEditing({ ...editing, band_color: e.target.value })} className="w-16 h-10 p-1" />
+                <Input value={editing.band_color || ""} onChange={(e) => setEditing({ ...editing, band_color: e.target.value })} placeholder="#E11D2E" />
+              </div>
+            </div>
             <div className="flex items-center gap-2"><Switch checked={editing.show_in_menu} onCheckedChange={(v) => setEditing({ ...editing, show_in_menu: v })} /><Label>Aparece no menu</Label></div>
             <div className="flex items-center gap-2"><Switch checked={editing.show_on_home} onCheckedChange={(v) => setEditing({ ...editing, show_on_home: v })} /><Label>Aparece no carrossel da home</Label></div>
+
             <div className="flex items-center gap-2"><Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /><Label>Ativa</Label></div>
             <Button className="w-full" onClick={save}>Salvar</Button>
           </div>
