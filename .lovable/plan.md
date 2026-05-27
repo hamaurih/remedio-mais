@@ -1,60 +1,75 @@
-Three workstreams to upgrade the Farmácia Atacadão e-commerce without rebuilding it. Items 1 and 2 are corrections to existing Trier code and shelves; item 3 is a new admin tool for creating banners with visual effects.
+# Melhorias inspiradas em grandes e-commerces farmacêuticos
 
-## 1. Trier sync corrections (`supabase/functions/trier/index.ts`)
+Vou aplicar apenas as 7 melhorias pedidas, sem refazer site, sem mexer em Trier/auth/admin de produtos/carrinho/receitas.
 
-- Strip `discount_percentage` from every insert/update payload (already partially done — audit the upsert helper to confirm no path writes it).
-- Always persist `price` (preço de tabela) and `promo_price` (preço promocional quando houver). Never write a calculated discount column.
-- Frontend already derives `% off` from `price`/`promo_price` in `ProductCard` — keep it that way.
-- Ensure upsert by `trier_product_id` (and fallback `barcode`) actually creates new rows when none match — log the exact Postgres error to `trier_logs` when 0 created/0 updated.
-- Auto-create category by slug using `nomeCategoria` → `nomeGrupo` → `nomeDepartamento`, then set `products.category_id` to the resulting id.
-- Availability vs active:
-  - `active` = `is_active` from Trier (do NOT flip to false on stock 0).
-  - `stock` reflects Trier stock; the storefront treats `stock <= 0` as "Indisponível".
-- Shelf auto-assignment (merge with manually selected shelves, don't overwrite):
-  - `ofertas-da-semana` when `promo_price` < `price`.
-  - `mais-vendidos` when Trier flags it as featured / top seller (fallback: `featured=true`).
-  - `medicamentos-populares` from category/group keywords like "medicamento", "generico", "similar".
-  - `higiene-e-beleza` from "higiene", "beleza", "perfumaria", "dermo".
-  - `mamaes-e-bebes` from "mamãe", "bebê", "infantil", "fralda".
-  - `vitaminas-e-suplementos` from "vitamina", "suplemento", "nutri".
-  - `primeiros-socorros` from "curativo", "gaze", "antisséptico", "primeiros socorros".
+## 1. MegaMenu no CategoryNav
+- Refatorar `src/components/CategoryNav.tsx` adicionando item "Todas as Categorias" com mega menu suspenso (desktop) em colunas por macro-categoria:
+  - Medicamentos e Saúde
+  - Dermo e Beleza
+  - Higiene Pessoal
+  - Mamães e Bebês
+  - Vitaminas e Suplementos
+  - Conveniência
+  - Primeiros Socorros
+- Subcategorias buscadas da tabela `categories` (públicas, active=true) e agrupadas por mapping local de macro → slugs.
+- Mobile: `Sheet` lateral com `Accordion` por macro-categoria.
+- Resto da nav (chips horizontais) preservado.
 
-## 2. Home/catalog display
+## 2. Evoluir HeroSlider (visual only)
+- Adicionar campos opcionais ao tipo `HeroSlide`: `badge_text`, `discount_text`, `price_text`, `product_image_url`, `background_style` (variants: `light`, `soft-pink`, `soft-blue`, `soft-mint`).
+- Cada slide:
+  - Fundo claro / gradiente suave conforme `background_style`.
+  - Selo (badge) topo-esquerda usando vermelho como acento.
+  - Bloco de preço grande (price_text) com vermelho só no número, e desconto em pílula amarela/vermelha.
+  - Imagem do produto (product_image_url) com pedestal e sombra (igual ao tratamento atual).
+- Sem fundo vermelho sólido. Banco não muda — campos extras são opcionais; admin existente continua funcionando, dados extras virão por enquanto via fallbacks/mosaico até o admin ser estendido.
 
-- Confirm `ProductShelf` queries on the home page filter by `shelves @> ARRAY['<slug>']` AND `active = true` so the seven slugs above render Trier-synced items.
-- `ProductCard` already handles `stock <= 0` ("Indisponível", disabled button) and prescription products (link to `/enviar-receita`). Verify both paths still work after the sync changes.
-- Show original price, promo price and computed `-X%` badge from frontend math only.
+## 3. PromoMosaic dinâmico
+- Criar nova tabela `home_mosaic_tiles` (id, position, size: 'lg'|'sm', title, subtitle, badge_text, cta_text, link, image_url, bg_style, active).
+- RLS: leitura pública só `active=true`, escrita admin.
+- Refatorar `PromoMosaic` para buscar essas tiles via React Query e renderizar 1 grande + 2-4 pequenas.
+- Adicionar página admin `AdminMosaic` (CRUD simples) e rota no `AdminLayout`.
 
-## 3. New Admin → Banners → Gerador de Banner
+## 4. PromoBanner mais leve
+- Remover restos de vermelho chapado; usar cards brancos/rosa-claro alternados.
+- Garantir imagem do produto visível (não cortada), old_price riscado pequeno, new_price grande, selo vermelho discreto.
+- Ajustar grid mobile (scroll horizontal snap, 1.2 cards visíveis).
 
-New route `/admin/banners/gerador` (linked from the existing AdminBanners page).
+## 5. Módulo de Campanhas
+- Criar tabela `campaigns` (id, name, slug, starts_at, ends_at, banner_image_url, banner_link, cta_text, visual_style, active, published).
+- Criar tabela `campaign_products` (campaign_id, product_id, position).
+- RLS: leitura pública só `active=true AND published=true AND (starts_at IS NULL OR now() BETWEEN starts_at AND ends_at)`; escrita admin.
+- Página admin `AdminCampaigns`: lista + form (nome, slug, período, banner, produtos vinculados via search, ativa, publicada, estilo).
+- Home: nova seção `CampaignShelf` que renderiza campanha ativa + prateleira dos produtos vinculados, posicionada logo após HeroSlider/PromoMosaic.
 
-Form inputs:
-- Template picker: `hero-horizontal`, `promo-vertical`, `mosaic-small`, `campanha-tematica`, `card-produto`.
-- Up to 4 product images (uploaded to the existing `banners` bucket).
-- Title, subtitle, discount %, selo/tag, CTA label, CTA link, promo text.
-- Effect toggles: gradiente, confetes, blocos de oferta, pedestal/sombra, selo de desconto.
-- Placement target on save: `hero`, `mosaico`, `secundario`.
+## 6. ProductQuickView — "Aproveite e compre também"
+- Melhorar seção de relacionados: query com prioridade
+  1. mesma `category_id`,
+  2. mesmo `group_code` (Trier) se existir,
+  3. mesmo `laboratory`,
+  4. `on_sale = true`.
+- Limit 8, distintos, excluir produto atual.
+- Mostrar preço Pix quando `resolvePixPercentage` > 0 (usar helper existente).
+- Manter botão "Peça agora via WhatsApp".
 
-Rendering:
-- Live React preview component (`BannerPreview`) that composes the chosen template with the toggled effects, using existing tokens (`--primary`, `--accent`, gradient utilities).
-- On "Salvar", render the preview DOM to PNG via `html-to-image` and upload the PNG to the `banners` storage bucket, then insert a row in `banners` with `placement`, `title`, `subtitle`, `cta_text`, `link`, `image_url`, `mobile_image_url`, `active=true`. This way `HeroSlider` and `PromoMosaic` pick it up automatically — no schema changes needed.
+## 7. Benefícios
+- Atualizar `BenefitCards` já bate com os 5 itens pedidos. Ajustar para virar `<Link>` clicável (whatsapp, /enviar-receita, /categoria/ofertas, etc.) e visual mais limpo (ícone em círculo accent, sem hover translate forte).
 
-Out of scope: changing the public home layout, the cart/checkout flow, or the admin shell.
+## Detalhes técnicos
 
-## Technical notes
+- Migrações SQL (1 só): cria `home_mosaic_tiles`, `campaigns`, `campaign_products`, com GRANTs + RLS + policies públicas de leitura para registros ativos/publicados.
+- Sem alterações em: `products`, `orders`, `prescriptions`, integrações Trier, auth, `store_settings`.
+- React Query `staleTime` global já configurado; novas queries usam `eq("active", true)`.
+- Tudo em frontend usa tokens semânticos do design system (sem cores hardcoded fora do que já está em uso).
 
-- Dependency to add: `html-to-image` (lightweight, no native deps) for client-side PNG capture.
-- Reuse `supabase.storage.from('banners').upload(...)` and `getPublicUrl` exactly like `AdminBanners.tsx` already does.
-- Templates implemented as small React components in `src/components/admin/banner-templates/` consuming a shared `BannerConfig` type.
-- No DB migration required — the `banners` table already has every field we need.
-- Trier edge function changes are localized to `upsertProductFromTrier` / category-link helper / shelf-assignment helper; no schema change.
-
-## Files touched
-
-- `supabase/functions/trier/index.ts` — sync fixes (1).
-- `src/pages/admin/AdminBanners.tsx` — add link/tab to the generator (3).
-- `src/pages/admin/AdminBannerGenerator.tsx` — new page (3).
-- `src/components/admin/banner-templates/*.tsx` — 5 template components (3).
-- `src/App.tsx` — register the new admin route (3).
-- `package.json` — add `html-to-image` (3).
+## Ordem de execução
+1. Migração SQL (mosaic + campaigns) — aguardar aprovação.
+2. Atualizar types e implementar componentes/páginas em paralelo:
+   - `CategoryNav` (mega menu)
+   - `HeroSlider` (novos campos visuais)
+   - `PromoMosaic` (dinâmico) + `AdminMosaic`
+   - `PromoBanner` (ajuste visual)
+   - `CampaignShelf` + `AdminCampaigns` + rotas
+   - `ProductQuickView` (relacionados melhores + Pix)
+   - `BenefitCards` (links)
+3. Validação visual rápida na home.

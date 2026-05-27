@@ -43,23 +43,48 @@ export function ProductQuickView() {
   }, [p]);
 
   const { data: related } = useQuery({
-    queryKey: ["quickview-related", p?.id, p?.category_id, p?.laboratory],
+    queryKey: ["quickview-related", p?.id, p?.category_id, p?.group_code, p?.laboratory],
     queryFn: async () => {
       if (!p) return [];
-      let q = supabase.from("products").select("*").eq("active", true).neq("id", p.id).limit(8);
-      if (p.category_id) q = q.eq("category_id", p.category_id);
-      const { data } = await q;
-      let list = (data || []) as any[];
-      if (list.length < 4 && p.laboratory) {
-        const { data: lab } = await supabase.from("products").select("*").eq("active", true).neq("id", p.id).eq("laboratory", p.laboratory).limit(8);
-        list = [...list, ...((lab as any[]) || [])];
+      const collected: any[] = [];
+      const seen = new Set<string>([p.id]);
+      const push = (rows: any[] | null | undefined) => {
+        for (const r of rows || []) {
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          collected.push(r);
+        }
+      };
+
+      // 1. Same category
+      if (p.category_id) {
+        const { data } = await supabase
+          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .eq("category_id", p.category_id).limit(8);
+        push(data);
       }
-      if (list.length < 4) {
-        const { data: feat } = await supabase.from("products").select("*").eq("active", true).neq("id", p.id).eq("featured", true).limit(8);
-        list = [...list, ...((feat as any[]) || [])];
+      // 2. Same Trier group_code
+      if (collected.length < 8 && p.group_code) {
+        const { data } = await supabase
+          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .eq("group_code", p.group_code).limit(8);
+        push(data);
       }
-      const seen = new Set<string>();
-      return list.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true))).slice(0, 8);
+      // 3. Same laboratory
+      if (collected.length < 8 && p.laboratory) {
+        const { data } = await supabase
+          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .eq("laboratory", p.laboratory).limit(8);
+        push(data);
+      }
+      // 4. On sale fallback
+      if (collected.length < 4) {
+        const { data } = await supabase
+          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .eq("on_sale", true).limit(8);
+        push(data);
+      }
+      return collected.slice(0, 8);
     },
     enabled: !!p?.id && open,
   });

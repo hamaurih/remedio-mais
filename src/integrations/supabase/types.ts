@@ -65,6 +65,99 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_products: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          position: number
+          product_id: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          product_id: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_products_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          active: boolean
+          banner_image_url: string | null
+          banner_link: string | null
+          created_at: string
+          cta_text: string | null
+          ends_at: string | null
+          id: string
+          name: string
+          position: number
+          published: boolean
+          slug: string
+          starts_at: string | null
+          subtitle: string | null
+          updated_at: string
+          visual_style: string
+        }
+        Insert: {
+          active?: boolean
+          banner_image_url?: string | null
+          banner_link?: string | null
+          created_at?: string
+          cta_text?: string | null
+          ends_at?: string | null
+          id?: string
+          name: string
+          position?: number
+          published?: boolean
+          slug: string
+          starts_at?: string | null
+          subtitle?: string | null
+          updated_at?: string
+          visual_style?: string
+        }
+        Update: {
+          active?: boolean
+          banner_image_url?: string | null
+          banner_link?: string | null
+          created_at?: string
+          cta_text?: string | null
+          ends_at?: string | null
+          id?: string
+          name?: string
+          position?: number
+          published?: boolean
+          slug?: string
+          starts_at?: string | null
+          subtitle?: string | null
+          updated_at?: string
+          visual_style?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           active: boolean
@@ -106,6 +199,54 @@ export type Database = {
           show_in_menu?: boolean
           show_on_home?: boolean
           slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      home_mosaic_tiles: {
+        Row: {
+          active: boolean
+          badge_text: string | null
+          bg_style: string
+          created_at: string
+          cta_text: string | null
+          id: string
+          image_url: string | null
+          link: string | null
+          position: number
+          size: string
+          subtitle: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          badge_text?: string | null
+          bg_style?: string
+          created_at?: string
+          cta_text?: string | null
+          id?: string
+          image_url?: string | null
+          link?: string | null
+          position?: number
+          size?: string
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          badge_text?: string | null
+          bg_style?: string
+          created_at?: string
+          cta_text?: string | null
+          id?: string
+          image_url?: string | null
+          link?: string | null
+          position?: number
+          size?: string
+          subtitle?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: []
