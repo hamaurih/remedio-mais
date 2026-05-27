@@ -23,6 +23,8 @@ import AdminOffers from "./pages/admin/AdminOffers.tsx";
 import AdminTrier from "./pages/admin/AdminTrier.tsx";
 import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
+import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
+import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 
 
 
@@ -60,6 +62,8 @@ const App = () => (
             <Route path="banners" element={<AdminBanners />} />
             <Route path="banners/gerador" element={<AdminBannerGenerator />} />
             <Route path="promo-banner" element={<AdminPromoBanner />} />
+            <Route path="mosaico" element={<AdminMosaic />} />
+            <Route path="campanhas" element={<AdminCampaigns />} />
             <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="receitas" element={<AdminPrescriptions />} />

@@ -6,6 +6,7 @@ import { ProductShelf } from "@/components/ProductShelf";
 import { HeroSlider } from "@/components/HeroSlider";
 import { PromoMosaic } from "@/components/PromoMosaic";
 import { BenefitCards } from "@/components/BenefitCards";
+import { CampaignShelf } from "@/components/CampaignShelf";
 import { DepartmentCarousel } from "@/components/DepartmentCarousel";
 import { PrescriptionCTA } from "@/components/PrescriptionCTA";
 import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
@@ -122,6 +123,9 @@ export default function Index() {
 
       {/* Promo mosaic */}
       <PromoMosaic />
+
+      {/* Active campaign (if any) */}
+      <Reveal><CampaignShelf /></Reveal>
 
       <Reveal><BenefitCards /></Reveal>
       <Reveal><DepartmentCarousel /></Reveal>
