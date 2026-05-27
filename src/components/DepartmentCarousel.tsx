@@ -134,7 +134,6 @@ export function DepartmentCarousel() {
         >
           {data.map((d) => {
             const href = d.link?.trim() ? d.link : `/categoria/${d.slug}`;
-            const color = d.band_color || "#E11D2E";
             return (
               <Link
                 key={d.id}
