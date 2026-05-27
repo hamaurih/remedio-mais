@@ -139,28 +139,30 @@ export function DepartmentCarousel() {
               <Link
                 key={d.id}
                 to={href}
-                className="snap-start shrink-0 flex flex-col bg-card border border-border rounded-2xl overflow-hidden hover:shadow-elevated hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                className="snap-start shrink-0 relative rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group"
                 style={{ width: cardWidth }}
               >
-                <div className="aspect-square bg-secondary/40 flex items-center justify-center overflow-hidden relative">
+                <div className="aspect-[4/5] w-full overflow-hidden relative">
                   {d.image_url ? (
                     <img
                       src={d.image_url}
                       alt={d.name}
                       loading="lazy"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-secondary to-muted">
-                      <Package2 className="h-12 w-12 text-muted-foreground/40" />
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-secondary">
+                      <Package2 className="h-14 w-14 text-primary/40" />
                     </div>
                   )}
-                </div>
-                <div
-                  className="px-2 py-2.5 text-center text-white text-xs md:text-sm font-bold leading-tight min-h-[42px] flex items-center justify-center"
-                  style={{ backgroundColor: color }}
-                >
-                  {d.name}
+                  {/* Overlay gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+                  {/* Name overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 px-3 py-3">
+                    <p className="text-white text-xs md:text-sm font-bold leading-tight text-center drop-shadow-md">
+                      {d.name}
+                    </p>
+                  </div>
                 </div>
               </Link>
             );
