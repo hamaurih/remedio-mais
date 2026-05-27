@@ -43,12 +43,18 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
 
   return (
     <section
-      className="relative overflow-hidden bg-gradient-soft md:rounded-xl md:mx-4 lg:mx-auto lg:container md:my-3"
+      className="relative overflow-hidden bg-gradient-to-br from-white via-white to-[#FFF1F3] border border-border md:rounded-2xl md:mx-4 lg:mx-auto lg:container md:my-3 shadow-sm"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
+      {/* Soft decorative accents */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 -right-16 h-72 w-72 rounded-full bg-primary/[0.06] blur-3xl" />
+        <div className="absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-primary/[0.05] blur-3xl" />
+      </div>
+
       <div className="container relative h-[260px] sm:h-[320px] md:h-[400px] lg:h-[440px]">
         {data.map((s, i) => (
           <div
@@ -63,7 +69,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
           >
             <div className="h-full grid md:grid-cols-2 gap-4 items-center py-4 md:py-8">
               <div className="z-10 px-2">
-                <span className="inline-block bg-tag text-tag-foreground text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3 shadow-card">
+                <span className="inline-block bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3 shadow-sm">
                   Promoção
                 </span>
                 <h2 className="text-2xl sm:text-4xl md:text-5xl font-extrabold leading-tight text-foreground">
@@ -75,19 +81,21 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                   </p>
                 )}
                 <div className="mt-4 md:mt-6">
-                  <Button asChild size="lg" className="shadow-elevated">
+                  <Button asChild size="lg" className="shadow-sm">
                     <Link to={s.link || "/"}>{s.cta_text || "Ver agora"}</Link>
                   </Button>
                 </div>
               </div>
               <div className="hidden md:block relative h-full">
-                <div className="absolute inset-0 bg-gradient-hero rounded-3xl shadow-elevated overflow-hidden">
+                <div className="relative h-full w-full flex items-center justify-center">
+                  {/* Soft pedestal */}
+                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 h-6 w-2/3 rounded-full bg-foreground/10 blur-xl" />
+                  <div className="absolute inset-6 rounded-3xl bg-gradient-to-br from-[#FFF5F6] to-white border border-primary/10" />
                   <img
                     src={s.image_url || heroImg}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60"
+                    alt={s.title || "Promoção"}
+                    className="relative max-h-[85%] max-w-[85%] object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,0.18)]"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 to-transparent" />
                 </div>
               </div>
             </div>
