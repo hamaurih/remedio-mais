@@ -14,13 +14,6 @@ const STYLE_BG: Record<string, string> = {
   "soft-mint": "bg-gradient-to-br from-[#ECFBF3] to-white border border-emerald-200/40",
 };
 
-const STYLE_BG: Record<string, string> = {
-  light: "bg-gradient-to-br from-white to-[#F7F7F8] border border-border",
-  "soft-pink": "bg-gradient-to-br from-[#FFF1F3] to-white border border-primary/15",
-  "soft-blue": "bg-gradient-to-br from-[#EEF4FF] to-white border border-sky-200/40",
-  "soft-mint": "bg-gradient-to-br from-[#ECFBF3] to-white border border-emerald-200/40",
-};
-
 type Campaign = {
   id: string;
   name: string;
@@ -30,6 +23,7 @@ type Campaign = {
   banner_link: string | null;
   cta_text: string | null;
   visual_style: string;
+  banner_mode?: string;
 };
 
 export function CampaignShelf() {
