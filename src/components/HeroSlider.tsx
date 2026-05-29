@@ -215,13 +215,8 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
               <ChevronRight className="h-5 w-5" />
             </button>
 
-            <button
-              aria-label="Próximo"
-              onClick={() => setIdx((i) => (i + 1) % data.length)}
-              className="flex absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-background text-primary rounded-full h-9 w-9 sm:h-[46px] sm:w-[46px] items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-70 hover:opacity-100 hover:scale-105 transition-all z-20"
-            >
-              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
-            </button>
+
+
 
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
               {data.map((_, i) => (
