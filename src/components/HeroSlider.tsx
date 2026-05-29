@@ -93,7 +93,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[300px] sm:h-[360px] md:h-[440px] lg:h-[480px]">
+      <div className="relative h-[280px] sm:h-[320px] md:h-[360px] lg:h-[400px]">
         {data.map((s, i) => {
           const bgKey: HeroBackground = (s.background_style as HeroBackground) || "soft-pink";
           const productImg = s.product_image_url || s.image_url || heroImg;
