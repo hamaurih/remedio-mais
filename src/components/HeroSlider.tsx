@@ -132,36 +132,36 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                 <div className="absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-primary/[0.06] blur-3xl" />
               </div>
 
-              <div className="container relative h-full grid md:grid-cols-[1.05fr_1fr] gap-4 items-center py-4 md:py-6">
+              <div className="container relative h-full grid md:grid-cols-[1fr_1fr] gap-2 md:gap-4 items-center py-3 md:py-4 pl-10 pr-10 md:pl-14 md:pr-14">
                 {/* Text column */}
-                <div className="z-10 px-2 md:pl-4">
+                <div className="z-10">
                   {s.badge_text && (
-                    <span className="inline-flex items-center bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-3 shadow-sm">
+                    <span className="inline-flex items-center bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
                       {s.badge_text}
                     </span>
                   )}
-                  <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight text-foreground">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-[1.05] tracking-tight text-foreground">
                     {s.title}
                   </h2>
                   {s.subtitle && (
-                    <p className="mt-2 md:mt-3 text-sm md:text-lg text-muted-foreground max-w-md">
+                    <p className="mt-2 text-sm md:text-base text-muted-foreground max-w-md">
                       {s.subtitle}
                     </p>
                   )}
 
                   {(newPrice != null || s.price_text || s.discount_text) && (
-                    <div className="mt-4 flex items-end gap-3 flex-wrap">
+                    <div className="mt-3 flex items-end gap-2 flex-wrap">
                       {oldPrice != null && (
-                        <span className="text-sm md:text-base line-through text-muted-foreground mb-1">
+                        <span className="text-sm line-through text-muted-foreground mb-1">
                           {brl(oldPrice)}
                         </span>
                       )}
                       {newPrice != null ? (
-                        <div className="text-4xl md:text-6xl font-extrabold text-primary leading-none tracking-tight">
+                        <div className="text-3xl md:text-5xl font-extrabold text-primary leading-none tracking-tight">
                           {brl(newPrice)}
                         </div>
                       ) : s.price_text ? (
-                        <div className="text-3xl md:text-5xl font-extrabold text-primary leading-none">
+                        <div className="text-2xl md:text-4xl font-extrabold text-primary leading-none">
                           {s.price_text}
                         </div>
                       ) : null}
@@ -173,25 +173,27 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                     </div>
                   )}
 
-                  <div className="mt-5 md:mt-6">
+                  <div className="mt-4">
                     <Button asChild size="lg" className="shadow-md font-bold uppercase tracking-wide">
-                      <Link to={s.link || "/"}>{s.cta_text || "Ver agora"}</Link>
+                      <Link to={s.link || "/"}>{s.cta_text || "Aproveitar agora"}</Link>
                     </Button>
                   </div>
                 </div>
 
                 {/* Product column — integrated, no frame */}
-                <div className="hidden md:flex relative h-full items-end justify-center">
-                  <div className="relative h-full w-full flex items-end justify-center pb-6">
+                <div className="hidden md:flex relative h-full items-center justify-center">
+                  <div className="relative h-full w-full flex items-center justify-center">
                     {/* Soft pedestal shadow */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 h-8 w-[70%] rounded-[50%] bg-foreground/15 blur-2xl" />
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 h-6 w-[60%] rounded-[50%] bg-foreground/15 blur-2xl" />
                     <img
                       src={productImg}
                       alt={s.title || "Promoção"}
-                      className="relative max-h-[95%] max-w-[92%] object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.22)]"
+                      className="relative max-h-[100%] max-w-[95%] object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.22)]"
                     />
                   </div>
                 </div>
+              </div>
+
               </div>
             </div>
           );
