@@ -93,7 +93,7 @@ function Tile({ block, featured }: { block: PromoBlock; featured?: boolean }) {
       aria-label={block.title ?? "Promoção"}
       className={cn(
         "group relative shrink-0 snap-start overflow-hidden rounded-lg bg-white",
-        "shadow-[0_2px_8px_rgba(2,30,60,0.10)] hover:shadow-[0_6px_18px_rgba(2,30,60,0.18)]",
+        "shadow-[0_2px_8px_rgba(60,10,15,0.10)] hover:shadow-[0_6px_18px_rgba(60,10,15,0.18)]",
         "transition-all hover:-translate-y-0.5",
         // Mobile sizing (carrossel)
         featured ? "w-[86%]" : "w-[78%]",
