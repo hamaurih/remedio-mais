@@ -172,11 +172,12 @@ function Tile({ block, featured }: { block: PromoBlock; featured?: boolean }) {
         featured ? "w-[86%]" : "w-[80%]",
         // Desktop widths
         featured
-          ? "md:w-[400px] md:flex-[0_0_400px]"
-          : "md:w-[220px] md:flex-[0_0_220px]",
+          ? "md:w-[420px] md:flex-[0_0_420px]"
+          : "md:w-[240px] md:flex-[0_0_240px]",
         // Uniform height
-        "h-[200px] md:h-[200px]",
+        "h-[210px] md:h-[210px]",
       )}
+
     >
       {mode === "full_banner" ? <FullBanner block={block} /> : <ProductCard block={block} featured={featured} />}
     </Wrapper>
