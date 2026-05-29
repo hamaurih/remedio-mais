@@ -203,10 +203,18 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
             <button
               aria-label="Anterior"
               onClick={() => setIdx((i) => (i - 1 + data.length) % data.length)}
-              className="flex absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 bg-background text-primary rounded-full h-9 w-9 sm:h-[46px] sm:w-[46px] items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-70 hover:opacity-100 hover:scale-105 transition-all z-20"
+              className="flex absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 bg-background/90 backdrop-blur text-primary rounded-full h-9 w-9 sm:h-10 sm:w-10 items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-80 hover:opacity-100 hover:scale-105 transition-all z-30"
             >
-              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
+            <button
+              aria-label="Próximo"
+              onClick={() => setIdx((i) => (i + 1) % data.length)}
+              className="flex absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 bg-background/90 backdrop-blur text-primary rounded-full h-9 w-9 sm:h-10 sm:w-10 items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-80 hover:opacity-100 hover:scale-105 transition-all z-30"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
             <button
               aria-label="Próximo"
               onClick={() => setIdx((i) => (i + 1) % data.length)}
