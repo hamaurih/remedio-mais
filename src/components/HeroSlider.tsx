@@ -93,7 +93,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[300px] sm:h-[360px] md:h-[440px] lg:h-[480px]">
+      <div className="relative h-[280px] sm:h-[320px] md:h-[360px] lg:h-[400px]">
         {data.map((s, i) => {
           const bgKey: HeroBackground = (s.background_style as HeroBackground) || "soft-pink";
           const productImg = s.product_image_url || s.image_url || heroImg;
@@ -132,36 +132,36 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                 <div className="absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-primary/[0.06] blur-3xl" />
               </div>
 
-              <div className="container relative h-full grid md:grid-cols-[1.05fr_1fr] gap-4 items-center py-4 md:py-6">
+              <div className="container relative h-full grid md:grid-cols-[1fr_1fr] gap-2 md:gap-4 items-center py-3 md:py-4 pl-10 pr-10 md:pl-14 md:pr-14">
                 {/* Text column */}
-                <div className="z-10 px-2 md:pl-4">
+                <div className="z-10">
                   {s.badge_text && (
-                    <span className="inline-flex items-center bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-3 shadow-sm">
+                    <span className="inline-flex items-center bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
                       {s.badge_text}
                     </span>
                   )}
-                  <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight text-foreground">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold leading-[1.05] tracking-tight text-foreground">
                     {s.title}
                   </h2>
                   {s.subtitle && (
-                    <p className="mt-2 md:mt-3 text-sm md:text-lg text-muted-foreground max-w-md">
+                    <p className="mt-2 text-sm md:text-base text-muted-foreground max-w-md">
                       {s.subtitle}
                     </p>
                   )}
 
                   {(newPrice != null || s.price_text || s.discount_text) && (
-                    <div className="mt-4 flex items-end gap-3 flex-wrap">
+                    <div className="mt-3 flex items-end gap-2 flex-wrap">
                       {oldPrice != null && (
-                        <span className="text-sm md:text-base line-through text-muted-foreground mb-1">
+                        <span className="text-sm line-through text-muted-foreground mb-1">
                           {brl(oldPrice)}
                         </span>
                       )}
                       {newPrice != null ? (
-                        <div className="text-4xl md:text-6xl font-extrabold text-primary leading-none tracking-tight">
+                        <div className="text-3xl md:text-5xl font-extrabold text-primary leading-none tracking-tight">
                           {brl(newPrice)}
                         </div>
                       ) : s.price_text ? (
-                        <div className="text-3xl md:text-5xl font-extrabold text-primary leading-none">
+                        <div className="text-2xl md:text-4xl font-extrabold text-primary leading-none">
                           {s.price_text}
                         </div>
                       ) : null}
@@ -173,27 +173,28 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                     </div>
                   )}
 
-                  <div className="mt-5 md:mt-6">
+                  <div className="mt-4">
                     <Button asChild size="lg" className="shadow-md font-bold uppercase tracking-wide">
-                      <Link to={s.link || "/"}>{s.cta_text || "Ver agora"}</Link>
+                      <Link to={s.link || "/"}>{s.cta_text || "Aproveitar agora"}</Link>
                     </Button>
                   </div>
                 </div>
 
                 {/* Product column — integrated, no frame */}
-                <div className="hidden md:flex relative h-full items-end justify-center">
-                  <div className="relative h-full w-full flex items-end justify-center pb-6">
+                <div className="hidden md:flex relative h-full items-center justify-center">
+                  <div className="relative h-full w-full flex items-center justify-center">
                     {/* Soft pedestal shadow */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 h-8 w-[70%] rounded-[50%] bg-foreground/15 blur-2xl" />
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 h-6 w-[60%] rounded-[50%] bg-foreground/15 blur-2xl" />
                     <img
                       src={productImg}
                       alt={s.title || "Promoção"}
-                      className="relative max-h-[95%] max-w-[92%] object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.22)]"
+                      className="relative max-h-[100%] max-w-[95%] object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.22)]"
                     />
                   </div>
                 </div>
               </div>
             </div>
+
           );
         })}
 
@@ -202,17 +203,20 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
             <button
               aria-label="Anterior"
               onClick={() => setIdx((i) => (i - 1 + data.length) % data.length)}
-              className="flex absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 bg-background text-primary rounded-full h-9 w-9 sm:h-[46px] sm:w-[46px] items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-70 hover:opacity-100 hover:scale-105 transition-all z-20"
+              className="flex absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 bg-background/90 backdrop-blur text-primary rounded-full h-9 w-9 sm:h-10 sm:w-10 items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-80 hover:opacity-100 hover:scale-105 transition-all z-30"
             >
-              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               aria-label="Próximo"
               onClick={() => setIdx((i) => (i + 1) % data.length)}
-              className="flex absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-background text-primary rounded-full h-9 w-9 sm:h-[46px] sm:w-[46px] items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-70 hover:opacity-100 hover:scale-105 transition-all z-20"
+              className="flex absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 bg-background/90 backdrop-blur text-primary rounded-full h-9 w-9 sm:h-10 sm:w-10 items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] opacity-80 hover:opacity-100 hover:scale-105 transition-all z-30"
             >
-              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+              <ChevronRight className="h-5 w-5" />
             </button>
+
+
+
 
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
               {data.map((_, i) => (
