@@ -620,16 +620,25 @@ export type Database = {
         Row: {
           active: boolean
           badge_text: string | null
+          bg_color: string
+          bg_custom: string | null
+          block_type: string
           created_at: string
+          cta_color: string
           cta_text: string | null
           cta_url: string | null
           id: string
           image_mode: string
+          image_position: string
+          image_size: string
           image_url: string | null
           new_price: number | null
           old_price: number | null
           position: number
           price_suffix: string | null
+          show_cta: boolean
+          show_price: boolean
+          show_text: boolean
           subtitle: string | null
           title: string | null
           updated_at: string
@@ -638,16 +647,25 @@ export type Database = {
         Insert: {
           active?: boolean
           badge_text?: string | null
+          bg_color?: string
+          bg_custom?: string | null
+          block_type?: string
           created_at?: string
+          cta_color?: string
           cta_text?: string | null
           cta_url?: string | null
           id?: string
           image_mode?: string
+          image_position?: string
+          image_size?: string
           image_url?: string | null
           new_price?: number | null
           old_price?: number | null
           position?: number
           price_suffix?: string | null
+          show_cta?: boolean
+          show_price?: boolean
+          show_text?: boolean
           subtitle?: string | null
           title?: string | null
           updated_at?: string
@@ -656,16 +674,25 @@ export type Database = {
         Update: {
           active?: boolean
           badge_text?: string | null
+          bg_color?: string
+          bg_custom?: string | null
+          block_type?: string
           created_at?: string
+          cta_color?: string
           cta_text?: string | null
           cta_url?: string | null
           id?: string
           image_mode?: string
+          image_position?: string
+          image_size?: string
           image_url?: string | null
           new_price?: number | null
           old_price?: number | null
           position?: number
           price_suffix?: string | null
+          show_cta?: boolean
+          show_price?: boolean
+          show_text?: boolean
           subtitle?: string | null
           title?: string | null
           updated_at?: string
