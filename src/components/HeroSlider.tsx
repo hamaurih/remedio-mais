@@ -14,11 +14,13 @@ export type HeroSlide = {
   cta_text?: string | null;
   link?: string | null;
   image_url?: string | null;
-  // New optional visual fields (read from `banners.*` if present, else inferred)
   badge_text?: string | null;
   discount_text?: string | null;
   price_text?: string | null;
+  old_price?: number | string | null;
+  new_price?: number | string | null;
   product_image_url?: string | null;
+  background_image_url?: string | null;
   background_style?: HeroBackground | null;
 };
 
@@ -53,18 +55,14 @@ const FALLBACK: HeroSlide[] = [
 ];
 
 const BG: Record<HeroBackground, string> = {
-  light: "bg-gradient-to-br from-white to-[#F7F7F8]",
-  "soft-pink": "bg-gradient-to-br from-white via-white to-[#FFF1F3]",
-  "soft-blue": "bg-gradient-to-br from-white via-white to-[#EEF4FF]",
-  "soft-mint": "bg-gradient-to-br from-white via-white to-[#ECFBF3]",
+  light: "bg-gradient-to-br from-white via-white to-[#FAFAFA]",
+  "soft-pink": "bg-gradient-to-br from-white via-[#FFF7F8] to-[#FFE4E8]",
+  "soft-blue": "bg-gradient-to-br from-white via-[#F4F8FF] to-[#DDEBFF]",
+  "soft-mint": "bg-gradient-to-br from-white via-[#F1FBF5] to-[#D4F4E2]",
 };
 
-const PEDESTAL: Record<HeroBackground, string> = {
-  light: "from-[#F7F7F8] to-white border-border",
-  "soft-pink": "from-[#FFF5F6] to-white border-primary/10",
-  "soft-blue": "from-[#EEF4FF] to-white border-sky-200/40",
-  "soft-mint": "from-[#ECFBF3] to-white border-emerald-200/40",
-};
+const brl = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
   const data = slides && slides.length > 0 ? slides : FALLBACK;
@@ -95,10 +93,14 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[280px] sm:h-[340px] md:h-[420px] lg:h-[460px]">
+      <div className="relative h-[300px] sm:h-[360px] md:h-[440px] lg:h-[480px]">
         {data.map((s, i) => {
           const bgKey: HeroBackground = (s.background_style as HeroBackground) || "soft-pink";
           const productImg = s.product_image_url || s.image_url || heroImg;
+          const bgImg = s.background_image_url;
+          const oldPrice = s.old_price != null ? Number(s.old_price) : null;
+          const newPrice = s.new_price != null ? Number(s.new_price) : null;
+
           return (
             <div
               key={s.id}
@@ -111,20 +113,34 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
               )}
               aria-hidden={i !== idx}
             >
-              {/* Soft decorative accents */}
+              {/* Optional background image with soft overlay */}
+              {bgImg && (
+                <>
+                  <img
+                    src={bgImg}
+                    alt=""
+                    aria-hidden
+                    className="absolute inset-0 w-full h-full object-cover opacity-25"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-white/30" />
+                </>
+              )}
+
+              {/* Decorative blooms */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -top-24 -right-16 h-72 w-72 rounded-full bg-primary/[0.06] blur-3xl" />
-                <div className="absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-primary/[0.05] blur-3xl" />
+                <div className="absolute -top-32 -right-20 h-96 w-96 rounded-full bg-primary/[0.08] blur-3xl" />
+                <div className="absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-primary/[0.06] blur-3xl" />
               </div>
 
-              <div className="container relative h-full grid md:grid-cols-2 gap-4 items-center py-4 md:py-8">
-                <div className="z-10 px-2">
+              <div className="container relative h-full grid md:grid-cols-[1.05fr_1fr] gap-4 items-center py-4 md:py-6">
+                {/* Text column */}
+                <div className="z-10 px-2 md:pl-4">
                   {s.badge_text && (
-                    <span className="inline-block bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3 shadow-sm">
+                    <span className="inline-flex items-center bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-3 shadow-sm">
                       {s.badge_text}
                     </span>
                   )}
-                  <h2 className="text-2xl sm:text-4xl md:text-5xl font-extrabold leading-tight text-foreground">
+                  <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight text-foreground">
                     {s.title}
                   </h2>
                   {s.subtitle && (
@@ -133,41 +149,46 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                     </p>
                   )}
 
-                  {(s.price_text || s.discount_text) && (
-                    <div className="mt-3 md:mt-4 flex items-end gap-3">
-                      {s.price_text && (
+                  {(newPrice != null || s.price_text || s.discount_text) && (
+                    <div className="mt-4 flex items-end gap-3 flex-wrap">
+                      {oldPrice != null && (
+                        <span className="text-sm md:text-base line-through text-muted-foreground mb-1">
+                          {brl(oldPrice)}
+                        </span>
+                      )}
+                      {newPrice != null ? (
+                        <div className="text-4xl md:text-6xl font-extrabold text-primary leading-none tracking-tight">
+                          {brl(newPrice)}
+                        </div>
+                      ) : s.price_text ? (
                         <div className="text-3xl md:text-5xl font-extrabold text-primary leading-none">
                           {s.price_text}
                         </div>
-                      )}
+                      ) : null}
                       {s.discount_text && (
-                        <span className="bg-[#FFD600] text-foreground text-xs md:text-sm font-extrabold uppercase px-2.5 py-1 rounded-full shadow-sm">
+                        <span className="bg-[#FFD600] text-foreground text-xs md:text-sm font-extrabold uppercase px-2.5 py-1 rounded-full shadow-sm mb-1">
                           {s.discount_text}
                         </span>
                       )}
                     </div>
                   )}
 
-                  <div className="mt-4 md:mt-6">
-                    <Button asChild size="lg" className="shadow-sm">
+                  <div className="mt-5 md:mt-6">
+                    <Button asChild size="lg" className="shadow-md font-bold uppercase tracking-wide">
                       <Link to={s.link || "/"}>{s.cta_text || "Ver agora"}</Link>
                     </Button>
                   </div>
                 </div>
 
-                <div className="hidden md:block relative h-full">
-                  <div className="relative h-full w-full flex items-center justify-center">
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 h-6 w-2/3 rounded-full bg-foreground/10 blur-xl" />
-                    <div
-                      className={cn(
-                        "absolute inset-6 rounded-3xl bg-gradient-to-br border",
-                        PEDESTAL[bgKey],
-                      )}
-                    />
+                {/* Product column — integrated, no frame */}
+                <div className="hidden md:flex relative h-full items-end justify-center">
+                  <div className="relative h-full w-full flex items-end justify-center pb-6">
+                    {/* Soft pedestal shadow */}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 h-8 w-[70%] rounded-[50%] bg-foreground/15 blur-2xl" />
                     <img
                       src={productImg}
                       alt={s.title || "Promoção"}
-                      className="relative max-h-[85%] max-w-[85%] object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,0.18)]"
+                      className="relative max-h-[95%] max-w-[92%] object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.22)]"
                     />
                   </div>
                 </div>

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { Tag, Sparkles, Pill, Percent, ShoppingBag } from "lucide-react";
 
 export type PromoBlock = {
   id: string;
@@ -22,28 +23,21 @@ export type PromoBlock = {
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-// Alternating soft backgrounds — red is now an accent, not the base.
 const variantBg: Record<string, string> = {
-  anniversary:
-    "bg-gradient-to-br from-[#FFF1F3] to-white border border-primary/15",
-  "leve-pague":
-    "bg-white border border-border",
-  default:
-    "bg-gradient-to-b from-white to-[#FFF5F6] border border-border",
-  "desconto-2":
-    "bg-[#FFF5F6] border border-primary/10",
-  generico:
-    "bg-white border border-border",
+  anniversary: "bg-gradient-to-br from-[#FFF1F3] via-white to-white border border-primary/15",
+  "leve-pague": "bg-gradient-to-br from-white to-[#FFF7F8] border border-border",
+  default: "bg-gradient-to-br from-white to-[#FFF5F6] border border-border",
+  "desconto-2": "bg-gradient-to-br from-[#FFF5F6] to-white border border-primary/10",
+  generico: "bg-gradient-to-br from-white to-[#F7FAFF] border border-border",
 };
 
-function SoftDecor() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-primary/5 blur-2xl" />
-      <div className="absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-primary/[0.06] blur-2xl" />
-    </div>
-  );
-}
+const variantIcon: Record<string, React.ComponentType<{ className?: string }>> = {
+  anniversary: Sparkles,
+  "leve-pague": ShoppingBag,
+  "desconto-2": Percent,
+  generico: Pill,
+  default: Tag,
+};
 
 function PriceBlock({ block }: { block: PromoBlock }) {
   if (block.new_price == null) return null;
@@ -68,6 +62,7 @@ function PriceBlock({ block }: { block: PromoBlock }) {
 
 function Block({ block }: { block: PromoBlock }) {
   const bg = variantBg[block.variant] ?? variantBg.default;
+  const Icon = variantIcon[block.variant] ?? variantIcon.default;
   const Wrapper: any = block.cta_url ? Link : "div";
   const wrapperProps = block.cta_url ? { to: block.cta_url } : {};
 
@@ -75,19 +70,21 @@ function Block({ block }: { block: PromoBlock }) {
     <Wrapper
       {...wrapperProps}
       className={cn(
-        "snap-start shrink-0 w-[78%] sm:w-[45%] md:w-auto md:flex-1 min-h-[190px] md:min-h-[210px]",
-        "relative overflow-hidden p-4 text-foreground flex flex-col justify-between",
-        "rounded-xl md:rounded-none md:border-r md:border-y-0 md:border-l-0 md:first:border-l-0",
+        "snap-start shrink-0 w-[78%] sm:w-[45%] md:w-auto md:flex-1 min-h-[200px] md:min-h-[220px]",
+        "group relative overflow-hidden p-4 text-foreground flex flex-col justify-between",
+        "rounded-xl md:rounded-none md:border-r md:border-y-0 md:border-l-0",
         "transition-all hover:shadow-md hover:-translate-y-0.5",
         bg,
       )}
     >
-      <SoftDecor />
+      {/* Subtle decor */}
+      <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-10 -left-6 h-24 w-24 rounded-full bg-primary/[0.05] blur-2xl" />
 
       <div className="relative flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {block.badge_text && (
-            <span className="inline-block text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground">
+            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground">
               {block.badge_text}
             </span>
           )}
@@ -104,24 +101,35 @@ function Block({ block }: { block: PromoBlock }) {
           <PriceBlock block={block} />
         </div>
 
-        {block.image_url && (
-          <div className="relative shrink-0">
-            <div className="absolute inset-x-1 bottom-1 h-2 rounded-full bg-foreground/10 blur-[6px]" />
-            <img
-              src={block.image_url}
-              alt={block.title ?? "Promoção"}
-              loading="lazy"
-              className="relative h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-[0_6px_8px_rgba(0,0,0,0.15)]"
-            />
-          </div>
-        )}
+        <div className="relative shrink-0">
+          {block.image_url ? (
+            <>
+              <div className="absolute inset-x-1 bottom-1 h-2 rounded-full bg-foreground/10 blur-[6px]" />
+              <img
+                src={block.image_url}
+                alt={block.title ?? "Promoção"}
+                loading="lazy"
+                className="relative h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.18)] transition-transform group-hover:scale-105"
+              />
+            </>
+          ) : (
+            <div className="relative h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-gradient-to-br from-primary/10 via-white to-primary/5 border border-primary/10 flex items-center justify-center">
+              <Icon className="h-9 w-9 text-primary/70" />
+            </div>
+          )}
+        </div>
       </div>
 
-      {block.cta_text && (
-        <span className="relative inline-flex w-fit items-center gap-1 mt-3 bg-primary text-primary-foreground font-extrabold text-[11px] uppercase tracking-wide px-3 py-1.5 rounded-full shadow-sm">
-          {block.cta_text} →
-        </span>
-      )}
+      <span
+        className={cn(
+          "relative inline-flex w-fit items-center gap-1 mt-3 font-extrabold text-[11px] uppercase tracking-wide px-3 py-1.5 rounded-full",
+          block.cta_url
+            ? "bg-primary text-primary-foreground shadow-sm group-hover:shadow-md"
+            : "bg-primary/10 text-primary",
+        )}
+      >
+        {block.cta_text || "Ver oferta"} →
+      </span>
     </Wrapper>
   );
 }
