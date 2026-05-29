@@ -290,7 +290,11 @@ export default function AdminPromoBanner() {
                     </span>
                   </label>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recomendado: PNG transparente do produto, sem fundo, para o banner se adaptar melhor.
+                </p>
               </div>
+
             </div>
 
             <Button className="mt-4" onClick={() => saveOne(b)} disabled={saving}>
