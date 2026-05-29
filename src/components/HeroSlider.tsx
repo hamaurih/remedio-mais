@@ -193,9 +193,8 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
                   </div>
                 </div>
               </div>
-
-              </div>
             </div>
+
           );
         })}
 
