@@ -46,22 +46,22 @@ export function CampaignAutoBanner({
       className={cn(
         "relative overflow-hidden rounded-2xl border bg-gradient-to-br shadow-sm",
         bg,
-        compact ? "p-4" : "p-5 md:p-7",
+        compact ? "p-4" : "p-5 md:p-6",
       )}
     >
       <div className="absolute -top-16 -left-16 h-48 w-48 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
 
-      <div className="relative grid md:grid-cols-2 gap-4 items-center">
-        <div className="min-w-0">
+      <div className="relative flex flex-col sm:flex-row items-stretch gap-4 sm:gap-5">
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
           {badge && (
-            <span className="inline-block bg-primary text-primary-foreground text-[11px] font-bold uppercase px-2.5 py-1 rounded-full mb-2">
+            <span className="inline-block self-start bg-primary text-primary-foreground text-[11px] font-bold uppercase px-2.5 py-1 rounded-full mb-2">
               {badge}
             </span>
           )}
           <h3
             className={cn(
-              "font-extrabold leading-tight text-foreground",
-              compact ? "text-xl md:text-2xl" : "text-2xl md:text-4xl",
+              "font-extrabold leading-tight text-foreground break-words",
+              compact ? "text-xl md:text-2xl" : "text-2xl md:text-3xl",
             )}
           >
             {name}
@@ -69,7 +69,7 @@ export function CampaignAutoBanner({
           {subtitle && (
             <p
               className={cn(
-                "text-muted-foreground mt-2",
+                "text-muted-foreground mt-2 line-clamp-3",
                 compact ? "text-sm" : "text-sm md:text-base",
               )}
             >
@@ -94,14 +94,19 @@ export function CampaignAutoBanner({
           )}
         </div>
 
-        <div className="relative h-[140px] md:h-[200px]">
+        <div
+          className={cn(
+            "relative shrink-0 w-full sm:w-[42%] md:w-[40%] overflow-hidden",
+            compact ? "h-[120px]" : "h-[160px] md:h-[200px]",
+          )}
+        >
           {picks.length > 0 ? (
-            <div className="absolute inset-0 flex items-end justify-end gap-2 md:gap-3">
+            <div className="absolute inset-0 flex items-center justify-center gap-2 md:gap-3">
               {picks.map((p, i) => (
                 <div
                   key={p.id}
                   className={cn(
-                    "relative flex-1 h-full flex items-end justify-center",
+                    "relative flex-1 h-full flex items-center justify-center min-w-0",
                     i === 1 && picks.length === 3 && "scale-110 z-10",
                   )}
                 >
@@ -116,7 +121,7 @@ export function CampaignAutoBanner({
             </div>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40 text-sm">
-              Sem produtos com imagem
+              Sem imagem
             </div>
           )}
         </div>
