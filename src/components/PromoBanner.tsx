@@ -34,7 +34,7 @@ const variantIcon: Record<string, React.ComponentType<{ className?: string }>> =
 function FallbackContent({ block }: { block: PromoBlock }) {
   const Icon = variantIcon[block.variant] ?? variantIcon.default;
   return (
-    <div className="relative w-full h-full p-3 md:p-4 flex flex-col justify-between bg-gradient-to-br from-white via-white to-[#EAF6FF]">
+    <div className="relative w-full h-full p-3 md:p-4 flex flex-col justify-between bg-gradient-to-br from-white via-white to-[#FFF0F2]">
       <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl" />
       <div className="relative flex items-start gap-2">
         <div className="flex-1 min-w-0">
@@ -71,8 +71,8 @@ function FallbackContent({ block }: { block: PromoBlock }) {
             </div>
           )}
         </div>
-        <div className="shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-[#E0F2FE] via-white to-[#BAE6FD] border border-sky-200/60 flex items-center justify-center">
-          <Icon className="h-7 w-7 text-[#0788c9]" />
+        <div className="shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-[#FFE4E8] via-white to-[#FFD0D8] border border-red-200/60 flex items-center justify-center">
+          <Icon className="h-7 w-7 text-primary" />
         </div>
       </div>
 
