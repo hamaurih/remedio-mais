@@ -624,6 +624,7 @@ export type Database = {
           cta_text: string | null
           cta_url: string | null
           id: string
+          image_mode: string
           image_url: string | null
           new_price: number | null
           old_price: number | null
@@ -641,6 +642,7 @@ export type Database = {
           cta_text?: string | null
           cta_url?: string | null
           id?: string
+          image_mode?: string
           image_url?: string | null
           new_price?: number | null
           old_price?: number | null
@@ -658,6 +660,7 @@ export type Database = {
           cta_text?: string | null
           cta_url?: string | null
           id?: string
+          image_mode?: string
           image_url?: string | null
           new_price?: number | null
           old_price?: number | null

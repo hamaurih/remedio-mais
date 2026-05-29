@@ -1,0 +1,1 @@
+ALTER TABLE public.promo_banner_blocks ADD COLUMN IF NOT EXISTS image_mode text NOT NULL DEFAULT 'product';
