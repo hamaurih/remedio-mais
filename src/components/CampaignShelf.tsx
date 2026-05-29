@@ -3,8 +3,16 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductShelf } from "./ProductShelf";
 import { Button } from "./ui/button";
+import { CampaignAutoBanner } from "./CampaignAutoBanner";
 import { cn } from "@/lib/utils";
 import type { Product } from "./ProductCard";
+
+const STYLE_BG: Record<string, string> = {
+  light: "bg-gradient-to-br from-white to-[#F7F7F8] border border-border",
+  "soft-pink": "bg-gradient-to-br from-[#FFF1F3] to-white border border-primary/15",
+  "soft-blue": "bg-gradient-to-br from-[#EEF4FF] to-white border border-sky-200/40",
+  "soft-mint": "bg-gradient-to-br from-[#ECFBF3] to-white border border-emerald-200/40",
+};
 
 const STYLE_BG: Record<string, string> = {
   light: "bg-gradient-to-br from-white to-[#F7F7F8] border border-border",
