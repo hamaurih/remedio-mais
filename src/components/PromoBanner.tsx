@@ -23,14 +23,6 @@ export type PromoBlock = {
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const variantBg: Record<string, string> = {
-  anniversary: "bg-gradient-to-br from-[#FFF1F3] via-white to-white border border-primary/15",
-  "leve-pague": "bg-gradient-to-br from-white to-[#FFF7F8] border border-border",
-  default: "bg-gradient-to-br from-white to-[#FFF5F6] border border-border",
-  "desconto-2": "bg-gradient-to-br from-[#FFF5F6] to-white border border-primary/10",
-  generico: "bg-gradient-to-br from-white to-[#F7FAFF] border border-border",
-};
-
 const variantIcon: Record<string, React.ComponentType<{ className?: string }>> = {
   anniversary: Sparkles,
   "leve-pague": ShoppingBag,
@@ -39,97 +31,89 @@ const variantIcon: Record<string, React.ComponentType<{ className?: string }>> =
   default: Tag,
 };
 
-function PriceBlock({ block }: { block: PromoBlock }) {
-  if (block.new_price == null) return null;
+function FallbackContent({ block }: { block: PromoBlock }) {
+  const Icon = variantIcon[block.variant] ?? variantIcon.default;
   return (
-    <div className="mt-1">
-      {block.price_suffix && (
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {block.price_suffix}
+    <div className="relative w-full h-full p-3 md:p-4 flex flex-col justify-between bg-gradient-to-br from-white via-white to-[#EAF6FF]">
+      <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl" />
+      <div className="relative flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          {block.badge_text && (
+            <span className="inline-block text-[9px] md:text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground">
+              {block.badge_text}
+            </span>
+          )}
+          {block.title && (
+            <h3 className="font-extrabold text-[13px] md:text-sm leading-tight line-clamp-2 text-foreground">
+              {block.title}
+            </h3>
+          )}
+          {block.subtitle && (
+            <p className="text-[10px] md:text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+              {block.subtitle}
+            </p>
+          )}
+          {block.new_price != null && (
+            <div className="mt-1.5">
+              {block.price_suffix && (
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                  {block.price_suffix}
+                </div>
+              )}
+              {block.old_price != null && (
+                <div className="text-[10px] line-through text-muted-foreground">
+                  {brl(Number(block.old_price))}
+                </div>
+              )}
+              <div className="text-xl md:text-2xl font-extrabold leading-none text-primary">
+                {brl(Number(block.new_price))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-      {block.old_price != null && (
-        <div className="text-xs line-through text-muted-foreground">
-          {brl(Number(block.old_price))}
+        <div className="shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-[#E0F2FE] via-white to-[#BAE6FD] border border-sky-200/60 flex items-center justify-center">
+          <Icon className="h-7 w-7 text-[#0788c9]" />
         </div>
-      )}
-      <div className="text-2xl md:text-3xl font-extrabold leading-none text-primary">
-        {brl(Number(block.new_price))}
       </div>
+
+      <span className="relative inline-flex w-fit items-center gap-1 mt-2 bg-primary text-primary-foreground font-extrabold text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full shadow-sm">
+        {block.cta_text || "Ver oferta"} →
+      </span>
     </div>
   );
 }
 
-function Block({ block }: { block: PromoBlock }) {
-  const bg = variantBg[block.variant] ?? variantBg.default;
-  const Icon = variantIcon[block.variant] ?? variantIcon.default;
+function Tile({ block, featured }: { block: PromoBlock; featured?: boolean }) {
   const Wrapper: any = block.cta_url ? Link : "div";
   const wrapperProps = block.cta_url ? { to: block.cta_url } : {};
 
   return (
     <Wrapper
       {...wrapperProps}
+      aria-label={block.title ?? "Promoção"}
       className={cn(
-        "snap-start shrink-0 w-[78%] sm:w-[45%] md:w-auto md:flex-1 min-h-[200px] md:min-h-[220px]",
-        "group relative overflow-hidden p-4 text-foreground flex flex-col justify-between",
-        "rounded-xl md:rounded-none md:border-r md:border-y-0 md:border-l-0",
-        "transition-all hover:shadow-md hover:-translate-y-0.5",
-        bg,
+        "group relative shrink-0 snap-start overflow-hidden rounded-lg bg-white",
+        "shadow-[0_2px_8px_rgba(2,30,60,0.10)] hover:shadow-[0_6px_18px_rgba(2,30,60,0.18)]",
+        "transition-all hover:-translate-y-0.5",
+        // Mobile sizing (carrossel)
+        featured ? "w-[86%]" : "w-[78%]",
+        // Desktop sizing
+        featured
+          ? "md:w-[400px] md:flex-[0_0_400px]"
+          : "md:w-[210px] md:flex-[0_0_210px]",
+        "h-[200px] md:h-[200px]",
       )}
     >
-      {/* Subtle decor */}
-      <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-10 -left-6 h-24 w-24 rounded-full bg-primary/[0.05] blur-2xl" />
-
-      <div className="relative flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          {block.badge_text && (
-            <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground">
-              {block.badge_text}
-            </span>
-          )}
-          {block.title && (
-            <h3 className="font-extrabold text-sm md:text-base leading-tight line-clamp-2 text-foreground">
-              {block.title}
-            </h3>
-          )}
-          {block.subtitle && (
-            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-              {block.subtitle}
-            </p>
-          )}
-          <PriceBlock block={block} />
-        </div>
-
-        <div className="relative shrink-0">
-          {block.image_url ? (
-            <>
-              <div className="absolute inset-x-1 bottom-1 h-2 rounded-full bg-foreground/10 blur-[6px]" />
-              <img
-                src={block.image_url}
-                alt={block.title ?? "Promoção"}
-                loading="lazy"
-                className="relative h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.18)] transition-transform group-hover:scale-105"
-              />
-            </>
-          ) : (
-            <div className="relative h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-gradient-to-br from-primary/10 via-white to-primary/5 border border-primary/10 flex items-center justify-center">
-              <Icon className="h-9 w-9 text-primary/70" />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <span
-        className={cn(
-          "relative inline-flex w-fit items-center gap-1 mt-3 font-extrabold text-[11px] uppercase tracking-wide px-3 py-1.5 rounded-full",
-          block.cta_url
-            ? "bg-primary text-primary-foreground shadow-sm group-hover:shadow-md"
-            : "bg-primary/10 text-primary",
-        )}
-      >
-        {block.cta_text || "Ver oferta"} →
-      </span>
+      {block.image_url ? (
+        <img
+          src={block.image_url}
+          alt={block.title ?? "Promoção"}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        />
+      ) : (
+        <FallbackContent block={block} />
+      )}
     </Wrapper>
   );
 }
@@ -152,19 +136,20 @@ export function PromoBanner() {
   return (
     <section
       aria-label="Promoções em destaque"
-      className="w-full bg-gradient-to-b from-white to-[#FFF5F6] border-y border-border"
+      className="w-full bg-gradient-to-b from-[#0788c9] to-[#dff4ff] py-4 md:py-5 border-b border-sky-200/50"
     >
-      <div
-        className="
-          flex md:grid md:grid-cols-5 gap-3 md:gap-0
-          overflow-x-auto md:overflow-visible
-          snap-x snap-mandatory scrollbar-hide
-          px-3 md:px-0 py-3 md:py-0
-        "
-      >
-        {data.map((b) => (
-          <Block key={b.id} block={b} />
-        ))}
+      <div className="container">
+        <div
+          className="
+            flex gap-2.5 md:gap-3 md:justify-center
+            overflow-x-auto snap-x snap-mandatory scrollbar-hide
+            -mx-3 px-3 md:mx-0 md:px-0
+          "
+        >
+          {data.map((b, i) => (
+            <Tile key={b.id} block={b} featured={i === 0} />
+          ))}
+        </div>
       </div>
     </section>
   );
