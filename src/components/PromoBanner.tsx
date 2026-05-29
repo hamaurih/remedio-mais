@@ -15,6 +15,7 @@ export type PromoBlock = {
   new_price: number | null;
   price_suffix: string | null;
   image_url: string | null;
+  image_mode: "product" | "full_banner" | null;
   cta_text: string | null;
   cta_url: string | null;
   active: boolean;
@@ -31,20 +32,28 @@ const variantIcon: Record<string, React.ComponentType<{ className?: string }>> =
   default: Tag,
 };
 
-function FallbackContent({ block }: { block: PromoBlock }) {
+function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolean }) {
   const Icon = variantIcon[block.variant] ?? variantIcon.default;
+  const hasContent =
+    block.badge_text || block.title || block.subtitle || block.new_price != null || block.cta_text;
+
   return (
-    <div className="relative w-full h-full p-3 md:p-4 flex flex-col justify-between bg-gradient-to-br from-white via-white to-[#FFF0F2]">
-      <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl" />
-      <div className="relative flex items-start gap-2">
-        <div className="flex-1 min-w-0">
+    <div className="relative w-full h-full flex bg-gradient-to-br from-white via-white to-[#FFF0F2]">
+      <div className="pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-primary/[0.07] blur-2xl" />
+
+      {/* Texto */}
+      <div className="relative flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-between">
+        <div className="min-w-0">
           {block.badge_text && (
             <span className="inline-block text-[9px] md:text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground">
               {block.badge_text}
             </span>
           )}
           {block.title && (
-            <h3 className="font-extrabold text-[13px] md:text-sm leading-tight line-clamp-2 text-foreground">
+            <h3 className={cn(
+              "font-extrabold leading-tight text-foreground line-clamp-2",
+              featured ? "text-sm md:text-base" : "text-[13px] md:text-sm",
+            )}>
               {block.title}
             </h3>
           )}
@@ -65,27 +74,61 @@ function FallbackContent({ block }: { block: PromoBlock }) {
                   {brl(Number(block.old_price))}
                 </div>
               )}
-              <div className="text-xl md:text-2xl font-extrabold leading-none text-primary">
+              <div className={cn(
+                "font-extrabold leading-none text-primary",
+                featured ? "text-2xl md:text-3xl" : "text-lg md:text-xl",
+              )}>
                 {brl(Number(block.new_price))}
               </div>
             </div>
           )}
         </div>
-        <div className="shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-[#FFE4E8] via-white to-[#FFD0D8] border border-red-200/60 flex items-center justify-center">
-          <Icon className="h-7 w-7 text-primary" />
-        </div>
+
+        {(block.cta_text || hasContent) && (
+          <span className="relative inline-flex w-fit items-center gap-1 mt-2 bg-primary text-primary-foreground font-extrabold text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full shadow-sm">
+            {block.cta_text || "Ver oferta"} →
+          </span>
+        )}
       </div>
 
-      <span className="relative inline-flex w-fit items-center gap-1 mt-2 bg-primary text-primary-foreground font-extrabold text-[10px] uppercase tracking-wide px-2.5 py-1 rounded-full shadow-sm">
-        {block.cta_text || "Ver oferta"} →
-      </span>
+      {/* Imagem do produto */}
+      <div className={cn(
+        "relative shrink-0 flex items-center justify-center p-2",
+        featured ? "w-[45%] md:w-[48%]" : "w-[42%]",
+      )}>
+        {block.image_url ? (
+          <img
+            src={block.image_url}
+            alt={block.title ?? "Produto em promoção"}
+            loading="lazy"
+            className="max-h-full max-w-full object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.15)] transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-gradient-to-br from-[#FFE4E8] via-white to-[#FFD0D8] border border-red-200/60 flex items-center justify-center">
+            <Icon className="h-8 w-8 text-primary" />
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+function FullBanner({ block }: { block: PromoBlock }) {
+  if (!block.image_url) return <ProductCard block={block} />;
+  return (
+    <img
+      src={block.image_url}
+      alt={block.title ?? "Promoção"}
+      loading="lazy"
+      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+    />
   );
 }
 
 function Tile({ block, featured }: { block: PromoBlock; featured?: boolean }) {
   const Wrapper: any = block.cta_url ? Link : "div";
   const wrapperProps = block.cta_url ? { to: block.cta_url } : {};
+  const mode = block.image_mode === "full_banner" ? "full_banner" : "product";
 
   return (
     <Wrapper
@@ -95,25 +138,14 @@ function Tile({ block, featured }: { block: PromoBlock; featured?: boolean }) {
         "group relative shrink-0 snap-start overflow-hidden rounded-lg bg-white",
         "shadow-[0_2px_8px_rgba(60,10,15,0.10)] hover:shadow-[0_6px_18px_rgba(60,10,15,0.18)]",
         "transition-all hover:-translate-y-0.5",
-        // Mobile sizing (carrossel)
         featured ? "w-[86%]" : "w-[78%]",
-        // Desktop sizing
         featured
           ? "md:w-[400px] md:flex-[0_0_400px]"
-          : "md:w-[210px] md:flex-[0_0_210px]",
+          : "md:w-[260px] md:flex-[0_0_260px]",
         "h-[200px] md:h-[200px]",
       )}
     >
-      {block.image_url ? (
-        <img
-          src={block.image_url}
-          alt={block.title ?? "Promoção"}
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-      ) : (
-        <FallbackContent block={block} />
-      )}
+      {mode === "full_banner" ? <FullBanner block={block} /> : <ProductCard block={block} featured={featured} />}
     </Wrapper>
   );
 }
