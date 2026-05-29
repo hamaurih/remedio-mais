@@ -34,7 +34,7 @@ const variantIcon: Record<string, React.ComponentType<{ className?: string }>> =
 function FallbackContent({ block }: { block: PromoBlock }) {
   const Icon = variantIcon[block.variant] ?? variantIcon.default;
   return (
-    <div className="relative w-full h-full p-3 md:p-4 flex flex-col justify-between bg-gradient-to-br from-white via-white to-[#EAF6FF]">
+    <div className="relative w-full h-full p-3 md:p-4 flex flex-col justify-between bg-gradient-to-br from-white via-white to-[#FFF0F2]">
       <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/[0.06] blur-2xl" />
       <div className="relative flex items-start gap-2">
         <div className="flex-1 min-w-0">
@@ -71,8 +71,8 @@ function FallbackContent({ block }: { block: PromoBlock }) {
             </div>
           )}
         </div>
-        <div className="shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-[#E0F2FE] via-white to-[#BAE6FD] border border-sky-200/60 flex items-center justify-center">
-          <Icon className="h-7 w-7 text-[#0788c9]" />
+        <div className="shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-[#FFE4E8] via-white to-[#FFD0D8] border border-red-200/60 flex items-center justify-center">
+          <Icon className="h-7 w-7 text-primary" />
         </div>
       </div>
 
@@ -93,7 +93,7 @@ function Tile({ block, featured }: { block: PromoBlock; featured?: boolean }) {
       aria-label={block.title ?? "Promoção"}
       className={cn(
         "group relative shrink-0 snap-start overflow-hidden rounded-lg bg-white",
-        "shadow-[0_2px_8px_rgba(2,30,60,0.10)] hover:shadow-[0_6px_18px_rgba(2,30,60,0.18)]",
+        "shadow-[0_2px_8px_rgba(60,10,15,0.10)] hover:shadow-[0_6px_18px_rgba(60,10,15,0.18)]",
         "transition-all hover:-translate-y-0.5",
         // Mobile sizing (carrossel)
         featured ? "w-[86%]" : "w-[78%]",
@@ -136,7 +136,7 @@ export function PromoBanner() {
   return (
     <section
       aria-label="Promoções em destaque"
-      className="w-full bg-gradient-to-b from-[#0788c9] to-[#dff4ff] py-4 md:py-5 border-b border-sky-200/50"
+      className="w-full bg-gradient-to-b from-[hsl(354,78%,48%)] to-[hsl(354,100%,97%)] py-4 md:py-5 border-b border-red-200/50"
     >
       <div className="container">
         <div
