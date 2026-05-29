@@ -16,6 +16,15 @@ export type MosaicTile = {
   image_url: string | null;
   bg_style: string;
   active: boolean;
+  // New link fields
+  link_type?: "product" | "category" | "campaign" | "manual";
+  product_id?: string | null;
+  category_id?: string | null;
+  campaign_id?: string | null;
+  image_source?: "auto" | "upload" | "manual";
+  custom_image_url?: string | null;
+  manual_link?: string | null;
+  badge_preset?: string | null;
 };
 
 const BG: Record<string, string> = {
@@ -91,11 +100,84 @@ function defaultIconFor(title: string | null) {
   return ShoppingBag;
 }
 
-function TileCard({ tile, large }: { tile: MosaicTile; large?: boolean }) {
+type ResolvedTile = MosaicTile & {
+  _resolvedTitle: string | null;
+  _resolvedSubtitle: string | null;
+  _resolvedImage: string | null;
+  _resolvedLink: string | null;
+  _resolvedBadge: string | null;
+};
+
+function autoBadgeFromProduct(p: any): string | null {
+  if (!p) return null;
+  if (p.on_sale) return "Oferta";
+  if (p.controlled) return "Controlado";
+  if (p.requires_prescription) return "Receita";
+  return null;
+}
+
+export function resolveTile(
+  tile: MosaicTile,
+  refs: { products: Record<string, any>; categories: Record<string, any>; campaigns: Record<string, any> },
+): ResolvedTile {
+  const t = tile.link_type || "manual";
+  let entity: any = null;
+  let autoLink: string | null = null;
+  let autoBadge: string | null = null;
+  let autoImage: string | null = null;
+  let autoTitle: string | null = null;
+  let autoSubtitle: string | null = null;
+
+  if (t === "product" && tile.product_id) {
+    entity = refs.products[tile.product_id];
+    if (entity) {
+      autoTitle = entity.name;
+      autoSubtitle = entity.laboratory || entity.category_name || entity.short_description || null;
+      autoImage = entity.image_url;
+      autoLink = entity.slug ? `/produto/${entity.slug}` : null;
+      autoBadge = autoBadgeFromProduct(entity);
+    }
+  } else if (t === "category" && tile.category_id) {
+    entity = refs.categories[tile.category_id];
+    if (entity) {
+      autoTitle = entity.name;
+      autoSubtitle = entity.description || null;
+      autoImage = entity.image_url;
+      autoLink = entity.slug ? `/categoria/${entity.slug}` : null;
+      autoBadge = "Categoria";
+    }
+  } else if (t === "campaign" && tile.campaign_id) {
+    entity = refs.campaigns[tile.campaign_id];
+    if (entity) {
+      autoTitle = entity.name;
+      autoSubtitle = entity.subtitle || null;
+      autoImage = entity.banner_image_url;
+      autoLink = entity.slug ? `/campanha/${entity.slug}` : null;
+      autoBadge = "Campanha";
+    }
+  }
+
+  return {
+    ...tile,
+    _resolvedTitle: tile.title || autoTitle,
+    _resolvedSubtitle: tile.subtitle || autoSubtitle,
+    _resolvedImage:
+      tile.image_source === "manual"
+        ? tile.custom_image_url || tile.image_url
+        : tile.image_source === "upload"
+        ? tile.custom_image_url || tile.image_url
+        : tile.image_url || autoImage,
+    _resolvedLink: tile.manual_link || tile.link || autoLink,
+    _resolvedBadge: tile.badge_text || tile.badge_preset || autoBadge,
+  };
+}
+
+function TileCard({ tile, large }: { tile: ResolvedTile; large?: boolean }) {
   const bg = BG[tile.bg_style] ?? BG["soft-pink"];
-  const Icon = defaultIconFor(tile.title);
-  const Wrapper: any = tile.link ? Link : "div";
-  const wrapperProps = tile.link ? { to: tile.link } : {};
+  const Icon = defaultIconFor(tile._resolvedTitle);
+  const href = tile._resolvedLink;
+  const Wrapper: any = href ? Link : "div";
+  const wrapperProps = href ? { to: href } : {};
 
   return (
     <Wrapper
@@ -106,11 +188,9 @@ function TileCard({ tile, large }: { tile: MosaicTile; large?: boolean }) {
         large ? "p-6 col-span-2 row-span-2" : "p-5 hover:-translate-y-0.5",
       )}
     >
-      {/* Decorative blob */}
       <div className="absolute -top-16 -left-16 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
 
-      {/* Product image OR icon fallback */}
-      {tile.image_url ? (
+      {tile._resolvedImage ? (
         <div
           className={cn(
             "absolute -right-2 -bottom-2 pointer-events-none",
@@ -119,8 +199,8 @@ function TileCard({ tile, large }: { tile: MosaicTile; large?: boolean }) {
         >
           <div className="absolute inset-x-3 bottom-2 h-2 rounded-full bg-foreground/10 blur-md" />
           <img
-            src={tile.image_url}
-            alt={tile.title ?? ""}
+            src={tile._resolvedImage}
+            alt={tile._resolvedTitle ?? ""}
             loading="lazy"
             className="relative h-full w-full object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.15)]"
           />
@@ -137,24 +217,24 @@ function TileCard({ tile, large }: { tile: MosaicTile; large?: boolean }) {
       )}
 
       <div className="relative">
-        {tile.badge_text && (
+        {tile._resolvedBadge && (
           <span className="inline-block bg-primary text-primary-foreground text-[11px] font-bold uppercase px-2.5 py-1 rounded-full">
-            {tile.badge_text}
+            {tile._resolvedBadge}
           </span>
         )}
-        {tile.title && (
+        {tile._resolvedTitle && (
           <h3
             className={cn(
               "mt-2 font-extrabold leading-tight text-foreground",
               large ? "text-3xl lg:text-4xl" : "text-lg",
             )}
           >
-            {tile.title}
+            {tile._resolvedTitle}
           </h3>
         )}
-        {tile.subtitle && (
+        {tile._resolvedSubtitle && (
           <p className={cn("text-muted-foreground mt-1", large ? "" : "text-sm")}>
-            {tile.subtitle}
+            {tile._resolvedSubtitle}
           </p>
         )}
       </div>
@@ -175,6 +255,68 @@ function TileCard({ tile, large }: { tile: MosaicTile; large?: boolean }) {
   );
 }
 
+function useRefs(tiles: MosaicTile[]) {
+  const productIds = Array.from(
+    new Set(tiles.filter((t) => t.link_type === "product" && t.product_id).map((t) => t.product_id!)),
+  );
+  const categoryIds = Array.from(
+    new Set(tiles.filter((t) => t.link_type === "category" && t.category_id).map((t) => t.category_id!)),
+  );
+  const campaignIds = Array.from(
+    new Set(tiles.filter((t) => t.link_type === "campaign" && t.campaign_id).map((t) => t.campaign_id!)),
+  );
+
+  const { data: products } = useQuery({
+    queryKey: ["mosaic_refs_products", productIds.sort().join(",")],
+    enabled: productIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("products")
+        .select(
+          "id,name,slug,image_url,short_description,laboratory,category_name,on_sale,requires_prescription,controlled,price,promo_price",
+        )
+        .in("id", productIds);
+      return data || [];
+    },
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ["mosaic_refs_categories", categoryIds.sort().join(",")],
+    enabled: categoryIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("categories")
+        .select("id,name,slug,image_url,description")
+        .in("id", categoryIds);
+      return data || [];
+    },
+  });
+
+  const { data: campaigns } = useQuery({
+    queryKey: ["mosaic_refs_campaigns", campaignIds.sort().join(",")],
+    enabled: campaignIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("campaigns")
+        .select("id,name,slug,banner_image_url,subtitle,cta_text")
+        .in("id", campaignIds);
+      return data || [];
+    },
+  });
+
+  const idx = (arr: any[] | undefined) =>
+    (arr || []).reduce((acc: Record<string, any>, x) => {
+      acc[x.id] = x;
+      return acc;
+    }, {});
+
+  return {
+    products: idx(products),
+    categories: idx(categories),
+    campaigns: idx(campaigns),
+  };
+}
+
 export function PromoMosaic() {
   const { data } = useQuery({
     queryKey: ["home_mosaic_tiles"],
@@ -189,8 +331,10 @@ export function PromoMosaic() {
   });
 
   const tiles = data && data.length > 0 ? data : FALLBACK;
-  const large = tiles.find((t) => t.size === "lg") ?? tiles[0];
-  const smalls = tiles.filter((t) => t.id !== large.id).slice(0, 4);
+  const refs = useRefs(tiles);
+  const resolved = tiles.map((t) => resolveTile(t, refs));
+  const large = resolved.find((t) => t.size === "lg") ?? resolved[0];
+  const smalls = resolved.filter((t) => t.id !== large.id).slice(0, 4);
 
   return (
     <section className="container mt-6 md:mt-8">
@@ -207,31 +351,31 @@ export function PromoMosaic() {
         {[large, ...smalls].map((t) => (
           <Link
             key={t.id}
-            to={t.link || "#"}
+            to={t._resolvedLink || "#"}
             className={cn(
               BG[t.bg_style] ?? BG["soft-pink"],
               "snap-start shrink-0 w-[85%] h-40 rounded-2xl p-5 flex flex-col justify-between overflow-hidden relative shadow-sm",
             )}
           >
-            {t.image_url ? (
+            {t._resolvedImage ? (
               <img
-                src={t.image_url}
-                alt={t.title ?? ""}
+                src={t._resolvedImage}
+                alt={t._resolvedTitle ?? ""}
                 loading="lazy"
                 className="absolute -right-2 -bottom-2 h-28 w-28 object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.15)]"
               />
             ) : null}
             <div className="relative">
-              {t.badge_text && (
+              {t._resolvedBadge && (
                 <span className="inline-block bg-primary text-primary-foreground text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mb-1">
-                  {t.badge_text}
+                  {t._resolvedBadge}
                 </span>
               )}
               <h4 className="text-lg font-extrabold leading-tight text-foreground">
-                {t.title}
+                {t._resolvedTitle}
               </h4>
-              {t.subtitle && (
-                <p className="text-xs text-muted-foreground mt-1">{t.subtitle}</p>
+              {t._resolvedSubtitle && (
+                <p className="text-xs text-muted-foreground mt-1">{t._resolvedSubtitle}</p>
               )}
             </div>
             {t.cta_text && (
