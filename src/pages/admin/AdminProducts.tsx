@@ -186,6 +186,13 @@ export default function AdminProducts() {
             {cats?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={manuFilter} onValueChange={setManuFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Fabricante" /></SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value="all">Todos fabricantes</SelectItem>
+            {manufacturers.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
