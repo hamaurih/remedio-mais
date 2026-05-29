@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductShelf } from "./ProductShelf";
 import { Button } from "./ui/button";
+import { CampaignAutoBanner } from "./CampaignAutoBanner";
 import { cn } from "@/lib/utils";
 import type { Product } from "./ProductCard";
 
@@ -22,6 +23,7 @@ type Campaign = {
   banner_link: string | null;
   cta_text: string | null;
   visual_style: string;
+  banner_mode?: string;
 };
 
 export function CampaignShelf() {
@@ -31,7 +33,7 @@ export function CampaignShelf() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("campaigns")
-        .select("id,name,slug,subtitle,banner_image_url,banner_link,cta_text,visual_style,position")
+        .select("id,name,slug,subtitle,banner_image_url,banner_link,cta_text,visual_style,position,banner_mode")
         .eq("active", true)
         .eq("published", true)
         .order("position");
@@ -60,37 +62,44 @@ export function CampaignShelf() {
   if (!campaign) return null;
 
   const bg = STYLE_BG[campaign.visual_style] ?? STYLE_BG.light;
+  const isAuto = campaign.banner_mode === "auto_products";
+  const ctaHref = campaign.banner_link || `/campanha/${campaign.slug}`;
 
   return (
     <section className="container mt-6 md:mt-10">
-      <div className={cn("rounded-2xl p-5 md:p-6 relative overflow-hidden shadow-sm", bg)}>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative">
-          <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-wider font-extrabold text-primary">
-              Campanha
+      {isAuto ? (
+        <CampaignAutoBanner
+          name={campaign.name}
+          subtitle={campaign.subtitle}
+          ctaText={campaign.cta_text || "Aproveitar agora"}
+          ctaHref={ctaHref}
+          visualStyle={campaign.visual_style}
+          products={(products || []).filter((p: any) => p.image_url).slice(0, 3) as any}
+        />
+      ) : (
+        <div className={cn("rounded-2xl p-5 md:p-6 relative overflow-hidden shadow-sm", bg)}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative">
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-wider font-extrabold text-primary">
+                Campanha
+              </div>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-1">
+                {campaign.name}
+              </h2>
+              {campaign.subtitle && (
+                <p className="text-sm md:text-base text-muted-foreground mt-1">
+                  {campaign.subtitle}
+                </p>
+              )}
             </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-1">
-              {campaign.name}
-            </h2>
-            {campaign.subtitle && (
-              <p className="text-sm md:text-base text-muted-foreground mt-1">
-                {campaign.subtitle}
-              </p>
-            )}
-          </div>
-          {campaign.banner_link && (
             <Button asChild className="shrink-0">
-              <Link to={campaign.banner_link}>
-                {campaign.cta_text || "Ver campanha"} →
-              </Link>
+              <Link to={ctaHref}>{campaign.cta_text || "Ver campanha"} →</Link>
             </Button>
-          )}
-        </div>
+          </div>
 
-        {campaign.banner_image_url && (
-          <div className="mt-4">
-            {campaign.banner_link ? (
-              <Link to={campaign.banner_link} className="block">
+          {campaign.banner_image_url && (
+            <div className="mt-4">
+              <Link to={ctaHref} className="block">
                 <img
                   src={campaign.banner_image_url}
                   alt={campaign.name}
@@ -98,17 +107,10 @@ export function CampaignShelf() {
                   className="w-full max-h-56 md:max-h-72 object-cover rounded-xl"
                 />
               </Link>
-            ) : (
-              <img
-                src={campaign.banner_image_url}
-                alt={campaign.name}
-                loading="lazy"
-                className="w-full max-h-56 md:max-h-72 object-cover rounded-xl"
-              />
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {products && products.length > 0 && (
         <ProductShelf

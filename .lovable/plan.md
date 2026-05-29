@@ -1,75 +1,108 @@
-# Melhorias inspiradas em grandes e-commerces farmacêuticos
+## Escopo
 
-Vou aplicar apenas as 7 melhorias pedidas, sem refazer site, sem mexer em Trier/auth/admin de produtos/carrinho/receitas.
+Profissionalizar **Admin > Mosaico Home** e **Admin > Campanhas** para trabalharem com vínculos reais (produto / categoria / campanha) em vez de URL manual. Manter compatibilidade com dados antigos. Não tocar em produtos, carrinho, pedidos, auth, Trier.
 
-## 1. MegaMenu no CategoryNav
-- Refatorar `src/components/CategoryNav.tsx` adicionando item "Todas as Categorias" com mega menu suspenso (desktop) em colunas por macro-categoria:
-  - Medicamentos e Saúde
-  - Dermo e Beleza
-  - Higiene Pessoal
-  - Mamães e Bebês
-  - Vitaminas e Suplementos
-  - Conveniência
-  - Primeiros Socorros
-- Subcategorias buscadas da tabela `categories` (públicas, active=true) e agrupadas por mapping local de macro → slugs.
-- Mobile: `Sheet` lateral com `Accordion` por macro-categoria.
-- Resto da nav (chips horizontais) preservado.
+---
 
-## 2. Evoluir HeroSlider (visual only)
-- Adicionar campos opcionais ao tipo `HeroSlide`: `badge_text`, `discount_text`, `price_text`, `product_image_url`, `background_style` (variants: `light`, `soft-pink`, `soft-blue`, `soft-mint`).
-- Cada slide:
-  - Fundo claro / gradiente suave conforme `background_style`.
-  - Selo (badge) topo-esquerda usando vermelho como acento.
-  - Bloco de preço grande (price_text) com vermelho só no número, e desconto em pílula amarela/vermelha.
-  - Imagem do produto (product_image_url) com pedestal e sombra (igual ao tratamento atual).
-- Sem fundo vermelho sólido. Banco não muda — campos extras são opcionais; admin existente continua funcionando, dados extras virão por enquanto via fallbacks/mosaico até o admin ser estendido.
+## Parte 1 — Banco de dados (1 migração)
 
-## 3. PromoMosaic dinâmico
-- Criar nova tabela `home_mosaic_tiles` (id, position, size: 'lg'|'sm', title, subtitle, badge_text, cta_text, link, image_url, bg_style, active).
-- RLS: leitura pública só `active=true`, escrita admin.
-- Refatorar `PromoMosaic` para buscar essas tiles via React Query e renderizar 1 grande + 2-4 pequenas.
-- Adicionar página admin `AdminMosaic` (CRUD simples) e rota no `AdminLayout`.
+### Tabela `home_mosaic_tiles` — novos campos
+- `link_type` text default `'manual'` — `product` | `category` | `campaign` | `manual`
+- `product_id` uuid (nullable)
+- `category_id` uuid (nullable)
+- `campaign_id` uuid (nullable)
+- `image_source` text default `'auto'` — `auto` | `upload` | `manual`
+- `custom_image_url` text (nullable) — sobrescreve imagem do item vinculado
+- `manual_link` text (nullable)
+- `badge_preset` text (nullable) — preset de selo
 
-## 4. PromoBanner mais leve
-- Remover restos de vermelho chapado; usar cards brancos/rosa-claro alternados.
-- Garantir imagem do produto visível (não cortada), old_price riscado pequeno, new_price grande, selo vermelho discreto.
-- Ajustar grid mobile (scroll horizontal snap, 1.2 cards visíveis).
+Campos atuais (`title`, `subtitle`, `badge_text`, `cta_text`, `image_url`, `link`, `size`, `bg_style`, `position`, `active`) ficam como **override manual**.
 
-## 5. Módulo de Campanhas
-- Criar tabela `campaigns` (id, name, slug, starts_at, ends_at, banner_image_url, banner_link, cta_text, visual_style, active, published).
-- Criar tabela `campaign_products` (campaign_id, product_id, position).
-- RLS: leitura pública só `active=true AND published=true AND (starts_at IS NULL OR now() BETWEEN starts_at AND ends_at)`; escrita admin.
-- Página admin `AdminCampaigns`: lista + form (nome, slug, período, banner, produtos vinculados via search, ativa, publicada, estilo).
-- Home: nova seção `CampaignShelf` que renderiza campanha ativa + prateleira dos produtos vinculados, posicionada logo após HeroSlider/PromoMosaic.
+### Tabela `campaigns` — novos campos
+- `banner_mode` text default `'manual_url'` — `auto_products` | `upload` | `manual_url` | `none`
+- `banner_destination` text default `'campaign'` — `campaign` | `category` | `product` | `manual`
+- `destination_category_id` uuid (nullable)
+- `destination_product_id` uuid (nullable)
+- `show_on_home` boolean default false
 
-## 6. ProductQuickView — "Aproveite e compre também"
-- Melhorar seção de relacionados: query com prioridade
-  1. mesma `category_id`,
-  2. mesmo `group_code` (Trier) se existir,
-  3. mesmo `laboratory`,
-  4. `on_sale = true`.
-- Limit 8, distintos, excluir produto atual.
-- Mostrar preço Pix quando `resolvePixPercentage` > 0 (usar helper existente).
-- Manter botão "Peça agora via WhatsApp".
+### Tabela `campaign_products` — novo campo
+- `featured_slot` smallint (nullable) — 1, 2 ou 3 (produto destaque do banner automático)
 
-## 7. Benefícios
-- Atualizar `BenefitCards` já bate com os 5 itens pedidos. Ajustar para virar `<Link>` clicável (whatsapp, /enviar-receita, /categoria/ofertas, etc.) e visual mais limpo (ícone em círculo accent, sem hover translate forte).
+GRANTs já cobertos pelas políticas existentes (public read, admin write).
 
-## Detalhes técnicos
+---
 
-- Migrações SQL (1 só): cria `home_mosaic_tiles`, `campaigns`, `campaign_products`, com GRANTs + RLS + policies públicas de leitura para registros ativos/publicados.
-- Sem alterações em: `products`, `orders`, `prescriptions`, integrações Trier, auth, `store_settings`.
-- React Query `staleTime` global já configurado; novas queries usam `eq("active", true)`.
-- Tudo em frontend usa tokens semânticos do design system (sem cores hardcoded fora do que já está em uso).
+## Parte 2 — Admin > Mosaico Home (`AdminMosaic.tsx`)
+
+- Adicionar select **"Tipo de vínculo"** (Produto / Categoria / Campanha / Manual).
+- Conforme escolha, mostrar combobox de busca:
+  - Produto: busca por nome / sku / barcode / laboratory / category_name.
+  - Categoria: busca por nome.
+  - Campanha: lista campanhas ativas.
+- Ao selecionar, **pré-preencher** title, subtitle, image_url, link, badge (com regras: on_sale→Oferta, requires_prescription→Receita, controlled→Controlado).
+- Campos manuais permanecem editáveis (override).
+- **Imagem do bloco**: opções Usar do item vinculado / Upload (Supabase Storage bucket `banners`) / URL manual.
+- **Selo**: select de presets + opção Personalizado libera input livre.
+- **Preview real** ao lado do form usando o mesmo render do `PromoMosaic`.
+
+## Parte 3 — Componente `PromoMosaic.tsx`
+
+- Função `resolveTile(tile)` que aplica regra de prioridade:
+  - title: manual ?? item.name
+  - image: custom_image_url ?? item.image_url
+  - link: manual_link ?? `/produto|categoria|campanha/{slug}`
+  - badge: badge_text manual ?? badge_preset ?? auto do produto
+- Buscar produtos/categorias/campanhas referenciados via React Query (uma query em lote por tipo).
+
+## Parte 4 — Admin > Campanhas (`AdminCampaigns.tsx`)
+
+- Campo **"Modo do banner"** (Automático com produtos / Upload / URL manual / Sem banner).
+- Modo Upload: input file → Supabase Storage `banners` bucket → salva URL em `banner_image_url`.
+- Modo URL manual: campo atual `banner_image_url` (marcado como avançado).
+- Modo Automático: usa produtos vinculados (até 3 com `featured_slot` ou os 3 primeiros com imagem) e renderiza banner composto no preview e na página pública.
+- **Destino do banner**: select (Campanha / Categoria / Produto / Manual) → gera `banner_link` automaticamente conforme escolha.
+- Lista de produtos vinculados ganha botões "Destaque 1/2/3" gravando `featured_slot`.
+- Checkbox **"Exibir na home"** (`show_on_home`).
+- **Preview real** da campanha (banner + texto + CTA).
+- Validações: auto sem produtos / upload sem imagem / manual sem link.
+
+## Parte 5 — Página pública `/campanha/:slug`
+
+- Nova rota em `App.tsx` → `src/pages/Campaign.tsx`.
+- Renderiza: banner (conforme `banner_mode`), nome, subtítulo, CTA principal, produtos vinculados (`ProductShelf`), botão WhatsApp.
+- Componente `CampaignAutoBanner` reutilizável (texto à esquerda + até 3 produtos à direita, gradiente, sombra).
+
+## Parte 6 — Home: CampaignShelf / HeroSlider / Mosaico
+- `CampaignShelf` passa a respeitar `banner_mode` (usa auto banner quando aplicável).
+- Não mexer no HeroSlider/PromoBanner agora além do necessário para que campanhas com `show_on_home` apareçam no `CampaignShelf` (já é o comportamento atual).
+
+---
+
+## Arquivos
+
+**Novos**
+- `supabase/migrations/<timestamp>_mosaic_campaign_links.sql`
+- `src/pages/Campaign.tsx`
+- `src/components/CampaignAutoBanner.tsx`
+- `src/components/admin/EntityPicker.tsx` (combobox reutilizável para produto/categoria/campanha)
+
+**Editados**
+- `src/pages/admin/AdminMosaic.tsx`
+- `src/pages/admin/AdminCampaigns.tsx`
+- `src/components/PromoMosaic.tsx`
+- `src/components/CampaignShelf.tsx` (mínimo, para suportar banner automático)
+- `src/App.tsx` (registrar rota `/campanha/:slug`)
+
+**Intocados**: PromoBanner, HeroSlider, produtos, carrinho, auth, Trier, pedidos, receitas.
+
+---
 
 ## Ordem de execução
-1. Migração SQL (mosaic + campaigns) — aguardar aprovação.
-2. Atualizar types e implementar componentes/páginas em paralelo:
-   - `CategoryNav` (mega menu)
-   - `HeroSlider` (novos campos visuais)
-   - `PromoMosaic` (dinâmico) + `AdminMosaic`
-   - `PromoBanner` (ajuste visual)
-   - `CampaignShelf` + `AdminCampaigns` + rotas
-   - `ProductQuickView` (relacionados melhores + Pix)
-   - `BenefitCards` (links)
-3. Validação visual rápida na home.
+
+1. Rodar migração (pedir aprovação).
+2. Implementar `EntityPicker`, `CampaignAutoBanner`, `Campaign.tsx`, rota.
+3. Atualizar `PromoMosaic` (resolver vínculos).
+4. Refatorar `AdminMosaic` e `AdminCampaigns`.
+5. Ajuste mínimo em `CampaignShelf`.
+
+Confirma para eu começar pela migração?

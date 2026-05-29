@@ -69,6 +69,7 @@ export type Database = {
         Row: {
           campaign_id: string
           created_at: string
+          featured_slot: number | null
           id: string
           position: number
           product_id: string
@@ -76,6 +77,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           created_at?: string
+          featured_slot?: number | null
           id?: string
           position?: number
           product_id: string
@@ -83,6 +85,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           created_at?: string
+          featured_slot?: number | null
           id?: string
           position?: number
           product_id?: string
@@ -107,15 +110,20 @@ export type Database = {
       campaigns: {
         Row: {
           active: boolean
+          banner_destination: string
           banner_image_url: string | null
           banner_link: string | null
+          banner_mode: string
           created_at: string
           cta_text: string | null
+          destination_category_id: string | null
+          destination_product_id: string | null
           ends_at: string | null
           id: string
           name: string
           position: number
           published: boolean
+          show_on_home: boolean
           slug: string
           starts_at: string | null
           subtitle: string | null
@@ -124,15 +132,20 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          banner_destination?: string
           banner_image_url?: string | null
           banner_link?: string | null
+          banner_mode?: string
           created_at?: string
           cta_text?: string | null
+          destination_category_id?: string | null
+          destination_product_id?: string | null
           ends_at?: string | null
           id?: string
           name: string
           position?: number
           published?: boolean
+          show_on_home?: boolean
           slug: string
           starts_at?: string | null
           subtitle?: string | null
@@ -141,15 +154,20 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          banner_destination?: string
           banner_image_url?: string | null
           banner_link?: string | null
+          banner_mode?: string
           created_at?: string
           cta_text?: string | null
+          destination_category_id?: string | null
+          destination_product_id?: string | null
           ends_at?: string | null
           id?: string
           name?: string
           position?: number
           published?: boolean
+          show_on_home?: boolean
           slug?: string
           starts_at?: string | null
           subtitle?: string | null
@@ -212,14 +230,22 @@ export type Database = {
       home_mosaic_tiles: {
         Row: {
           active: boolean
+          badge_preset: string | null
           badge_text: string | null
           bg_style: string
+          campaign_id: string | null
+          category_id: string | null
           created_at: string
           cta_text: string | null
+          custom_image_url: string | null
           id: string
+          image_source: string
           image_url: string | null
           link: string | null
+          link_type: string
+          manual_link: string | null
           position: number
+          product_id: string | null
           size: string
           subtitle: string | null
           title: string | null
@@ -227,14 +253,22 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          badge_preset?: string | null
           badge_text?: string | null
           bg_style?: string
+          campaign_id?: string | null
+          category_id?: string | null
           created_at?: string
           cta_text?: string | null
+          custom_image_url?: string | null
           id?: string
+          image_source?: string
           image_url?: string | null
           link?: string | null
+          link_type?: string
+          manual_link?: string | null
           position?: number
+          product_id?: string | null
           size?: string
           subtitle?: string | null
           title?: string | null
@@ -242,14 +276,22 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          badge_preset?: string | null
           badge_text?: string | null
           bg_style?: string
+          campaign_id?: string | null
+          category_id?: string | null
           created_at?: string
           cta_text?: string | null
+          custom_image_url?: string | null
           id?: string
+          image_source?: string
           image_url?: string | null
           link?: string | null
+          link_type?: string
+          manual_link?: string | null
           position?: number
+          product_id?: string | null
           size?: string
           subtitle?: string | null
           title?: string | null
