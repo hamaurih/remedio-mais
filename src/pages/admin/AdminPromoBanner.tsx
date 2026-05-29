@@ -173,6 +173,22 @@ export default function AdminPromoBanner() {
                   }
                 />
               </div>
+              <div className="space-y-1 md:col-span-2">
+                <Label>Modo da imagem</Label>
+                <Select
+                  value={(b as any).image_mode ?? "product"}
+                  onValueChange={(v) => update(b.id, { image_mode: v } as any)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="product">Produto (texto + preço + CTA + imagem ao lado)</SelectItem>
+                    <SelectItem value="full_banner">Banner inteiro (a imagem ocupa todo o card)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-1">
                 <Label>Badge (texto pequeno)</Label>
                 <Input
