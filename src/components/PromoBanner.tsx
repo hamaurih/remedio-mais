@@ -46,13 +46,13 @@ function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolea
       {/* Texto protegido */}
       <div
         className={cn(
-          "relative z-10 flex h-full flex-col justify-between",
-          featured ? "p-4 md:p-5 max-w-[52%]" : "p-3 md:p-3.5 max-w-[58%]",
+          "relative z-10 flex h-full flex-col",
+          featured ? "p-4 md:p-5 max-w-[60%]" : "p-3 md:p-3.5 max-w-[60%]",
         )}
       >
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {block.badge_text && (
-            <span className="inline-block max-w-full truncate text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground">
+            <span className="inline-block max-w-full text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground">
               {block.badge_text}
             </span>
           )}
@@ -60,7 +60,7 @@ function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolea
             <h3
               className={cn(
                 "font-extrabold leading-tight text-foreground line-clamp-2",
-                featured ? "text-[20px] md:text-2xl" : "text-[14px] md:text-[15px]",
+                featured ? "text-[18px] md:text-[20px]" : "text-[13px] md:text-[14px]",
               )}
             >
               {block.title}
@@ -69,17 +69,21 @@ function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolea
           {block.subtitle && (
             <p
               className={cn(
-                "text-muted-foreground mt-0.5",
-                featured ? "text-[13px] line-clamp-2" : "text-[11px] md:text-[12px] line-clamp-1",
+                "text-muted-foreground mt-0.5 line-clamp-1",
+                featured ? "text-[12px] md:text-[13px]" : "text-[11px] md:text-[12px]",
               )}
             >
               {block.subtitle}
             </p>
           )}
+        </div>
+
+        {/* Área fixa para preço + CTA — nunca cortada */}
+        <div className="mt-auto pt-1.5 space-y-1.5">
           {block.new_price != null && (
-            <div className="mt-1.5">
+            <div>
               {block.price_suffix && (
-                <div className="text-[9px] md:text-[10px] uppercase tracking-wider text-muted-foreground truncate">
+                <div className="text-[9px] md:text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">
                   {block.price_suffix}
                 </div>
               )}
@@ -91,25 +95,25 @@ function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolea
               <div
                 className={cn(
                   "font-extrabold leading-none text-primary",
-                  featured ? "text-[32px] md:text-[36px] mt-0.5" : "text-[22px] md:text-[24px] mt-0.5",
+                  featured ? "text-[26px] md:text-[30px]" : "text-[20px] md:text-[22px]",
                 )}
               >
                 {brl(Number(block.new_price))}
               </div>
             </div>
           )}
-        </div>
 
-        {block.cta_text && (
-          <span
-            className={cn(
-              "inline-flex w-fit items-center gap-1 mt-2 bg-primary text-primary-foreground font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
-              featured ? "text-[11px] md:text-[12px] px-3 py-1.5" : "text-[10px] md:text-[11px] px-2.5 py-1",
-            )}
-          >
-            {block.cta_text} →
-          </span>
-        )}
+          {block.cta_text && (
+            <span
+              className={cn(
+                "inline-flex w-fit items-center gap-1 bg-primary text-primary-foreground font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
+                featured ? "text-[11px] md:text-[12px] px-3 py-1" : "text-[10px] md:text-[11px] px-2.5 py-1",
+              )}
+            >
+              {block.cta_text} →
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Imagem do produto — absolute, não cobre texto */}
@@ -119,15 +123,15 @@ function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolea
           alt={block.title ?? "Produto em promoção"}
           loading="lazy"
           className={cn(
-            "pointer-events-none absolute right-2 bottom-2 z-0 object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)]",
+            "pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 z-0 object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)]",
             "transition-transform duration-500 group-hover:scale-[1.04]",
-            featured ? "max-h-[82%] max-w-[48%]" : "max-h-[78%] max-w-[42%]",
+            featured ? "max-h-[78%] max-w-[40%]" : "max-h-[72%] max-w-[38%]",
           )}
         />
       ) : (
         <div
           className={cn(
-            "absolute right-2 bottom-2 z-0 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-sky-100 border border-sky-100 flex items-center justify-center",
+            "absolute right-3 top-1/2 -translate-y-1/2 z-0 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-sky-100 border border-sky-100 flex items-center justify-center",
             featured ? "h-20 w-20 md:h-24 md:w-24" : "h-14 w-14 md:h-16 md:w-16",
           )}
         >
@@ -137,6 +141,7 @@ function ProductCard({ block, featured }: { block: PromoBlock; featured?: boolea
     </div>
   );
 }
+
 
 function FullBanner({ block }: { block: PromoBlock }) {
   if (!block.image_url) return <ProductCard block={block} />;
