@@ -48,6 +48,7 @@ export default function AdminProducts() {
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const [manuFilter, setManuFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: products } = useQuery({
@@ -60,17 +61,25 @@ export default function AdminProducts() {
     queryFn: async () => (await supabase.from("categories").select("*").order("position")).data || [],
   });
 
+  const manufacturers = useMemo(() => {
+    const s = new Set<string>();
+    (products || []).forEach((p: any) => { if (p.manufacturer) s.add(p.manufacturer); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
   const filtered = useMemo(() => {
     return (products || []).filter((p: any) => {
       if (search && !p.name?.toLowerCase().includes(search.toLowerCase())) return false;
       if (catFilter !== "all" && p.category_id !== catFilter) return false;
+      if (manuFilter !== "all" && p.manufacturer !== manuFilter) return false;
       if (statusFilter === "active" && !p.active) return false;
       if (statusFilter === "inactive" && p.active) return false;
       if (statusFilter === "sale" && !(p.on_sale || p.promo_price)) return false;
       if (statusFilter === "low" && !(p.stock <= (p.minimum_stock ?? 5))) return false;
       return true;
     });
-  }, [products, search, catFilter, statusFilter]);
+  }, [products, search, catFilter, manuFilter, statusFilter]);
+
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
   const openEdit = (p: any) => {
@@ -175,6 +184,13 @@ export default function AdminProducts() {
           <SelectContent>
             <SelectItem value="all">Todas as categorias</SelectItem>
             {cats?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={manuFilter} onValueChange={setManuFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Fabricante" /></SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value="all">Todos fabricantes</SelectItem>
+            {manufacturers.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
