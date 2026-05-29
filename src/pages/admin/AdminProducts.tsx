@@ -48,6 +48,7 @@ export default function AdminProducts() {
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const [manuFilter, setManuFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: products } = useQuery({
