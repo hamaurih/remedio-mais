@@ -61,17 +61,25 @@ export default function AdminProducts() {
     queryFn: async () => (await supabase.from("categories").select("*").order("position")).data || [],
   });
 
+  const manufacturers = useMemo(() => {
+    const s = new Set<string>();
+    (products || []).forEach((p: any) => { if (p.manufacturer) s.add(p.manufacturer); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
   const filtered = useMemo(() => {
     return (products || []).filter((p: any) => {
       if (search && !p.name?.toLowerCase().includes(search.toLowerCase())) return false;
       if (catFilter !== "all" && p.category_id !== catFilter) return false;
+      if (manuFilter !== "all" && p.manufacturer !== manuFilter) return false;
       if (statusFilter === "active" && !p.active) return false;
       if (statusFilter === "inactive" && p.active) return false;
       if (statusFilter === "sale" && !(p.on_sale || p.promo_price)) return false;
       if (statusFilter === "low" && !(p.stock <= (p.minimum_stock ?? 5))) return false;
       return true;
     });
-  }, [products, search, catFilter, statusFilter]);
+  }, [products, search, catFilter, manuFilter, statusFilter]);
+
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
   const openEdit = (p: any) => {
