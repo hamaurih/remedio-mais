@@ -107,9 +107,9 @@ export default function AdminPromoBanner() {
     <div className="p-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">Banner Promocional (5 blocos)</h1>
+          <h1 className="text-2xl font-extrabold">Mini Banners Promocionais</h1>
           <p className="text-sm text-muted-foreground">
-            Faixa vermelha exibida no topo do site, abaixo do menu.
+            Faixa de mini banners exibida abaixo do menu. O 1º bloco (menor posição) aparece como destaque (maior). Faça upload da arte pronta em image_url para usar como banner inteiro; sem imagem, mostra fallback com título, preço e CTA.
           </p>
         </div>
         <Button onClick={add}>
