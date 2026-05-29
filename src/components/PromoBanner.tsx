@@ -136,7 +136,7 @@ export function PromoBanner() {
   return (
     <section
       aria-label="Promoções em destaque"
-      className="w-full bg-gradient-to-b from-[#0788c9] to-[#dff4ff] py-4 md:py-5 border-b border-sky-200/50"
+      className="w-full bg-gradient-to-b from-[hsl(354,78%,48%)] to-[hsl(354,100%,97%)] py-4 md:py-5 border-b border-red-200/50"
     >
       <div className="container">
         <div
