@@ -33,7 +33,7 @@ export function CampaignShelf() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("campaigns")
-        .select("id,name,slug,subtitle,banner_image_url,banner_link,cta_text,visual_style,position")
+        .select("id,name,slug,subtitle,banner_image_url,banner_link,cta_text,visual_style,position,banner_mode")
         .eq("active", true)
         .eq("published", true)
         .order("position");
