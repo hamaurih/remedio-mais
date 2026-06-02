@@ -77,6 +77,7 @@ const App = () => (
             <Route path="campanhas" element={<AdminCampaigns />} />
             <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
+            <Route path="pagamentos" element={<AdminPayments />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
             <Route path="config" element={<AdminSettings />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
