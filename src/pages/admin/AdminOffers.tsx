@@ -8,17 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/store";
 import { toast } from "sonner";
-import { AlertTriangle, Edit, X } from "lucide-react";
+import { AlertTriangle, Edit, X, Plus } from "lucide-react";
+import { EntityPicker } from "@/components/admin/EntityPicker";
 
 export default function AdminOffers() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState("active");
   const [editing, setEditing] = useState<any>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["admin_offers"],
     queryFn: async () => (await supabase.from("products")
-      .select("*").or("on_sale.eq.true,promo_price.not.is.null").order("updated_at", { ascending: false })).data || [],
+      .select("*").or("on_sale.eq.true,promo_price.not.is.null,shelves.cs.{ofertas-da-semana}").order("updated_at", { ascending: false })).data || [],
   });
 
   const now = new Date();
@@ -59,17 +61,23 @@ export default function AdminOffers() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-extrabold">Ofertas</h1>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Ativas</SelectItem>
-            <SelectItem value="future">Futuras</SelectItem>
-            <SelectItem value="expired">Expiradas</SelectItem>
-            <SelectItem value="all">Todas</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-extrabold">Ofertas da Semana</h1>
+          <p className="text-sm text-muted-foreground">Produtos exibidos na prateleira "Ofertas da Semana" da home.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar produto</Button>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Ativas</SelectItem>
+              <SelectItem value="future">Futuras</SelectItem>
+              <SelectItem value="expired">Expiradas</SelectItem>
+              <SelectItem value="all">Todas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="bg-card border rounded-xl shadow-card overflow-x-auto">
@@ -127,6 +135,29 @@ export default function AdminOffers() {
               <Button className="w-full" onClick={saveEdit}>Salvar oferta</Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Adicionar produto às Ofertas da Semana</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Busque um produto. Ele será marcado em "Ofertas da Semana" e você poderá ajustar preço promocional e datas em seguida.</p>
+          <EntityPicker
+            kind="product"
+            onPick={async (ent) => {
+              if (!ent) return;
+              const { data: p } = await supabase.from("products").select("*").eq("id", ent.id).maybeSingle();
+              if (!p) { toast.error("Produto não encontrado"); return; }
+              const shelves = [...new Set([...(p.shelves || []), "ofertas-da-semana"])];
+              const on_sale = p.promo_price != null && Number(p.promo_price) < Number(p.price);
+              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale }).eq("id", p.id);
+              qc.invalidateQueries({ queryKey: ["admin_offers"] });
+              toast.success("Produto adicionado às ofertas");
+              setAddOpen(false);
+              setEditing({ ...p, shelves });
+            }}
+            placeholder="Buscar produto por nome, SKU..."
+          />
         </DialogContent>
       </Dialog>
     </div>

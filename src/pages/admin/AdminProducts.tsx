@@ -112,11 +112,17 @@ export default function AdminProducts() {
       let gallery_images = [...(editing.gallery_images || [])];
       for (const f of galleryFiles) gallery_images.push(await uploadOne(f));
 
+      const shelvesArr: string[] = editing.shelves || [];
+      const hasOffersShelf = shelvesArr.includes("ofertas-da-semana");
+      const promoNum = editing.promo_price ? Number(editing.promo_price) : null;
+      const autoOnSale = hasOffersShelf && promoNum != null && promoNum < Number(editing.price);
+
       const payload: any = {
         ...editing, slug, image_url, gallery_images,
         category_id: editing.category_id || null,
         price: Number(editing.price),
-        promo_price: editing.promo_price ? Number(editing.promo_price) : null,
+        promo_price: promoNum,
+        on_sale: autoOnSale ? true : !!editing.on_sale,
         stock: Number(editing.stock || 0),
         minimum_stock: Number(editing.minimum_stock || 0),
         promotion_start: editing.promotion_start || null,
@@ -254,7 +260,7 @@ export default function AdminProducts() {
               <TabsTrigger value="images">Imagens</TabsTrigger>
               <TabsTrigger value="price">Preço</TabsTrigger>
               <TabsTrigger value="stock">Estoque</TabsTrigger>
-              <TabsTrigger value="shelf">Vitrine</TabsTrigger>
+              <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
             </TabsList>
@@ -328,15 +334,19 @@ export default function AdminProducts() {
             <TabsContent value="shelf" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.featured} onCheckedChange={(v) => setEditing({ ...editing, featured: v })} /><Label>Destaque na home</Label></div>
               <div>
-                <Label className="font-bold">Aparece nas vitrines da home</Label>
+                <Label className="font-bold text-base">Exibição na Home</Label>
+                <p className="text-xs text-muted-foreground mb-2">Marque em quais prateleiras este produto deve aparecer na home.</p>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {SHELVES.map((s) => (
-                    <label key={s.slug} className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-secondary">
+                    <label key={s.slug} className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-secondary border">
                       <input type="checkbox" className="h-4 w-4 accent-primary" checked={(editing.shelves || []).includes(s.slug)} onChange={() => toggleShelf(s.slug)} />
-                      {s.label}
+                      Mostrar em {s.label}
                     </label>
                   ))}
                 </div>
+                {(editing.shelves || []).includes("ofertas-da-semana") && !editing.promo_price && (
+                  <div className="mt-3 bg-primary/10 text-primary text-xs p-2 rounded flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Para aparecer em "Ofertas da Semana" com desconto, defina um preço promocional na aba Preço.</div>
+                )}
               </div>
               <div className="space-y-1 pt-2 border-t">
                 <Label>Selo do produto</Label>

@@ -55,9 +55,18 @@ export default function Index() {
   const offers = useQuery({
     queryKey: ["shelf_offers"],
     queryFn: async () => {
-      const t = await shelfBy("ofertas-da-semana")();
-      if (t) return t;
-      return await fetchShelf((q) => q.eq("on_sale", true).order("updated_at", { ascending: false }))();
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .gt("stock", 0)
+        .or("shelves.cs.{ofertas-da-semana},on_sale.eq.true")
+        .or(`promotion_start.is.null,promotion_start.lte.${nowIso}`)
+        .or(`promotion_end.is.null,promotion_end.gte.${nowIso}`)
+        .order("updated_at", { ascending: false })
+        .limit(12);
+      return (data || []) as Product[];
     },
   });
   const bestsellers = useQuery({
