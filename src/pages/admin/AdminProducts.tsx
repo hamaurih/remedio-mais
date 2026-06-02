@@ -112,11 +112,17 @@ export default function AdminProducts() {
       let gallery_images = [...(editing.gallery_images || [])];
       for (const f of galleryFiles) gallery_images.push(await uploadOne(f));
 
+      const shelvesArr: string[] = editing.shelves || [];
+      const hasOffersShelf = shelvesArr.includes("ofertas-da-semana");
+      const promoNum = editing.promo_price ? Number(editing.promo_price) : null;
+      const autoOnSale = hasOffersShelf && promoNum != null && promoNum < Number(editing.price);
+
       const payload: any = {
         ...editing, slug, image_url, gallery_images,
         category_id: editing.category_id || null,
         price: Number(editing.price),
-        promo_price: editing.promo_price ? Number(editing.promo_price) : null,
+        promo_price: promoNum,
+        on_sale: autoOnSale ? true : !!editing.on_sale,
         stock: Number(editing.stock || 0),
         minimum_stock: Number(editing.minimum_stock || 0),
         promotion_start: editing.promotion_start || null,
