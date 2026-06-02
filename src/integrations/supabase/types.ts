@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          order_id: string | null
+          read: boolean
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          order_id?: string | null
+          read?: boolean
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          order_id?: string | null
+          read?: boolean
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       banners: {
         Row: {
           active: boolean
@@ -301,27 +331,39 @@ export type Database = {
       }
       order_items: {
         Row: {
+          controlled: boolean
           id: string
           order_id: string
           product_id: string | null
+          product_image_url: string | null
           product_name: string
           quantity: number
+          requires_prescription: boolean
+          total: number | null
           unit_price: number
         }
         Insert: {
+          controlled?: boolean
           id?: string
           order_id: string
           product_id?: string | null
+          product_image_url?: string | null
           product_name: string
           quantity: number
+          requires_prescription?: boolean
+          total?: number | null
           unit_price: number
         }
         Update: {
+          controlled?: boolean
           id?: string
           order_id?: string
           product_id?: string | null
+          product_image_url?: string | null
           product_name?: string
           quantity?: number
+          requires_prescription?: boolean
+          total?: number | null
           unit_price?: number
         }
         Relationships: [
@@ -343,14 +385,39 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           customer_address: string | null
+          customer_cpf: string | null
+          customer_email: string | null
           customer_name: string
           customer_phone: string
+          delivery_cep: string | null
+          delivery_city: string | null
+          delivery_complement: string | null
+          delivery_fee: number
           delivery_method: string
+          delivery_neighborhood: string | null
+          delivery_number: string | null
+          delivery_reference: string | null
+          delivery_state: string | null
+          delivery_street: string | null
+          delivery_type: string
+          discount: number
+          external_reference: string | null
           id: string
+          mercado_pago_checkout_url: string | null
+          mercado_pago_order_id: string | null
+          mercado_pago_payment_id: string | null
+          mercado_pago_preference_id: string | null
           notes: string | null
+          order_status: string
+          paid_at: string | null
+          payment_gateway: string | null
+          payment_method: string | null
+          payment_status: string
           status: string
+          subtotal: number
           total: number
           trier_error_message: string | null
           trier_last_status_check_at: string | null
@@ -360,16 +427,42 @@ export type Database = {
           trier_status: string | null
           trier_status_code: number | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           customer_address?: string | null
+          customer_cpf?: string | null
+          customer_email?: string | null
           customer_name: string
           customer_phone: string
+          delivery_cep?: string | null
+          delivery_city?: string | null
+          delivery_complement?: string | null
+          delivery_fee?: number
           delivery_method?: string
+          delivery_neighborhood?: string | null
+          delivery_number?: string | null
+          delivery_reference?: string | null
+          delivery_state?: string | null
+          delivery_street?: string | null
+          delivery_type?: string
+          discount?: number
+          external_reference?: string | null
           id?: string
+          mercado_pago_checkout_url?: string | null
+          mercado_pago_order_id?: string | null
+          mercado_pago_payment_id?: string | null
+          mercado_pago_preference_id?: string | null
           notes?: string | null
+          order_status?: string
+          paid_at?: string | null
+          payment_gateway?: string | null
+          payment_method?: string | null
+          payment_status?: string
           status?: string
+          subtotal?: number
           total?: number
           trier_error_message?: string | null
           trier_last_status_check_at?: string | null
@@ -379,16 +472,42 @@ export type Database = {
           trier_status?: string | null
           trier_status_code?: number | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           customer_address?: string | null
+          customer_cpf?: string | null
+          customer_email?: string | null
           customer_name?: string
           customer_phone?: string
+          delivery_cep?: string | null
+          delivery_city?: string | null
+          delivery_complement?: string | null
+          delivery_fee?: number
           delivery_method?: string
+          delivery_neighborhood?: string | null
+          delivery_number?: string | null
+          delivery_reference?: string | null
+          delivery_state?: string | null
+          delivery_street?: string | null
+          delivery_type?: string
+          discount?: number
+          external_reference?: string | null
           id?: string
+          mercado_pago_checkout_url?: string | null
+          mercado_pago_order_id?: string | null
+          mercado_pago_payment_id?: string | null
+          mercado_pago_preference_id?: string | null
           notes?: string | null
+          order_status?: string
+          paid_at?: string | null
+          payment_gateway?: string | null
+          payment_method?: string | null
+          payment_status?: string
           status?: string
+          subtotal?: number
           total?: number
           trier_error_message?: string | null
           trier_last_status_check_at?: string | null
@@ -397,12 +516,86 @@ export type Database = {
           trier_sent_at?: string | null
           trier_status?: string | null
           trier_status_code?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_events: {
+        Row: {
+          created_at: string
+          event_type: string | null
+          external_id: string
+          gateway: string
+          id: string
+          order_id: string | null
+          payload: Json | null
+          processed: boolean
+        }
+        Insert: {
+          created_at?: string
+          event_type?: string | null
+          external_id: string
+          gateway?: string
+          id?: string
+          order_id?: string | null
+          payload?: Json | null
+          processed?: boolean
+        }
+        Update: {
+          created_at?: string
+          event_type?: string | null
+          external_id?: string
+          gateway?: string
+          id?: string
+          order_id?: string | null
+          payload?: Json | null
+          processed?: boolean
+        }
+        Relationships: []
+      }
+      payment_settings: {
+        Row: {
+          boleto_enabled: boolean
+          credit_card_enabled: boolean
+          environment: string
+          gateway: string
+          id: number
+          last_connection_status: string | null
+          last_connection_test_at: string | null
+          modo_integracao: string
+          pix_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          boleto_enabled?: boolean
+          credit_card_enabled?: boolean
+          environment?: string
+          gateway?: string
+          id?: number
+          last_connection_status?: string | null
+          last_connection_test_at?: string | null
+          modo_integracao?: string
+          pix_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          boleto_enabled?: boolean
+          credit_card_enabled?: boolean
+          environment?: string
+          gateway?: string
+          id?: number
+          last_connection_status?: string | null
+          last_connection_test_at?: string | null
+          modo_integracao?: string
+          pix_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
       }
       prescriptions: {
         Row: {
+          approved_at: string | null
           created_at: string
           customer_name: string
           customer_phone: string
@@ -410,10 +603,13 @@ export type Database = {
           id: string
           internal_notes: string | null
           notes: string | null
+          product_id: string | null
           status: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
+          approved_at?: string | null
           created_at?: string
           customer_name: string
           customer_phone: string
@@ -421,10 +617,13 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           notes?: string | null
+          product_id?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
+          approved_at?: string | null
           created_at?: string
           customer_name?: string
           customer_phone?: string
@@ -432,8 +631,10 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           notes?: string | null
+          product_id?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -642,19 +843,28 @@ export type Database = {
       }
       profiles: {
         Row: {
+          cpf: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
+          phone: string | null
         }
         Insert: {
+          cpf?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
+          phone?: string | null
         }
         Update: {
+          cpf?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
         }
         Relationships: []
       }
