@@ -137,6 +137,29 @@ export default function AdminOffers() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Adicionar produto às Ofertas da Semana</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Busque um produto. Ele será marcado em "Ofertas da Semana" e você poderá ajustar preço promocional e datas em seguida.</p>
+          <EntityPicker
+            kind="product"
+            onPick={async (ent) => {
+              if (!ent) return;
+              const { data: p } = await supabase.from("products").select("*").eq("id", ent.id).maybeSingle();
+              if (!p) { toast.error("Produto não encontrado"); return; }
+              const shelves = [...new Set([...(p.shelves || []), "ofertas-da-semana"])];
+              const on_sale = p.promo_price != null && Number(p.promo_price) < Number(p.price);
+              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale }).eq("id", p.id);
+              qc.invalidateQueries({ queryKey: ["admin_offers"] });
+              toast.success("Produto adicionado às ofertas");
+              setAddOpen(false);
+              setEditing({ ...p, shelves });
+            }}
+            placeholder="Buscar produto por nome, SKU..."
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
