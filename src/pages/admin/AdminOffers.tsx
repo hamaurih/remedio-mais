@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/store";
 import { toast } from "sonner";
-import { AlertTriangle, Edit, X } from "lucide-react";
+import { AlertTriangle, Edit, X, Plus } from "lucide-react";
+import { EntityPicker } from "@/components/admin/EntityPicker";
 
 export default function AdminOffers() {
   const qc = useQueryClient();
