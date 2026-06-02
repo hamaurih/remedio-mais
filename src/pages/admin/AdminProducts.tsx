@@ -328,15 +328,19 @@ export default function AdminProducts() {
             <TabsContent value="shelf" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.featured} onCheckedChange={(v) => setEditing({ ...editing, featured: v })} /><Label>Destaque na home</Label></div>
               <div>
-                <Label className="font-bold">Aparece nas vitrines da home</Label>
+                <Label className="font-bold text-base">Exibição na Home</Label>
+                <p className="text-xs text-muted-foreground mb-2">Marque em quais prateleiras este produto deve aparecer na home.</p>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {SHELVES.map((s) => (
-                    <label key={s.slug} className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-secondary">
+                    <label key={s.slug} className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-secondary border">
                       <input type="checkbox" className="h-4 w-4 accent-primary" checked={(editing.shelves || []).includes(s.slug)} onChange={() => toggleShelf(s.slug)} />
-                      {s.label}
+                      Mostrar em {s.label}
                     </label>
                   ))}
                 </div>
+                {(editing.shelves || []).includes("ofertas-da-semana") && !editing.promo_price && (
+                  <div className="mt-3 bg-primary/10 text-primary text-xs p-2 rounded flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Para aparecer em "Ofertas da Semana" com desconto, defina um preço promocional na aba Preço.</div>
+                )}
               </div>
               <div className="space-y-1 pt-2 border-t">
                 <Label>Selo do produto</Label>
