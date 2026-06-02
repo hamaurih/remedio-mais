@@ -61,17 +61,23 @@ export default function AdminOffers() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-extrabold">Ofertas</h1>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Ativas</SelectItem>
-            <SelectItem value="future">Futuras</SelectItem>
-            <SelectItem value="expired">Expiradas</SelectItem>
-            <SelectItem value="all">Todas</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-extrabold">Ofertas da Semana</h1>
+          <p className="text-sm text-muted-foreground">Produtos exibidos na prateleira "Ofertas da Semana" da home.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar produto</Button>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Ativas</SelectItem>
+              <SelectItem value="future">Futuras</SelectItem>
+              <SelectItem value="expired">Expiradas</SelectItem>
+              <SelectItem value="all">Todas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="bg-card border rounded-xl shadow-card overflow-x-auto">
