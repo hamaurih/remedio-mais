@@ -37,7 +37,6 @@ const BADGE_STYLE: Record<Exclude<BadgeKind, null>, { label: string; cls: string
 };
 
 export function ProductCard({ p }: { p: Product }) {
-  const { data: settings } = useStoreSettings();
   const finalPrice = p.promo_price ?? p.price;
   const hasDiscount = !!p.promo_price && p.promo_price < p.price;
   const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
@@ -56,9 +55,6 @@ export function ProductCard({ p }: { p: Product }) {
     addToCart({ id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
     toast.success("Adicionado ao carrinho");
   };
-
-  const waMsg = `Olá! Tenho uma dúvida sobre o produto: *${p.name}*.`;
-  const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", waMsg);
 
   return (
     <article className="group bg-card border border-border rounded-xl overflow-hidden flex flex-col shadow-card hover:shadow-elevated hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 h-full">
