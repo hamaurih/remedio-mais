@@ -15,11 +15,12 @@ export default function AdminOffers() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState("active");
   const [editing, setEditing] = useState<any>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["admin_offers"],
     queryFn: async () => (await supabase.from("products")
-      .select("*").or("on_sale.eq.true,promo_price.not.is.null").order("updated_at", { ascending: false })).data || [],
+      .select("*").or("on_sale.eq.true,promo_price.not.is.null,shelves.cs.{ofertas-da-semana}").order("updated_at", { ascending: false })).data || [],
   });
 
   const now = new Date();
