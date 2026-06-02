@@ -144,8 +144,9 @@ export function ProductCard({ p }: { p: Product }) {
             <Button
               asChild
               size="icon"
-              aria-label={outOfStock ? "Consultar pelo WhatsApp" : "Comprar pelo WhatsApp"}
-              className="h-10 w-10 shrink-0 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
+              variant="outline"
+              aria-label="Tirar dúvida pelo WhatsApp"
+              className="h-10 w-10 shrink-0 rounded-full"
             >
               <a href={wa} target="_blank" rel="noopener">
                 <MessageCircle className="h-4 w-4" />
