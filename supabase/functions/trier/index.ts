@@ -762,6 +762,9 @@ async function actionSendOrder(orderId: string) {
   const s = await getSettings();
   const { data: order, error: oe } = await supabase.from("orders").select("*").eq("id", orderId).single();
   if (oe || !order) throw new Error("Pedido não encontrado");
+  if (order.payment_status && order.payment_status !== "approved") {
+    throw new Error("Pedido ainda não foi pago. Aguarde a confirmação do Mercado Pago antes de enviar à Trier.");
+  }
   const { data: items, error: ie } = await supabase.from("order_items").select("*, products(trier_product_id, stock, name)").eq("order_id", orderId);
   if (ie) throw new Error(ie.message);
 
