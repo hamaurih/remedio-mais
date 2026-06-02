@@ -57,6 +57,10 @@ const App = () => (
           <Route path="/produto/:slug" element={<Product />} />
           <Route path="/campanha/:slug" element={<Campaign />} />
           <Route path="/carrinho" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/pedido/sucesso" element={<OrderReturn status="success" />} />
+          <Route path="/pedido/pendente" element={<OrderReturn status="pending" />} />
+          <Route path="/pedido/falha" element={<OrderReturn status="failure" />} />
           <Route path="/enviar-receita" element={<SendPrescription />} />
           <Route path="/buscar" element={<Search />} />
           <Route path="/departamentos" element={<Departamentos />} />
