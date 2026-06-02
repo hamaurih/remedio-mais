@@ -117,37 +117,24 @@ export function ProductCard({ p }: { p: Product }) {
             {formatBRL(finalPrice)}
           </div>
           <div className="text-[10px] md:text-[11px] text-muted-foreground mt-1">
-            Retire na loja ou peça pelo WhatsApp
+            Retire na loja ou receba em casa
           </div>
         </div>
 
-        {p.controlled ? (
+        {p.controlled || p.requires_prescription ? (
           <Button asChild size="sm" variant="outline" className="mt-3 rounded-full h-10">
             <Link to="/enviar-receita">
               <FileText className="h-4 w-4 mr-1" /> Enviar receita
             </Link>
           </Button>
         ) : (
-          <div className="mt-3 flex items-stretch gap-1.5">
-            <Button
-              onClick={handleAdd}
-              disabled={outOfStock}
-              className="flex-1 h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-60"
-            >
-              <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : "Adicionar"}
-            </Button>
-            <Button
-              asChild
-              size="icon"
-              variant="outline"
-              aria-label="Tirar dúvida pelo WhatsApp"
-              className="h-10 w-10 shrink-0 rounded-full"
-            >
-              <a href={wa} target="_blank" rel="noopener">
-                <MessageCircle className="h-4 w-4" />
-              </a>
-            </Button>
-          </div>
+          <Button
+            onClick={handleAdd}
+            disabled={outOfStock}
+            className="mt-3 w-full h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-60"
+          >
+            <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : "Adicionar"}
+          </Button>
         )}
       </div>
     </article>
