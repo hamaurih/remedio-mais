@@ -58,7 +58,7 @@ export function ProductCard({ p }: { p: Product }) {
     toast.success("Adicionado ao carrinho");
   };
 
-  const waMsg = `Olá! Tenho interesse no produto: *${p.name}* (${formatBRL(finalPrice)}).`;
+  const waMsg = `Olá! Tenho uma dúvida sobre o produto: *${p.name}*.`;
   const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", waMsg);
 
   return (
