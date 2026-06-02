@@ -59,28 +59,28 @@ export function ProductQuickView() {
       // 1. Same category
       if (p.category_id) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("category_id", p.category_id).limit(8);
         push(data);
       }
       // 2. Same Trier group_code
       if (collected.length < 8 && p.group_code) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("group_code", p.group_code).limit(8);
         push(data);
       }
       // 3. Same laboratory
       if (collected.length < 8 && p.laboratory) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("laboratory", p.laboratory).limit(8);
         push(data);
       }
       // 4. On sale fallback
       if (collected.length < 4) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("on_sale", true).limit(8);
         push(data);
       }
@@ -208,11 +208,11 @@ export function ProductQuickView() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Button asChild className="w-full h-12 bg-whatsapp hover:bg-whatsapp/90 text-whatsapp-foreground rounded-full font-bold text-base">
-                    <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-5 w-5 mr-2" /> Peça agora via WhatsApp</a>
+                  <Button onClick={handleAdd} className="w-full h-12 rounded-full font-bold text-base bg-primary hover:bg-primary-dark">
+                    <ShoppingCart className="h-5 w-5 mr-2" /> Adicionar ao carrinho
                   </Button>
-                  <Button onClick={handleAdd} variant="outline" className="w-full h-11 rounded-full font-bold">
-                    <ShoppingCart className="h-4 w-4 mr-2" /> Adicionar ao carrinho
+                  <Button asChild variant="outline" className="w-full h-11 rounded-full">
+                    <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-2" /> Tirar dúvida pelo WhatsApp</a>
                   </Button>
                 </div>
               )}

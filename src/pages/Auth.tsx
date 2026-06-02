@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
@@ -16,11 +16,13 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
+  const [search] = useSearchParams();
+  const next = search.get("next");
   const { user, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (user) nav(isAdmin ? "/admin" : "/");
-  }, [user, isAdmin, nav]);
+    if (user) nav(next || (isAdmin ? "/admin" : "/"));
+  }, [user, isAdmin, nav, next]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

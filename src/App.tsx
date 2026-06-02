@@ -27,6 +27,9 @@ import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
 import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import Campaign from "./pages/Campaign.tsx";
+import Checkout from "./pages/Checkout.tsx";
+import OrderReturn from "./pages/OrderReturn.tsx";
+import AdminPayments from "./pages/admin/AdminPayments.tsx";
 
 
 
@@ -54,6 +57,10 @@ const App = () => (
           <Route path="/produto/:slug" element={<Product />} />
           <Route path="/campanha/:slug" element={<Campaign />} />
           <Route path="/carrinho" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/pedido/sucesso" element={<OrderReturn status="success" />} />
+          <Route path="/pedido/pendente" element={<OrderReturn status="pending" />} />
+          <Route path="/pedido/falha" element={<OrderReturn status="failure" />} />
           <Route path="/enviar-receita" element={<SendPrescription />} />
           <Route path="/buscar" element={<Search />} />
           <Route path="/departamentos" element={<Departamentos />} />
@@ -70,6 +77,7 @@ const App = () => (
             <Route path="campanhas" element={<AdminCampaigns />} />
             <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
+            <Route path="pagamentos" element={<AdminPayments />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
             <Route path="config" element={<AdminSettings />} />
             <Route path="integrations/trier" element={<AdminTrier />} />

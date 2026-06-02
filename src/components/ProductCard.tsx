@@ -58,7 +58,7 @@ export function ProductCard({ p }: { p: Product }) {
     toast.success("Adicionado ao carrinho");
   };
 
-  const waMsg = `Olá! Tenho interesse no produto: *${p.name}* (${formatBRL(finalPrice)}).`;
+  const waMsg = `Olá! Tenho uma dúvida sobre o produto: *${p.name}*.`;
   const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", waMsg);
 
   return (
@@ -144,8 +144,9 @@ export function ProductCard({ p }: { p: Product }) {
             <Button
               asChild
               size="icon"
-              aria-label={outOfStock ? "Consultar pelo WhatsApp" : "Comprar pelo WhatsApp"}
-              className="h-10 w-10 shrink-0 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 active:scale-95 transition-all"
+              variant="outline"
+              aria-label="Tirar dúvida pelo WhatsApp"
+              className="h-10 w-10 shrink-0 rounded-full"
             >
               <a href={wa} target="_blank" rel="noopener">
                 <MessageCircle className="h-4 w-4" />

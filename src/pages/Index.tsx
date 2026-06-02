@@ -39,7 +39,7 @@ export default function Index() {
   });
 
   const fetchShelf = (mod: (q: any) => any) => async () => {
-    let q = supabase.from("products").select("*").eq("active", true).limit(12);
+    let q = supabase.from("products").select("*").eq("active", true).gt("stock", 0).limit(12);
     q = mod(q);
     const { data } = await q;
     return (data || []) as Product[];
@@ -47,7 +47,7 @@ export default function Index() {
 
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
-    const { data: tagged } = await supabase.from("products").select("*").eq("active", true).contains("shelves", [slug]).limit(12);
+    const { data: tagged } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
     if (tagged && tagged.length > 0) return tagged as Product[];
     return null;
   };
@@ -75,7 +75,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "medicamentos").maybeSingle();
       if (!cat) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).eq("category_id", cat.id).limit(12);
+      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -86,7 +86,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
       if (!cat) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).eq("category_id", cat.id).limit(12);
+      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -97,7 +97,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "mamaes-e-bebes").maybeSingle();
       if (!cat) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).eq("category_id", cat.id).limit(12);
+      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -109,7 +109,7 @@ export default function Index() {
         if (t) return t;
         const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
         if (!cat) return [];
-        const { data } = await supabase.from("products").select("*").eq("active", true).eq("category_id", cat.id).limit(12);
+        const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
         return (data || []) as Product[];
       },
     });

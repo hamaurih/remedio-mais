@@ -12,7 +12,7 @@ export default function Search() {
     queryKey: ["search", q],
     queryFn: async () => {
       if (!q) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).ilike("name", `%${q}%`).limit(60);
+      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).ilike("name", `%${q}%`).limit(60);
       return (data || []) as Product[];
     },
   });
