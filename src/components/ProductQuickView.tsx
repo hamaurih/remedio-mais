@@ -59,28 +59,28 @@ export function ProductQuickView() {
       // 1. Same category
       if (p.category_id) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("category_id", p.category_id).limit(8);
         push(data);
       }
       // 2. Same Trier group_code
       if (collected.length < 8 && p.group_code) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("group_code", p.group_code).limit(8);
         push(data);
       }
       // 3. Same laboratory
       if (collected.length < 8 && p.laboratory) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("laboratory", p.laboratory).limit(8);
         push(data);
       }
       // 4. On sale fallback
       if (collected.length < 4) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).neq("id", p.id)
+          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("on_sale", true).limit(8);
         push(data);
       }

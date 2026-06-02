@@ -26,7 +26,7 @@ export default function Category() {
   const { data: products } = useQuery({
     queryKey: ["cat_products", slug, sort, onlyPromo, noPresc],
     queryFn: async () => {
-      let q = supabase.from("products").select("*").eq("active", true);
+      let q = supabase.from("products").select("*").eq("active", true).gt("stock", 0);
       if (slug === "ofertas") q = q.eq("on_sale", true);
       else if (cat) q = q.eq("category_id", cat.id);
       else return [];
