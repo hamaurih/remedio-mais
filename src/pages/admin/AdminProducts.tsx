@@ -254,7 +254,7 @@ export default function AdminProducts() {
               <TabsTrigger value="images">Imagens</TabsTrigger>
               <TabsTrigger value="price">Preço</TabsTrigger>
               <TabsTrigger value="stock">Estoque</TabsTrigger>
-              <TabsTrigger value="shelf">Vitrine</TabsTrigger>
+              <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
             </TabsList>
