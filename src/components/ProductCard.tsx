@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, MessageCircle, FileText } from "lucide-react";
+import { ShoppingCart, FileText } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
-import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
+import { addToCart, formatBRL } from "@/lib/store";
 import { toast } from "sonner";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { openQuickView } from "@/lib/quickview";
 
 export type Product = {
