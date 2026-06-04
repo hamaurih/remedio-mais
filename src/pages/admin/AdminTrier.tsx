@@ -312,10 +312,10 @@ export default function AdminTrier() {
               <div className="text-xs space-y-1 mt-2 border-t pt-2">
                 <div className="text-muted-foreground">Último diagnóstico: {new Date(lastDiagnoseTotal.created_at).toLocaleString("pt-BR")}</div>
                 <div className="font-medium">{lastDiagnoseTotal.message}</div>
-                {lastDiagnoseTotal.details?.stats && (
+                {(lastDiagnoseTotal.details as any)?.stats && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                    {Object.entries(lastDiagnoseTotal.details.stats).map(([k, v]: any) => (
-                      <div key={k} className="bg-muted rounded p-2"><div className="text-muted-foreground">{k}</div><div className="font-bold">{v}</div></div>
+                    {Object.entries((lastDiagnoseTotal.details as any).stats).map(([k, v]: any) => (
+                      <div key={k} className="bg-muted rounded p-2"><div className="text-muted-foreground">{k}</div><div className="font-bold">{String(v)}</div></div>
                     ))}
                   </div>
                 )}
