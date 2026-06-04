@@ -243,12 +243,19 @@ function ecommerceParam(s: Settings): string {
   return ""; // empty = send no value
 }
 
-function buildProductsQuery(s: Settings, offset: number, pageSize: number, extras: Record<string, string> = {}): string {
+function buildProductsQuery(
+  s: Settings,
+  offset: number,
+  pageSize: number,
+  extras: Record<string, string> = {},
+  opts: { ativo?: "true" | "false" | "" } = {},
+): string {
   const params = new URLSearchParams();
   if (s.branch_code) params.set("codFilial", String(s.branch_code));
   params.set("primeiroRegistro", String(offset));
   params.set("quantidadeRegistros", String(pageSize));
-  params.set("ativo", "true");
+  const ativo = opts.ativo === undefined ? "true" : opts.ativo;
+  if (ativo !== "") params.set("ativo", ativo);
   // integracaoEcommerce: sempre enviar a chave, valor pode ser vazio
   params.set("integracaoEcommerce", ecommerceParam(s));
   params.set("processaCustoMedio", "false");
@@ -256,22 +263,45 @@ function buildProductsQuery(s: Settings, offset: number, pageSize: number, extra
   return params.toString();
 }
 
-async function paginateProducts(s: Settings, endpointPath: string, extras: Record<string, string> = {}): Promise<any[]> {
+type PageStat = { page: number; offset: number; returned: number; status?: number };
+type PaginateMeta = { pages: number; last_offset: number; stop_reason: string; per_page: PageStat[]; total_returned: number };
+
+async function paginateProducts(
+  s: Settings,
+  endpointPath: string,
+  extras: Record<string, string> = {},
+  opts: { ativo?: "true" | "false" | ""; onPage?: (items: any[], stat: PageStat) => Promise<void> | void } = {},
+): Promise<{ items: any[]; meta: PaginateMeta }> {
   const all: any[] = [];
+  const per_page: PageStat[] = [];
   let page = 0;
+  let stop_reason = "concluido";
+  let last_offset = 0;
   while (true) {
     const offset = page * PAGE_SIZE;
-    const qs = buildProductsQuery(s, offset, PAGE_SIZE, extras);
+    last_offset = offset;
+    const qs = buildProductsQuery(s, offset, PAGE_SIZE, extras, { ativo: opts.ativo });
     const path = `${endpointPath}?${qs}`;
-    const json = await trierGet(s, path, { page });
-    const list = extractList(json);
-    all.push(...list);
-    if (list.length < PAGE_SIZE) break;
+    let list: any[] = [];
+    try {
+      const json = await trierGet(s, path, { page });
+      list = extractList(json);
+    } catch (e: any) {
+      stop_reason = `erro_api_pagina_${page}: ${String(e?.message || e).slice(0, 200)}`;
+      per_page.push({ page, offset, returned: 0 });
+      break;
+    }
+    per_page.push({ page, offset, returned: list.length });
+    if (opts.onPage) await opts.onPage(list, { page, offset, returned: list.length });
+    else all.push(...list);
+    if (list.length === 0) { stop_reason = "resposta_vazia"; break; }
+    if (list.length < PAGE_SIZE) { stop_reason = "pagina_parcial"; break; }
     page++;
-    if (page > 500) break; // safety
+    if (page > 1000) { stop_reason = "limite_seguranca_1000_paginas"; break; }
     await sleep(PAUSE_BETWEEN_PAGES_MS);
   }
-  return all;
+  const total_returned = per_page.reduce((a, p) => a + p.returned, 0);
+  return { items: all, meta: { pages: per_page.length, last_offset, stop_reason, per_page, total_returned } };
 }
 
 async function paginateSimple(s: Settings, buildPath: (offset: number, pageSize: number) => string): Promise<any[]> {
