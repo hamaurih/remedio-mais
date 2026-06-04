@@ -622,25 +622,63 @@ async function actionSyncProducts(trigger = "manual", changed = false) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
   try {
-    let list: any[];
+    const allItems: any[] = [];
+    const metaByFilter: Record<string, PaginateMeta> = {};
     if (changed) {
       const since = s.last_sync_products_at || new Date(Date.now() - 7 * 86400000).toISOString();
       const dataInicial = since.slice(0, 10);
       const dataFinal = new Date().toISOString().slice(0, 10);
-      list = await paginateProducts(s, "/rest/integracao/produto/obter-alterados-v1", { dataInicial, dataFinal });
+      const r = await paginateProducts(s, "/rest/integracao/produto/obter-alterados-v1", { dataInicial, dataFinal }, { ativo: "" });
+      allItems.push(...r.items);
+      metaByFilter["alterados"] = r.meta;
     } else {
-      list = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1");
+      // Sincronização COMPLETA: percorre ativo=true e depois ativo=false para
+      // garantir o cadastro de produtos inativos/sem estoque também.
+      for (const ativo of ["true", "false"] as const) {
+        const r = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1", {}, { ativo });
+        // dedup por código (caso a API retorne em ambos)
+        const seen = new Set(allItems.map((t) => pickCode(t)));
+        for (const t of r.items) {
+          const c = pickCode(t);
+          if (!c || seen.has(c)) continue;
+          allItems.push(t); seen.add(c);
+        }
+        metaByFilter[`ativo_${ativo}`] = r.meta;
+      }
     }
+
     const results: UpsertResult[] = [];
-    for (const t of list) results.push(await upsertProductFromTrier(t));
+    for (const t of allItems) results.push(await upsertProductFromTrier(t));
     const sum = summarizeResults(results);
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
-    await finishJob(job.id, { status: sum.failed > 0 ? "partial" : "success", records_checked: list.length, records_created: sum.created, records_updated: sum.updated, records_failed: sum.failed, records_ignored: sum.ignored });
-    const msg = list.length === 0
+
+    const total_returned_api = Object.values(metaByFilter).reduce((a, m) => a + m.total_returned, 0);
+    const pages = Object.values(metaByFilter).reduce((a, m) => a + m.pages, 0);
+    const last_offset = Math.max(0, ...Object.values(metaByFilter).map((m) => m.last_offset));
+    const stop_reasons = Object.fromEntries(Object.entries(metaByFilter).map(([k, m]) => [k, m.stop_reason]));
+
+    await finishJob(job.id, {
+      status: sum.failed > 0 ? "partial" : "success",
+      records_checked: allItems.length,
+      records_created: sum.created,
+      records_updated: sum.updated,
+      records_failed: sum.failed,
+      records_ignored: sum.ignored,
+      details: {
+        total_returned_api,
+        unique_processed: allItems.length,
+        pages_consulted: pages,
+        last_offset,
+        stop_reasons,
+        ignored_reasons: sum.ignored_reasons,
+        per_filter: metaByFilter,
+      },
+    });
+    const msg = allItems.length === 0
       ? "A Trier respondeu com sucesso, mas não retornou produtos para esses filtros."
-      : `Produtos: ${list.length} retornados · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro`;
-    await log("products", sum.failed > 0 ? "error" : "success", msg, { changed, total: list.length, ...sum });
-    return { ok: true, total: list.length, ...sum };
+      : `Produtos: ${total_returned_api} retornados (API) · ${allItems.length} únicos · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro · ${pages} páginas · último offset ${last_offset}`;
+    await log("products", sum.failed > 0 ? "error" : "success", msg, { changed, total: allItems.length, total_returned_api, pages, last_offset, stop_reasons, ...sum });
+    return { ok: true, total: allItems.length, total_returned_api, pages, last_offset, stop_reasons, ...sum };
   } catch (e: any) {
     const msg = String(e?.message || e).slice(0, 1200);
     await finishJob(job.id, { status: "error", error_message: msg });
@@ -683,6 +721,87 @@ async function actionDiagnoseProductsPage() {
     count: list.length, firstItemJson: response.firstItemJson, firstItemKeys: response.firstItemKeys,
     ...sum,
   };
+}
+
+// Conta produtos retornados pela API SEM gravar nada — para sabermos o universo real da Trier
+async function actionDiagnoseTotal() {
+  const s = await getSettings();
+  const stats = {
+    ativo_true: 0,
+    ativo_false: 0,
+    ecommerce_true: 0,
+    ecommerce_empty: 0,
+    com_estoque: 0,
+    sem_estoque: 0,
+    sem_ativo_definido: 0,
+  };
+  const per_filter: Record<string, PaginateMeta> = {};
+  const seenCodes = new Set<string>();
+  for (const ativo of ["true", "false"] as const) {
+    const r = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1", {}, {
+      ativo,
+      onPage: (items) => {
+        for (const t of items) {
+          const c = pickCode(t);
+          if (c) {
+            if (seenCodes.has(c)) continue;
+            seenCodes.add(c);
+          }
+          if (t.ativo === true || t.ativo === "true") stats.ativo_true++;
+          else if (t.ativo === false || t.ativo === "false") stats.ativo_false++;
+          else stats.sem_ativo_definido++;
+          if (t.integracaoEcommerce === true || t.integracaoEcommerce === "true") stats.ecommerce_true++;
+          else stats.ecommerce_empty++;
+          const stockVal = pickStockNum(t);
+          if ((stockVal ?? 0) > 0) stats.com_estoque++;
+          else stats.sem_estoque++;
+        }
+      },
+    });
+    per_filter[`ativo_${ativo}`] = r.meta;
+  }
+  const total_unicos = seenCodes.size;
+  const total_api = Object.values(per_filter).reduce((a, m) => a + m.total_returned, 0);
+  await log("diagnose_total", "info", `Diagnóstico Trier: ${total_unicos} produtos únicos · ${total_api} retornos da API`, { stats, per_filter, total_unicos, total_api });
+  return { ok: true, total_unicos, total_api, stats, per_filter };
+}
+
+async function actionCancelJob(jobId: string) {
+  await supabase.from("trier_sync_jobs").update({
+    status: "cancelled", finished_at: new Date().toISOString(), error_message: "Cancelado manualmente pelo admin",
+  }).eq("id", jobId);
+  return { ok: true };
+}
+
+async function actionDbStats() {
+  const [tot, ativ, inat, vinc, comE, semE] = await Promise.all([
+    supabase.from("products").select("id", { count: "exact", head: true }),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("active", false),
+    supabase.from("products").select("id", { count: "exact", head: true }).not("trier_product_id", "is", null),
+    supabase.from("products").select("id", { count: "exact", head: true }).gt("stock", 0),
+    supabase.from("products").select("id", { count: "exact", head: true }).lte("stock", 0),
+  ]);
+  return {
+    ok: true,
+    cadastrados: tot.count || 0,
+    ativos: ativ.count || 0,
+    inativos: inat.count || 0,
+    vinculados_trier: vinc.count || 0,
+    com_estoque: comE.count || 0,
+    sem_estoque: semE.count || 0,
+  };
+}
+
+async function actionListMappings(opts: { limit: number; offset: number }) {
+  const { limit, offset } = opts;
+  const { data, count, error } = await supabase
+    .from("trier_product_mappings")
+    .select("*, products(name, stock, price, active)", { count: "exact" })
+    .order("last_synced_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, items: data || [], total: count || 0 };
 }
 
 async function actionSyncCategories(trigger = "manual") {
