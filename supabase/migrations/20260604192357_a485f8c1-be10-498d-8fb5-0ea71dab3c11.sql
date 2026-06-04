@@ -1,0 +1,1 @@
+ALTER TABLE public.trier_sync_jobs ADD COLUMN IF NOT EXISTS details JSONB;
