@@ -533,15 +533,33 @@ export default function AdminTrier() {
               )}
             </div>
           )}
-          <JobsTable jobs={(jobs || []).filter((j: any) => j.sync_type.startsWith("products") || j.sync_type === "categories")} />
+          <JobsTable
+            jobs={(jobs || []).filter((j: any) => j.sync_type.startsWith("products") || j.sync_type === "categories")}
+            onCancel={async (id: string) => { await call("cancel-job", { job_id: id }, "Job cancelado"); }}
+          />
           <div className="bg-card border rounded-xl overflow-hidden">
-            <div className="p-3 border-b font-bold">Produtos vinculados à Trier ({mappings?.length || 0})</div>
+            <div className="p-3 border-b font-bold flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <div>Produtos vinculados à Trier: <span className="text-primary">{mappingsTotal}</span></div>
+                <div className="text-xs text-muted-foreground font-normal">Exibindo {mappings.length} por página · página {mappingPage + 1} de {Math.max(1, Math.ceil(mappingsTotal / mappingPageSize))}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={String(mappingPageSize)} onValueChange={(v) => { setMappingPageSize(Number(v)); setMappingPage(0); }}>
+                  <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[50, 100, 200, 500].map((n) => <SelectItem key={n} value={String(n)}>{n}/pág</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" disabled={mappingPage === 0} onClick={() => setMappingPage((p) => Math.max(0, p - 1))}>Anterior</Button>
+                <Button size="sm" variant="outline" disabled={(mappingPage + 1) * mappingPageSize >= mappingsTotal} onClick={() => setMappingPage((p) => p + 1)}>Próxima</Button>
+              </div>
+            </div>
             <table className="w-full text-sm">
               <thead className="bg-secondary text-left">
                 <tr><th className="p-2">Código Trier</th><th className="p-2">Nome</th><th className="p-2">Preço</th><th className="p-2">Estoque</th><th className="p-2">Ativo</th><th className="p-2">Último sync</th></tr>
               </thead>
               <tbody>
-                {(mappings || []).slice(0, 100).map((m: any) => (
+                {mappings.map((m: any) => (
                   <tr key={m.id} className="border-t">
                     <td className="p-2 font-mono text-xs">{m.trier_product_id}</td>
                     <td className="p-2">{m.products?.name || m.trier_name}</td>
@@ -551,7 +569,7 @@ export default function AdminTrier() {
                     <td className="p-2 text-xs">{m.last_synced_at ? new Date(m.last_synced_at).toLocaleString("pt-BR") : "—"}</td>
                   </tr>
                 ))}
-                {(mappings || []).length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhum produto vinculado ainda. Clique em "Sincronizar produtos".</td></tr>}
+                {mappings.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhum produto vinculado ainda. Clique em "Sincronizar produtos".</td></tr>}
               </tbody>
             </table>
           </div>
