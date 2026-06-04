@@ -1053,6 +1053,10 @@ Deno.serve(async (req) => {
       case "test-connection": result = await actionTestConnection(); break;
       case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
       case "diagnose-products-page": result = await actionDiagnoseProductsPage(); break;
+      case "diagnose-total": result = runAsync("diagnose-total", () => actionDiagnoseTotal()); break;
+      case "db-stats": result = await actionDbStats(); break;
+      case "list-mappings": result = await actionListMappings({ limit: Number(body.limit) || 100, offset: Number(body.offset) || 0 }); break;
+      case "cancel-job": result = await actionCancelJob(body.job_id); break;
       case "preview-url": {
         const s = await getSettings({ requireToken: false });
         const endpoint = buildTestProductsPath(s);
