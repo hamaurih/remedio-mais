@@ -825,32 +825,56 @@ function ScheduleField({ label, value, onChange }: any) {
   );
 }
 
-function JobsTable({ jobs }: { jobs: any[] }) {
+function JobsTable({ jobs, onCancel }: { jobs: any[]; onCancel?: (id: string) => void | Promise<void> }) {
   return (
     <div className="bg-card border rounded-xl overflow-hidden">
       <div className="p-3 border-b font-bold text-sm">Últimas execuções</div>
       <table className="w-full text-sm">
         <thead className="bg-secondary text-left">
-          <tr><th className="p-2">Tipo</th><th className="p-2">Status</th><th className="p-2">Início</th><th className="p-2">Checados</th><th className="p-2">Criados</th><th className="p-2">Atualizados</th><th className="p-2">Falhos</th><th className="p-2">Erro</th></tr>
+          <tr>
+            <th className="p-2">Tipo</th><th className="p-2">Status</th><th className="p-2">Início</th>
+            <th className="p-2">Checados</th><th className="p-2">Criados</th><th className="p-2">Atualizados</th>
+            <th className="p-2">Ignorados</th><th className="p-2">Falhos</th>
+            <th className="p-2">Páginas</th><th className="p-2">Último offset</th>
+            <th className="p-2">Motivo de parada / Erro</th><th className="p-2"></th>
+          </tr>
         </thead>
         <tbody>
-          {jobs.map((j: any) => (
-            <tr key={j.id} className="border-t">
-              <td className="p-2 text-xs">{SYNC_TYPES[j.sync_type] || j.sync_type}</td>
-              <td className="p-2">
-                {j.status === "success" && <CheckCircle2 className="h-4 w-4 text-whatsapp inline" />}
-                {j.status === "error" && <XCircle className="h-4 w-4 text-primary inline" />}
-                {j.status === "running" && <Clock className="h-4 w-4 animate-pulse inline" />}
-              </td>
-              <td className="p-2 text-xs">{new Date(j.started_at).toLocaleString("pt-BR")}</td>
-              <td className="p-2">{j.records_checked ?? 0}</td>
-              <td className="p-2 text-whatsapp">{j.records_created ?? 0}</td>
-              <td className="p-2">{j.records_updated ?? 0}</td>
-              <td className="p-2 text-primary">{j.records_failed ?? 0}</td>
-              <td className="p-2 text-xs text-primary max-w-[200px] truncate" title={j.error_message}>{j.error_message || ""}</td>
-            </tr>
-          ))}
-          {jobs.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">Sem execuções.</td></tr>}
+          {jobs.map((j: any) => {
+            const d = (j.details || {}) as any;
+            const stop = d.stop_reasons ? Object.entries(d.stop_reasons).map(([k, v]) => `${k}: ${v}`).join(" · ") : "";
+            const isRunning = j.status === "running";
+            const startedMs = j.started_at ? Date.now() - new Date(j.started_at).getTime() : 0;
+            const looksStuck = isRunning && startedMs > 10 * 60 * 1000;
+            return (
+              <tr key={j.id} className="border-t">
+                <td className="p-2 text-xs">{SYNC_TYPES[j.sync_type] || j.sync_type}</td>
+                <td className="p-2">
+                  {j.status === "success" && <CheckCircle2 className="h-4 w-4 text-whatsapp inline" />}
+                  {j.status === "partial" && <CheckCircle2 className="h-4 w-4 text-yellow-600 inline" />}
+                  {j.status === "error" && <XCircle className="h-4 w-4 text-primary inline" />}
+                  {j.status === "cancelled" && <XCircle className="h-4 w-4 text-muted-foreground inline" />}
+                  {isRunning && <Clock className={`h-4 w-4 inline ${looksStuck ? "text-yellow-600" : "animate-pulse"}`} />}
+                  <span className="ml-1 text-xs">{j.status}{looksStuck ? " (travado?)" : ""}</span>
+                </td>
+                <td className="p-2 text-xs">{new Date(j.started_at).toLocaleString("pt-BR")}</td>
+                <td className="p-2">{j.records_checked ?? 0}</td>
+                <td className="p-2 text-whatsapp">{j.records_created ?? 0}</td>
+                <td className="p-2">{j.records_updated ?? 0}</td>
+                <td className="p-2">{j.records_ignored ?? 0}</td>
+                <td className="p-2 text-primary">{j.records_failed ?? 0}</td>
+                <td className="p-2 text-xs">{d.pages_consulted ?? "—"}</td>
+                <td className="p-2 text-xs">{d.last_offset ?? "—"}</td>
+                <td className="p-2 text-xs max-w-[260px] truncate" title={j.error_message || stop}>{j.error_message || stop || "—"}</td>
+                <td className="p-2 text-right">
+                  {isRunning && onCancel && (
+                    <Button size="sm" variant="outline" onClick={() => onCancel(j.id)}>Cancelar</Button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+          {jobs.length === 0 && <tr><td colSpan={12} className="p-4 text-center text-muted-foreground">Sem execuções.</td></tr>}
         </tbody>
       </table>
     </div>
