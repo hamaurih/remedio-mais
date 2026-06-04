@@ -210,10 +210,29 @@ export default function AdminTrier() {
     queryKey: ["trier_logs"],
     queryFn: async () => (await supabase.from("trier_logs").select("*").order("created_at", { ascending: false }).limit(100)).data || [],
   });
-  const { data: mappings } = useQuery({
-    queryKey: ["trier_mappings"],
-    queryFn: async () => (await supabase.from("trier_product_mappings").select("*, products(name, stock, price, active)").order("last_synced_at", { ascending: false }).limit(200)).data || [],
+  const [mappingPage, setMappingPage] = useState(0);
+  const [mappingPageSize, setMappingPageSize] = useState(100);
+  const { data: mappingsResp } = useQuery({
+    queryKey: ["trier_mappings", mappingPage, mappingPageSize],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("trier", {
+        body: { action: "list-mappings", limit: mappingPageSize, offset: mappingPage * mappingPageSize },
+      });
+      if (error) throw error;
+      return data as { ok: boolean; items: any[]; total: number };
+    },
   });
+  const mappings = mappingsResp?.items || [];
+  const mappingsTotal = mappingsResp?.total ?? 0;
+  const { data: dbStats } = useQuery({
+    queryKey: ["trier_db_stats"],
+    queryFn: async () => {
+      const { data } = await supabase.functions.invoke("trier", { body: { action: "db-stats" } });
+      return data as { cadastrados: number; ativos: number; inativos: number; vinculados_trier: number; com_estoque: number; sem_estoque: number };
+    },
+    refetchInterval: 30000,
+  });
+  const lastDiagnoseTotal = (logs || []).find((l: any) => l.type === "diagnose_total");
   const { data: orders } = useQuery({
     queryKey: ["trier_orders"],
     queryFn: async () => (await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100)).data || [],
