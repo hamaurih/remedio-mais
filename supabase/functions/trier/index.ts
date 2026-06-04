@@ -243,12 +243,19 @@ function ecommerceParam(s: Settings): string {
   return ""; // empty = send no value
 }
 
-function buildProductsQuery(s: Settings, offset: number, pageSize: number, extras: Record<string, string> = {}): string {
+function buildProductsQuery(
+  s: Settings,
+  offset: number,
+  pageSize: number,
+  extras: Record<string, string> = {},
+  opts: { ativo?: "true" | "false" | "" } = {},
+): string {
   const params = new URLSearchParams();
   if (s.branch_code) params.set("codFilial", String(s.branch_code));
   params.set("primeiroRegistro", String(offset));
   params.set("quantidadeRegistros", String(pageSize));
-  params.set("ativo", "true");
+  const ativo = opts.ativo === undefined ? "true" : opts.ativo;
+  if (ativo !== "") params.set("ativo", ativo);
   // integracaoEcommerce: sempre enviar a chave, valor pode ser vazio
   params.set("integracaoEcommerce", ecommerceParam(s));
   params.set("processaCustoMedio", "false");
@@ -256,22 +263,45 @@ function buildProductsQuery(s: Settings, offset: number, pageSize: number, extra
   return params.toString();
 }
 
-async function paginateProducts(s: Settings, endpointPath: string, extras: Record<string, string> = {}): Promise<any[]> {
+type PageStat = { page: number; offset: number; returned: number; status?: number };
+type PaginateMeta = { pages: number; last_offset: number; stop_reason: string; per_page: PageStat[]; total_returned: number };
+
+async function paginateProducts(
+  s: Settings,
+  endpointPath: string,
+  extras: Record<string, string> = {},
+  opts: { ativo?: "true" | "false" | ""; onPage?: (items: any[], stat: PageStat) => Promise<void> | void } = {},
+): Promise<{ items: any[]; meta: PaginateMeta }> {
   const all: any[] = [];
+  const per_page: PageStat[] = [];
   let page = 0;
+  let stop_reason = "concluido";
+  let last_offset = 0;
   while (true) {
     const offset = page * PAGE_SIZE;
-    const qs = buildProductsQuery(s, offset, PAGE_SIZE, extras);
+    last_offset = offset;
+    const qs = buildProductsQuery(s, offset, PAGE_SIZE, extras, { ativo: opts.ativo });
     const path = `${endpointPath}?${qs}`;
-    const json = await trierGet(s, path, { page });
-    const list = extractList(json);
-    all.push(...list);
-    if (list.length < PAGE_SIZE) break;
+    let list: any[] = [];
+    try {
+      const json = await trierGet(s, path, { page });
+      list = extractList(json);
+    } catch (e: any) {
+      stop_reason = `erro_api_pagina_${page}: ${String(e?.message || e).slice(0, 200)}`;
+      per_page.push({ page, offset, returned: 0 });
+      break;
+    }
+    per_page.push({ page, offset, returned: list.length });
+    if (opts.onPage) await opts.onPage(list, { page, offset, returned: list.length });
+    else all.push(...list);
+    if (list.length === 0) { stop_reason = "resposta_vazia"; break; }
+    if (list.length < PAGE_SIZE) { stop_reason = "pagina_parcial"; break; }
     page++;
-    if (page > 500) break; // safety
+    if (page > 1000) { stop_reason = "limite_seguranca_1000_paginas"; break; }
     await sleep(PAUSE_BETWEEN_PAGES_MS);
   }
-  return all;
+  const total_returned = per_page.reduce((a, p) => a + p.returned, 0);
+  return { items: all, meta: { pages: per_page.length, last_offset, stop_reason, per_page, total_returned } };
 }
 
 async function paginateSimple(s: Settings, buildPath: (offset: number, pageSize: number) => string): Promise<any[]> {
@@ -416,7 +446,9 @@ function mapProduct(t: any) {
     ecommerce_stock_quantity: stockEcom,
     is_active: isActive,
     ecommerce_enabled: ecomEnabled,
-    active: isActive,
+    // Regra: produto fica ativo no site apenas se ativo na Trier E tem estoque > 0.
+    // Produtos sem estoque ou inativos na Trier permanecem cadastrados, mas com active=false.
+    active: isActive && (stock ?? 0) > 0,
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
@@ -590,25 +622,63 @@ async function actionSyncProducts(trigger = "manual", changed = false) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
   try {
-    let list: any[];
+    const allItems: any[] = [];
+    const metaByFilter: Record<string, PaginateMeta> = {};
     if (changed) {
       const since = s.last_sync_products_at || new Date(Date.now() - 7 * 86400000).toISOString();
       const dataInicial = since.slice(0, 10);
       const dataFinal = new Date().toISOString().slice(0, 10);
-      list = await paginateProducts(s, "/rest/integracao/produto/obter-alterados-v1", { dataInicial, dataFinal });
+      const r = await paginateProducts(s, "/rest/integracao/produto/obter-alterados-v1", { dataInicial, dataFinal }, { ativo: "" });
+      allItems.push(...r.items);
+      metaByFilter["alterados"] = r.meta;
     } else {
-      list = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1");
+      // Sincronização COMPLETA: percorre ativo=true e depois ativo=false para
+      // garantir o cadastro de produtos inativos/sem estoque também.
+      for (const ativo of ["true", "false"] as const) {
+        const r = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1", {}, { ativo });
+        // dedup por código (caso a API retorne em ambos)
+        const seen = new Set(allItems.map((t) => pickCode(t)));
+        for (const t of r.items) {
+          const c = pickCode(t);
+          if (!c || seen.has(c)) continue;
+          allItems.push(t); seen.add(c);
+        }
+        metaByFilter[`ativo_${ativo}`] = r.meta;
+      }
     }
+
     const results: UpsertResult[] = [];
-    for (const t of list) results.push(await upsertProductFromTrier(t));
+    for (const t of allItems) results.push(await upsertProductFromTrier(t));
     const sum = summarizeResults(results);
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
-    await finishJob(job.id, { status: sum.failed > 0 ? "partial" : "success", records_checked: list.length, records_created: sum.created, records_updated: sum.updated, records_failed: sum.failed, records_ignored: sum.ignored });
-    const msg = list.length === 0
+
+    const total_returned_api = Object.values(metaByFilter).reduce((a, m) => a + m.total_returned, 0);
+    const pages = Object.values(metaByFilter).reduce((a, m) => a + m.pages, 0);
+    const last_offset = Math.max(0, ...Object.values(metaByFilter).map((m) => m.last_offset));
+    const stop_reasons = Object.fromEntries(Object.entries(metaByFilter).map(([k, m]) => [k, m.stop_reason]));
+
+    await finishJob(job.id, {
+      status: sum.failed > 0 ? "partial" : "success",
+      records_checked: allItems.length,
+      records_created: sum.created,
+      records_updated: sum.updated,
+      records_failed: sum.failed,
+      records_ignored: sum.ignored,
+      details: {
+        total_returned_api,
+        unique_processed: allItems.length,
+        pages_consulted: pages,
+        last_offset,
+        stop_reasons,
+        ignored_reasons: sum.ignored_reasons,
+        per_filter: metaByFilter,
+      },
+    });
+    const msg = allItems.length === 0
       ? "A Trier respondeu com sucesso, mas não retornou produtos para esses filtros."
-      : `Produtos: ${list.length} retornados · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro`;
-    await log("products", sum.failed > 0 ? "error" : "success", msg, { changed, total: list.length, ...sum });
-    return { ok: true, total: list.length, ...sum };
+      : `Produtos: ${total_returned_api} retornados (API) · ${allItems.length} únicos · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro · ${pages} páginas · último offset ${last_offset}`;
+    await log("products", sum.failed > 0 ? "error" : "success", msg, { changed, total: allItems.length, total_returned_api, pages, last_offset, stop_reasons, ...sum });
+    return { ok: true, total: allItems.length, total_returned_api, pages, last_offset, stop_reasons, ...sum };
   } catch (e: any) {
     const msg = String(e?.message || e).slice(0, 1200);
     await finishJob(job.id, { status: "error", error_message: msg });
@@ -651,6 +721,87 @@ async function actionDiagnoseProductsPage() {
     count: list.length, firstItemJson: response.firstItemJson, firstItemKeys: response.firstItemKeys,
     ...sum,
   };
+}
+
+// Conta produtos retornados pela API SEM gravar nada — para sabermos o universo real da Trier
+async function actionDiagnoseTotal() {
+  const s = await getSettings();
+  const stats = {
+    ativo_true: 0,
+    ativo_false: 0,
+    ecommerce_true: 0,
+    ecommerce_empty: 0,
+    com_estoque: 0,
+    sem_estoque: 0,
+    sem_ativo_definido: 0,
+  };
+  const per_filter: Record<string, PaginateMeta> = {};
+  const seenCodes = new Set<string>();
+  for (const ativo of ["true", "false"] as const) {
+    const r = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1", {}, {
+      ativo,
+      onPage: (items) => {
+        for (const t of items) {
+          const c = pickCode(t);
+          if (c) {
+            if (seenCodes.has(c)) continue;
+            seenCodes.add(c);
+          }
+          if (t.ativo === true || t.ativo === "true") stats.ativo_true++;
+          else if (t.ativo === false || t.ativo === "false") stats.ativo_false++;
+          else stats.sem_ativo_definido++;
+          if (t.integracaoEcommerce === true || t.integracaoEcommerce === "true") stats.ecommerce_true++;
+          else stats.ecommerce_empty++;
+          const stockVal = pickStockNum(t);
+          if ((stockVal ?? 0) > 0) stats.com_estoque++;
+          else stats.sem_estoque++;
+        }
+      },
+    });
+    per_filter[`ativo_${ativo}`] = r.meta;
+  }
+  const total_unicos = seenCodes.size;
+  const total_api = Object.values(per_filter).reduce((a, m) => a + m.total_returned, 0);
+  await log("diagnose_total", "info", `Diagnóstico Trier: ${total_unicos} produtos únicos · ${total_api} retornos da API`, { stats, per_filter, total_unicos, total_api });
+  return { ok: true, total_unicos, total_api, stats, per_filter };
+}
+
+async function actionCancelJob(jobId: string) {
+  await supabase.from("trier_sync_jobs").update({
+    status: "cancelled", finished_at: new Date().toISOString(), error_message: "Cancelado manualmente pelo admin",
+  }).eq("id", jobId);
+  return { ok: true };
+}
+
+async function actionDbStats() {
+  const [tot, ativ, inat, vinc, comE, semE] = await Promise.all([
+    supabase.from("products").select("id", { count: "exact", head: true }),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("active", false),
+    supabase.from("products").select("id", { count: "exact", head: true }).not("trier_product_id", "is", null),
+    supabase.from("products").select("id", { count: "exact", head: true }).gt("stock", 0),
+    supabase.from("products").select("id", { count: "exact", head: true }).lte("stock", 0),
+  ]);
+  return {
+    ok: true,
+    cadastrados: tot.count || 0,
+    ativos: ativ.count || 0,
+    inativos: inat.count || 0,
+    vinculados_trier: vinc.count || 0,
+    com_estoque: comE.count || 0,
+    sem_estoque: semE.count || 0,
+  };
+}
+
+async function actionListMappings(opts: { limit: number; offset: number }) {
+  const { limit, offset } = opts;
+  const { data, count, error } = await supabase
+    .from("trier_product_mappings")
+    .select("*, products(name, stock, price, active)", { count: "exact" })
+    .order("last_synced_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, items: data || [], total: count || 0 };
 }
 
 async function actionSyncCategories(trigger = "manual") {
@@ -902,6 +1053,10 @@ Deno.serve(async (req) => {
       case "test-connection": result = await actionTestConnection(); break;
       case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
       case "diagnose-products-page": result = await actionDiagnoseProductsPage(); break;
+      case "diagnose-total": result = runAsync("diagnose-total", () => actionDiagnoseTotal()); break;
+      case "db-stats": result = await actionDbStats(); break;
+      case "list-mappings": result = await actionListMappings({ limit: Number(body.limit) || 100, offset: Number(body.offset) || 0 }); break;
+      case "cancel-job": result = await actionCancelJob(body.job_id); break;
       case "preview-url": {
         const s = await getSettings({ requireToken: false });
         const endpoint = buildTestProductsPath(s);

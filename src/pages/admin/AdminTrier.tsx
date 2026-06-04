@@ -210,10 +210,29 @@ export default function AdminTrier() {
     queryKey: ["trier_logs"],
     queryFn: async () => (await supabase.from("trier_logs").select("*").order("created_at", { ascending: false }).limit(100)).data || [],
   });
-  const { data: mappings } = useQuery({
-    queryKey: ["trier_mappings"],
-    queryFn: async () => (await supabase.from("trier_product_mappings").select("*, products(name, stock, price, active)").order("last_synced_at", { ascending: false }).limit(200)).data || [],
+  const [mappingPage, setMappingPage] = useState(0);
+  const [mappingPageSize, setMappingPageSize] = useState(100);
+  const { data: mappingsResp } = useQuery({
+    queryKey: ["trier_mappings", mappingPage, mappingPageSize],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("trier", {
+        body: { action: "list-mappings", limit: mappingPageSize, offset: mappingPage * mappingPageSize },
+      });
+      if (error) throw error;
+      return data as { ok: boolean; items: any[]; total: number };
+    },
   });
+  const mappings = mappingsResp?.items || [];
+  const mappingsTotal = mappingsResp?.total ?? 0;
+  const { data: dbStats } = useQuery({
+    queryKey: ["trier_db_stats"],
+    queryFn: async () => {
+      const { data } = await supabase.functions.invoke("trier", { body: { action: "db-stats" } });
+      return data as { cadastrados: number; ativos: number; inativos: number; vinculados_trier: number; com_estoque: number; sem_estoque: number };
+    },
+    refetchInterval: 30000,
+  });
+  const lastDiagnoseTotal = (logs || []).find((l: any) => l.type === "diagnose_total");
   const { data: orders } = useQuery({
     queryKey: ["trier_orders"],
     queryFn: async () => (await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100)).data || [],
@@ -265,10 +284,47 @@ export default function AdminTrier() {
         </TabsList>
 
         {/* ---------- VISÃO GERAL ---------- */}
-        <TabsContent value="overview" className="pt-4">
+        <TabsContent value="overview" className="pt-4 space-y-4">
+          <div className="bg-card border rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold">Indicadores do banco</h2>
+              <span className="text-xs text-muted-foreground">Métrica principal: <b>produtos cadastrados</b></span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 text-center">
+              <StatusPill label="Cadastrados" value={dbStats?.cadastrados ?? "—"} tone="info" />
+              <StatusPill label="Com cód. Trier" value={dbStats?.vinculados_trier ?? "—"} tone="default" />
+              <StatusPill label="Ativos" value={dbStats?.ativos ?? "—"} tone="success" />
+              <StatusPill label="Inativos" value={dbStats?.inativos ?? "—"} tone="warn" />
+              <StatusPill label="Com estoque" value={dbStats?.com_estoque ?? "—"} tone="success" />
+              <StatusPill label="Sem estoque" value={dbStats?.sem_estoque ?? "—"} tone="warn" />
+            </div>
+          </div>
+
+          <div className="bg-card border rounded-xl p-4 space-y-2">
+            <h2 className="font-bold">Diagnóstico Trier (universo da API)</h2>
+            <p className="text-xs text-muted-foreground">Roda a paginação completa SEM gravar nada, só contando. Mostra quantos produtos a Trier realmente retorna em todos os filtros (ativo=true, ativo=false). Pode levar minutos — acompanhe nos logs.</p>
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => call("diagnose-total", {}, "Diagnóstico iniciado")} disabled={busy !== null} variant="default">
+                <Eye className="h-4 w-4 mr-2" />Diagnosticar total de produtos Trier
+              </Button>
+            </div>
+            {lastDiagnoseTotal && (
+              <div className="text-xs space-y-1 mt-2 border-t pt-2">
+                <div className="text-muted-foreground">Último diagnóstico: {new Date(lastDiagnoseTotal.created_at).toLocaleString("pt-BR")}</div>
+                <div className="font-medium">{lastDiagnoseTotal.message}</div>
+                {(lastDiagnoseTotal.details as any)?.stats && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                    {Object.entries((lastDiagnoseTotal.details as any).stats).map(([k, v]: any) => (
+                      <div key={k} className="bg-muted rounded p-2"><div className="text-muted-foreground">{k}</div><div className="font-bold">{String(v)}</div></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="grid md:grid-cols-3 gap-3">
             <Card title="Conexão" value={settings?.last_connection_status === "ok" ? "OK" : (settings?.last_connection_status === "error" ? "Erro" : "—")} sub={settings?.last_connection_test_at ? new Date(settings.last_connection_test_at).toLocaleString("pt-BR") : "Nunca testado"} />
-            <Card title="Produtos vinculados" value={String(mappings?.length ?? 0)} sub="Com trier_product_id" />
             <Card title="Pedidos pendentes" value={String(orders?.filter((o: any) => !o.trier_sent).length ?? 0)} sub="Não enviados à Trier" />
             <Card title="Último sync produtos" value={settings?.last_sync_products_at ? new Date(settings.last_sync_products_at).toLocaleString("pt-BR") : "—"} />
             <Card title="Último sync estoque" value={settings?.last_sync_stock_at ? new Date(settings.last_sync_stock_at).toLocaleString("pt-BR") : "—"} />
@@ -477,15 +533,33 @@ export default function AdminTrier() {
               )}
             </div>
           )}
-          <JobsTable jobs={(jobs || []).filter((j: any) => j.sync_type.startsWith("products") || j.sync_type === "categories")} />
+          <JobsTable
+            jobs={(jobs || []).filter((j: any) => j.sync_type.startsWith("products") || j.sync_type === "categories")}
+            onCancel={async (id: string) => { await call("cancel-job", { job_id: id }, "Job cancelado"); }}
+          />
           <div className="bg-card border rounded-xl overflow-hidden">
-            <div className="p-3 border-b font-bold">Produtos vinculados à Trier ({mappings?.length || 0})</div>
+            <div className="p-3 border-b font-bold flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <div>Produtos vinculados à Trier: <span className="text-primary">{mappingsTotal}</span></div>
+                <div className="text-xs text-muted-foreground font-normal">Exibindo {mappings.length} por página · página {mappingPage + 1} de {Math.max(1, Math.ceil(mappingsTotal / mappingPageSize))}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={String(mappingPageSize)} onValueChange={(v) => { setMappingPageSize(Number(v)); setMappingPage(0); }}>
+                  <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[50, 100, 200, 500].map((n) => <SelectItem key={n} value={String(n)}>{n}/pág</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" disabled={mappingPage === 0} onClick={() => setMappingPage((p) => Math.max(0, p - 1))}>Anterior</Button>
+                <Button size="sm" variant="outline" disabled={(mappingPage + 1) * mappingPageSize >= mappingsTotal} onClick={() => setMappingPage((p) => p + 1)}>Próxima</Button>
+              </div>
+            </div>
             <table className="w-full text-sm">
               <thead className="bg-secondary text-left">
                 <tr><th className="p-2">Código Trier</th><th className="p-2">Nome</th><th className="p-2">Preço</th><th className="p-2">Estoque</th><th className="p-2">Ativo</th><th className="p-2">Último sync</th></tr>
               </thead>
               <tbody>
-                {(mappings || []).slice(0, 100).map((m: any) => (
+                {mappings.map((m: any) => (
                   <tr key={m.id} className="border-t">
                     <td className="p-2 font-mono text-xs">{m.trier_product_id}</td>
                     <td className="p-2">{m.products?.name || m.trier_name}</td>
@@ -495,7 +569,7 @@ export default function AdminTrier() {
                     <td className="p-2 text-xs">{m.last_synced_at ? new Date(m.last_synced_at).toLocaleString("pt-BR") : "—"}</td>
                   </tr>
                 ))}
-                {(mappings || []).length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhum produto vinculado ainda. Clique em "Sincronizar produtos".</td></tr>}
+                {mappings.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhum produto vinculado ainda. Clique em "Sincronizar produtos".</td></tr>}
               </tbody>
             </table>
           </div>
@@ -751,32 +825,56 @@ function ScheduleField({ label, value, onChange }: any) {
   );
 }
 
-function JobsTable({ jobs }: { jobs: any[] }) {
+function JobsTable({ jobs, onCancel }: { jobs: any[]; onCancel?: (id: string) => void | Promise<void> }) {
   return (
     <div className="bg-card border rounded-xl overflow-hidden">
       <div className="p-3 border-b font-bold text-sm">Últimas execuções</div>
       <table className="w-full text-sm">
         <thead className="bg-secondary text-left">
-          <tr><th className="p-2">Tipo</th><th className="p-2">Status</th><th className="p-2">Início</th><th className="p-2">Checados</th><th className="p-2">Criados</th><th className="p-2">Atualizados</th><th className="p-2">Falhos</th><th className="p-2">Erro</th></tr>
+          <tr>
+            <th className="p-2">Tipo</th><th className="p-2">Status</th><th className="p-2">Início</th>
+            <th className="p-2">Checados</th><th className="p-2">Criados</th><th className="p-2">Atualizados</th>
+            <th className="p-2">Ignorados</th><th className="p-2">Falhos</th>
+            <th className="p-2">Páginas</th><th className="p-2">Último offset</th>
+            <th className="p-2">Motivo de parada / Erro</th><th className="p-2"></th>
+          </tr>
         </thead>
         <tbody>
-          {jobs.map((j: any) => (
-            <tr key={j.id} className="border-t">
-              <td className="p-2 text-xs">{SYNC_TYPES[j.sync_type] || j.sync_type}</td>
-              <td className="p-2">
-                {j.status === "success" && <CheckCircle2 className="h-4 w-4 text-whatsapp inline" />}
-                {j.status === "error" && <XCircle className="h-4 w-4 text-primary inline" />}
-                {j.status === "running" && <Clock className="h-4 w-4 animate-pulse inline" />}
-              </td>
-              <td className="p-2 text-xs">{new Date(j.started_at).toLocaleString("pt-BR")}</td>
-              <td className="p-2">{j.records_checked ?? 0}</td>
-              <td className="p-2 text-whatsapp">{j.records_created ?? 0}</td>
-              <td className="p-2">{j.records_updated ?? 0}</td>
-              <td className="p-2 text-primary">{j.records_failed ?? 0}</td>
-              <td className="p-2 text-xs text-primary max-w-[200px] truncate" title={j.error_message}>{j.error_message || ""}</td>
-            </tr>
-          ))}
-          {jobs.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">Sem execuções.</td></tr>}
+          {jobs.map((j: any) => {
+            const d = (j.details || {}) as any;
+            const stop = d.stop_reasons ? Object.entries(d.stop_reasons).map(([k, v]) => `${k}: ${v}`).join(" · ") : "";
+            const isRunning = j.status === "running";
+            const startedMs = j.started_at ? Date.now() - new Date(j.started_at).getTime() : 0;
+            const looksStuck = isRunning && startedMs > 10 * 60 * 1000;
+            return (
+              <tr key={j.id} className="border-t">
+                <td className="p-2 text-xs">{SYNC_TYPES[j.sync_type] || j.sync_type}</td>
+                <td className="p-2">
+                  {j.status === "success" && <CheckCircle2 className="h-4 w-4 text-whatsapp inline" />}
+                  {j.status === "partial" && <CheckCircle2 className="h-4 w-4 text-yellow-600 inline" />}
+                  {j.status === "error" && <XCircle className="h-4 w-4 text-primary inline" />}
+                  {j.status === "cancelled" && <XCircle className="h-4 w-4 text-muted-foreground inline" />}
+                  {isRunning && <Clock className={`h-4 w-4 inline ${looksStuck ? "text-yellow-600" : "animate-pulse"}`} />}
+                  <span className="ml-1 text-xs">{j.status}{looksStuck ? " (travado?)" : ""}</span>
+                </td>
+                <td className="p-2 text-xs">{new Date(j.started_at).toLocaleString("pt-BR")}</td>
+                <td className="p-2">{j.records_checked ?? 0}</td>
+                <td className="p-2 text-whatsapp">{j.records_created ?? 0}</td>
+                <td className="p-2">{j.records_updated ?? 0}</td>
+                <td className="p-2">{j.records_ignored ?? 0}</td>
+                <td className="p-2 text-primary">{j.records_failed ?? 0}</td>
+                <td className="p-2 text-xs">{d.pages_consulted ?? "—"}</td>
+                <td className="p-2 text-xs">{d.last_offset ?? "—"}</td>
+                <td className="p-2 text-xs max-w-[260px] truncate" title={j.error_message || stop}>{j.error_message || stop || "—"}</td>
+                <td className="p-2 text-right">
+                  {isRunning && onCancel && (
+                    <Button size="sm" variant="outline" onClick={() => onCancel(j.id)}>Cancelar</Button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+          {jobs.length === 0 && <tr><td colSpan={12} className="p-4 text-center text-muted-foreground">Sem execuções.</td></tr>}
         </tbody>
       </table>
     </div>
