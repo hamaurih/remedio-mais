@@ -284,10 +284,47 @@ export default function AdminTrier() {
         </TabsList>
 
         {/* ---------- VISÃO GERAL ---------- */}
-        <TabsContent value="overview" className="pt-4">
+        <TabsContent value="overview" className="pt-4 space-y-4">
+          <div className="bg-card border rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold">Indicadores do banco</h2>
+              <span className="text-xs text-muted-foreground">Métrica principal: <b>produtos cadastrados</b></span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 text-center">
+              <StatusPill label="Cadastrados" value={dbStats?.cadastrados ?? "—"} tone="info" />
+              <StatusPill label="Com cód. Trier" value={dbStats?.vinculados_trier ?? "—"} tone="default" />
+              <StatusPill label="Ativos" value={dbStats?.ativos ?? "—"} tone="success" />
+              <StatusPill label="Inativos" value={dbStats?.inativos ?? "—"} tone="warn" />
+              <StatusPill label="Com estoque" value={dbStats?.com_estoque ?? "—"} tone="success" />
+              <StatusPill label="Sem estoque" value={dbStats?.sem_estoque ?? "—"} tone="warn" />
+            </div>
+          </div>
+
+          <div className="bg-card border rounded-xl p-4 space-y-2">
+            <h2 className="font-bold">Diagnóstico Trier (universo da API)</h2>
+            <p className="text-xs text-muted-foreground">Roda a paginação completa SEM gravar nada, só contando. Mostra quantos produtos a Trier realmente retorna em todos os filtros (ativo=true, ativo=false). Pode levar minutos — acompanhe nos logs.</p>
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => call("diagnose-total", {}, "Diagnóstico iniciado")} disabled={busy !== null} variant="default">
+                <Eye className="h-4 w-4 mr-2" />Diagnosticar total de produtos Trier
+              </Button>
+            </div>
+            {lastDiagnoseTotal && (
+              <div className="text-xs space-y-1 mt-2 border-t pt-2">
+                <div className="text-muted-foreground">Último diagnóstico: {new Date(lastDiagnoseTotal.created_at).toLocaleString("pt-BR")}</div>
+                <div className="font-medium">{lastDiagnoseTotal.message}</div>
+                {lastDiagnoseTotal.details?.stats && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                    {Object.entries(lastDiagnoseTotal.details.stats).map(([k, v]: any) => (
+                      <div key={k} className="bg-muted rounded p-2"><div className="text-muted-foreground">{k}</div><div className="font-bold">{v}</div></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="grid md:grid-cols-3 gap-3">
             <Card title="Conexão" value={settings?.last_connection_status === "ok" ? "OK" : (settings?.last_connection_status === "error" ? "Erro" : "—")} sub={settings?.last_connection_test_at ? new Date(settings.last_connection_test_at).toLocaleString("pt-BR") : "Nunca testado"} />
-            <Card title="Produtos vinculados" value={String(mappings?.length ?? 0)} sub="Com trier_product_id" />
             <Card title="Pedidos pendentes" value={String(orders?.filter((o: any) => !o.trier_sent).length ?? 0)} sub="Não enviados à Trier" />
             <Card title="Último sync produtos" value={settings?.last_sync_products_at ? new Date(settings.last_sync_products_at).toLocaleString("pt-BR") : "—"} />
             <Card title="Último sync estoque" value={settings?.last_sync_stock_at ? new Date(settings.last_sync_stock_at).toLocaleString("pt-BR") : "—"} />
