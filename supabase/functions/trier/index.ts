@@ -446,7 +446,9 @@ function mapProduct(t: any) {
     ecommerce_stock_quantity: stockEcom,
     is_active: isActive,
     ecommerce_enabled: ecomEnabled,
-    active: isActive,
+    // Regra: produto fica ativo no site apenas se ativo na Trier E tem estoque > 0.
+    // Produtos sem estoque ou inativos na Trier permanecem cadastrados, mas com active=false.
+    active: isActive && (stock ?? 0) > 0,
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
