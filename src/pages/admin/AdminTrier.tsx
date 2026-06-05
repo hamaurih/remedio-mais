@@ -14,11 +14,11 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, RefreshCw, Plug, Package, Boxes, Tag, ShoppingCart, FileText, ListChecks, Send, Eye } from "lucide-react";
 import { formatBRL } from "@/lib/store";
 
-const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "orders", "status", "diagnostico", "logs"] as const;
+const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "orders", "status", "seguranca", "diagnostico", "logs"] as const;
 type Tab = typeof TABS[number];
 
 const SUB_ROUTE_TO_TAB: Record<string, Tab> = {
-  products: "products", stock: "stock", prices: "prices", orders: "orders", logs: "logs", diagnostico: "diagnostico",
+  products: "products", stock: "stock", prices: "prices", orders: "orders", logs: "logs", diagnostico: "diagnostico", seguranca: "seguranca",
 };
 
 const FIELD_MAP: { trier: string; site: string; note?: string }[] = [
