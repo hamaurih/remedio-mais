@@ -1280,6 +1280,14 @@ Deno.serve(async (req) => {
       case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
       case "diagnose-products-page": result = await actionDiagnoseProductsPage(); break;
       case "diagnose-total": result = runAsync("diagnose-total", () => actionDiagnoseTotal()); break;
+      case "diag-api-total": result = runAsync("diag-api-total", () => actionDiagApiTotal()); break;
+      case "diag-api-scenarios": result = runAsync("diag-api-scenarios", () => actionDiagApiScenarios()); break;
+      case "diag-db-full": result = await actionDiagDbFull(); break;
+      case "diag-compare-page": result = await actionDiagComparePage(Number(body.offset) || 0, Number(body.pageSize) || 150); break;
+      case "diag-upsert-page": result = await actionDiagUpsertPage(Number(body.offset) || 0, Number(body.pageSize) || 150, Number(body.limit) || 5); break;
+      case "diag-db-write": result = await actionDiagDbWrite(); break;
+      case "diag-stock-endpoint": result = await actionDiagStockEndpoint(); break;
+      case "diag-last-products-job": result = await actionDiagLastProductsJob(); break;
       case "db-stats": result = await actionDbStats(); break;
       case "list-mappings": result = await actionListMappings({ limit: Number(body.limit) || 100, offset: Number(body.offset) || 0 }); break;
       case "cancel-job": result = await actionCancelJob(body.job_id); break;
