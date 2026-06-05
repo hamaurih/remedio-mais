@@ -126,6 +126,7 @@ export default function AdminTrier() {
         ecommerce_filter: (settings as any).ecommerce_filter ?? "",
         sync_mode: (settings as any).sync_mode || "safe_operational",
         auto_sync_paused: !!(settings as any).auto_sync_paused,
+        stock_source: (settings as any).stock_source || "loja",
       });
     }
   }, [settings]);
