@@ -1522,16 +1522,16 @@ function BarcodeDivergencesPanel() {
   }
   useEffect(() => { load(); }, []);
 
-  async function resolve(id: string, action: "accept_trier" | "keep_current" | "ignore") {
-    if (!confirm(action === "accept_trier"
+  async function resolve(id: string, resolution: "use_trier" | "keep_current" | "ignore") {
+    if (!confirm(resolution === "use_trier"
       ? "Aceitar o código de barras da Trier (substitui o atual)?"
-      : action === "keep_current"
+      : resolution === "keep_current"
       ? "Manter o código atual (descarta o da Trier)?"
       : "Ignorar esta divergência?")) return;
     setResolving(id);
     try {
       const { error } = await (supabase as any).functions.invoke("trier", {
-        body: { action: "resolve-barcode-divergence", id, action },
+        body: { action: "resolve-barcode-divergence", id, resolution },
       });
       if (error) throw error;
       toast.success("Divergência atualizada");
