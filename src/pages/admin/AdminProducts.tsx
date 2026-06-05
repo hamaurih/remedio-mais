@@ -274,6 +274,28 @@ export default function AdminProducts() {
         </table>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+        <div className="text-sm text-muted-foreground">
+          {totalCount > 0 ? (
+            <>Mostrando <strong>{(page - 1) * pageSize + 1}</strong>–<strong>{Math.min(page * pageSize, totalCount)}</strong> de <strong>{totalCount}</strong> produtos</>
+          ) : "Sem resultados"}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Por página:</span>
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
+          <span className="text-sm px-2">Página <strong>{page}</strong> de <strong>{totalPages}</strong></span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Próxima</Button>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
+        </div>
+      </div>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing.id ? "Editar produto" : "Novo produto"}</DialogTitle></DialogHeader>
