@@ -280,6 +280,7 @@ export default function AdminTrier() {
           <TabsTrigger value="mapping">Mapeamento</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
           <TabsTrigger value="status">Status Pedidos</TabsTrigger>
+          <TabsTrigger value="diagnostico">Diagnóstico</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
 
