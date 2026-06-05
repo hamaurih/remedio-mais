@@ -14,11 +14,11 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, RefreshCw, Plug, Package, Boxes, Tag, ShoppingCart, FileText, ListChecks, Send, Eye } from "lucide-react";
 import { formatBRL } from "@/lib/store";
 
-const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "orders", "status", "seguranca", "diagnostico", "logs"] as const;
+const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "divergences", "orders", "status", "seguranca", "diagnostico", "logs"] as const;
 type Tab = typeof TABS[number];
 
 const SUB_ROUTE_TO_TAB: Record<string, Tab> = {
-  products: "products", stock: "stock", prices: "prices", orders: "orders", logs: "logs", diagnostico: "diagnostico", seguranca: "seguranca",
+  products: "products", stock: "stock", prices: "prices", orders: "orders", logs: "logs", diagnostico: "diagnostico", seguranca: "seguranca", divergences: "divergences",
 };
 
 const FIELD_MAP: { trier: string; site: string; note?: string }[] = [
@@ -282,6 +282,7 @@ export default function AdminTrier() {
           <TabsTrigger value="stock">Estoque</TabsTrigger>
           <TabsTrigger value="prices">Preços e Descontos</TabsTrigger>
           <TabsTrigger value="mapping">Mapeamento</TabsTrigger>
+          <TabsTrigger value="divergences">Divergências EAN</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
           <TabsTrigger value="status">Status Pedidos</TabsTrigger>
           <TabsTrigger value="seguranca">Segurança</TabsTrigger>
@@ -710,6 +711,13 @@ export default function AdminTrier() {
             </table>
           </div>
         </TabsContent>
+
+        {/* ---------- DIVERGÊNCIAS EAN ---------- */}
+        <TabsContent value="divergences" className="pt-4 space-y-3">
+          <BarcodeDivergencesPanel />
+        </TabsContent>
+
+
 
         {/* ---------- PEDIDOS ---------- */}
         <TabsContent value="orders" className="pt-4 space-y-3">
@@ -1484,6 +1492,135 @@ function DiagStockSourcePanel({ call, busy, stockSource }: { call: any; busy: st
       {data && data.items?.length === 0 && (
         <p className="text-xs text-muted-foreground">A Trier não retornou produtos para esta amostra.</p>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Painel: Divergências de código de barras (EAN)
+// Consome as actions list-barcode-divergences / resolve-barcode-divergence
+// que já existem na edge function `trier`.
+// ============================================================
+function BarcodeDivergencesPanel() {
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<any[]>([]);
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke("trier", {
+        body: { action: "list-barcode-divergences", limit: 200, offset: 0 },
+      });
+      if (error) throw error;
+      setItems(data?.items || data?.divergences || data || []);
+    } catch (e: any) {
+      toast.error("Erro ao listar: " + (e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function resolve(id: string, resolution: "use_trier" | "keep_current" | "ignore") {
+    if (!confirm(resolution === "use_trier"
+      ? "Aceitar o código de barras da Trier (substitui o atual)?"
+      : resolution === "keep_current"
+      ? "Manter o código atual (descarta o da Trier)?"
+      : "Ignorar esta divergência?")) return;
+    setResolving(id);
+    try {
+      const { error } = await (supabase as any).functions.invoke("trier", {
+        body: { action: "resolve-barcode-divergence", id, resolution },
+      });
+      if (error) throw error;
+      toast.success("Divergência atualizada");
+      load();
+    } catch (e: any) {
+      toast.error("Falha: " + (e?.message || e));
+    } finally {
+      setResolving(null);
+    }
+  }
+
+  const pending = items.filter((x) => x.status === "pending");
+
+  return (
+    <div className="bg-card border rounded-xl">
+      <div className="p-3 border-b flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <div className="font-bold">Divergências de código de barras</div>
+          <div className="text-xs text-muted-foreground">
+            {pending.length} pendentes · {items.length} no total. Mostra quando a Trier traz um EAN diferente do já cadastrado — nada é sobrescrito automaticamente.
+          </div>
+        </div>
+        <button
+          className="text-sm border rounded-md px-3 py-1.5 hover:bg-accent"
+          onClick={load}
+          disabled={loading}
+        >
+          {loading ? "Carregando..." : "Atualizar"}
+        </button>
+      </div>
+      <div className="overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase">
+            <tr>
+              <th className="text-left p-2">Cód. Trier</th>
+              <th className="text-left p-2">EAN atual</th>
+              <th className="text-left p-2">EAN Trier</th>
+              <th className="text-left p-2">Status</th>
+              <th className="text-left p-2">Quando</th>
+              <th className="text-right p-2">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && !loading && (
+              <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Nenhuma divergência registrada.</td></tr>
+            )}
+            {items.map((d) => (
+              <tr key={d.id} className="border-t">
+                <td className="p-2 font-mono text-xs">{d.trier_product_id}</td>
+                <td className="p-2 font-mono text-xs">{d.current_barcode || "—"}</td>
+                <td className="p-2 font-mono text-xs">{d.trier_barcode || "—"}</td>
+                <td className="p-2 text-xs">
+                  <Badge variant={d.status === "pending" ? "outline" : "secondary"}>{d.status}</Badge>
+                </td>
+                <td className="p-2 text-xs">{d.created_at ? new Date(d.created_at).toLocaleString("pt-BR") : "—"}</td>
+                <td className="p-2 text-right">
+                  {d.status === "pending" ? (
+                    <div className="inline-flex gap-1">
+                      <button
+                        className="text-xs border rounded px-2 py-1 hover:bg-primary hover:text-primary-foreground"
+                        disabled={resolving === d.id}
+                        onClick={() => resolve(d.id, "use_trier")}
+                      >
+                        Aceitar Trier
+                      </button>
+                      <button
+                        className="text-xs border rounded px-2 py-1 hover:bg-accent"
+                        disabled={resolving === d.id}
+                        onClick={() => resolve(d.id, "keep_current")}
+                      >
+                        Manter atual
+                      </button>
+                      <button
+                        className="text-xs border rounded px-2 py-1 hover:bg-accent"
+                        disabled={resolving === d.id}
+                        onClick={() => resolve(d.id, "ignore")}
+                      >
+                        Ignorar
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">resolvido</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

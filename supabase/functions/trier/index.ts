@@ -1910,7 +1910,7 @@ Deno.serve(async (req) => {
       case "simulate-sync-page": result = await actionSimulateSyncPage(Number(body.offset) || 0, Number(body.pageSize) || 50, body.mode as SyncMode | undefined); break;
       case "diag-stock-source": result = await actionDiagStockSource(Number(body.limit) || 10); break;
       case "list-barcode-divergences": result = await actionListBarcodeDivergences(Number(body.limit) || 100, Number(body.offset) || 0); break;
-      case "resolve-barcode-divergence": result = await actionResolveBarcodeDivergence(body.id, body.action); break;
+      case "resolve-barcode-divergence": result = await actionResolveBarcodeDivergence(body.id, (body.resolution || body.action) as any); break;
       case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
       case "sync-categories": result = runAsync("categories", () => actionSyncCategories(trigger)); break;
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;

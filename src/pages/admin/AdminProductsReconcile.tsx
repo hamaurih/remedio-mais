@@ -56,8 +56,27 @@ export default function AdminProductsReconcile() {
   const [skuLoading, setSkuLoading] = useState(false);
   const [skuApplying, setSkuApplying] = useState(false);
 
+  // Completar dados pela Trier
+  const [completing, setCompleting] = useState(false);
+
   useEffect(() => { refreshCounts(); }, []);
   useEffect(() => { loadIssueRows(issue); }, [issue]);
+
+  async function completeFromTrier() {
+    if (!confirm("Vamos sincronizar pela Trier no modo SEGURO (safe_operational): atualiza estoque, preço, código de barras e dados técnicos. Não toca em imagem, descrição, SEO ou categoria comercial. Continuar?")) return;
+    setCompleting(true);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke("trier", {
+        body: { action: "sync-products", mode: "safe_operational", trigger: "reconcile" },
+      });
+      if (error) throw error;
+      toast.success(data?.message || "Sincronização iniciada em background. Acompanhe em Admin → Trier → Logs.");
+    } catch (e: any) {
+      toast.error("Falha ao iniciar: " + (e?.message || e));
+    } finally {
+      setCompleting(false);
+    }
+  }
 
   async function refreshCounts() {
     setLoading(true);
@@ -224,9 +243,15 @@ export default function AdminProductsReconcile() {
             Aproveite os produtos já cadastrados e corrija dados faltantes. Nada aqui exclui produtos.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refreshCounts} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Atualizar contagens
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={refreshCounts} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Atualizar contagens
+          </Button>
+          <Button size="sm" onClick={completeFromTrier} disabled={completing}>
+            {completing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1" />}
+            Completar dados pela Trier
+          </Button>
+        </div>
       </div>
 
       <Alert>
