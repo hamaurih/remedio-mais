@@ -493,8 +493,12 @@ export default function AdminProductsImport() {
           }
           if (r.action === "create") {
             if (!opts.importNew) { skipped++; item.status = "skipped"; items.push(item); continue; }
+            const stockVal = r.norm.stock ?? 0;
             const noStock = r.norm.stock != null && r.norm.stock <= 0;
             const catId = opts.updateCategory ? await ensureCategoryId(r.norm.category_name) : null;
+            // Se estoque <= 0 e a opção estiver ligada: marca manual_disabled=true para
+            // não ser reativado automaticamente por syncs futuros.
+            const shouldDisable = noStock && opts.inactivateIfNoStock;
             const insertPayload: any = {
               name: r.norm.name,
               slug: r.norm.name ? slugify(r.norm.name) + "-" + (r.norm.barcode || r.norm.sku || Math.random().toString(36).slice(2, 6)) : null,
@@ -503,13 +507,20 @@ export default function AdminProductsImport() {
               trier_product_id: r.norm.trier_product_id || null,
               description: r.norm.description || null,
               manufacturer: r.norm.manufacturer || null,
+              laboratory: r.norm.manufacturer || null,
+              group_name: r.norm.group_name || null,
+              category_name: r.norm.category_name || null,
               price: r.norm.price ?? 0,
               promo_price: r.norm.promo_price ?? null,
-              stock: r.norm.stock ?? 0,
+              // Fonte oficial: o mesmo valor alimenta os 3 campos
+              stock: stockVal,
+              stock_quantity: stockVal,
+              trier_stock_quantity: stockVal,
               image_url: r.norm.image_url || null,
               requires_prescription: r.norm.requires_prescription ?? false,
               controlled: r.norm.controlled ?? false,
-              active: noStock && opts.inactivateIfNoStock ? false : (r.norm.active ?? true),
+              active: shouldDisable ? false : (r.norm.active ?? true),
+              manual_disabled: shouldDisable ? true : false,
               source: "manual_import",
               ...(catId ? { category_id: catId } : {}),
             };
@@ -521,13 +532,22 @@ export default function AdminProductsImport() {
             const update: any = {};
             if (opts.updatePrice && r.norm.price != null) update.price = r.norm.price;
             if (opts.updatePrice && r.norm.promo_price != null) update.promo_price = r.norm.promo_price;
-            if (opts.updateStock && r.norm.stock != null) update.stock = r.norm.stock;
+            if (opts.updateStock && r.norm.stock != null) {
+              update.stock = r.norm.stock;
+              update.stock_quantity = r.norm.stock;
+              update.trier_stock_quantity = r.norm.stock;
+              // Estoque > 0: reativa, salvo se foi explicitamente desativado manualmente
+              if (r.norm.stock > 0 && (m as any).manual_disabled !== true) update.active = true;
+            }
             if (opts.updateImage && r.norm.image_url) update.image_url = r.norm.image_url;
             if (opts.updateCategory && r.norm.category_name) {
               const cid = await ensureCategoryId(r.norm.category_name);
               if (cid) update.category_id = cid;
             }
-            if (opts.inactivateIfNoStock && r.norm.stock != null && r.norm.stock <= 0) update.active = false;
+            if (opts.inactivateIfNoStock && r.norm.stock != null && r.norm.stock <= 0) {
+              update.active = false;
+              update.manual_disabled = true;
+            }
             if (Object.keys(update).length === 0) { skipped++; item.status = "skipped"; item.error_message = "Nada a atualizar"; items.push(item); continue; }
             const { data: upd, error } = await supabase.from("products").update(update).eq("id", m.id).select().single();
             if (error) throw error;
