@@ -384,6 +384,42 @@ export default function AdminTrier() {
             <p className="text-xs text-muted-foreground border-t pt-2">⚠️ Padrão: Gateway Trier em HTTPS. Use Produção apenas se configurado IP/DDNS local.</p>
           </div>
 
+          {/* ---------- FONTE DE ESTOQUE DO SITE ---------- */}
+          <div className="bg-card border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold">Fonte de estoque do site</h2>
+              <Badge variant="secondary">Padrão: estoque real da loja</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Define qual campo da Trier o site usa como <b>estoque vendável</b>. A farmácia não trabalha com estoque
+              separado para e-commerce, então o padrão recomendado é <b>quantidadeEstoque</b> (estoque real da loja).
+              O campo <code>quantidadeEstoqueEcommerce</code> continua sendo salvo, mas apenas como informação auxiliar.
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Fonte de estoque</Label>
+                <Select
+                  value={form.stock_source || "loja"}
+                  onValueChange={(v) => setForm({ ...form, stock_source: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="loja">Estoque real da loja: quantidadeEstoque (recomendado)</SelectItem>
+                    <SelectItem value="ecommerce">Estoque e-commerce: quantidadeEstoqueEcommerce</SelectItem>
+                    <SelectItem value="auto">Automático: e-commerce se existir, senão loja</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1 self-end">
+                <div>• Produto fica visível no site se: <b>ativo na Trier</b> + <b>estoque &gt; 0</b> + não estiver desativado manualmente.</div>
+                <div>• Produto sem estoque fica cadastrado, porém oculto do site. Imagem, descrição, categorias, campanhas e SEO são preservados.</div>
+              </div>
+            </div>
+            <DiagStockSourcePanel call={call} busy={busy} stockSource={form.stock_source || "loja"} />
+          </div>
+
+
+
           <div className="bg-card border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className="font-bold">Modo de sincronização (proteção de campos manuais)</h2>
