@@ -139,7 +139,8 @@ export default function AdminTrier() {
       page_size: Number(form.page_size) || 150,
       ecommerce_filter: form.ecommerce_filter ?? "",
     };
-    if (tokenInput) payload.bearer_token = tokenInput.trim().replace(/^['"]|['"]$/g, "").replace(/^Bearer\s+/i, "").trim();
+    // Token is managed exclusively via the TRIER_API_TOKEN backend secret; never store it in DB.
+    delete payload.bearer_token;
     delete payload.id; delete payload.created_at; delete payload.updated_at;
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
