@@ -1645,6 +1645,46 @@ async function actionSyncBarcodes(trigger = "manual") {
   return actionSyncProducts(trigger, false, "barcode_only");
 }
 
+// Diagnóstico visual: mostra para cada produto a quantidadeEstoque e quantidadeEstoqueEcommerce
+// vindas da Trier e qual valor seria usado como estoque do site, conforme a fonte configurada.
+async function actionDiagStockSource(limit = 10) {
+  const s = await getSettings();
+  const qs = buildProductsQuery(s, 0, Math.max(limit, 10));
+  const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  const json = await trierGet(s, path, { page: 0 });
+  const list = extractList(json).slice(0, limit);
+  const sourceLabel = s.stock_source === "ecommerce"
+    ? "Estoque e-commerce: quantidadeEstoqueEcommerce"
+    : s.stock_source === "auto"
+      ? "Automático: usa quantidadeEstoqueEcommerce se existir, senão quantidadeEstoque"
+      : "Estoque real da loja: quantidadeEstoque";
+  const items = list.map((t: any) => {
+    const code = pickCode(t);
+    const name = pickName(t);
+    const rReal = t.quantidadeEstoque;
+    const rEcom = t.quantidadeEstoqueEcommerce;
+    const stockReal = rReal != null && rReal !== "" && Number.isFinite(Number(rReal)) ? Number(rReal) : null;
+    const stockEcom = rEcom != null && rEcom !== "" && Number.isFinite(Number(rEcom)) ? Number(rEcom) : null;
+    let stockSite = 0;
+    let applied = sourceLabel;
+    if (s.stock_source === "ecommerce") { stockSite = stockEcom ?? 0; }
+    else if (s.stock_source === "auto") {
+      if (stockEcom != null) { stockSite = stockEcom; applied = "Automático → quantidadeEstoqueEcommerce"; }
+      else { stockSite = stockReal ?? 0; applied = "Automático → quantidadeEstoque"; }
+    } else { stockSite = stockReal ?? 0; }
+    return {
+      trier_product_id: code,
+      name,
+      quantidadeEstoque: stockReal,
+      quantidadeEstoqueEcommerce: stockEcom,
+      estoque_usado_site: stockSite,
+      fonte_aplicada: applied,
+      ficaria_ativo: (t.ativo !== false) && stockSite > 0,
+    };
+  });
+  return { ok: true, stock_source: s.stock_source, fonte_padrao: sourceLabel, total: items.length, items };
+}
+
 
 
 // ---------- AUTH ----------
