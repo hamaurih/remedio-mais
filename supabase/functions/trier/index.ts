@@ -908,6 +908,98 @@ function summarizeResults(results: UpsertResult[]) {
   return { created, updated, failed, ignored, ignored_reasons, errors, sampleIgnored };
 }
 
+function pickStoreStockOnly(t: any): number | null {
+  const raw = firstNonEmpty(t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function applyStockPage(items: any[]) {
+  const now = new Date().toISOString();
+  const ignored_reasons: Record<string, number> = {};
+  const addIgnored = (reason: string) => { ignored_reasons[reason] = (ignored_reasons[reason] || 0) + 1; };
+
+  const codes = Array.from(new Set(items.map(pickCode).filter(Boolean)));
+  if (codes.length === 0) {
+    return { checked: items.length, updated: 0, ignored: items.length, failed: 0, ignored_reasons: { sem_codigo: items.length } };
+  }
+
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("products")
+    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock")
+    .in("trier_product_id", codes);
+
+  if (existingErr) {
+    throw new Error(`Erro consultando produtos para sync de estoque: ${existingErr.message}`);
+  }
+
+  const existingMap = new Map((existingRows || []).map((row: any) => [String(row.trier_product_id), row]));
+  const patches: any[] = [];
+  let ignored = 0;
+
+  for (const item of items) {
+    const trierId = pickCode(item);
+    if (!trierId) {
+      ignored++;
+      addIgnored("sem_codigo");
+      continue;
+    }
+
+    const existing = existingMap.get(String(trierId));
+    if (!existing) {
+      ignored++;
+      addIgnored("sem_mapeamento_ainda");
+      continue;
+    }
+
+    if (existing.lock_manual_stock) {
+      ignored++;
+      addIgnored("estoque_manual_bloqueado");
+      continue;
+    }
+
+    const stockReal = pickStoreStockOnly(item);
+    const stockSite = stockReal ?? 0;
+    const nextActive = existing.manual_disabled === true ? false : (existing.trier_active !== false && stockSite > 0);
+
+    const changed =
+      existing.stock !== stockSite ||
+      existing.stock_quantity !== stockSite ||
+      existing.trier_stock_quantity !== stockReal ||
+      existing.active !== nextActive;
+
+    if (!changed) {
+      ignored++;
+      addIgnored("sem_alteracao");
+      continue;
+    }
+
+    patches.push({
+      id: existing.id,
+      stock: stockSite,
+      stock_quantity: stockSite,
+      trier_stock_quantity: stockReal,
+      active: nextActive,
+      last_stock_sync_at: now,
+      last_trier_sync_at: now,
+      source: "trier",
+    });
+  }
+
+  if (patches.length === 0) {
+    return { checked: items.length, updated: 0, ignored, failed: 0, ignored_reasons };
+  }
+
+  const { error: patchErr } = await supabase.from("products").upsert(patches, { onConflict: "id" });
+  if (patchErr) {
+    await log("stock", "error", "Falha ao aplicar lote de estoque no banco", { error: patchErr.message, batch_size: patches.length });
+    return { checked: items.length, updated: 0, ignored, failed: patches.length, ignored_reasons };
+  }
+
+  return { checked: items.length, updated: patches.length, ignored, failed: 0, ignored_reasons };
+}
+
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
