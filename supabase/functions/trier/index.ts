@@ -996,13 +996,19 @@ async function applyStockPage(items: any[]) {
     return { checked: items.length, updated: 0, ignored, failed: 0, ignored_reasons };
   }
 
-  const { error: patchErr } = await supabase.from("products").upsert(patches, { onConflict: "id" });
-  if (patchErr) {
-    await log("stock", "error", "Falha ao aplicar lote de estoque no banco", { error: patchErr.message, batch_size: patches.length });
-    return { checked: items.length, updated: 0, ignored, failed: patches.length, ignored_reasons };
+  let updatedCount = 0;
+  let failedCount = 0;
+  for (const batch of chunk(patches, 200)) {
+    const { error: patchErr } = await supabase.from("products").upsert(batch, { onConflict: "id" });
+    if (patchErr) {
+      failedCount += batch.length;
+      await log("stock", "error", "Falha ao aplicar lote de estoque no banco", { error: patchErr.message, batch_size: batch.length });
+    } else {
+      updatedCount += batch.length;
+    }
   }
 
-  return { checked: items.length, updated: patches.length, ignored, failed: 0, ignored_reasons };
+  return { checked: items.length, updated: updatedCount, ignored, failed: failedCount, ignored_reasons };
 }
 
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
