@@ -1663,7 +1663,15 @@ Deno.serve(async (req) => {
         result = { baseUrl: s.base_url, endpoint, finalUrl: buildTrierUrl(s.base_url, endpoint) };
         break;
       }
-      case "sync-products": result = runAsync("products", () => actionSyncProducts(trigger, !!body.changed)); break;
+      case "sync-products": result = runAsync("products", () => actionSyncProducts(trigger, !!body.changed, body.mode as SyncMode | undefined)); break;
+      case "sync-barcodes": result = runAsync("barcodes", () => actionSyncBarcodes(trigger)); break;
+      case "mark-stalled-jobs": result = await actionMarkStalledJobs(Number(body.minutes) || 20); break;
+      case "toggle-auto-sync": result = await actionToggleAutoSync(!!body.paused); break;
+      case "set-sync-mode": result = await actionSetSyncMode(body.mode as SyncMode); break;
+      case "simulate-sync-page": result = await actionSimulateSyncPage(Number(body.offset) || 0, Number(body.pageSize) || 50, body.mode as SyncMode | undefined); break;
+      case "list-barcode-divergences": result = await actionListBarcodeDivergences(Number(body.limit) || 100, Number(body.offset) || 0); break;
+      case "resolve-barcode-divergence": result = await actionResolveBarcodeDivergence(body.id, body.action); break;
+      case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
       case "sync-categories": result = runAsync("categories", () => actionSyncCategories(trigger)); break;
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
       case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;
