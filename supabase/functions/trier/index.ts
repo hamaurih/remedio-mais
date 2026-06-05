@@ -366,6 +366,9 @@ async function startJob(sync_type: string, trigger: string) {
     .insert({ sync_type, trigger, status: "running" }).select().single();
   return data!;
 }
+async function updateJobProgress(id: string, patch: any) {
+  await supabase.from("trier_sync_jobs").update(patch).eq("id", id);
+}
 async function finishJob(id: string, patch: any) {
   await supabase.from("trier_sync_jobs").update({ ...patch, finished_at: new Date().toISOString() }).eq("id", id);
 }
