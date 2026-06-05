@@ -610,6 +610,24 @@ export default function AdminProductsImport() {
                   <strong>{file.name}</strong> · {fileType.toUpperCase()} · {(file.size / 1024).toFixed(1)} KB · {rows.length} linhas
                 </div>
               )}
+              {fileType === "xlsx" && xlsxSheets.length > 1 && (
+                <div className="flex flex-col gap-2 p-3 rounded-md border bg-muted/30">
+                  <Label className="text-xs font-semibold">Aba da planilha</Label>
+                  <Select value={xlsxActiveSheet} onValueChange={loadSheet}>
+                    <SelectTrigger className="w-full md:w-96"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {xlsxSheets.map((s) => (
+                        <SelectItem key={s.name} value={s.name}>
+                          {s.name} · {s.rows} linhas · qualidade {s.score}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Recomendamos a aba com maior <b>qualidade</b> — colunas como <i>Cód., Descrição Produto, Laboratório, Grupo, Qtd. Estoq.</i> e <i>preço</i>.
+                  </p>
+                </div>
+              )}
               {fileType === "pdf" && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
