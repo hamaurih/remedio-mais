@@ -862,7 +862,7 @@ function summarizeResults(results: UpsertResult[]) {
   return { created, updated, failed, ignored, ignored_reasons, errors, sampleIgnored };
 }
 
-async function actionSyncProducts(trigger = "manual", changed = false) {
+async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
   try {
