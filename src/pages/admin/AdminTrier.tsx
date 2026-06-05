@@ -126,6 +126,7 @@ export default function AdminTrier() {
         ecommerce_filter: (settings as any).ecommerce_filter ?? "",
         sync_mode: (settings as any).sync_mode || "safe_operational",
         auto_sync_paused: !!(settings as any).auto_sync_paused,
+        stock_source: (settings as any).stock_source || "loja",
       });
     }
   }, [settings]);
@@ -382,6 +383,42 @@ export default function AdminTrier() {
             </div>
             <p className="text-xs text-muted-foreground border-t pt-2">⚠️ Padrão: Gateway Trier em HTTPS. Use Produção apenas se configurado IP/DDNS local.</p>
           </div>
+
+          {/* ---------- FONTE DE ESTOQUE DO SITE ---------- */}
+          <div className="bg-card border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold">Fonte de estoque do site</h2>
+              <Badge variant="secondary">Padrão: estoque real da loja</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Define qual campo da Trier o site usa como <b>estoque vendável</b>. A farmácia não trabalha com estoque
+              separado para e-commerce, então o padrão recomendado é <b>quantidadeEstoque</b> (estoque real da loja).
+              O campo <code>quantidadeEstoqueEcommerce</code> continua sendo salvo, mas apenas como informação auxiliar.
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Fonte de estoque</Label>
+                <Select
+                  value={form.stock_source || "loja"}
+                  onValueChange={(v) => setForm({ ...form, stock_source: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="loja">Estoque real da loja: quantidadeEstoque (recomendado)</SelectItem>
+                    <SelectItem value="ecommerce">Estoque e-commerce: quantidadeEstoqueEcommerce</SelectItem>
+                    <SelectItem value="auto">Automático: e-commerce se existir, senão loja</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1 self-end">
+                <div>• Produto fica visível no site se: <b>ativo na Trier</b> + <b>estoque &gt; 0</b> + não estiver desativado manualmente.</div>
+                <div>• Produto sem estoque fica cadastrado, porém oculto do site. Imagem, descrição, categorias, campanhas e SEO são preservados.</div>
+              </div>
+            </div>
+            <DiagStockSourcePanel call={call} busy={busy} stockSource={form.stock_source || "loja"} />
+          </div>
+
+
 
           <div className="bg-card border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1381,6 +1418,71 @@ function SafeSyncPanel({ call, busy, settings }: { call: (a: string, b?: any, l?
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+// =====================================================================
+// Diagnóstico visual: fonte de estoque do site
+// Mostra para cada produto da Trier a quantidadeEstoque e
+// quantidadeEstoqueEcommerce, qual valor seria usado no site e por quê.
+// =====================================================================
+function DiagStockSourcePanel({ call, busy, stockSource }: { call: any; busy: string | null; stockSource: string }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const run = async () => {
+    setLoading(true);
+    try {
+      const r = await call("diag-stock-source", { limit: 10 }, "Diagnóstico de estoque executado");
+      if (r) setData(r);
+    } finally { setLoading(false); }
+  };
+  return (
+    <div className="border-t pt-3 space-y-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h3 className="font-semibold text-sm">Diagnóstico visual — estoque por produto</h3>
+        <Button size="sm" variant="secondary" onClick={run} disabled={loading || busy !== null}>
+          {loading ? "Consultando Trier..." : "Testar 10 produtos da Trier"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Fonte aplicada agora: <b>{stockSource === "ecommerce" ? "quantidadeEstoqueEcommerce" : stockSource === "auto" ? "Automático (ecom → loja)" : "quantidadeEstoque (estoque real da loja)"}</b>
+      </p>
+      {data?.items?.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border rounded">
+            <thead className="bg-muted">
+              <tr>
+                <th className="p-2 text-left">Cód. Trier</th>
+                <th className="p-2 text-left">Produto</th>
+                <th className="p-2 text-right">quantidadeEstoque</th>
+                <th className="p-2 text-right">quantidadeEstoqueEcommerce</th>
+                <th className="p-2 text-right">Estoque usado no site</th>
+                <th className="p-2 text-left">Fonte aplicada</th>
+                <th className="p-2 text-center">Ativo no site?</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((it: any) => (
+                <tr key={it.trier_product_id} className="border-t align-top">
+                  <td className="p-2 font-mono">{it.trier_product_id}</td>
+                  <td className="p-2">{it.name}</td>
+                  <td className="p-2 text-right">{it.quantidadeEstoque ?? "—"}</td>
+                  <td className="p-2 text-right">{it.quantidadeEstoqueEcommerce ?? "—"}</td>
+                  <td className="p-2 text-right font-semibold">{it.estoque_usado_site}</td>
+                  <td className="p-2 text-[11px] text-muted-foreground">{it.fonte_aplicada}</td>
+                  <td className="p-2 text-center">
+                    <Badge variant={it.ficaria_ativo ? "secondary" : "outline"}>{it.ficaria_ativo ? "Sim" : "Não"}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {data && data.items?.length === 0 && (
+        <p className="text-xs text-muted-foreground">A Trier não retornou produtos para esta amostra.</p>
+      )}
     </div>
   );
 }

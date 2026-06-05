@@ -37,7 +37,10 @@ type Settings = {
   last_sync_prices_at: string | null; last_sync_discounts_at: string | null;
   sync_mode: SyncMode;
   auto_sync_paused: boolean;
+  stock_source: StockSource;
 };
+
+type StockSource = "loja" | "ecommerce" | "auto";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -149,6 +152,7 @@ async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Setti
     branch_code: data.branch_code || "1",
     sync_mode: (data.sync_mode as SyncMode) || "safe_operational",
     auto_sync_paused: !!data.auto_sync_paused,
+    stock_source: ((data.stock_source as StockSource) || "loja"),
   };
 }
 
@@ -418,7 +422,7 @@ function pickActive(t: any): boolean {
   return true;
 }
 
-function mapProduct(t: any) {
+function mapProduct(t: any, stockSource: StockSource = "loja") {
   const code = pickCode(t);
   const name = pickName(t);
   const ecomPriceRaw = t.valorVendaEcommerce;
@@ -426,16 +430,36 @@ function mapProduct(t: any) {
   const basePrice = pickPriceNum(t);
   const finalPrice = ecomPrice ?? basePrice ?? 0;
   const promo = ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null;
-  const stockEcom = t.quantidadeEstoqueEcommerce != null && t.quantidadeEstoqueEcommerce !== "" ? Number(t.quantidadeEstoqueEcommerce) : null;
-  const stockBase = pickStockNum(t);
-  const stock = stockEcom ?? stockBase ?? 0;
+
+  // ----- Estoque -----
+  // Regra: a farmácia vende usando o estoque REAL da loja (quantidadeEstoque).
+  // quantidadeEstoqueEcommerce fica salvo apenas como campo auxiliar/informativo.
+  const rawStockReal = firstNonEmpty(t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
+  const stockReal = rawStockReal != null && rawStockReal !== "" && Number.isFinite(Number(rawStockReal)) ? Number(rawStockReal) : null;
+  const rawStockEcom = t.quantidadeEstoqueEcommerce;
+  const stockEcom = rawStockEcom != null && rawStockEcom !== "" && Number.isFinite(Number(rawStockEcom)) ? Number(rawStockEcom) : null;
+
+  // Fonte de estoque do site (configurável; padrão = loja)
+  let stockSite: number;
+  let sourceApplied: string;
+  if (stockSource === "ecommerce") {
+    stockSite = stockEcom ?? 0;
+    sourceApplied = "Estoque e-commerce: quantidadeEstoqueEcommerce";
+  } else if (stockSource === "auto") {
+    if (stockEcom != null) { stockSite = stockEcom; sourceApplied = "Automático → quantidadeEstoqueEcommerce"; }
+    else { stockSite = stockReal ?? 0; sourceApplied = "Automático → quantidadeEstoque"; }
+  } else {
+    stockSite = stockReal ?? 0;
+    sourceApplied = "Estoque real da loja: quantidadeEstoque";
+  }
+
   const ecomEnabled = t.integracaoEcommerce ?? false;
   const isActive = pickActive(t);
   const tarja = t.tipoLista || null;
   const lab = pickLaboratory(t);
   const obs: string[] = [];
   if (basePrice == null && ecomPrice == null) obs.push("precisa revisar: sem preço na Trier");
-  if (stockEcom == null && stockBase == null) obs.push("indisponível: sem estoque na Trier");
+  if (stockReal == null && stockEcom == null) obs.push("indisponível: sem estoque na Trier");
 
   // ---- shelves automáticas ----
   const catName = pickCategoryName(t) || "";
@@ -455,6 +479,9 @@ function mapProduct(t: any) {
   return {
     _shelves: Array.from(shelves),
     _category_name_for_link: catName || grpName || depName || "Medicamentos",
+    _stock_source_applied: sourceApplied,
+    _stock_real: stockReal,
+    _stock_ecom: stockEcom,
     trier_product_id: code,
     name: name || "Sem nome",
     ecommerce_name: t.nomeEcommerce ?? null,
@@ -477,14 +504,16 @@ function mapProduct(t: any) {
     ecommerce_price: ecomPrice,
     promo_price: promo,
     on_sale: promo != null,
-    stock,
-    stock_quantity: stockBase,
+    stock: stockSite,
+    stock_quantity: stockSite,
+    trier_stock_quantity: stockReal,
     ecommerce_stock_quantity: stockEcom,
     is_active: isActive,
+    trier_active: isActive,
     ecommerce_enabled: ecomEnabled,
     // Regra: produto fica ativo no site apenas se ativo na Trier E tem estoque > 0.
-    // Produtos sem estoque ou inativos na Trier permanecem cadastrados, mas com active=false.
-    active: isActive && (stock ?? 0) > 0,
+    // (manual_disabled é aplicado no upsert, após ler o registro existente.)
+    active: isActive && stockSite > 0,
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
@@ -516,7 +545,7 @@ const PROTECTED_ALWAYS = new Set<string>([
 ]);
 
 // Campos operacionais que a Trier pode atualizar.
-const FIELDS_STOCK = ["stock", "stock_quantity", "ecommerce_stock_quantity"];
+const FIELDS_STOCK = ["stock", "stock_quantity", "trier_stock_quantity", "ecommerce_stock_quantity", "last_stock_sync_at", "trier_active"];
 const FIELDS_PRICE = ["price", "ecommerce_price", "promo_price", "on_sale"];
 const FIELDS_BARCODE = ["barcode", "trier_barcode"];
 const FIELDS_TECHNICAL = [
@@ -612,7 +641,7 @@ async function recordProductSyncLog(entry: {
 
 async function upsertProductFromTrier(
   t: any,
-  opts: { onlyStock?: boolean; onlyPrice?: boolean; mode?: SyncMode; syncType?: string; simulate?: boolean } = {},
+  opts: { onlyStock?: boolean; onlyPrice?: boolean; mode?: SyncMode; syncType?: string; simulate?: boolean; stockSource?: StockSource } = {},
 ): Promise<UpsertResult> {
   const trierId = pickCode(t);
   const name = pickName(t);
@@ -620,15 +649,29 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
 
-  const mapped: any = mapProduct(t);
+  const mapped: any = mapProduct(t, opts.stockSource || "loja");
   const autoShelves: string[] = mapped._shelves || [];
   const catNameForLink: string = mapped._category_name_for_link || "Medicamentos";
   delete mapped._shelves;
   delete mapped._category_name_for_link;
+  delete mapped._stock_source_applied;
+  delete mapped._stock_real;
+  delete mapped._stock_ecom;
+  delete mapped.discount_percentage;
+
+  // Aplica manual_disabled: nunca exibe no site se o admin desativou manualmente.
+  if (existing?.manual_disabled === true) {
+    mapped.active = false;
+  }
+
+  // Em sincronização de estoque, sempre marcar last_stock_sync_at
+  if (opts.onlyStock) {
+    mapped.last_stock_sync_at = new Date().toISOString();
+  }
   delete mapped.discount_percentage;
 
   // Resolver/criar categoria
@@ -893,7 +936,7 @@ async function actionSyncProducts(trigger = "manual", changed = false, modeOverr
 
     const mode: SyncMode = modeOverride || s.sync_mode || "safe_operational";
     const results: UpsertResult[] = [];
-    for (const t of allItems) results.push(await upsertProductFromTrier(t, { mode, syncType: changed ? "products_changed" : "products" }));
+    for (const t of allItems) results.push(await upsertProductFromTrier(t, { mode, stockSource: s.stock_source, syncType: changed ? "products_changed" : "products" }));
     const sum = summarizeResults(results);
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
 
@@ -956,7 +999,7 @@ async function actionDiagnoseProductsPage() {
     };
   }
   const results: UpsertResult[] = [];
-  for (const t of list) results.push(await upsertProductFromTrier(t));
+  for (const t of list) results.push(await upsertProductFromTrier(t, { stockSource: s.stock_source }));
   const sum = summarizeResults(results);
   return {
     ok: true, stage: "done",
@@ -1216,7 +1259,7 @@ async function actionDiagUpsertPage(offset: number, pageSize: number, limit = 5)
     const code = pickCode(t);
     const name = pickName(t);
     const payloadPreview = { trier_product_id: code, name, stock: pickStockNum(t), price: pickPriceNum(t) };
-    const r = await upsertProductFromTrier(t);
+    const r = await upsertProductFromTrier(t, { stockSource: s.stock_source });
     results.push({ code, name, payload: payloadPreview, ...r });
   }
   return { ok: true, results };
@@ -1329,7 +1372,7 @@ async function actionSyncStock(trigger = "manual") {
     );
 
     for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyStock: true });
+      const r = await upsertProductFromTrier(t, { onlyStock: true, stockSource: s.stock_source });
       if (r.updated) updated++;
       else if (r.failed) failed++;
       else ignored++;
@@ -1357,7 +1400,7 @@ async function actionSyncPrices(trigger = "manual") {
   try {
     const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/precificacao/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
     for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyPrice: true });
+      const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source });
       if (r.updated) updated++;
       else if (r.failed) failed++;
       else ignored++;
@@ -1378,7 +1421,7 @@ async function actionSyncDiscounts(trigger = "manual") {
   try {
     const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
     for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyPrice: true });
+      const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source });
       if (r.updated) updated++;
       else if (r.failed) failed++;
       else ignored++;
@@ -1552,7 +1595,7 @@ async function actionSimulateSyncPage(offset = 0, pageSize = 50, mode?: SyncMode
   const json = await trierGet(s, `/rest/integracao/produto/obter-todos-v1?${qs}`, { page: Math.floor(offset / pageSize) });
   const list = extractList(json);
   const results: UpsertResult[] = [];
-  for (const t of list) results.push(await upsertProductFromTrier(t, { mode: effMode, simulate: true, syncType: "simulate" }));
+  for (const t of list) results.push(await upsertProductFromTrier(t, { mode: effMode, simulate: true, syncType: "simulate", stockSource: s.stock_source }));
   const created = results.filter((r) => r.created).length;
   const updated = results.filter((r) => r.updated).length;
   const skipped = results.filter((r) => r.skipped).length;
@@ -1600,6 +1643,46 @@ async function actionListProductSyncLogs(productId?: string, limit = 50) {
 
 async function actionSyncBarcodes(trigger = "manual") {
   return actionSyncProducts(trigger, false, "barcode_only");
+}
+
+// Diagnóstico visual: mostra para cada produto a quantidadeEstoque e quantidadeEstoqueEcommerce
+// vindas da Trier e qual valor seria usado como estoque do site, conforme a fonte configurada.
+async function actionDiagStockSource(limit = 10) {
+  const s = await getSettings();
+  const qs = buildProductsQuery(s, 0, Math.max(limit, 10));
+  const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  const json = await trierGet(s, path, { page: 0 });
+  const list = extractList(json).slice(0, limit);
+  const sourceLabel = s.stock_source === "ecommerce"
+    ? "Estoque e-commerce: quantidadeEstoqueEcommerce"
+    : s.stock_source === "auto"
+      ? "Automático: usa quantidadeEstoqueEcommerce se existir, senão quantidadeEstoque"
+      : "Estoque real da loja: quantidadeEstoque";
+  const items = list.map((t: any) => {
+    const code = pickCode(t);
+    const name = pickName(t);
+    const rReal = t.quantidadeEstoque;
+    const rEcom = t.quantidadeEstoqueEcommerce;
+    const stockReal = rReal != null && rReal !== "" && Number.isFinite(Number(rReal)) ? Number(rReal) : null;
+    const stockEcom = rEcom != null && rEcom !== "" && Number.isFinite(Number(rEcom)) ? Number(rEcom) : null;
+    let stockSite = 0;
+    let applied = sourceLabel;
+    if (s.stock_source === "ecommerce") { stockSite = stockEcom ?? 0; }
+    else if (s.stock_source === "auto") {
+      if (stockEcom != null) { stockSite = stockEcom; applied = "Automático → quantidadeEstoqueEcommerce"; }
+      else { stockSite = stockReal ?? 0; applied = "Automático → quantidadeEstoque"; }
+    } else { stockSite = stockReal ?? 0; }
+    return {
+      trier_product_id: code,
+      name,
+      quantidadeEstoque: stockReal,
+      quantidadeEstoqueEcommerce: stockEcom,
+      estoque_usado_site: stockSite,
+      fonte_aplicada: applied,
+      ficaria_ativo: (t.ativo !== false) && stockSite > 0,
+    };
+  });
+  return { ok: true, stock_source: s.stock_source, fonte_padrao: sourceLabel, total: items.length, items };
 }
 
 
@@ -1669,6 +1752,7 @@ Deno.serve(async (req) => {
       case "toggle-auto-sync": result = await actionToggleAutoSync(!!body.paused); break;
       case "set-sync-mode": result = await actionSetSyncMode(body.mode as SyncMode); break;
       case "simulate-sync-page": result = await actionSimulateSyncPage(Number(body.offset) || 0, Number(body.pageSize) || 50, body.mode as SyncMode | undefined); break;
+      case "diag-stock-source": result = await actionDiagStockSource(Number(body.limit) || 10); break;
       case "list-barcode-divergences": result = await actionListBarcodeDivergences(Number(body.limit) || 100, Number(body.offset) || 0); break;
       case "resolve-barcode-divergence": result = await actionResolveBarcodeDivergence(body.id, body.action); break;
       case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
