@@ -1199,3 +1199,188 @@ function Stat({ label, value }: { label: string; value: any }) {
     </div>
   );
 }
+
+function SafeSyncPanel({ call, busy, settings }: { call: (a: string, b?: any, l?: string) => Promise<any>; busy: string | null; settings: any }) {
+  const [sim, setSim] = useState<any>(null);
+  const [mode, setMode] = useState<string>(settings?.sync_mode || "safe_operational");
+  const [offset, setOffset] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
+  const [divs, setDivs] = useState<any[]>([]);
+  const [logsList, setLogsList] = useState<any[]>([]);
+
+  const runSimulate = async () => {
+    const r = await call("simulate-sync-page", { offset, pageSize, mode }, "Simulação concluída");
+    if (r) setSim(r);
+  };
+  const loadDivs = async () => {
+    const r = await call("list-barcode-divergences", { limit: 100 }, "Divergências carregadas");
+    if (r?.items) setDivs(r.items);
+  };
+  const resolveDiv = async (id: string, action: "keep_current" | "use_trier" | "ignore") => {
+    await call("resolve-barcode-divergence", { id, action }, "Divergência resolvida");
+    loadDivs();
+  };
+  const loadLogs = async () => {
+    const r = await call("list-product-sync-logs", { limit: 100 }, "Logs por produto");
+    if (r?.items) setLogsList(r.items);
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold">Status atual</h2>
+          <div className="flex gap-2 flex-wrap items-center text-xs">
+            <Badge variant="outline">Modo: {settings?.sync_mode || "safe_operational"}</Badge>
+            {settings?.auto_sync_paused
+              ? <Badge variant="destructive">Cron PAUSADO</Badge>
+              : <Badge variant="secondary">Cron ATIVO</Badge>}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={settings?.auto_sync_paused ? "default" : "destructive"}
+            onClick={() => call("toggle-auto-sync", { paused: !settings?.auto_sync_paused }, settings?.auto_sync_paused ? "Retomado" : "Pausado")}
+            disabled={busy !== null}
+          >{settings?.auto_sync_paused ? "Retomar sincronização automática" : "Pausar sincronização automática"}</Button>
+          <Button variant="secondary" onClick={() => call("mark-stalled-jobs", { minutes: 20 }, "Jobs travados marcados")} disabled={busy !== null}>
+            Marcar jobs travados (&gt;20min)
+          </Button>
+          <Button variant="secondary" onClick={() => call("sync-barcodes", { trigger: "manual" }, "Sincronização de códigos iniciada")} disabled={busy !== null}>
+            Sincronizar somente códigos de barras
+          </Button>
+        </div>
+      </section>
+
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <h2 className="font-bold">Simular sincronização (não grava nada)</h2>
+        <div className="grid md:grid-cols-4 gap-2 items-end">
+          <div className="space-y-1">
+            <Label>Modo</Label>
+            <Select value={mode} onValueChange={setMode}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="safe_operational">Segura (recomendada)</SelectItem>
+                <SelectItem value="stock_only">Apenas estoque</SelectItem>
+                <SelectItem value="price_only">Apenas preços</SelectItem>
+                <SelectItem value="barcode_only">Apenas cód. barras</SelectItem>
+                <SelectItem value="create_only">Apenas criar novos</SelectItem>
+                <SelectItem value="catalog_protected">Catálogo (protegido)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Offset</Label>
+            <Input type="number" value={offset} onChange={(e) => setOffset(Number(e.target.value) || 0)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Tamanho da página</Label>
+            <Input type="number" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value) || 50)} />
+          </div>
+          <Button onClick={runSimulate} disabled={busy !== null}>Simular página</Button>
+        </div>
+        {sim && (
+          <div className="text-xs space-y-2 border-t pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <Stat label="Modo" value={sim.mode} />
+              <Stat label="Recebidos" value={sim.total} />
+              <Stat label="Seriam criados" value={sim.created} />
+              <Stat label="Seriam atualizados" value={sim.updated} />
+              <Stat label="Seriam ignorados" value={sim.skipped} />
+              <Stat label="Divergências cód." value={sim.divergences} />
+            </div>
+            <div className="overflow-auto max-h-96 border rounded">
+              <table className="w-full text-xs">
+                <thead className="bg-secondary text-left">
+                  <tr>
+                    <th className="p-2">Trier ID</th><th className="p-2">Nome</th><th className="p-2">Ação</th>
+                    <th className="p-2">Campos a alterar</th><th className="p-2">Campos protegidos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(sim.items || []).map((it: any, i: number) => (
+                    <tr key={i} className="border-t align-top">
+                      <td className="p-2">{it.trier_id}</td>
+                      <td className="p-2 max-w-[260px] truncate" title={it.name}>{it.name}</td>
+                      <td className="p-2">
+                        <Badge variant={it.action === "criar" ? "default" : it.action === "atualizar" ? "secondary" : "outline"}>{it.action}</Badge>
+                        {it.barcode_divergence && <Badge variant="destructive" className="ml-1">divergência cód.</Badge>}
+                      </td>
+                      <td className="p-2 text-[11px]">{(it.fields_updated || []).join(", ") || "—"}</td>
+                      <td className="p-2 text-[11px] text-muted-foreground">{(it.fields_protected || []).join(", ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold">Divergências de código de barras</h2>
+          <Button size="sm" variant="secondary" onClick={loadDivs} disabled={busy !== null}>Recarregar</Button>
+        </div>
+        <div className="overflow-auto border rounded">
+          <table className="w-full text-xs">
+            <thead className="bg-secondary text-left">
+              <tr>
+                <th className="p-2">Produto</th><th className="p-2">Trier ID</th>
+                <th className="p-2">Atual</th><th className="p-2">Trier</th><th className="p-2">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {divs.map((d) => (
+                <tr key={d.id} className="border-t">
+                  <td className="p-2">{d.products?.name || "—"}</td>
+                  <td className="p-2">{d.trier_product_id}</td>
+                  <td className="p-2 font-mono">{d.current_barcode}</td>
+                  <td className="p-2 font-mono">{d.trier_barcode}</td>
+                  <td className="p-2 flex gap-1 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => resolveDiv(d.id, "keep_current")}>Manter</Button>
+                    <Button size="sm" variant="default" onClick={() => resolveDiv(d.id, "use_trier")}>Usar Trier</Button>
+                    <Button size="sm" variant="ghost" onClick={() => resolveDiv(d.id, "ignore")}>Ignorar</Button>
+                  </td>
+                </tr>
+              ))}
+              {divs.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Nenhuma divergência pendente.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold">Histórico de sincronização por produto</h2>
+          <Button size="sm" variant="secondary" onClick={loadLogs} disabled={busy !== null}>Carregar últimos 100</Button>
+        </div>
+        <div className="overflow-auto border rounded max-h-96">
+          <table className="w-full text-xs">
+            <thead className="bg-secondary text-left">
+              <tr>
+                <th className="p-2">Data</th><th className="p-2">Trier ID</th><th className="p-2">Tipo</th>
+                <th className="p-2">Status</th><th className="p-2">Atualizados</th><th className="p-2">Protegidos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logsList.map((l) => (
+                <tr key={l.id} className="border-t align-top">
+                  <td className="p-2">{new Date(l.created_at).toLocaleString("pt-BR")}</td>
+                  <td className="p-2">{l.trier_product_id}</td>
+                  <td className="p-2">{l.sync_type}</td>
+                  <td className="p-2">
+                    <Badge variant={l.status === "ok" ? "secondary" : l.status === "error" ? "destructive" : "outline"}>{l.status}</Badge>
+                  </td>
+                  <td className="p-2 text-[11px]">{(l.fields_updated || []).join(", ") || "—"}</td>
+                  <td className="p-2 text-[11px] text-muted-foreground">{(l.fields_protected || []).join(", ") || "—"}</td>
+                </tr>
+              ))}
+              {logsList.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Nenhum log carregado ainda.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
