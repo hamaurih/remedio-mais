@@ -147,6 +147,8 @@ async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Setti
     ecommerce_filter: data.ecommerce_filter ?? "",
     page_size: data.page_size || PAGE_SIZE,
     branch_code: data.branch_code || "1",
+    sync_mode: (data.sync_mode as SyncMode) || "safe_operational",
+    auto_sync_paused: !!data.auto_sync_paused,
   };
 }
 
