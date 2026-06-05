@@ -70,6 +70,7 @@ const App = () => (
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="produtos" element={<AdminProducts />} />
+            <Route path="produtos/importar" element={<AdminProductsImport />} />
             <Route path="categorias" element={<AdminCategories />} />
             <Route path="banners" element={<AdminBanners />} />
             <Route path="banners/gerador" element={<AdminBannerGenerator />} />
