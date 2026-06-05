@@ -731,6 +731,11 @@ export default function AdminTrier() {
           </div>
         </TabsContent>
 
+        {/* ---------- SEGURANÇA / SIMULAÇÃO ---------- */}
+        <TabsContent value="seguranca" className="pt-4">
+          <SafeSyncPanel call={call} busy={busy} settings={settings} />
+        </TabsContent>
+
         {/* ---------- DIAGNÓSTICO ---------- */}
         <TabsContent value="diagnostico" className="pt-4">
           <DiagnosticoPanel call={call} busy={busy} />
