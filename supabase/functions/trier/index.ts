@@ -1748,10 +1748,12 @@ Deno.serve(async (req) => {
     const runAsync = (syncType: string, fn: () => Promise<any>) => {
       const p = (async () => {
         try { await fn(); }
-        catch (e: any) { await log("error", syncType, `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
+        catch (e: any) { await log(syncType, "error", `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
       })();
       // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
-      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(p);
+      if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime.waitUntil === "function") {
+        EdgeRuntime.waitUntil(p);
+      }
       return { ok: true, async: true, started: true, sync_type: syncType, message: "Sincronização iniciada em background. Acompanhe em Jobs/Logs." };
     };
 
