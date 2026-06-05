@@ -1259,7 +1259,7 @@ async function actionDiagUpsertPage(offset: number, pageSize: number, limit = 5)
     const code = pickCode(t);
     const name = pickName(t);
     const payloadPreview = { trier_product_id: code, name, stock: pickStockNum(t), price: pickPriceNum(t) };
-    const r = await upsertProductFromTrier(t);
+    const r = await upsertProductFromTrier(t, { stockSource: s.stock_source });
     results.push({ code, name, payload: payloadPreview, ...r });
   }
   return { ok: true, results };
