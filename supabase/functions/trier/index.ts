@@ -12,6 +12,14 @@ const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 const RETRY_NETWORK_CODES = ["ECONNRESET", "ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNREFUSED", "EAI_AGAIN"];
 const PAUSE_BETWEEN_PAGES_MS = 400;
 
+type SyncMode =
+  | "create_only"
+  | "stock_only"
+  | "price_only"
+  | "barcode_only"
+  | "safe_operational"
+  | "catalog_protected";
+
 type Settings = {
   environment: string;
   base_url: string;
@@ -27,6 +35,8 @@ type Settings = {
   schedule_prices_minutes: number; schedule_discounts_minutes: number;
   last_sync_products_at: string | null; last_sync_stock_at: string | null;
   last_sync_prices_at: string | null; last_sync_discounts_at: string | null;
+  sync_mode: SyncMode;
+  auto_sync_paused: boolean;
 };
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
