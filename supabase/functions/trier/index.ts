@@ -1372,7 +1372,7 @@ async function actionSyncStock(trigger = "manual") {
     );
 
     for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyStock: true });
+      const r = await upsertProductFromTrier(t, { onlyStock: true, stockSource: s.stock_source });
       if (r.updated) updated++;
       else if (r.failed) failed++;
       else ignored++;
