@@ -641,7 +641,7 @@ async function recordProductSyncLog(entry: {
 
 async function upsertProductFromTrier(
   t: any,
-  opts: { onlyStock?: boolean; onlyPrice?: boolean; mode?: SyncMode; syncType?: string; simulate?: boolean } = {},
+  opts: { onlyStock?: boolean; onlyPrice?: boolean; mode?: SyncMode; syncType?: string; simulate?: boolean; stockSource?: StockSource } = {},
 ): Promise<UpsertResult> {
   const trierId = pickCode(t);
   const name = pickName(t);
@@ -649,15 +649,29 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
 
-  const mapped: any = mapProduct(t);
+  const mapped: any = mapProduct(t, opts.stockSource || "loja");
   const autoShelves: string[] = mapped._shelves || [];
   const catNameForLink: string = mapped._category_name_for_link || "Medicamentos";
   delete mapped._shelves;
   delete mapped._category_name_for_link;
+  delete mapped._stock_source_applied;
+  delete mapped._stock_real;
+  delete mapped._stock_ecom;
+  delete mapped.discount_percentage;
+
+  // Aplica manual_disabled: nunca exibe no site se o admin desativou manualmente.
+  if (existing?.manual_disabled === true) {
+    mapped.active = false;
+  }
+
+  // Em sincronização de estoque, sempre marcar last_stock_sync_at
+  if (opts.onlyStock) {
+    mapped.last_stock_sync_at = new Date().toISOString();
+  }
   delete mapped.discount_percentage;
 
   // Resolver/criar categoria
