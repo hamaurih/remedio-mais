@@ -902,3 +902,241 @@ function StatusPill({ label, value, tone }: { label: string; value: number | str
     </div>
   );
 }
+
+// =========================================================
+//  PAINEL DE DIAGNÓSTICO TÉCNICO
+// =========================================================
+function DiagnosticoPanel({ call, busy }: { call: (a: string, b?: any, l?: string) => Promise<any>; busy: string | null }) {
+  const [dbFull, setDbFull] = useState<any>(null);
+  const [scenarios, setScenarios] = useState<any[] | null>(null);
+  const [apiTotal, setApiTotal] = useState<any>(null);
+  const [compareOffset, setCompareOffset] = useState(0);
+  const [comparePageSize, setComparePageSize] = useState(150);
+  const [compare, setCompare] = useState<any>(null);
+  const [upsertResult, setUpsertResult] = useState<any>(null);
+  const [writeTest, setWriteTest] = useState<any>(null);
+  const [stockTest, setStockTest] = useState<any>(null);
+  const [lastJob, setLastJob] = useState<any>(null);
+
+  const refreshDb = async () => {
+    const r = await call("diag-db-full", {}, "Indicadores do banco");
+    if (r) setDbFull(r);
+  };
+  const refreshLastJob = async () => {
+    const r = await call("diag-last-products-job", {}, "Último job de produtos");
+    if (r) setLastJob(r.job);
+  };
+  useEffect(() => { refreshDb(); refreshLastJob(); /* eslint-disable-next-line */ }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-yellow-500/5 border border-yellow-500/30 rounded-xl p-3 text-xs">
+        <b>Métrica principal: produtos cadastrados no banco.</b><br />
+        Produto ativo = vendável/visível. Produto sem estoque pode estar cadastrado mas <code>active=false</code> e não aparece no site público.
+        Produto só é ignorado se faltar <b>código</b> ou <b>nome</b>. Estoque 0, preço 0, sem imagem/categoria/lab/desconto <b>não</b> são motivo de ignorar.
+      </div>
+
+      {/* 1. API TRIER */}
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold">1. Diagnóstico da API Trier</h2>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={async () => { setApiTotal(null); const r = await call("diag-api-total", {}, "Diagnóstico iniciado em background"); if (r) setApiTotal(r); }} disabled={!!busy}>
+              Diagnosticar total da API Trier
+            </Button>
+            <Button size="sm" variant="secondary" onClick={async () => { setScenarios(null); const r = await call("diag-api-scenarios", {}, "Cenários iniciados em background"); if (r?.scenarios) setScenarios(r.scenarios); }} disabled={!!busy}>
+              Rodar cenários A–E
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">Pagina a API sem gravar nada. Resultado fica no log <code>diag_api_total</code> / <code>diag_api_scenarios</code> (background — atualize a aba Logs em alguns minutos).</p>
+        {apiTotal && (
+          <div className="text-xs grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+            <Stat label="Total retornado" value={apiTotal.total} />
+            <Stat label="Páginas" value={apiTotal.pages} />
+            <Stat label="Último offset" value={apiTotal.last_offset} />
+            <Stat label="Última página" value={apiTotal.last_page_count} />
+            <Stat label="Tempo (ms)" value={apiTotal.duration_ms} />
+            <Stat label="Motivo de parada" value={apiTotal.stop_reason} />
+          </div>
+        )}
+        {scenarios && (
+          <div className="overflow-auto text-xs">
+            <table className="w-full">
+              <thead className="bg-secondary"><tr><th className="p-2 text-left">Cenário</th><th className="p-2">Total</th><th className="p-2">Páginas</th><th className="p-2">Último offset</th><th className="p-2">Parada</th></tr></thead>
+              <tbody>
+                {scenarios.map((s) => (
+                  <tr key={s.id} className="border-t">
+                    <td className="p-2"><b>{s.id}</b> {s.label}</td>
+                    <td className="p-2 text-center font-bold">{s.total}</td>
+                    <td className="p-2 text-center">{s.pages}</td>
+                    <td className="p-2 text-center">{s.last_offset}</td>
+                    <td className="p-2">{s.stop_reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* 2. BANCO */}
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold">2. Diagnóstico do banco</h2>
+          <Button size="sm" variant="outline" onClick={refreshDb} disabled={!!busy}><RefreshCw className="h-3 w-3 mr-1" />Atualizar contadores</Button>
+        </div>
+        {dbFull && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <Stat label="Total cadastrados" value={dbFull.total} />
+            <Stat label="Com trier_product_id" value={dbFull.comTrier} />
+            <Stat label="Sem trier_product_id" value={dbFull.semTrier} />
+            <Stat label="Ativos" value={dbFull.ativos} />
+            <Stat label="Inativos" value={dbFull.inativos} />
+            <Stat label="Estoque > 0" value={dbFull.comEstoque} />
+            <Stat label="Estoque ≤ 0" value={dbFull.semEstoque} />
+            <Stat label="Preço > 0" value={dbFull.comPreco} />
+            <Stat label="Preço 0/nulo" value={dbFull.semPreco} />
+            <Stat label="Criados hoje" value={dbFull.criadosHoje} />
+            <Stat label="Atualizados hoje" value={dbFull.atualizadosHoje} />
+            <Stat label="Sem nome" value={dbFull.semNome} />
+            <Stat label="Duplicados (cód. Trier)" value={dbFull.duplicados_codigo_trier} />
+            <Stat label="Chave de upsert" value={dbFull.upsert_key} />
+          </div>
+        )}
+        {dbFull?.last_created && (
+          <div className="text-xs text-muted-foreground">Último criado: <b>{dbFull.last_created.name}</b> · cód. {dbFull.last_created.trier_product_id} · {new Date(dbFull.last_created.created_at).toLocaleString("pt-BR")}</div>
+        )}
+        {dbFull?.last_updated && (
+          <div className="text-xs text-muted-foreground">Último atualizado: <b>{dbFull.last_updated.name}</b> · cód. {dbFull.last_updated.trier_product_id} · {new Date(dbFull.last_updated.updated_at).toLocaleString("pt-BR")}</div>
+        )}
+        {dbFull?.duplicados_codigo_trier > 0 && (
+          <div className="text-xs text-destructive">⚠ Existem produtos sobrescritos por chave incorreta. Considere usar <code>codFilial + codigo</code>.</div>
+        )}
+      </section>
+
+      {/* 3. COMPARAÇÃO */}
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <h2 className="font-bold">3. Comparar página da API com banco</h2>
+        <div className="flex gap-2 items-end flex-wrap">
+          <div><Label className="text-xs">primeiroRegistro</Label><Input className="w-32" type="number" value={compareOffset} onChange={(e) => setCompareOffset(Number(e.target.value) || 0)} /></div>
+          <div><Label className="text-xs">quantidadeRegistros</Label><Input className="w-28" type="number" value={comparePageSize} onChange={(e) => setComparePageSize(Number(e.target.value) || 150)} /></div>
+          <Button size="sm" onClick={async () => { setCompare(null); const r = await call("diag-compare-page", { offset: compareOffset, pageSize: comparePageSize }, "Comparação concluída"); if (r) setCompare(r); }} disabled={!!busy}>Comparar</Button>
+          <Button size="sm" variant="secondary" onClick={async () => { setUpsertResult(null); const r = await call("diag-upsert-page", { offset: compareOffset, pageSize: comparePageSize, limit: 5 }, "Upsert de 5 testado"); if (r) setUpsertResult(r); }} disabled={!!busy}>Testar upsert (5)</Button>
+        </div>
+        {compare && (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {Object.entries(compare.sum).map(([k, v]: any) => <Stat key={k} label={k} value={v} />)}
+            </div>
+            <div className="overflow-auto text-xs max-h-96 mt-2 border rounded">
+              <table className="w-full">
+                <thead className="bg-secondary sticky top-0"><tr><th className="p-1 text-left">Código</th><th className="p-1 text-left">Nome</th><th className="p-1">Estoque</th><th className="p-1">Preço</th><th className="p-1">No banco</th><th className="p-1">Ação</th><th className="p-1">Motivo</th></tr></thead>
+                <tbody>
+                  {compare.items.map((it: any, i: number) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-1 font-mono">{it.code || <i className="text-destructive">—</i>}</td>
+                      <td className="p-1 max-w-[260px] truncate">{it.name || <i className="text-destructive">—</i>}</td>
+                      <td className="p-1 text-center">{it.stock ?? "—"}</td>
+                      <td className="p-1 text-center">{it.price ?? "—"}</td>
+                      <td className="p-1 text-center">{it.existe ? "sim" : "não"}</td>
+                      <td className="p-1 text-center"><Badge variant={it.acao === "ignorar" ? "destructive" : it.acao === "criar" ? "default" : "secondary"}>{it.acao}</Badge></td>
+                      <td className="p-1">{it.motivo}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {upsertResult && (
+          <div className="text-xs space-y-1 border rounded p-2 bg-muted/30">
+            <div className="font-bold">Resultado real de upsert (até 5):</div>
+            {upsertResult.results.map((r: any, i: number) => (
+              <div key={i} className="border-t pt-1">
+                <div><b>{r.code}</b> {r.name} — {r.created ? "✅ criado" : r.updated ? "🔄 atualizado" : r.skipped ? `⏭ ignorado (${r.reason})` : r.failed ? "❌ erro" : "?"}</div>
+                {r.error && <div className="text-destructive">erro: {r.error}</div>}
+                <details><summary className="cursor-pointer text-muted-foreground">payload</summary><pre className="bg-muted p-1 rounded mt-1">{JSON.stringify(r.payload, null, 2)}</pre></details>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 4. WRITE TEST */}
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold">4. Teste de gravação no banco</h2>
+          <Button size="sm" onClick={async () => { setWriteTest(null); const r = await call("diag-db-write", {}, "Teste de gravação executado"); if (r) setWriteTest(r); }} disabled={!!busy}>Testar gravação</Button>
+        </div>
+        {writeTest && (
+          <div className="text-xs space-y-1">
+            <div>trier_product_id de teste: <code>{writeTest.trier_id}</code></div>
+            {(["insert", "update", "delete"] as const).map((k) => (
+              <div key={k}>
+                <b>{k}:</b> {writeTest[k]?.ok ? "✅ ok" : <span className="text-destructive">❌ {writeTest[k]?.error} {writeTest[k]?.code ? `(code ${writeTest[k].code})` : ""}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 5. ESTOQUE ENDPOINT */}
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold">5. Diagnóstico do endpoint de estoque</h2>
+          <Button size="sm" onClick={async () => { setStockTest(null); const r = await call("diag-stock-endpoint", {}, "Endpoint de estoque testado"); if (r) setStockTest(r); }} disabled={!!busy}>Testar /estoque/obter-todos-v1</Button>
+        </div>
+        {stockTest && (
+          <div className="text-xs space-y-2">
+            <div className="font-medium">{stockTest.recomendacao}</div>
+            <table className="w-full">
+              <thead className="bg-secondary"><tr><th className="p-1 text-left">Variação</th><th className="p-1">HTTP</th><th className="p-1">Registros</th></tr></thead>
+              <tbody>
+                {stockTest.variants.map((v: any) => (
+                  <tr key={v.id} className="border-t"><td className="p-1">{v.label}</td><td className="p-1 text-center">{v.status}</td><td className="p-1 text-center font-bold">{v.count}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* 6. ÚLTIMO JOB */}
+      <section className="bg-card border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-bold">6. Última sincronização completa</h2>
+          <Button size="sm" variant="outline" onClick={refreshLastJob} disabled={!!busy}><RefreshCw className="h-3 w-3 mr-1" />Atualizar</Button>
+        </div>
+        {lastJob ? (
+          <div className="text-xs grid grid-cols-2 md:grid-cols-3 gap-2">
+            <Stat label="Status" value={lastJob.status} />
+            <Stat label="Início" value={lastJob.started_at ? new Date(lastJob.started_at).toLocaleString("pt-BR") : "—"} />
+            <Stat label="Fim" value={lastJob.finished_at ? new Date(lastJob.finished_at).toLocaleString("pt-BR") : "—"} />
+            <Stat label="Recebidos da API" value={(lastJob.details as any)?.total_returned_api ?? lastJob.records_checked ?? "—"} />
+            <Stat label="Únicos processados" value={(lastJob.details as any)?.unique_processed ?? "—"} />
+            <Stat label="Páginas" value={(lastJob.details as any)?.pages_consulted ?? "—"} />
+            <Stat label="Último offset" value={(lastJob.details as any)?.last_offset ?? "—"} />
+            <Stat label="Criados" value={lastJob.records_created ?? 0} />
+            <Stat label="Atualizados" value={lastJob.records_updated ?? 0} />
+            <Stat label="Ignorados" value={lastJob.records_ignored ?? 0} />
+            <Stat label="Com erro" value={lastJob.records_failed ?? 0} />
+            <Stat label="Erro" value={lastJob.error_message || "—"} />
+            <div className="col-span-full">
+              <details><summary className="cursor-pointer text-muted-foreground">Detalhes completos (per_filter, stop_reasons, ignored_reasons)</summary><pre className="bg-muted p-2 rounded mt-1 max-h-64 overflow-auto">{JSON.stringify(lastJob.details, null, 2)}</pre></details>
+            </div>
+          </div>
+        ) : <div className="text-xs text-muted-foreground">Nenhum job de produtos ainda.</div>}
+      </section>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="bg-muted/50 rounded p-2">
+      <div className="text-muted-foreground text-[10px] uppercase">{label}</div>
+      <div className="font-bold text-sm break-all">{String(value ?? "—")}</div>
+    </div>
+  );
+}
