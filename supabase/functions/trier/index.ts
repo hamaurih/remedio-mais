@@ -1595,7 +1595,7 @@ async function actionSimulateSyncPage(offset = 0, pageSize = 50, mode?: SyncMode
   const json = await trierGet(s, `/rest/integracao/produto/obter-todos-v1?${qs}`, { page: Math.floor(offset / pageSize) });
   const list = extractList(json);
   const results: UpsertResult[] = [];
-  for (const t of list) results.push(await upsertProductFromTrier(t, { mode: effMode, simulate: true, syncType: "simulate" }));
+  for (const t of list) results.push(await upsertProductFromTrier(t, { mode: effMode, simulate: true, syncType: "simulate", stockSource: s.stock_source }));
   const created = results.filter((r) => r.created).length;
   const updated = results.filter((r) => r.updated).length;
   const skipped = results.filter((r) => r.skipped).length;
