@@ -891,8 +891,9 @@ async function actionSyncProducts(trigger = "manual", changed = false, modeOverr
       }
     }
 
+    const mode: SyncMode = modeOverride || s.sync_mode || "safe_operational";
     const results: UpsertResult[] = [];
-    for (const t of allItems) results.push(await upsertProductFromTrier(t));
+    for (const t of allItems) results.push(await upsertProductFromTrier(t, { mode, syncType: changed ? "products_changed" : "products" }));
     const sum = summarizeResults(results);
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
 
