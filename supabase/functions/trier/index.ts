@@ -49,6 +49,11 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const chunk = <T>(items: T[], size: number) => {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+};
 
 function normalizeAuthorization(input: string): string {
   const cleaned = (input || "")
@@ -365,6 +370,9 @@ async function startJob(sync_type: string, trigger: string) {
   const { data } = await supabase.from("trier_sync_jobs")
     .insert({ sync_type, trigger, status: "running" }).select().single();
   return data!;
+}
+async function updateJobProgress(id: string, patch: any) {
+  await supabase.from("trier_sync_jobs").update(patch).eq("id", id);
 }
 async function finishJob(id: string, patch: any) {
   await supabase.from("trier_sync_jobs").update({ ...patch, finished_at: new Date().toISOString() }).eq("id", id);
@@ -905,6 +913,104 @@ function summarizeResults(results: UpsertResult[]) {
   return { created, updated, failed, ignored, ignored_reasons, errors, sampleIgnored };
 }
 
+function pickStoreStockOnly(t: any): number | null {
+  const raw = firstNonEmpty(t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function applyStockPage(items: any[]) {
+  const now = new Date().toISOString();
+  const ignored_reasons: Record<string, number> = {};
+  const addIgnored = (reason: string) => { ignored_reasons[reason] = (ignored_reasons[reason] || 0) + 1; };
+
+  const codes = Array.from(new Set(items.map(pickCode).filter(Boolean)));
+  if (codes.length === 0) {
+    return { checked: items.length, updated: 0, ignored: items.length, failed: 0, ignored_reasons: { sem_codigo: items.length } };
+  }
+
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("products")
+    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock")
+    .in("trier_product_id", codes);
+
+  if (existingErr) {
+    throw new Error(`Erro consultando produtos para sync de estoque: ${existingErr.message}`);
+  }
+
+  const existingMap = new Map((existingRows || []).map((row: any) => [String(row.trier_product_id), row]));
+  const patches: any[] = [];
+  let ignored = 0;
+
+  for (const item of items) {
+    const trierId = pickCode(item);
+    if (!trierId) {
+      ignored++;
+      addIgnored("sem_codigo");
+      continue;
+    }
+
+    const existing = existingMap.get(String(trierId));
+    if (!existing) {
+      ignored++;
+      addIgnored("sem_mapeamento_ainda");
+      continue;
+    }
+
+    if (existing.lock_manual_stock) {
+      ignored++;
+      addIgnored("estoque_manual_bloqueado");
+      continue;
+    }
+
+    const stockReal = pickStoreStockOnly(item);
+    const stockSite = stockReal ?? 0;
+    const nextActive = existing.manual_disabled === true ? false : (existing.trier_active !== false && stockSite > 0);
+
+    const changed =
+      existing.stock !== stockSite ||
+      existing.stock_quantity !== stockSite ||
+      existing.trier_stock_quantity !== stockReal ||
+      existing.active !== nextActive;
+
+    if (!changed) {
+      ignored++;
+      addIgnored("sem_alteracao");
+      continue;
+    }
+
+    patches.push({
+      id: existing.id,
+      stock: stockSite,
+      stock_quantity: stockSite,
+      trier_stock_quantity: stockReal,
+      active: nextActive,
+      last_stock_sync_at: now,
+      last_trier_sync_at: now,
+      source: "trier",
+    });
+  }
+
+  if (patches.length === 0) {
+    return { checked: items.length, updated: 0, ignored, failed: 0, ignored_reasons };
+  }
+
+  let updatedCount = 0;
+  let failedCount = 0;
+  for (const batch of chunk(patches, 200)) {
+    const { error: patchErr } = await supabase.from("products").upsert(batch, { onConflict: "id" });
+    if (patchErr) {
+      failedCount += batch.length;
+      await log("stock", "error", "Falha ao aplicar lote de estoque no banco", { error: patchErr.message, batch_size: batch.length });
+    } else {
+      updatedCount += batch.length;
+    }
+  }
+
+  return { checked: items.length, updated: updatedCount, ignored, failed: failedCount, ignored_reasons };
+}
+
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
@@ -1349,46 +1455,90 @@ async function actionSyncCategories(trigger = "manual") {
 async function actionSyncStock(trigger = "manual") {
   const s = await getSettings();
   const job = await startJob("stock", trigger);
-  let updated = 0, ignored = 0, failed = 0;
+  let updated = 0, ignored = 0, failed = 0, checked = 0, pages = 0, last_offset = 0;
+  const ignored_reasons: Record<string, number> = {};
   try {
     const ecom = ecommerceParamOrOmit(s); // undefined => omitido
     const codFilial = s.branch_code ?? 1;
     const ecomStatus = ecom === undefined ? "omitido" : ecom;
 
-    await log("info", "stock", "Iniciando sincronização de estoque", {
+    await log("stock", "info", "Iniciando sincronização de estoque", {
       endpoint: "/rest/integracao/estoque/obter-todos-v1",
       codFilial,
       integracaoEcommerce: ecomStatus,
       pageSize: 150,
     });
 
-    const list = await paginateSimple(s, (o, q) =>
-      `/rest/integracao/estoque/obter-todos-v1?${buildQueryParams({
+    let offset = 0;
+    const pageSize = PAGE_SIZE;
+    while (true) {
+      const path = `/rest/integracao/estoque/obter-todos-v1?${buildQueryParams({
         codFilial,
-        primeiroRegistro: o,
-        quantidadeRegistros: q,
+        primeiroRegistro: offset,
+        quantidadeRegistros: pageSize,
         integracaoEcommerce: ecom,
-      })}`
-    );
+      })}`;
+      const json = await trierGet(s, path, { page: pages });
+      const list = extractList(json);
+      const batch = await applyStockPage(list);
 
-    for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyStock: true, stockSource: s.stock_source });
-      if (r.updated) updated++;
-      else if (r.failed) failed++;
-      else ignored++;
+      checked += batch.checked;
+      updated += batch.updated;
+      ignored += batch.ignored;
+      failed += batch.failed;
+      last_offset = offset;
+      pages += 1;
+      Object.entries(batch.ignored_reasons).forEach(([reason, count]) => {
+        ignored_reasons[reason] = (ignored_reasons[reason] || 0) + Number(count || 0);
+      });
+
+      await updateJobProgress(job.id, {
+        records_checked: checked,
+        records_updated: updated,
+        records_failed: failed,
+        records_ignored: ignored,
+        details: {
+          codFilial,
+          integracaoEcommerce: ecomStatus,
+          total_returned: checked,
+          processed: updated + failed + ignored,
+          pages_consulted: pages,
+          last_offset,
+          ignored_reasons,
+        },
+      });
+
+      if (list.length < pageSize) break;
+      offset += pageSize;
+      await sleep(PAUSE_BETWEEN_PAGES_MS);
+      if (offset > 75000) break;
     }
+
     await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() }).eq("id", 1);
+    await log("stock", failed > 0 ? "error" : "success", `Estoque sincronizado: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, {
+      codFilial,
+      integracaoEcommerce: ecomStatus,
+      total_returned: checked,
+      updated,
+      ignored,
+      failed,
+      pages_consulted: pages,
+      last_offset,
+      ignored_reasons,
+    });
     await finishJob(job.id, {
       status: "success",
-      records_checked: list.length,
+      records_checked: checked,
       records_updated: updated,
       records_failed: failed,
       records_ignored: ignored,
-      details: { codFilial, integracaoEcommerce: ecomStatus, total_returned: list.length },
+      details: { codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, pages_consulted: pages, last_offset, ignored_reasons },
     });
-    return { ok: true, total: list.length, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus };
+    return { ok: true, total: checked, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus, pages_consulted: pages, last_offset };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
+    const msg = String(e.message).slice(0, 1200);
+    await log("stock", "error", "Erro na sincronização de estoque", { error: msg, job_id: job.id });
+    await finishJob(job.id, { status: "error", error_message: msg });
     return { ok: false, error: e.message };
   }
 }
@@ -1716,10 +1866,12 @@ Deno.serve(async (req) => {
     const runAsync = (syncType: string, fn: () => Promise<any>) => {
       const p = (async () => {
         try { await fn(); }
-        catch (e: any) { await log("error", syncType, `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
+        catch (e: any) { await log(syncType, "error", `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
       })();
       // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
-      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(p);
+      if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime.waitUntil === "function") {
+        EdgeRuntime.waitUntil(p);
+      }
       return { ok: true, async: true, started: true, sync_type: syncType, message: "Sincronização iniciada em background. Acompanhe em Jobs/Logs." };
     };
 
