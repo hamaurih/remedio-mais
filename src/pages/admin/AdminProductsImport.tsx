@@ -170,6 +170,11 @@ export default function AdminProductsImport() {
   const [history, setHistory] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  // XLSX multi-sheet support
+  const xlsxWbRef = useRef<XLSX.WorkBook | null>(null);
+  const [xlsxSheets, setXlsxSheets] = useState<{ name: string; rows: number; score: number }[]>([]);
+  const [xlsxActiveSheet, setXlsxActiveSheet] = useState<string>("");
+
   const [opts, setOpts] = useState({
     importNew: true,
     updateExisting: true,
