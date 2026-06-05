@@ -380,6 +380,57 @@ export default function AdminTrier() {
             <p className="text-xs text-muted-foreground border-t pt-2">⚠️ Padrão: Gateway Trier em HTTPS. Use Produção apenas se configurado IP/DDNS local.</p>
           </div>
 
+          <div className="bg-card border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold">Modo de sincronização (proteção de campos manuais)</h2>
+              {settings?.auto_sync_paused
+                ? <Badge variant="destructive">Automática PAUSADA</Badge>
+                : <Badge variant="secondary">Automática ATIVA</Badge>}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A Trier alimenta <b>preço, estoque, código de barras e dados técnicos</b>. O admin do site controla <b>imagem, descrição, categoria comercial, prateleiras, SEO, destaque e ativo manual</b>.
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Modo padrão</Label>
+                <Select
+                  value={form.sync_mode || "safe_operational"}
+                  onValueChange={(v) => setForm({ ...form, sync_mode: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="safe_operational">Segura: estoque + preço + cód. barras (recomendado)</SelectItem>
+                    <SelectItem value="stock_only">Apenas estoque</SelectItem>
+                    <SelectItem value="price_only">Apenas preços</SelectItem>
+                    <SelectItem value="barcode_only">Apenas códigos de barras</SelectItem>
+                    <SelectItem value="create_only">Apenas criar novos produtos</SelectItem>
+                    <SelectItem value="catalog_protected">Catálogo completo (protege campos manuais)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end gap-2 flex-wrap">
+                <Button
+                  variant={settings?.auto_sync_paused ? "default" : "destructive"}
+                  onClick={() => call("toggle-auto-sync", { paused: !settings?.auto_sync_paused }, settings?.auto_sync_paused ? "Sincronização retomada" : "Sincronização pausada")}
+                  disabled={busy !== null}
+                >
+                  {settings?.auto_sync_paused ? "Retomar sincronização automática" : "Pausar sincronização automática"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => call("mark-stalled-jobs", { minutes: 20 }, "Jobs travados marcados")}
+                  disabled={busy !== null}
+                >
+                  Marcar jobs travados como falhos
+                </Button>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground border-t pt-2">
+              Campos sempre protegidos: <code>image_url, gallery_images, slug, seo_*, shelves, featured, tags, product_badge</code>.
+              Flags por produto: <code>manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves</code>.
+            </div>
+          </div>
+
           <div className="bg-card border rounded-xl p-4 space-y-2">
             <h2 className="font-bold">Flags de sincronização</h2>
             <p className="text-xs text-muted-foreground">O parâmetro <code>integracaoEcommerce</code> é configurado acima (vazio / true / false).</p>
