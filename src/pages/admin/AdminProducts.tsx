@@ -50,35 +50,56 @@ export default function AdminProducts() {
   const [catFilter, setCatFilter] = useState("all");
   const [manuFilter, setManuFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
-  const { data: products } = useQuery({
-    queryKey: ["admin_products"],
-    queryFn: async () =>
-      (await supabase.from("products").select("*, categories(name)").order("created_at", { ascending: false })).data || [],
+  // Reset to page 1 whenever filters change
+  useMemo(() => { setPage(1); }, [search, catFilter, manuFilter, statusFilter, pageSize]);
+
+  const { data: productsResp } = useQuery({
+    queryKey: ["admin_products", { search, catFilter, manuFilter, statusFilter, page, pageSize }],
+    queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      let q = supabase
+        .from("products")
+        .select("*, categories(name)", { count: "exact" })
+        .order("created_at", { ascending: false });
+      if (search) q = q.ilike("name", `%${search}%`);
+      if (catFilter !== "all") q = q.eq("category_id", catFilter);
+      if (manuFilter !== "all") q = q.eq("manufacturer", manuFilter);
+      if (statusFilter === "active") q = q.eq("active", true);
+      if (statusFilter === "inactive") q = q.eq("active", false);
+      if (statusFilter === "sale") q = q.not("promo_price", "is", null);
+      const { data, count } = await q.range(from, to);
+      return { rows: data || [], count: count || 0 };
+    },
   });
+  const products = productsResp?.rows || [];
+  const totalCount = productsResp?.count || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
   const { data: cats } = useQuery({
     queryKey: ["admin_cats_list"],
     queryFn: async () => (await supabase.from("categories").select("*").order("position")).data || [],
   });
 
-  const manufacturers = useMemo(() => {
-    const s = new Set<string>();
-    (products || []).forEach((p: any) => { if (p.manufacturer) s.add(p.manufacturer); });
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [products]);
+  // Distinct manufacturers (fetched separately so it stays stable across pages)
+  const { data: manufacturers = [] } = useQuery({
+    queryKey: ["admin_manufacturers"],
+    queryFn: async () => {
+      const { data } = await supabase.from("products").select("manufacturer").not("manufacturer", "is", null).limit(5000);
+      const s = new Set<string>();
+      (data || []).forEach((p: any) => { if (p.manufacturer) s.add(p.manufacturer); });
+      return Array.from(s).sort((a, b) => a.localeCompare(b));
+    },
+  });
 
+  // Local-only refinement for "low stock" (needs minimum_stock comparison)
   const filtered = useMemo(() => {
-    return (products || []).filter((p: any) => {
-      if (search && !p.name?.toLowerCase().includes(search.toLowerCase())) return false;
-      if (catFilter !== "all" && p.category_id !== catFilter) return false;
-      if (manuFilter !== "all" && p.manufacturer !== manuFilter) return false;
-      if (statusFilter === "active" && !p.active) return false;
-      if (statusFilter === "inactive" && p.active) return false;
-      if (statusFilter === "sale" && !(p.on_sale || p.promo_price)) return false;
-      if (statusFilter === "low" && !(p.stock <= (p.minimum_stock ?? 5))) return false;
-      return true;
-    });
-  }, [products, search, catFilter, manuFilter, statusFilter]);
+    if (statusFilter !== "low") return products;
+    return products.filter((p: any) => p.stock <= (p.minimum_stock ?? 5));
+  }, [products, statusFilter]);
 
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
