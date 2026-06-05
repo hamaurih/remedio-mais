@@ -286,7 +286,7 @@ export default function AdminProductsImport() {
       async function fetchIn(col: string, vals: string[]) {
         for (let i = 0; i < vals.length; i += 200) {
           const chunk = vals.slice(i, i + 200);
-          const { data } = await supabase.from("products").select("id,name,trier_product_id,barcode,sku,price,promo_price,stock,active,manufacturer,category_id,image_url").in(col, chunk);
+          const { data } = await (supabase as any).from("products").select("id,name,trier_product_id,barcode,sku,price,promo_price,stock,active,manufacturer,category_id,image_url").in(col, chunk);
           (data || []).forEach((p) => { matches[`${col}:${(p as any)[col]}`] = p; });
         }
       }
