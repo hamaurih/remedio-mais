@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS orders_owner_update_pending ON public.orders;
