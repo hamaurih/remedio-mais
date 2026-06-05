@@ -677,6 +677,11 @@ export default function AdminTrier() {
           </div>
         </TabsContent>
 
+        {/* ---------- DIAGNÓSTICO ---------- */}
+        <TabsContent value="diagnostico" className="pt-4">
+          <DiagnosticoPanel call={call} busy={busy} />
+        </TabsContent>
+
         {/* ---------- LOGS ---------- */}
         <TabsContent value="logs" className="pt-4">
           <div className="bg-card border rounded-xl overflow-hidden">
