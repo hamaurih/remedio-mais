@@ -177,7 +177,10 @@ export default function AdminProducts() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-extrabold">Produtos</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild><a href="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</a></Button>
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
+        </div>
       </div>
 
       <div className="bg-card border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-center">
