@@ -1358,7 +1358,7 @@ async function actionSyncStock(trigger = "manual") {
     const codFilial = s.branch_code ?? 1;
     const ecomStatus = ecom === undefined ? "omitido" : ecom;
 
-    await log("info", "stock", "Iniciando sincronização de estoque", {
+    await log("stock", "info", "Iniciando sincronização de estoque", {
       endpoint: "/rest/integracao/estoque/obter-todos-v1",
       codFilial,
       integracaoEcommerce: ecomStatus,
@@ -1374,13 +1374,40 @@ async function actionSyncStock(trigger = "manual") {
       })}`
     );
 
+    await updateJobProgress(job.id, {
+      records_checked: list.length,
+      details: { codFilial, integracaoEcommerce: ecomStatus, total_returned: list.length },
+    });
+
     for (const t of list) {
       const r = await upsertProductFromTrier(t, { onlyStock: true, stockSource: s.stock_source });
       if (r.updated) updated++;
       else if (r.failed) failed++;
       else ignored++;
+
+      if ((updated + failed + ignored) % 100 === 0) {
+        await updateJobProgress(job.id, {
+          records_updated: updated,
+          records_failed: failed,
+          records_ignored: ignored,
+          details: {
+            codFilial,
+            integracaoEcommerce: ecomStatus,
+            total_returned: list.length,
+            processed: updated + failed + ignored,
+          },
+        });
+      }
     }
     await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() }).eq("id", 1);
+    await log("stock", failed > 0 ? "error" : "success", `Estoque sincronizado: ${list.length} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, {
+      codFilial,
+      integracaoEcommerce: ecomStatus,
+      total_returned: list.length,
+      updated,
+      ignored,
+      failed,
+    });
     await finishJob(job.id, {
       status: "success",
       records_checked: list.length,
@@ -1391,7 +1418,9 @@ async function actionSyncStock(trigger = "manual") {
     });
     return { ok: true, total: list.length, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus };
   } catch (e: any) {
-    await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
+    const msg = String(e.message).slice(0, 1200);
+    await log("stock", "error", "Erro na sincronização de estoque", { error: msg, job_id: job.id });
+    await finishJob(job.id, { status: "error", error_message: msg });
     return { ok: false, error: e.message };
   }
 }
