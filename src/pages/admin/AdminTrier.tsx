@@ -139,7 +139,8 @@ export default function AdminTrier() {
       page_size: Number(form.page_size) || 150,
       ecommerce_filter: form.ecommerce_filter ?? "",
     };
-    if (tokenInput) payload.bearer_token = tokenInput.trim().replace(/^['"]|['"]$/g, "").replace(/^Bearer\s+/i, "").trim();
+    // Token is managed exclusively via the TRIER_API_TOKEN backend secret; never store it in DB.
+    delete payload.bearer_token;
     delete payload.id; delete payload.created_at; delete payload.updated_at;
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
@@ -363,8 +364,8 @@ export default function AdminTrier() {
               <div className="space-y-1"><Label>Base URL</Label><Input value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder={GATEWAY_BASE_URL} /></div>
               <div className="space-y-1 md:col-span-2">
                 <Label>Bearer Token</Label>
-                <Input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder={tokenInput ? maskToken(tokenInput) : "Cole o token aqui (com ou sem prefixo Bearer)"} />
-                <p className="text-xs text-muted-foreground">Aceita "Bearer eyJ..." ou somente "eyJ...". Nunca exibido após salvo.</p>
+                <Input value="••• gerenciado por secret TRIER_API_TOKEN •••" disabled readOnly />
+                <p className="text-xs text-muted-foreground">O token Trier é armazenado apenas como secret no backend (TRIER_API_TOKEN). Para alterá-lo, atualize o secret nas configurações do projeto.</p>
               </div>
               <div className="space-y-1"><Label>Código da filial (codFilial)</Label><Input value={form.branch_code || ""} onChange={(e) => setForm({ ...form, branch_code: e.target.value })} placeholder="1" /></div>
               <div className="space-y-1"><Label>Tamanho da página</Label><Input type="number" value={form.page_size || 150} onChange={(e) => setForm({ ...form, page_size: Number(e.target.value) })} /></div>

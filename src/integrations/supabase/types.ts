@@ -1355,7 +1355,6 @@ export type Database = {
         Row: {
           auto_sync_paused: boolean
           base_url: string
-          bearer_token: string | null
           branch_code: string | null
           check_order_status_enabled: boolean
           created_at: string
@@ -1388,7 +1387,6 @@ export type Database = {
         Insert: {
           auto_sync_paused?: boolean
           base_url?: string
-          bearer_token?: string | null
           branch_code?: string | null
           check_order_status_enabled?: boolean
           created_at?: string
@@ -1421,7 +1419,6 @@ export type Database = {
         Update: {
           auto_sync_paused?: boolean
           base_url?: string
-          bearer_token?: string | null
           branch_code?: string | null
           check_order_status_enabled?: boolean
           created_at?: string

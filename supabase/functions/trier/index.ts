@@ -141,13 +141,14 @@ async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Setti
   const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
   if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
   const baseUrl = normalizeBaseUrl(data.base_url);
-  const token = (data.bearer_token || FALLBACK_TOKEN || "").trim();
+  // Token is sourced exclusively from the TRIER_API_TOKEN secret (never stored in DB).
+  const token = (FALLBACK_TOKEN || "").trim();
 
   if (data.base_url !== baseUrl) {
     await supabase.from("trier_settings").update({ base_url: baseUrl }).eq("id", 1);
   }
 
-  if (!token && opts.requireToken !== false) throw new Error("Token Trier não informado.");
+  if (!token && opts.requireToken !== false) throw new Error("Token Trier não informado (configure o secret TRIER_API_TOKEN).");
   return {
     ...data,
     base_url: baseUrl,
