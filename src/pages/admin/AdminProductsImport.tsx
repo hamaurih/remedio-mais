@@ -265,7 +265,6 @@ export default function AdminProductsImport() {
       toast.error("Erro ao ler arquivo: " + e.message);
     }
   }
-  }
 
   function findArray(obj: any): Row[] {
     if (Array.isArray(obj)) return obj.filter((x) => typeof x === "object");
