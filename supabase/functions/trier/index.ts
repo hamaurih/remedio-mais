@@ -793,6 +793,232 @@ async function actionDbStats() {
   };
 }
 
+// ============================================================
+//  DIAGNÓSTICO TÉCNICO — só leitura / testes pontuais
+// ============================================================
+
+function buildDiagProductsQuery(
+  branch: string | null,
+  offset: number,
+  pageSize: number,
+  opts: { ativo?: "true" | "false" | "__none__"; ecom?: "true" | "false" | "" | "__none__" } = {},
+): string {
+  const params = new URLSearchParams();
+  if (branch) params.set("codFilial", String(branch));
+  params.set("primeiroRegistro", String(offset));
+  params.set("quantidadeRegistros", String(pageSize));
+  if (opts.ativo !== "__none__") params.set("ativo", opts.ativo ?? "true");
+  if (opts.ecom !== "__none__") params.set("integracaoEcommerce", opts.ecom ?? "");
+  params.set("processaCustoMedio", "false");
+  return params.toString();
+}
+
+// Paginação sem gravar — apenas conta + amostra primeiro/último
+async function paginateCountOnly(
+  s: Settings,
+  endpointPath: string,
+  opts: { ativo?: "true" | "false" | "__none__"; ecom?: "true" | "false" | "" | "__none__"; maxPages?: number } = {},
+): Promise<{ pages: number; last_offset: number; last_page_count: number; total: number; stop_reason: string; first_item: any; first_item_keys: string[]; last_item: any; last_item_keys: string[]; duration_ms: number }> {
+  const max = opts.maxPages ?? 400;
+  let page = 0, total = 0, last_offset = 0, last_page_count = 0, stop_reason = "concluido";
+  let first_item: any = null, last_item: any = null;
+  const started = Date.now();
+  while (page < max) {
+    const offset = page * PAGE_SIZE;
+    last_offset = offset;
+    const qs = buildDiagProductsQuery(s.branch_code, offset, PAGE_SIZE, opts);
+    const path = `${endpointPath}?${qs}`;
+    let list: any[] = [];
+    try {
+      const json = await trierGet(s, path, { page });
+      list = extractList(json);
+    } catch (e: any) {
+      stop_reason = `erro_pagina_${page}: ${String(e?.message || e).slice(0, 160)}`;
+      break;
+    }
+    last_page_count = list.length;
+    if (list.length > 0) {
+      if (first_item == null) first_item = list[0];
+      last_item = list[list.length - 1];
+    }
+    total += list.length;
+    if (list.length === 0) { stop_reason = "resposta_vazia"; break; }
+    if (list.length < PAGE_SIZE) { stop_reason = "pagina_parcial"; break; }
+    page++;
+    if (page >= max) { stop_reason = `limite_seguranca_${max}_paginas`; break; }
+    await sleep(PAUSE_BETWEEN_PAGES_MS);
+  }
+  return {
+    pages: page + (stop_reason === "concluido" ? 0 : 1),
+    last_offset, last_page_count, total, stop_reason,
+    first_item, first_item_keys: first_item && typeof first_item === "object" ? Object.keys(first_item) : [],
+    last_item, last_item_keys: last_item && typeof last_item === "object" ? Object.keys(last_item) : [],
+    duration_ms: Date.now() - started,
+  };
+}
+
+async function actionDiagApiTotal() {
+  const s = await getSettings();
+  const r = await paginateCountOnly(s, "/rest/integracao/produto/obter-todos-v1", { ativo: "true", ecom: "" });
+  await log("diag_api_total", "info", `Diagnóstico API: ${r.total} produtos · ${r.pages} páginas · parada=${r.stop_reason}`, r);
+  return { ok: true, ...r };
+}
+
+async function actionDiagApiScenarios() {
+  const s = await getSettings();
+  const scenarios: { id: string; label: string; ativo: "true" | "false" | "__none__"; ecom: "true" | "false" | "" | "__none__" }[] = [
+    { id: "A", label: "ativo=true · integracaoEcommerce=(vazio)", ativo: "true", ecom: "" },
+    { id: "B", label: "sem ativo · integracaoEcommerce=(vazio)", ativo: "__none__", ecom: "" },
+    { id: "C", label: "ativo=(vazio enviado)", ativo: "__none__", ecom: "" },
+    { id: "D", label: "ativo=true · integracaoEcommerce=true", ativo: "true", ecom: "true" },
+    { id: "E", label: "sem ativo · sem integracaoEcommerce", ativo: "__none__", ecom: "__none__" },
+  ];
+  const out: any[] = [];
+  for (const sc of scenarios) {
+    const r = await paginateCountOnly(s, "/rest/integracao/produto/obter-todos-v1", { ativo: sc.ativo, ecom: sc.ecom });
+    out.push({ id: sc.id, label: sc.label, total: r.total, pages: r.pages, last_offset: r.last_offset, stop_reason: r.stop_reason, duration_ms: r.duration_ms });
+  }
+  await log("diag_api_scenarios", "info", `Cenários API: ${out.map((o) => `${o.id}=${o.total}`).join(" · ")}`, { scenarios: out });
+  return { ok: true, scenarios: out };
+}
+
+async function actionDiagDbFull() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isoToday = today.toISOString();
+  const c = async (q: any) => (await q).count || 0;
+  const [
+    total, ativos, inativos, comTrier, semTrier, comEstoque, semEstoque,
+    comPreco, semPreco, criadosHoje, atualizadosHoje, semNome,
+  ] = await Promise.all([
+    c(supabase.from("products").select("id", { count: "exact", head: true })),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).eq("active", false)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).not("trier_product_id", "is", null)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).is("trier_product_id", null)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).gt("stock", 0)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).lte("stock", 0)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).gt("price", 0)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).or("price.is.null,price.eq.0")),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).gte("created_at", isoToday)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).gte("updated_at", isoToday)),
+    c(supabase.from("products").select("id", { count: "exact", head: true }).or("name.is.null,name.eq.")),
+  ]);
+  const { data: lastCreated } = await supabase.from("products").select("id,name,trier_product_id,created_at").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: lastUpdated } = await supabase.from("products").select("id,name,trier_product_id,updated_at").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  // Duplicados por código Trier — busca leve
+  let duplicates = 0;
+  try {
+    const { data: dupRows } = await supabase.rpc as any;
+    // fallback: pega top 200 trier_product_id e conta no JS
+    const { data: sample } = await supabase.from("products").select("trier_product_id").not("trier_product_id", "is", null).limit(5000);
+    const m = new Map<string, number>();
+    (sample || []).forEach((r: any) => m.set(r.trier_product_id, (m.get(r.trier_product_id) || 0) + 1));
+    for (const v of m.values()) if (v > 1) duplicates += v;
+    void dupRows;
+  } catch { /* ignore */ }
+  return {
+    ok: true,
+    total, ativos, inativos, comTrier, semTrier, comEstoque, semEstoque,
+    comPreco, semPreco, criadosHoje, atualizadosHoje, semNome,
+    duplicados_codigo_trier: duplicates,
+    last_created: lastCreated, last_updated: lastUpdated,
+    upsert_key: "trier_product_id",
+  };
+}
+
+async function actionDiagComparePage(offset: number, pageSize: number) {
+  const s = await getSettings();
+  const qs = buildDiagProductsQuery(s.branch_code, offset, pageSize, { ativo: "true", ecom: "" });
+  const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  const json = await trierGet(s, path, { page: Math.floor(offset / pageSize) });
+  const list = extractList(json);
+  const codes = list.map(pickCode).filter(Boolean);
+  const { data: existing } = await supabase.from("products").select("trier_product_id").in("trier_product_id", codes.length ? codes : ["__none__"]);
+  const existingSet = new Set((existing || []).map((r: any) => r.trier_product_id));
+  const items = list.map((t: any) => {
+    const code = pickCode(t);
+    const name = pickName(t);
+    const stock = pickStockNum(t);
+    const price = pickPriceNum(t);
+    let acao = "criar"; let motivo = "novo";
+    if (!code) { acao = "ignorar"; motivo = "sem_codigo"; }
+    else if (!name) { acao = "ignorar"; motivo = "sem_nome"; }
+    else if (existingSet.has(code)) { acao = "atualizar"; motivo = "existe_no_banco"; }
+    return { code, name, stock, price, existe: existingSet.has(code), acao, motivo };
+  });
+  const sum = {
+    recebidos: list.length,
+    com_codigo: items.filter((i) => i.code).length,
+    sem_codigo: items.filter((i) => !i.code).length,
+    sem_nome: items.filter((i) => i.code && !i.name).length,
+    existem: items.filter((i) => i.existe).length,
+    nao_existem: items.filter((i) => !i.existe && i.code).length,
+    seriam_criados: items.filter((i) => i.acao === "criar").length,
+    seriam_atualizados: items.filter((i) => i.acao === "atualizar").length,
+    seriam_ignorados: items.filter((i) => i.acao === "ignorar").length,
+  };
+  return { ok: true, offset, pageSize, sum, items };
+}
+
+async function actionDiagUpsertPage(offset: number, pageSize: number, limit = 5) {
+  const s = await getSettings();
+  const qs = buildDiagProductsQuery(s.branch_code, offset, pageSize, { ativo: "true", ecom: "" });
+  const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  const json = await trierGet(s, path, { page: Math.floor(offset / pageSize) });
+  const list = extractList(json).slice(0, limit);
+  const results: any[] = [];
+  for (const t of list) {
+    const code = pickCode(t);
+    const name = pickName(t);
+    const payloadPreview = { trier_product_id: code, name, stock: pickStockNum(t), price: pickPriceNum(t) };
+    const r = await upsertProductFromTrier(t);
+    results.push({ code, name, payload: payloadPreview, ...r });
+  }
+  return { ok: true, results };
+}
+
+async function actionDiagDbWrite() {
+  const ts = Date.now();
+  const trier_id = `diagnostic_test_${ts}`;
+  const out: any = { trier_id, insert: null, update: null, delete: null };
+  // INSERT
+  const insertPayload: any = { trier_product_id: trier_id, name: "Produto Teste Diagnóstico", slug: `diagnostic-test-${ts}`, source: "diagnostic", active: false, price: 0, stock: 0 };
+  const ins = await supabase.from("products").insert(insertPayload).select("id").maybeSingle();
+  if (ins.error) { out.insert = { ok: false, error: ins.error.message, code: (ins.error as any).code, hint: (ins.error as any).hint }; return out; }
+  out.insert = { ok: true, id: ins.data?.id };
+  const id = ins.data!.id;
+  // UPDATE
+  const upd = await supabase.from("products").update({ name: "Produto Teste Diagnóstico v2" }).eq("id", id);
+  out.update = upd.error ? { ok: false, error: upd.error.message, code: (upd.error as any).code } : { ok: true };
+  // DELETE
+  const del = await supabase.from("products").delete().eq("id", id);
+  out.delete = del.error ? { ok: false, error: del.error.message, code: (del.error as any).code } : { ok: true };
+  return { ok: true, ...out };
+}
+
+async function actionDiagStockEndpoint() {
+  const s = await getSettings();
+  const variants = [
+    { id: 1, label: "sem codFilial · integracaoEcommerce=(vazio)", qs: "primeiroRegistro=0&quantidadeRegistros=150&integracaoEcommerce=" },
+    { id: 2, label: "codFilial=1 · integracaoEcommerce=(vazio)", qs: `codFilial=${s.branch_code || 1}&primeiroRegistro=0&quantidadeRegistros=150&integracaoEcommerce=` },
+    { id: 3, label: "codFilial=1 · sem integracaoEcommerce", qs: `codFilial=${s.branch_code || 1}&primeiroRegistro=0&quantidadeRegistros=150` },
+    { id: 4, label: "sem codFilial · sem integracaoEcommerce", qs: "primeiroRegistro=0&quantidadeRegistros=150" },
+  ];
+  const out: any[] = [];
+  for (const v of variants) {
+    const path = `/rest/integracao/estoque/obter-todos-v1?${v.qs}`;
+    const r = await requestTrier(s, path, { method: "GET" });
+    const list = r.json ? extractList(r.json) : [];
+    out.push({ id: v.id, label: v.label, finalUrl: r.finalUrl, status: r.status, count: list.length, body_preview: r.body?.slice(0, 400) });
+  }
+  return { ok: true, variants: out, recomendacao: out.every((o) => o.count === 0) ? "Endpoint retorna 0. Use quantidadeEstoque do endpoint de produtos." : "Endpoint de estoque retorna dados." };
+}
+
+async function actionDiagLastProductsJob() {
+  const { data } = await supabase.from("trier_sync_jobs").select("*").in("sync_type", ["products", "products_changed"]).order("started_at", { ascending: false }).limit(1).maybeSingle();
+  return { ok: true, job: data };
+}
+
 async function actionListMappings(opts: { limit: number; offset: number }) {
   const { limit, offset } = opts;
   const { data, count, error } = await supabase
@@ -1054,6 +1280,14 @@ Deno.serve(async (req) => {
       case "test-products-endpoint": result = await actionTestProductsEndpoint(); break;
       case "diagnose-products-page": result = await actionDiagnoseProductsPage(); break;
       case "diagnose-total": result = runAsync("diagnose-total", () => actionDiagnoseTotal()); break;
+      case "diag-api-total": result = runAsync("diag-api-total", () => actionDiagApiTotal()); break;
+      case "diag-api-scenarios": result = runAsync("diag-api-scenarios", () => actionDiagApiScenarios()); break;
+      case "diag-db-full": result = await actionDiagDbFull(); break;
+      case "diag-compare-page": result = await actionDiagComparePage(Number(body.offset) || 0, Number(body.pageSize) || 150); break;
+      case "diag-upsert-page": result = await actionDiagUpsertPage(Number(body.offset) || 0, Number(body.pageSize) || 150, Number(body.limit) || 5); break;
+      case "diag-db-write": result = await actionDiagDbWrite(); break;
+      case "diag-stock-endpoint": result = await actionDiagStockEndpoint(); break;
+      case "diag-last-products-job": result = await actionDiagLastProductsJob(); break;
       case "db-stats": result = await actionDbStats(); break;
       case "list-mappings": result = await actionListMappings({ limit: Number(body.limit) || 100, offset: Number(body.offset) || 0 }); break;
       case "cancel-job": result = await actionCancelJob(body.job_id); break;
