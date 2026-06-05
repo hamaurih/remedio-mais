@@ -14,11 +14,11 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, RefreshCw, Plug, Package, Boxes, Tag, ShoppingCart, FileText, ListChecks, Send, Eye } from "lucide-react";
 import { formatBRL } from "@/lib/store";
 
-const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "orders", "status", "seguranca", "diagnostico", "logs"] as const;
+const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "divergences", "orders", "status", "seguranca", "diagnostico", "logs"] as const;
 type Tab = typeof TABS[number];
 
 const SUB_ROUTE_TO_TAB: Record<string, Tab> = {
-  products: "products", stock: "stock", prices: "prices", orders: "orders", logs: "logs", diagnostico: "diagnostico", seguranca: "seguranca",
+  products: "products", stock: "stock", prices: "prices", orders: "orders", logs: "logs", diagnostico: "diagnostico", seguranca: "seguranca", divergences: "divergences",
 };
 
 const FIELD_MAP: { trier: string; site: string; note?: string }[] = [
@@ -282,6 +282,7 @@ export default function AdminTrier() {
           <TabsTrigger value="stock">Estoque</TabsTrigger>
           <TabsTrigger value="prices">Preços e Descontos</TabsTrigger>
           <TabsTrigger value="mapping">Mapeamento</TabsTrigger>
+          <TabsTrigger value="divergences">Divergências EAN</TabsTrigger>
           <TabsTrigger value="orders">Pedidos</TabsTrigger>
           <TabsTrigger value="status">Status Pedidos</TabsTrigger>
           <TabsTrigger value="seguranca">Segurança</TabsTrigger>
