@@ -422,7 +422,7 @@ function pickActive(t: any): boolean {
   return true;
 }
 
-function mapProduct(t: any) {
+function mapProduct(t: any, stockSource: StockSource = "loja") {
   const code = pickCode(t);
   const name = pickName(t);
   const ecomPriceRaw = t.valorVendaEcommerce;
@@ -430,16 +430,36 @@ function mapProduct(t: any) {
   const basePrice = pickPriceNum(t);
   const finalPrice = ecomPrice ?? basePrice ?? 0;
   const promo = ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null;
-  const stockEcom = t.quantidadeEstoqueEcommerce != null && t.quantidadeEstoqueEcommerce !== "" ? Number(t.quantidadeEstoqueEcommerce) : null;
-  const stockBase = pickStockNum(t);
-  const stock = stockEcom ?? stockBase ?? 0;
+
+  // ----- Estoque -----
+  // Regra: a farmácia vende usando o estoque REAL da loja (quantidadeEstoque).
+  // quantidadeEstoqueEcommerce fica salvo apenas como campo auxiliar/informativo.
+  const rawStockReal = firstNonEmpty(t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
+  const stockReal = rawStockReal != null && rawStockReal !== "" && Number.isFinite(Number(rawStockReal)) ? Number(rawStockReal) : null;
+  const rawStockEcom = t.quantidadeEstoqueEcommerce;
+  const stockEcom = rawStockEcom != null && rawStockEcom !== "" && Number.isFinite(Number(rawStockEcom)) ? Number(rawStockEcom) : null;
+
+  // Fonte de estoque do site (configurável; padrão = loja)
+  let stockSite: number;
+  let sourceApplied: string;
+  if (stockSource === "ecommerce") {
+    stockSite = stockEcom ?? 0;
+    sourceApplied = "Estoque e-commerce: quantidadeEstoqueEcommerce";
+  } else if (stockSource === "auto") {
+    if (stockEcom != null) { stockSite = stockEcom; sourceApplied = "Automático → quantidadeEstoqueEcommerce"; }
+    else { stockSite = stockReal ?? 0; sourceApplied = "Automático → quantidadeEstoque"; }
+  } else {
+    stockSite = stockReal ?? 0;
+    sourceApplied = "Estoque real da loja: quantidadeEstoque";
+  }
+
   const ecomEnabled = t.integracaoEcommerce ?? false;
   const isActive = pickActive(t);
   const tarja = t.tipoLista || null;
   const lab = pickLaboratory(t);
   const obs: string[] = [];
   if (basePrice == null && ecomPrice == null) obs.push("precisa revisar: sem preço na Trier");
-  if (stockEcom == null && stockBase == null) obs.push("indisponível: sem estoque na Trier");
+  if (stockReal == null && stockEcom == null) obs.push("indisponível: sem estoque na Trier");
 
   // ---- shelves automáticas ----
   const catName = pickCategoryName(t) || "";
@@ -459,6 +479,9 @@ function mapProduct(t: any) {
   return {
     _shelves: Array.from(shelves),
     _category_name_for_link: catName || grpName || depName || "Medicamentos",
+    _stock_source_applied: sourceApplied,
+    _stock_real: stockReal,
+    _stock_ecom: stockEcom,
     trier_product_id: code,
     name: name || "Sem nome",
     ecommerce_name: t.nomeEcommerce ?? null,
@@ -481,14 +504,16 @@ function mapProduct(t: any) {
     ecommerce_price: ecomPrice,
     promo_price: promo,
     on_sale: promo != null,
-    stock,
-    stock_quantity: stockBase,
+    stock: stockSite,
+    stock_quantity: stockSite,
+    trier_stock_quantity: stockReal,
     ecommerce_stock_quantity: stockEcom,
     is_active: isActive,
+    trier_active: isActive,
     ecommerce_enabled: ecomEnabled,
     // Regra: produto fica ativo no site apenas se ativo na Trier E tem estoque > 0.
-    // Produtos sem estoque ou inativos na Trier permanecem cadastrados, mas com active=false.
-    active: isActive && (stock ?? 0) > 0,
+    // (manual_disabled é aplicado no upsert, após ler o registro existente.)
+    active: isActive && stockSite > 0,
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
