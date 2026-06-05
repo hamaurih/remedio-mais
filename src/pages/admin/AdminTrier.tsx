@@ -124,6 +124,8 @@ export default function AdminTrier() {
         branch_code: settings.branch_code || "1",
         page_size: settings.page_size || 150,
         ecommerce_filter: (settings as any).ecommerce_filter ?? "",
+        sync_mode: (settings as any).sync_mode || "safe_operational",
+        auto_sync_paused: !!(settings as any).auto_sync_paused,
       });
     }
   }, [settings]);
