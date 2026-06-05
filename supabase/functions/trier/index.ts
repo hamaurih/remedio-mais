@@ -152,6 +152,7 @@ async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Setti
     branch_code: data.branch_code || "1",
     sync_mode: (data.sync_mode as SyncMode) || "safe_operational",
     auto_sync_paused: !!data.auto_sync_paused,
+    stock_source: ((data.stock_source as StockSource) || "loja"),
   };
 }
 
