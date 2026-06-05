@@ -712,6 +712,13 @@ export default function AdminTrier() {
           </div>
         </TabsContent>
 
+        {/* ---------- DIVERGÊNCIAS EAN ---------- */}
+        <TabsContent value="divergences" className="pt-4 space-y-3">
+          <BarcodeDivergencesPanel />
+        </TabsContent>
+
+
+
         {/* ---------- PEDIDOS ---------- */}
         <TabsContent value="orders" className="pt-4 space-y-3">
           <div className="bg-card border rounded-xl overflow-hidden">
