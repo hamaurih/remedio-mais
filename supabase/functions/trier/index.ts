@@ -545,7 +545,7 @@ const PROTECTED_ALWAYS = new Set<string>([
 ]);
 
 // Campos operacionais que a Trier pode atualizar.
-const FIELDS_STOCK = ["stock", "stock_quantity", "ecommerce_stock_quantity"];
+const FIELDS_STOCK = ["stock", "stock_quantity", "trier_stock_quantity", "ecommerce_stock_quantity", "last_stock_sync_at", "trier_active"];
 const FIELDS_PRICE = ["price", "ecommerce_price", "promo_price", "on_sale"];
 const FIELDS_BARCODE = ["barcode", "trier_barcode"];
 const FIELDS_TECHNICAL = [
