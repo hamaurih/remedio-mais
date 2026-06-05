@@ -15,6 +15,7 @@ import Auth from "./pages/Auth.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import AdminProducts from "./pages/admin/AdminProducts.tsx";
+import AdminProductsImport from "./pages/admin/AdminProductsImport.tsx";
 import AdminCategories from "./pages/admin/AdminCategories.tsx";
 import AdminBanners from "./pages/admin/AdminBanners.tsx";
 import AdminOrders from "./pages/admin/AdminOrders.tsx";
