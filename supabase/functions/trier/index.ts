@@ -49,6 +49,11 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const chunk = <T>(items: T[], size: number) => {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+};
 
 function normalizeAuthorization(input: string): string {
   const cleaned = (input || "")
