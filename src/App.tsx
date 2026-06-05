@@ -16,6 +16,7 @@ import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import AdminProducts from "./pages/admin/AdminProducts.tsx";
 import AdminProductsImport from "./pages/admin/AdminProductsImport.tsx";
+import AdminProductsReconcile from "./pages/admin/AdminProductsReconcile.tsx";
 import AdminCategories from "./pages/admin/AdminCategories.tsx";
 import AdminBanners from "./pages/admin/AdminBanners.tsx";
 import AdminOrders from "./pages/admin/AdminOrders.tsx";
@@ -71,6 +72,7 @@ const App = () => (
             <Route index element={<AdminDashboard />} />
             <Route path="produtos" element={<AdminProducts />} />
             <Route path="produtos/importar" element={<AdminProductsImport />} />
+            <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
             <Route path="categorias" element={<AdminCategories />} />
             <Route path="banners" element={<AdminBanners />} />
             <Route path="banners/gerador" element={<AdminBannerGenerator />} />
