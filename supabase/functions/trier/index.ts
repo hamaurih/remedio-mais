@@ -998,13 +998,16 @@ async function applyStockPage(items: any[]) {
 
   let updatedCount = 0;
   let failedCount = 0;
-  for (const batch of chunk(patches, 200)) {
-    const { error: patchErr } = await supabase.from("products").upsert(batch, { onConflict: "id" });
+  // Usar UPDATE por linha (não upsert) — upsert exige todos os NOT NULL no payload de INSERT,
+  // mesmo quando há ON CONFLICT DO UPDATE. Aqui só queremos atualizar campos operacionais.
+  for (const patch of patches) {
+    const { id, ...fields } = patch as any;
+    const { error: patchErr } = await supabase.from("products").update(fields).eq("id", id);
     if (patchErr) {
-      failedCount += batch.length;
-      await log("stock", "error", "Falha ao aplicar lote de estoque no banco", { error: patchErr.message, batch_size: batch.length });
+      failedCount += 1;
+      await log("stock", "error", "Falha ao atualizar estoque do produto", { error: patchErr.message, product_id: id });
     } else {
-      updatedCount += batch.length;
+      updatedCount += 1;
     }
   }
 
