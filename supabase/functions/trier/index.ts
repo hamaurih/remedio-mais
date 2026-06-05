@@ -1400,7 +1400,7 @@ async function actionSyncPrices(trigger = "manual") {
   try {
     const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/precificacao/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
     for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyPrice: true });
+      const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source });
       if (r.updated) updated++;
       else if (r.failed) failed++;
       else ignored++;
