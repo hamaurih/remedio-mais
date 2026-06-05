@@ -1712,6 +1712,7 @@ Deno.serve(async (req) => {
       case "toggle-auto-sync": result = await actionToggleAutoSync(!!body.paused); break;
       case "set-sync-mode": result = await actionSetSyncMode(body.mode as SyncMode); break;
       case "simulate-sync-page": result = await actionSimulateSyncPage(Number(body.offset) || 0, Number(body.pageSize) || 50, body.mode as SyncMode | undefined); break;
+      case "diag-stock-source": result = await actionDiagStockSource(Number(body.limit) || 10); break;
       case "list-barcode-divergences": result = await actionListBarcodeDivergences(Number(body.limit) || 100, Number(body.offset) || 0); break;
       case "resolve-barcode-divergence": result = await actionResolveBarcodeDivergence(body.id, body.action); break;
       case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
