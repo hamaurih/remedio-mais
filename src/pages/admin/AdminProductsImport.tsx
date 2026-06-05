@@ -47,18 +47,31 @@ const FIELDS: { key: FieldKey; label: string }[] = [
 ];
 
 const AUTO_MAP: Record<string, FieldKey> = {
+  // Códigos
   codigotrier: "trier_product_id", trier: "trier_product_id", codtrier: "trier_product_id",
-  sku: "sku", codigointerno: "sku", codigo: "sku", cod: "sku",
-  ean: "barcode", barcode: "barcode", codigobarras: "barcode", codigodebarras: "barcode", gtin: "barcode",
-  nome: "name", produto: "name", descricaoproduto: "name", name: "name",
+  codigodoproduto: "trier_product_id", codigoproduto: "trier_product_id",
+  cod: "trier_product_id", codigo: "trier_product_id",
+  sku: "sku", codigointerno: "sku", skuinterno: "sku",
+  ean: "barcode", barcode: "barcode", codigobarras: "barcode", codigodebarras: "barcode",
+  codbarras: "barcode", codigobarra: "barcode", gtin: "barcode",
+  // Nome / descrição
+  nome: "name", produto: "name", descricaoproduto: "name", descproduto: "name", name: "name",
   descricao: "description", description: "description", detalhes: "description",
-  laboratorio: "manufacturer", fabricante: "manufacturer", marca: "manufacturer", manufacturer: "manufacturer",
-  categoria: "category_name", category: "category_name",
-  grupo: "group_name", group: "group_name",
-  preco: "price", precovenda: "price", price: "price", valor: "price",
+  // Fabricante
+  laboratorio: "manufacturer", lab: "manufacturer", fabricante: "manufacturer",
+  marca: "manufacturer", manufacturer: "manufacturer",
+  // Categoria / grupo (técnicos, não viram category_id comercial)
+  categoria: "category_name", category: "category_name", nomecategoria: "category_name",
+  grupo: "group_name", group: "group_name", nomegrupo: "group_name",
+  // Preços
+  preco: "price", precovenda: "price", price: "price", valor: "price", valorvenda: "price",
   precopromocional: "promo_price", promocional: "promo_price", precopromo: "promo_price", promo: "promo_price",
   precocusto: "cost_price", custo: "cost_price", cost: "cost_price",
+  // Estoque
   estoque: "stock", stock: "stock", qtd: "stock", quantidade: "stock",
+  qtdestoq: "stock", qtdestoque: "stock", quantidadeestoque: "stock", quantidadeestoq: "stock",
+  qtdestoqu: "stock",
+  // Diversos
   unidade: "unit", unit: "unit", un: "unit",
   ativo: "active", active: "active", status: "active",
   exigereceita: "requires_prescription", receita: "requires_prescription", prescription: "requires_prescription",
@@ -157,6 +170,11 @@ export default function AdminProductsImport() {
   const [history, setHistory] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  // XLSX multi-sheet support
+  const xlsxWbRef = useRef<XLSX.WorkBook | null>(null);
+  const [xlsxSheets, setXlsxSheets] = useState<{ name: string; rows: number; score: number }[]>([]);
+  const [xlsxActiveSheet, setXlsxActiveSheet] = useState<string>("");
+
   const [opts, setOpts] = useState({
     importNew: true,
     updateExisting: true,
@@ -177,7 +195,27 @@ export default function AdminProductsImport() {
 
   function reset() {
     setFile(null); setFileType(""); setHeaders([]); setRows([]); setMapping({}); setAnalyzed(null);
+    xlsxWbRef.current = null; setXlsxSheets([]); setXlsxActiveSheet("");
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  // Pontua a aba pela presença de colunas indicativas (Cód., Descrição, Lab, Grupo, Qtd Estoq, Preço)
+  function scoreSheet(headers: string[]): number {
+    const wanted = ["cod", "codigo", "descricaoproduto", "nome", "laboratorio", "grupo", "qtdestoq", "qtdestoque", "quantidadeestoque", "preco", "valorvenda", "barcode", "ean"];
+    const nks = headers.map(normalizeKey);
+    let s = 0;
+    for (const w of wanted) if (nks.some((k) => k.includes(w))) s++;
+    return s;
+  }
+
+  function loadSheet(sheetName: string) {
+    const wb = xlsxWbRef.current; if (!wb) return;
+    const ws = wb.Sheets[sheetName]; if (!ws) return;
+    const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: "" });
+    const hs = data[0] ? Object.keys(data[0]).map(String) : [];
+    setXlsxActiveSheet(sheetName);
+    setAnalyzed(null);
+    loadRows(hs, data);
   }
 
   async function onPickFile(f: File) {
@@ -197,10 +235,21 @@ export default function AdminProductsImport() {
       } else if (type === "xlsx") {
         const buf = await f.arrayBuffer();
         const wb = XLSX.read(buf, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: "" });
-        const hs = data[0] ? Object.keys(data[0]).map(String) : [];
-        loadRows(hs, data);
+        xlsxWbRef.current = wb;
+        // Avalia todas as abas e escolhe a de maior qualidade
+        const sheetsInfo = wb.SheetNames.map((name) => {
+          const ws = wb.Sheets[name];
+          const peek = XLSX.utils.sheet_to_json<Row>(ws, { defval: "", range: 0 });
+          const hs = peek[0] ? Object.keys(peek[0]).map(String) : [];
+          return { name, rows: peek.length, score: scoreSheet(hs) };
+        });
+        setXlsxSheets(sheetsInfo);
+        // Escolhe a aba com maior score; em empate, a com mais linhas
+        const best = [...sheetsInfo].sort((a, b) => b.score - a.score || b.rows - a.rows)[0];
+        loadSheet(best?.name || wb.SheetNames[0]);
+        if (sheetsInfo.length > 1) {
+          toast.info(`XLSX com ${sheetsInfo.length} abas. Usando "${best.name}" (melhor qualidade). Troque abaixo se necessário.`);
+        }
       } else if (type === "xml") {
         const text = await f.text();
         const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
@@ -444,8 +493,12 @@ export default function AdminProductsImport() {
           }
           if (r.action === "create") {
             if (!opts.importNew) { skipped++; item.status = "skipped"; items.push(item); continue; }
+            const stockVal = r.norm.stock ?? 0;
             const noStock = r.norm.stock != null && r.norm.stock <= 0;
             const catId = opts.updateCategory ? await ensureCategoryId(r.norm.category_name) : null;
+            // Se estoque <= 0 e a opção estiver ligada: marca manual_disabled=true para
+            // não ser reativado automaticamente por syncs futuros.
+            const shouldDisable = noStock && opts.inactivateIfNoStock;
             const insertPayload: any = {
               name: r.norm.name,
               slug: r.norm.name ? slugify(r.norm.name) + "-" + (r.norm.barcode || r.norm.sku || Math.random().toString(36).slice(2, 6)) : null,
@@ -454,13 +507,20 @@ export default function AdminProductsImport() {
               trier_product_id: r.norm.trier_product_id || null,
               description: r.norm.description || null,
               manufacturer: r.norm.manufacturer || null,
+              laboratory: r.norm.manufacturer || null,
+              group_name: r.norm.group_name || null,
+              category_name: r.norm.category_name || null,
               price: r.norm.price ?? 0,
               promo_price: r.norm.promo_price ?? null,
-              stock: r.norm.stock ?? 0,
+              // Fonte oficial: o mesmo valor alimenta os 3 campos
+              stock: stockVal,
+              stock_quantity: stockVal,
+              trier_stock_quantity: stockVal,
               image_url: r.norm.image_url || null,
               requires_prescription: r.norm.requires_prescription ?? false,
               controlled: r.norm.controlled ?? false,
-              active: noStock && opts.inactivateIfNoStock ? false : (r.norm.active ?? true),
+              active: shouldDisable ? false : (r.norm.active ?? true),
+              manual_disabled: shouldDisable ? true : false,
               source: "manual_import",
               ...(catId ? { category_id: catId } : {}),
             };
@@ -472,13 +532,22 @@ export default function AdminProductsImport() {
             const update: any = {};
             if (opts.updatePrice && r.norm.price != null) update.price = r.norm.price;
             if (opts.updatePrice && r.norm.promo_price != null) update.promo_price = r.norm.promo_price;
-            if (opts.updateStock && r.norm.stock != null) update.stock = r.norm.stock;
+            if (opts.updateStock && r.norm.stock != null) {
+              update.stock = r.norm.stock;
+              update.stock_quantity = r.norm.stock;
+              update.trier_stock_quantity = r.norm.stock;
+              // Estoque > 0: reativa, salvo se foi explicitamente desativado manualmente
+              if (r.norm.stock > 0 && (m as any).manual_disabled !== true) update.active = true;
+            }
             if (opts.updateImage && r.norm.image_url) update.image_url = r.norm.image_url;
             if (opts.updateCategory && r.norm.category_name) {
               const cid = await ensureCategoryId(r.norm.category_name);
               if (cid) update.category_id = cid;
             }
-            if (opts.inactivateIfNoStock && r.norm.stock != null && r.norm.stock <= 0) update.active = false;
+            if (opts.inactivateIfNoStock && r.norm.stock != null && r.norm.stock <= 0) {
+              update.active = false;
+              update.manual_disabled = true;
+            }
             if (Object.keys(update).length === 0) { skipped++; item.status = "skipped"; item.error_message = "Nada a atualizar"; items.push(item); continue; }
             const { data: upd, error } = await supabase.from("products").update(update).eq("id", m.id).select().single();
             if (error) throw error;
@@ -539,6 +608,24 @@ export default function AdminProductsImport() {
               {file && (
                 <div className="text-sm text-muted-foreground">
                   <strong>{file.name}</strong> · {fileType.toUpperCase()} · {(file.size / 1024).toFixed(1)} KB · {rows.length} linhas
+                </div>
+              )}
+              {fileType === "xlsx" && xlsxSheets.length > 1 && (
+                <div className="flex flex-col gap-2 p-3 rounded-md border bg-muted/30">
+                  <Label className="text-xs font-semibold">Aba da planilha</Label>
+                  <Select value={xlsxActiveSheet} onValueChange={loadSheet}>
+                    <SelectTrigger className="w-full md:w-96"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {xlsxSheets.map((s) => (
+                        <SelectItem key={s.name} value={s.name}>
+                          {s.name} · {s.rows} linhas · qualidade {s.score}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Recomendamos a aba com maior <b>qualidade</b> — colunas como <i>Cód., Descrição Produto, Laboratório, Grupo, Qtd. Estoq.</i> e <i>preço</i>.
+                  </p>
                 </div>
               )}
               {fileType === "pdf" && (
