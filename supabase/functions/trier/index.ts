@@ -243,6 +243,30 @@ function ecommerceParam(s: Settings): string {
   return ""; // empty = send no value
 }
 
+/**
+ * Monta query string omitindo valores undefined/null/"".
+ * Mantém false, true, 0, "false", "true".
+ */
+function buildQueryParams(params: Record<string, unknown>): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === "string" && v === "") continue;
+    sp.set(k, String(v));
+  }
+  return sp.toString();
+}
+
+/**
+ * Devolve o valor a usar para integracaoEcommerce ou undefined caso o parâmetro
+ * deva ser totalmente omitido da URL.
+ */
+function ecommerceParamOrOmit(s: Settings): "true" | "false" | undefined {
+  const v = (s.ecommerce_filter ?? "").trim().toLowerCase();
+  if (v === "true" || v === "false") return v;
+  return undefined;
+}
+
 function buildProductsQuery(
   s: Settings,
   offset: number,
