@@ -999,7 +999,7 @@ async function actionDiagnoseProductsPage() {
     };
   }
   const results: UpsertResult[] = [];
-  for (const t of list) results.push(await upsertProductFromTrier(t));
+  for (const t of list) results.push(await upsertProductFromTrier(t, { stockSource: s.stock_source }));
   const sum = summarizeResults(results);
   return {
     ok: true, stage: "done",
