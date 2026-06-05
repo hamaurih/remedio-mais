@@ -1498,6 +1498,10 @@ async function actionUpdateOrderStatus(orderId: string, statusCode: number) {
 
 async function actionScheduled() {
   const s = await getSettings();
+  if (s.auto_sync_paused) {
+    await log("scheduled", "info", "Sincronização automática pausada (auto_sync_paused=true). Nada será executado.");
+    return { ok: true, paused: true, results: {} };
+  }
   const now = Date.now();
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
   const results: any = {};
@@ -1507,6 +1511,98 @@ async function actionScheduled() {
   if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) results.products = await actionSyncProducts("cron", true);
   return { ok: true, results };
 }
+
+// ---------- SAFE-SYNC ACTIONS ----------
+
+async function actionMarkStalledJobs(minutes = 20) {
+  const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
+  const { data: stalled } = await supabase.from("trier_sync_jobs")
+    .select("id, sync_type, started_at, records_checked")
+    .eq("status", "running")
+    .lt("started_at", cutoff);
+  const ids = (stalled || []).map((j: any) => j.id);
+  if (ids.length === 0) return { ok: true, marked: 0, jobs: [] };
+  await supabase.from("trier_sync_jobs").update({
+    status: "error",
+    error_message: "job_travado_sem_progresso",
+    finished_at: new Date().toISOString(),
+  }).in("id", ids);
+  await log("jobs", "info", `Marcados ${ids.length} jobs travados (>${minutes}min) como falhos.`, { ids });
+  return { ok: true, marked: ids.length, jobs: stalled };
+}
+
+async function actionToggleAutoSync(paused: boolean) {
+  await supabase.from("trier_settings").update({ auto_sync_paused: !!paused }).eq("id", 1);
+  await log("settings", "info", `Sincronização automática ${paused ? "PAUSADA" : "RETOMADA"}.`, { auto_sync_paused: !!paused });
+  return { ok: true, auto_sync_paused: !!paused };
+}
+
+async function actionSetSyncMode(mode: SyncMode) {
+  const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected"];
+  if (!valid.includes(mode)) throw new Error("Modo de sincronização inválido");
+  await supabase.from("trier_settings").update({ sync_mode: mode }).eq("id", 1);
+  await log("settings", "info", `Modo de sincronização alterado para: ${mode}.`, { sync_mode: mode });
+  return { ok: true, sync_mode: mode };
+}
+
+async function actionSimulateSyncPage(offset = 0, pageSize = 50, mode?: SyncMode) {
+  const s = await getSettings();
+  const effMode: SyncMode = mode || s.sync_mode || "safe_operational";
+  const qs = buildProductsQuery(s, offset, pageSize, {}, { ativo: "true" });
+  const json = await trierGet(s, `/rest/integracao/produto/obter-todos-v1?${qs}`, { page: Math.floor(offset / pageSize) });
+  const list = extractList(json);
+  const results: UpsertResult[] = [];
+  for (const t of list) results.push(await upsertProductFromTrier(t, { mode: effMode, simulate: true, syncType: "simulate" }));
+  const created = results.filter((r) => r.created).length;
+  const updated = results.filter((r) => r.updated).length;
+  const skipped = results.filter((r) => r.skipped).length;
+  const divergences = results.filter((r) => r.barcode_divergence).length;
+  const items = results.map((r) => ({
+    trier_id: r.trier_id, name: r.name,
+    action: r.created ? "criar" : r.updated ? "atualizar" : "ignorar",
+    fields_updated: r.fields_updated || [],
+    fields_protected: r.fields_protected || [],
+    barcode_divergence: !!r.barcode_divergence,
+    reason: r.reason,
+  }));
+  return { ok: true, mode: effMode, offset, pageSize, total: list.length, created, updated, skipped, divergences, items };
+}
+
+async function actionListBarcodeDivergences(limit = 100, offset = 0) {
+  const { data, count } = await supabase
+    .from("trier_barcode_divergences")
+    .select("*, products(name, trier_product_id)", { count: "exact" })
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  return { ok: true, items: data || [], total: count || 0 };
+}
+
+async function actionResolveBarcodeDivergence(id: string, action: "keep_current" | "use_trier" | "ignore") {
+  const { data: div } = await supabase.from("trier_barcode_divergences").select("*").eq("id", id).maybeSingle();
+  if (!div) return { ok: false, error: "Divergência não encontrada" };
+  if (action === "use_trier" && div.product_id) {
+    await supabase.from("products").update({ barcode: div.trier_barcode, trier_barcode: div.trier_barcode }).eq("id", div.product_id);
+  }
+  await supabase.from("trier_barcode_divergences").update({
+    status: action === "keep_current" ? "kept_current" : action === "use_trier" ? "replaced" : "ignored",
+    resolved_at: new Date().toISOString(),
+  }).eq("id", id);
+  return { ok: true };
+}
+
+async function actionListProductSyncLogs(productId?: string, limit = 50) {
+  let q = supabase.from("product_sync_logs").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (productId) q = q.eq("product_id", productId);
+  const { data } = await q;
+  return { ok: true, items: data || [] };
+}
+
+async function actionSyncBarcodes(trigger = "manual") {
+  return actionSyncProducts(trigger, false, "barcode_only");
+}
+
+
 
 // ---------- AUTH ----------
 async function requireAdmin(req: Request) {
