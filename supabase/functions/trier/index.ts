@@ -1087,8 +1087,26 @@ async function actionSyncStock(trigger = "manual") {
   const job = await startJob("stock", trigger);
   let updated = 0, ignored = 0, failed = 0;
   try {
-    const ecom = ecommerceParam(s);
-    const list = await paginateSimple(s, (o, q) => `/rest/integracao/estoque/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&integracaoEcommerce=${ecom}`);
+    const ecom = ecommerceParamOrOmit(s); // undefined => omitido
+    const codFilial = s.branch_code ?? 1;
+    const ecomStatus = ecom === undefined ? "omitido" : ecom;
+
+    await log("info", "stock", "Iniciando sincronização de estoque", {
+      endpoint: "/rest/integracao/estoque/obter-todos-v1",
+      codFilial,
+      integracaoEcommerce: ecomStatus,
+      pageSize: 150,
+    });
+
+    const list = await paginateSimple(s, (o, q) =>
+      `/rest/integracao/estoque/obter-todos-v1?${buildQueryParams({
+        codFilial,
+        primeiroRegistro: o,
+        quantidadeRegistros: q,
+        integracaoEcommerce: ecom,
+      })}`
+    );
+
     for (const t of list) {
       const r = await upsertProductFromTrier(t, { onlyStock: true });
       if (r.updated) updated++;
@@ -1096,8 +1114,15 @@ async function actionSyncStock(trigger = "manual") {
       else ignored++;
     }
     await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() }).eq("id", 1);
-    await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
-    return { ok: true, total: list.length, updated, failed, ignored };
+    await finishJob(job.id, {
+      status: "success",
+      records_checked: list.length,
+      records_updated: updated,
+      records_failed: failed,
+      records_ignored: ignored,
+      details: { codFilial, integracaoEcommerce: ecomStatus, total_returned: list.length },
+    });
+    return { ok: true, total: list.length, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus };
   } catch (e: any) {
     await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
