@@ -329,6 +329,123 @@ export type Database = {
         }
         Relationships: []
       }
+      import_job_items: {
+        Row: {
+          action: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          error_message: string | null
+          id: string
+          import_job_id: string
+          match_type: string | null
+          matched_product_id: string | null
+          normalized_data: Json
+          raw_data: Json
+          row_number: number
+          status: string
+        }
+        Insert: {
+          action?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          import_job_id: string
+          match_type?: string | null
+          matched_product_id?: string | null
+          normalized_data?: Json
+          raw_data?: Json
+          row_number: number
+          status?: string
+        }
+        Update: {
+          action?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          import_job_id?: string
+          match_type?: string | null
+          matched_product_id?: string | null
+          normalized_data?: Json
+          raw_data?: Json
+          row_number?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_job_items_import_job_id_fkey"
+            columns: ["import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_job_items_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_jobs: {
+        Row: {
+          column_mapping: Json
+          created_at: string
+          created_by: string | null
+          created_count: number
+          error_count: number
+          file_name: string
+          file_type: string
+          id: string
+          options: Json
+          skipped_count: number
+          status: string
+          summary: Json
+          total_rows: number
+          updated_at: string
+          updated_count: number
+        }
+        Insert: {
+          column_mapping?: Json
+          created_at?: string
+          created_by?: string | null
+          created_count?: number
+          error_count?: number
+          file_name: string
+          file_type: string
+          id?: string
+          options?: Json
+          skipped_count?: number
+          status?: string
+          summary?: Json
+          total_rows?: number
+          updated_at?: string
+          updated_count?: number
+        }
+        Update: {
+          column_mapping?: Json
+          created_at?: string
+          created_by?: string | null
+          created_count?: number
+          error_count?: number
+          file_name?: string
+          file_type?: string
+          id?: string
+          options?: Json
+          skipped_count?: number
+          status?: string
+          summary?: Json
+          total_rows?: number
+          updated_at?: string
+          updated_count?: number
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           controlled: boolean

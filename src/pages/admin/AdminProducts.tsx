@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search } from "lucide-react";
+import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 
@@ -177,7 +177,10 @@ export default function AdminProducts() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-extrabold">Produtos</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild><a href="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</a></Button>
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
+        </div>
       </div>
 
       <div className="bg-card border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-center">
