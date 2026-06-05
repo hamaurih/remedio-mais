@@ -195,7 +195,27 @@ export default function AdminProductsImport() {
 
   function reset() {
     setFile(null); setFileType(""); setHeaders([]); setRows([]); setMapping({}); setAnalyzed(null);
+    xlsxWbRef.current = null; setXlsxSheets([]); setXlsxActiveSheet("");
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  // Pontua a aba pela presença de colunas indicativas (Cód., Descrição, Lab, Grupo, Qtd Estoq, Preço)
+  function scoreSheet(headers: string[]): number {
+    const wanted = ["cod", "codigo", "descricaoproduto", "nome", "laboratorio", "grupo", "qtdestoq", "qtdestoque", "quantidadeestoque", "preco", "valorvenda", "barcode", "ean"];
+    const nks = headers.map(normalizeKey);
+    let s = 0;
+    for (const w of wanted) if (nks.some((k) => k.includes(w))) s++;
+    return s;
+  }
+
+  function loadSheet(sheetName: string) {
+    const wb = xlsxWbRef.current; if (!wb) return;
+    const ws = wb.Sheets[sheetName]; if (!ws) return;
+    const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: "" });
+    const hs = data[0] ? Object.keys(data[0]).map(String) : [];
+    setXlsxActiveSheet(sheetName);
+    setAnalyzed(null);
+    loadRows(hs, data);
   }
 
   async function onPickFile(f: File) {
@@ -215,10 +235,21 @@ export default function AdminProductsImport() {
       } else if (type === "xlsx") {
         const buf = await f.arrayBuffer();
         const wb = XLSX.read(buf, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: "" });
-        const hs = data[0] ? Object.keys(data[0]).map(String) : [];
-        loadRows(hs, data);
+        xlsxWbRef.current = wb;
+        // Avalia todas as abas e escolhe a de maior qualidade
+        const sheetsInfo = wb.SheetNames.map((name) => {
+          const ws = wb.Sheets[name];
+          const peek = XLSX.utils.sheet_to_json<Row>(ws, { defval: "", range: 0 });
+          const hs = peek[0] ? Object.keys(peek[0]).map(String) : [];
+          return { name, rows: peek.length, score: scoreSheet(hs) };
+        });
+        setXlsxSheets(sheetsInfo);
+        // Escolhe a aba com maior score; em empate, a com mais linhas
+        const best = [...sheetsInfo].sort((a, b) => b.score - a.score || b.rows - a.rows)[0];
+        loadSheet(best?.name || wb.SheetNames[0]);
+        if (sheetsInfo.length > 1) {
+          toast.info(`XLSX com ${sheetsInfo.length} abas. Usando "${best.name}" (melhor qualidade). Troque abaixo se necessário.`);
+        }
       } else if (type === "xml") {
         const text = await f.text();
         const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
@@ -233,6 +264,7 @@ export default function AdminProductsImport() {
     } catch (e: any) {
       toast.error("Erro ao ler arquivo: " + e.message);
     }
+  }
   }
 
   function findArray(obj: any): Row[] {
