@@ -1593,7 +1593,7 @@ function BarcodeDivergencesPanel() {
                       <button
                         className="text-xs border rounded px-2 py-1 hover:bg-primary hover:text-primary-foreground"
                         disabled={resolving === d.id}
-                        onClick={() => resolve(d.id, "accept_trier")}
+                        onClick={() => resolve(d.id, "use_trier")}
                       >
                         Aceitar Trier
                       </button>
