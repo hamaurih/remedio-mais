@@ -211,9 +211,6 @@ export function ProductQuickView() {
                   <Button onClick={handleAdd} className="w-full h-12 rounded-full font-bold text-base bg-primary hover:bg-primary-dark">
                     <ShoppingCart className="h-5 w-5 mr-2" /> Adicionar ao carrinho
                   </Button>
-                  <Button asChild variant="outline" className="w-full h-11 rounded-full">
-                    <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-2" /> Tirar dúvida pelo WhatsApp</a>
-                  </Button>
                 </div>
               )}
 
