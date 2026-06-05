@@ -47,18 +47,31 @@ const FIELDS: { key: FieldKey; label: string }[] = [
 ];
 
 const AUTO_MAP: Record<string, FieldKey> = {
+  // Códigos
   codigotrier: "trier_product_id", trier: "trier_product_id", codtrier: "trier_product_id",
-  sku: "sku", codigointerno: "sku", codigo: "sku", cod: "sku",
-  ean: "barcode", barcode: "barcode", codigobarras: "barcode", codigodebarras: "barcode", gtin: "barcode",
-  nome: "name", produto: "name", descricaoproduto: "name", name: "name",
+  codigodoproduto: "trier_product_id", codigoproduto: "trier_product_id",
+  cod: "trier_product_id", codigo: "trier_product_id",
+  sku: "sku", codigointerno: "sku", skuinterno: "sku",
+  ean: "barcode", barcode: "barcode", codigobarras: "barcode", codigodebarras: "barcode",
+  codbarras: "barcode", codigobarra: "barcode", gtin: "barcode",
+  // Nome / descrição
+  nome: "name", produto: "name", descricaoproduto: "name", descproduto: "name", name: "name",
   descricao: "description", description: "description", detalhes: "description",
-  laboratorio: "manufacturer", fabricante: "manufacturer", marca: "manufacturer", manufacturer: "manufacturer",
-  categoria: "category_name", category: "category_name",
-  grupo: "group_name", group: "group_name",
-  preco: "price", precovenda: "price", price: "price", valor: "price",
+  // Fabricante
+  laboratorio: "manufacturer", lab: "manufacturer", fabricante: "manufacturer",
+  marca: "manufacturer", manufacturer: "manufacturer",
+  // Categoria / grupo (técnicos, não viram category_id comercial)
+  categoria: "category_name", category: "category_name", nomecategoria: "category_name",
+  grupo: "group_name", group: "group_name", nomegrupo: "group_name",
+  // Preços
+  preco: "price", precovenda: "price", price: "price", valor: "price", valorvenda: "price",
   precopromocional: "promo_price", promocional: "promo_price", precopromo: "promo_price", promo: "promo_price",
   precocusto: "cost_price", custo: "cost_price", cost: "cost_price",
+  // Estoque
   estoque: "stock", stock: "stock", qtd: "stock", quantidade: "stock",
+  qtdestoq: "stock", qtdestoque: "stock", quantidadeestoque: "stock", quantidadeestoq: "stock",
+  qtdestoqu: "stock",
+  // Diversos
   unidade: "unit", unit: "unit", un: "unit",
   ativo: "active", active: "active", status: "active",
   exigereceita: "requires_prescription", receita: "requires_prescription", prescription: "requires_prescription",
