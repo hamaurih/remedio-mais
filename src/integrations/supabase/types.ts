@@ -835,6 +835,7 @@ export type Database = {
           is_active: boolean | null
           laboratory: string | null
           laboratory_code: string | null
+          last_stock_sync_at: string | null
           last_synced_at: string | null
           last_trier_sync_at: string | null
           lock_manual_price: boolean
@@ -843,6 +844,7 @@ export type Database = {
           manual_barcode: boolean
           manual_category: boolean
           manual_description: boolean
+          manual_disabled: boolean
           manual_image: boolean
           manual_name: boolean
           manual_override: boolean
@@ -875,8 +877,10 @@ export type Database = {
           sync_with_trier: boolean
           tags: string | null
           tarja: string | null
+          trier_active: boolean | null
           trier_barcode: string | null
           trier_product_id: string | null
+          trier_stock_quantity: number | null
           updated_at: string
         }
         Insert: {
@@ -908,6 +912,7 @@ export type Database = {
           is_active?: boolean | null
           laboratory?: string | null
           laboratory_code?: string | null
+          last_stock_sync_at?: string | null
           last_synced_at?: string | null
           last_trier_sync_at?: string | null
           lock_manual_price?: boolean
@@ -916,6 +921,7 @@ export type Database = {
           manual_barcode?: boolean
           manual_category?: boolean
           manual_description?: boolean
+          manual_disabled?: boolean
           manual_image?: boolean
           manual_name?: boolean
           manual_override?: boolean
@@ -948,8 +954,10 @@ export type Database = {
           sync_with_trier?: boolean
           tags?: string | null
           tarja?: string | null
+          trier_active?: boolean | null
           trier_barcode?: string | null
           trier_product_id?: string | null
+          trier_stock_quantity?: number | null
           updated_at?: string
         }
         Update: {
@@ -981,6 +989,7 @@ export type Database = {
           is_active?: boolean | null
           laboratory?: string | null
           laboratory_code?: string | null
+          last_stock_sync_at?: string | null
           last_synced_at?: string | null
           last_trier_sync_at?: string | null
           lock_manual_price?: boolean
@@ -989,6 +998,7 @@ export type Database = {
           manual_barcode?: boolean
           manual_category?: boolean
           manual_description?: boolean
+          manual_disabled?: boolean
           manual_image?: boolean
           manual_name?: boolean
           manual_override?: boolean
@@ -1021,8 +1031,10 @@ export type Database = {
           sync_with_trier?: boolean
           tags?: string | null
           tarja?: string | null
+          trier_active?: boolean | null
           trier_barcode?: string | null
           trier_product_id?: string | null
+          trier_stock_quantity?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1364,6 +1376,7 @@ export type Database = {
           schedule_products_minutes: number
           schedule_stock_minutes: number
           send_orders_enabled: boolean
+          stock_source: string
           sync_categories_enabled: boolean
           sync_discounts_enabled: boolean
           sync_mode: string
@@ -1396,6 +1409,7 @@ export type Database = {
           schedule_products_minutes?: number
           schedule_stock_minutes?: number
           send_orders_enabled?: boolean
+          stock_source?: string
           sync_categories_enabled?: boolean
           sync_discounts_enabled?: boolean
           sync_mode?: string
@@ -1428,6 +1442,7 @@ export type Database = {
           schedule_products_minutes?: number
           schedule_stock_minutes?: number
           send_orders_enabled?: boolean
+          stock_source?: string
           sync_categories_enabled?: boolean
           sync_discounts_enabled?: boolean
           sync_mode?: string
