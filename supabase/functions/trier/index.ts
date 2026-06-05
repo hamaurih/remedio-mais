@@ -12,6 +12,14 @@ const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
 const RETRY_NETWORK_CODES = ["ECONNRESET", "ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNREFUSED", "EAI_AGAIN"];
 const PAUSE_BETWEEN_PAGES_MS = 400;
 
+type SyncMode =
+  | "create_only"
+  | "stock_only"
+  | "price_only"
+  | "barcode_only"
+  | "safe_operational"
+  | "catalog_protected";
+
 type Settings = {
   environment: string;
   base_url: string;
@@ -27,6 +35,8 @@ type Settings = {
   schedule_prices_minutes: number; schedule_discounts_minutes: number;
   last_sync_products_at: string | null; last_sync_stock_at: string | null;
   last_sync_prices_at: string | null; last_sync_discounts_at: string | null;
+  sync_mode: SyncMode;
+  auto_sync_paused: boolean;
 };
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -137,6 +147,8 @@ async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Setti
     ecommerce_filter: data.ecommerce_filter ?? "",
     page_size: data.page_size || PAGE_SIZE,
     branch_code: data.branch_code || "1",
+    sync_mode: (data.sync_mode as SyncMode) || "safe_operational",
+    auto_sync_paused: !!data.auto_sync_paused,
   };
 }
 
@@ -488,16 +500,127 @@ function mapProduct(t: any) {
 type UpsertResult = {
   created?: boolean; updated?: boolean; skipped?: boolean; failed?: boolean;
   reason?: string; error?: string; trier_id?: string; name?: string;
+  fields_updated?: string[]; fields_protected?: string[]; barcode_divergence?: boolean;
 };
 
-async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyPrice?: boolean } = {}): Promise<UpsertResult> {
+// Campos que a Trier NUNCA deve sobrescrever em produto já existente
+// (campos comerciais/manuais — controlados pelo admin do site).
+const PROTECTED_ALWAYS = new Set<string>([
+  "image_url", "gallery_images",
+  "slug",
+  "seo_title", "seo_description", "seo_keywords",
+  "product_badge", "custom_warning",
+  "featured",
+  "shelves",
+  "tags",
+]);
+
+// Campos operacionais que a Trier pode atualizar.
+const FIELDS_STOCK = ["stock", "stock_quantity", "ecommerce_stock_quantity"];
+const FIELDS_PRICE = ["price", "ecommerce_price", "promo_price", "on_sale"];
+const FIELDS_BARCODE = ["barcode", "trier_barcode"];
+const FIELDS_TECHNICAL = [
+  "laboratory", "manufacturer", "laboratory_code",
+  "group_code", "group_name",
+  "category_external_id", "category_name",
+  "department_external_id", "department_name",
+  "active_ingredient", "active_ingredient_code",
+  "max_discount_percentage", "sale_observation",
+  "medicine_list_type", "tarja", "requires_prescription",
+  "ecommerce_enabled", "is_active",
+  "cart_quantity_limit", "ecommerce_name",
+];
+
+function fieldsForMode(mode: SyncMode): Set<string> {
+  const base = new Set<string>(["last_trier_sync_at", "source"]);
+  switch (mode) {
+    case "stock_only":
+      FIELDS_STOCK.forEach((f) => base.add(f)); base.add("active"); break;
+    case "price_only":
+      FIELDS_PRICE.forEach((f) => base.add(f)); break;
+    case "barcode_only":
+      FIELDS_BARCODE.forEach((f) => base.add(f)); break;
+    case "safe_operational":
+      [...FIELDS_STOCK, ...FIELDS_PRICE, ...FIELDS_BARCODE, ...FIELDS_TECHNICAL].forEach((f) => base.add(f));
+      base.add("active");
+      break;
+    case "catalog_protected":
+      // tudo, exceto PROTECTED_ALWAYS e campos com flag manual
+      [
+        "name", "description", "short_description", "category_id",
+        ...FIELDS_STOCK, ...FIELDS_PRICE, ...FIELDS_BARCODE, ...FIELDS_TECHNICAL, "active",
+      ].forEach((f) => base.add(f));
+      break;
+    case "create_only":
+      // sem updates em produtos existentes
+      break;
+  }
+  return base;
+}
+
+function manualLocksOf(existing: any): Set<string> {
+  const locked = new Set<string>();
+  if (!existing) return locked;
+  if (existing.lock_manual_price) FIELDS_PRICE.forEach((f) => locked.add(f));
+  if (existing.lock_manual_stock) FIELDS_STOCK.forEach((f) => locked.add(f));
+  if (existing.manual_image) { locked.add("image_url"); locked.add("gallery_images"); }
+  if (existing.manual_description) { locked.add("description"); locked.add("short_description"); }
+  if (existing.manual_category) { locked.add("category_id"); locked.add("category_name"); }
+  if (existing.manual_active) { locked.add("active"); locked.add("is_active"); }
+  if (existing.manual_barcode) FIELDS_BARCODE.forEach((f) => locked.add(f));
+  if (existing.manual_name) locked.add("name");
+  if (existing.manual_seo) { locked.add("seo_title"); locked.add("seo_description"); locked.add("seo_keywords"); locked.add("slug"); }
+  if (existing.manual_shelves) locked.add("shelves");
+  // manual_override = trava tudo, menos operacional
+  if (existing.manual_override) {
+    ["name", "description", "short_description", "image_url", "gallery_images",
+     "slug", "seo_title", "seo_description", "seo_keywords",
+     "category_id", "category_name", "shelves", "featured", "tags",
+     "product_badge", "custom_warning", "active",
+    ].forEach((f) => locked.add(f));
+  }
+  return locked;
+}
+
+function isEmptyValue(v: any): boolean {
+  if (v === undefined || v === null) return true;
+  if (typeof v === "string" && v.trim() === "") return true;
+  if (Array.isArray(v) && v.length === 0) return true;
+  return false;
+}
+
+async function recordProductSyncLog(entry: {
+  product_id?: string | null; trier_product_id: string; sync_type: string;
+  fields_updated?: string[]; fields_protected?: string[];
+  old_values?: any; new_values?: any;
+  status?: string; error_message?: string;
+}) {
+  try {
+    await supabase.from("product_sync_logs").insert({
+      product_id: entry.product_id ?? null,
+      trier_product_id: entry.trier_product_id,
+      sync_type: entry.sync_type,
+      fields_updated: entry.fields_updated ?? [],
+      fields_protected: entry.fields_protected ?? [],
+      old_values: entry.old_values ?? null,
+      new_values: entry.new_values ?? null,
+      status: entry.status ?? "ok",
+      error_message: entry.error_message ?? null,
+    });
+  } catch (_) { /* nunca derruba a sync por causa de log */ }
+}
+
+async function upsertProductFromTrier(
+  t: any,
+  opts: { onlyStock?: boolean; onlyPrice?: boolean; mode?: SyncMode; syncType?: string; simulate?: boolean } = {},
+): Promise<UpsertResult> {
   const trierId = pickCode(t);
   const name = pickName(t);
   if (!trierId) return { skipped: true, reason: "sem_codigo" };
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, lock_manual_price, lock_manual_stock, sync_with_trier")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
 
@@ -506,7 +629,6 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
   const catNameForLink: string = mapped._category_name_for_link || "Medicamentos";
   delete mapped._shelves;
   delete mapped._category_name_for_link;
-  // Garantir que nunca enviamos discount_percentage (coluna gerada/restrita)
   delete mapped.discount_percentage;
 
   // Resolver/criar categoria
@@ -521,44 +643,142 @@ async function upsertProductFromTrier(t: any, opts: { onlyStock?: boolean; onlyP
         .select("id").single();
       if (newCat) categoryId = newCat.id;
     }
-  } catch (_) { /* ignora erro de categoria */ }
+  } catch (_) { /* ignora */ }
   if (categoryId) mapped.category_id = categoryId;
 
-  let payload: any = mapped;
-
-  if (existing) {
-    if (existing.sync_with_trier === false) return { skipped: true, reason: "sync_desativado_no_produto", trier_id: trierId, name };
-    if (opts.onlyStock) payload = { stock: mapped.stock, ecommerce_stock_quantity: mapped.ecommerce_stock_quantity, stock_quantity: mapped.stock_quantity, last_trier_sync_at: mapped.last_trier_sync_at };
-    if (opts.onlyPrice) payload = { price: mapped.price, ecommerce_price: mapped.ecommerce_price, promo_price: mapped.promo_price, on_sale: mapped.on_sale, last_trier_sync_at: mapped.last_trier_sync_at };
-    if (existing.lock_manual_price) { delete payload.price; delete payload.ecommerce_price; delete payload.promo_price; delete payload.on_sale; }
-    if (existing.lock_manual_stock) { delete payload.stock; delete payload.ecommerce_stock_quantity; delete payload.stock_quantity; }
-    delete payload.discount_percentage;
-
-    // Mesclar prateleiras sem perder as manuais
-    if (!opts.onlyStock && !opts.onlyPrice) {
-      const { data: curProd } = await supabase.from("products").select("shelves").eq("id", existing.id).maybeSingle();
-      const cur: string[] = (curProd?.shelves as string[]) || [];
-      payload.shelves = Array.from(new Set([...cur, ...autoShelves]));
+  // ------- INSERT (novo produto) -------
+  if (!existing) {
+    if (opts.onlyStock || opts.onlyPrice) {
+      return { skipped: true, reason: "sem_mapeamento_ainda", trier_id: trierId, name };
     }
-
-    const { error } = await supabase.from("products").update(payload).eq("id", existing.id);
-    if (error) return { failed: true, error: `update: ${error.message}`, trier_id: trierId, name };
-    await supabase.from("trier_product_mappings").upsert({
-      product_id: existing.id, trier_product_id: trierId, trier_barcode: mapped.barcode, trier_name: mapped.name,
-      last_synced_at: new Date().toISOString(), sync_status: "ok",
-    }, { onConflict: "trier_product_id" });
-    return { updated: true, trier_id: trierId, name };
-  } else {
-    if (opts.onlyStock || opts.onlyPrice) return { skipped: true, reason: "sem_mapeamento_ainda", trier_id: trierId, name };
     mapped.shelves = autoShelves;
+    if (opts.simulate) {
+      return { created: true, trier_id: trierId, name, fields_updated: Object.keys(mapped) };
+    }
     const { data: ins, error } = await supabase.from("products").insert(mapped).select("id").single();
-    if (error) return { failed: true, error: `insert: ${error.message}`, trier_id: trierId, name };
+    if (error) {
+      await recordProductSyncLog({ trier_product_id: trierId, sync_type: opts.syncType || "create", status: "error", error_message: error.message });
+      return { failed: true, error: `insert: ${error.message}`, trier_id: trierId, name };
+    }
     await supabase.from("trier_product_mappings").insert({
       product_id: ins.id, trier_product_id: trierId, trier_barcode: mapped.barcode, trier_name: mapped.name,
       last_synced_at: new Date().toISOString(), sync_status: "ok",
     });
-    return { created: true, trier_id: trierId, name };
+    await recordProductSyncLog({
+      product_id: ins.id, trier_product_id: trierId, sync_type: opts.syncType || "create",
+      fields_updated: Object.keys(mapped), new_values: mapped,
+    });
+    return { created: true, trier_id: trierId, name, fields_updated: Object.keys(mapped) };
   }
+
+  // ------- UPDATE (produto existente) -------
+  if (existing.sync_with_trier === false) {
+    return { skipped: true, reason: "sync_desativado_no_produto", trier_id: trierId, name };
+  }
+
+  // 1) Determinar campos permitidos pelo modo
+  let allowed: Set<string>;
+  if (opts.onlyStock) allowed = new Set([...FIELDS_STOCK, "active", "last_trier_sync_at"]);
+  else if (opts.onlyPrice) allowed = new Set([...FIELDS_PRICE, "last_trier_sync_at"]);
+  else allowed = fieldsForMode(opts.mode || "safe_operational");
+
+  // create_only não atualiza existentes
+  if ((opts.mode === "create_only") && !opts.onlyStock && !opts.onlyPrice) {
+    return { skipped: true, reason: "modo_create_only_ja_existe", trier_id: trierId, name };
+  }
+
+  // 2) Manual locks
+  const locks = manualLocksOf(existing);
+  const fields_protected: string[] = [];
+  const fields_updated: string[] = [];
+  const oldValues: Record<string, any> = {};
+  const newValues: Record<string, any> = {};
+  let barcodeDivergence = false;
+
+  const candidate: Record<string, any> = {};
+  for (const [k, v] of Object.entries(mapped)) {
+    if (!allowed.has(k) && !PROTECTED_ALWAYS.has(k)) {
+      if (allowed.size > 0 && !["last_trier_sync_at"].includes(k)) { /* fora do modo */ continue; }
+    }
+    if (!allowed.has(k)) continue;
+    if (PROTECTED_ALWAYS.has(k)) { fields_protected.push(k + ":sempre_manual"); continue; }
+    if (locks.has(k)) { fields_protected.push(k + ":manual"); continue; }
+    // Nunca apagar com null/empty vindo da Trier
+    if (isEmptyValue(v) && !isEmptyValue((existing as any)[k])) {
+      fields_protected.push(k + ":nao_apagar_com_vazio");
+      continue;
+    }
+    // Barcode: detectar divergência e NÃO sobrescrever automaticamente
+    if (k === "barcode") {
+      const cur = (existing as any).barcode;
+      if (cur && v && String(cur).trim() !== String(v).trim()) {
+        barcodeDivergence = true;
+        fields_protected.push("barcode:divergencia_aguardando_revisao");
+        // registra divergência (idempotente por product_id)
+        if (!opts.simulate) {
+          await supabase.from("trier_barcode_divergences").upsert({
+            product_id: existing.id, trier_product_id: trierId,
+            current_barcode: String(cur), trier_barcode: String(v), status: "pending",
+          }, { onConflict: "product_id" });
+        }
+        continue;
+      }
+    }
+    candidate[k] = v;
+    if ((existing as any)[k] !== v) {
+      fields_updated.push(k);
+      oldValues[k] = (existing as any)[k];
+      newValues[k] = v;
+    }
+  }
+
+  // Sempre atualizar last_trier_sync_at
+  candidate.last_trier_sync_at = mapped.last_trier_sync_at;
+
+  // Mesclar prateleiras (somente se permitido e não bloqueado)
+  if (!opts.onlyStock && !opts.onlyPrice && !locks.has("shelves") && (opts.mode === "catalog_protected")) {
+    candidate.shelves = Array.from(new Set([...(existing.shelves || []), ...autoShelves]));
+    if (JSON.stringify(existing.shelves || []) !== JSON.stringify(candidate.shelves)) {
+      fields_updated.push("shelves");
+    }
+  }
+
+  if (opts.simulate) {
+    return {
+      updated: fields_updated.length > 0, skipped: fields_updated.length === 0,
+      trier_id: trierId, name, fields_updated, fields_protected, barcode_divergence: barcodeDivergence,
+      reason: fields_updated.length === 0 ? "nada_a_atualizar" : undefined,
+    };
+  }
+
+  if (fields_updated.length === 0) {
+    // só toca last_trier_sync_at
+    await supabase.from("products").update({ last_trier_sync_at: candidate.last_trier_sync_at }).eq("id", existing.id);
+    await recordProductSyncLog({
+      product_id: existing.id, trier_product_id: trierId, sync_type: opts.syncType || "update",
+      fields_updated: [], fields_protected, status: "noop",
+    });
+    return { skipped: true, reason: "nada_a_atualizar", trier_id: trierId, name, fields_protected, barcode_divergence: barcodeDivergence };
+  }
+
+  const { error } = await supabase.from("products").update(candidate).eq("id", existing.id);
+  if (error) {
+    await recordProductSyncLog({
+      product_id: existing.id, trier_product_id: trierId, sync_type: opts.syncType || "update",
+      fields_updated, fields_protected, old_values: oldValues, new_values: newValues,
+      status: "error", error_message: error.message,
+    });
+    return { failed: true, error: `update: ${error.message}`, trier_id: trierId, name };
+  }
+  await supabase.from("trier_product_mappings").upsert({
+    product_id: existing.id, trier_product_id: trierId, trier_barcode: mapped.barcode, trier_name: mapped.name,
+    last_synced_at: new Date().toISOString(), sync_status: "ok",
+  }, { onConflict: "trier_product_id" });
+  await recordProductSyncLog({
+    product_id: existing.id, trier_product_id: trierId, sync_type: opts.syncType || "update",
+    fields_updated, fields_protected, old_values: oldValues, new_values: newValues,
+  });
+  return { updated: true, trier_id: trierId, name, fields_updated, fields_protected, barcode_divergence: barcodeDivergence };
 }
 
 // ---------- ACTIONS ----------
@@ -642,7 +862,7 @@ function summarizeResults(results: UpsertResult[]) {
   return { created, updated, failed, ignored, ignored_reasons, errors, sampleIgnored };
 }
 
-async function actionSyncProducts(trigger = "manual", changed = false) {
+async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
   const job = await startJob(changed ? "products_changed" : "products", trigger);
   try {
@@ -671,8 +891,9 @@ async function actionSyncProducts(trigger = "manual", changed = false) {
       }
     }
 
+    const mode: SyncMode = modeOverride || s.sync_mode || "safe_operational";
     const results: UpsertResult[] = [];
-    for (const t of allItems) results.push(await upsertProductFromTrier(t));
+    for (const t of allItems) results.push(await upsertProductFromTrier(t, { mode, syncType: changed ? "products_changed" : "products" }));
     const sum = summarizeResults(results);
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
 
@@ -1277,6 +1498,10 @@ async function actionUpdateOrderStatus(orderId: string, statusCode: number) {
 
 async function actionScheduled() {
   const s = await getSettings();
+  if (s.auto_sync_paused) {
+    await log("scheduled", "info", "Sincronização automática pausada (auto_sync_paused=true). Nada será executado.");
+    return { ok: true, paused: true, results: {} };
+  }
   const now = Date.now();
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
   const results: any = {};
@@ -1286,6 +1511,98 @@ async function actionScheduled() {
   if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) results.products = await actionSyncProducts("cron", true);
   return { ok: true, results };
 }
+
+// ---------- SAFE-SYNC ACTIONS ----------
+
+async function actionMarkStalledJobs(minutes = 20) {
+  const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
+  const { data: stalled } = await supabase.from("trier_sync_jobs")
+    .select("id, sync_type, started_at, records_checked")
+    .eq("status", "running")
+    .lt("started_at", cutoff);
+  const ids = (stalled || []).map((j: any) => j.id);
+  if (ids.length === 0) return { ok: true, marked: 0, jobs: [] };
+  await supabase.from("trier_sync_jobs").update({
+    status: "error",
+    error_message: "job_travado_sem_progresso",
+    finished_at: new Date().toISOString(),
+  }).in("id", ids);
+  await log("jobs", "info", `Marcados ${ids.length} jobs travados (>${minutes}min) como falhos.`, { ids });
+  return { ok: true, marked: ids.length, jobs: stalled };
+}
+
+async function actionToggleAutoSync(paused: boolean) {
+  await supabase.from("trier_settings").update({ auto_sync_paused: !!paused }).eq("id", 1);
+  await log("settings", "info", `Sincronização automática ${paused ? "PAUSADA" : "RETOMADA"}.`, { auto_sync_paused: !!paused });
+  return { ok: true, auto_sync_paused: !!paused };
+}
+
+async function actionSetSyncMode(mode: SyncMode) {
+  const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected"];
+  if (!valid.includes(mode)) throw new Error("Modo de sincronização inválido");
+  await supabase.from("trier_settings").update({ sync_mode: mode }).eq("id", 1);
+  await log("settings", "info", `Modo de sincronização alterado para: ${mode}.`, { sync_mode: mode });
+  return { ok: true, sync_mode: mode };
+}
+
+async function actionSimulateSyncPage(offset = 0, pageSize = 50, mode?: SyncMode) {
+  const s = await getSettings();
+  const effMode: SyncMode = mode || s.sync_mode || "safe_operational";
+  const qs = buildProductsQuery(s, offset, pageSize, {}, { ativo: "true" });
+  const json = await trierGet(s, `/rest/integracao/produto/obter-todos-v1?${qs}`, { page: Math.floor(offset / pageSize) });
+  const list = extractList(json);
+  const results: UpsertResult[] = [];
+  for (const t of list) results.push(await upsertProductFromTrier(t, { mode: effMode, simulate: true, syncType: "simulate" }));
+  const created = results.filter((r) => r.created).length;
+  const updated = results.filter((r) => r.updated).length;
+  const skipped = results.filter((r) => r.skipped).length;
+  const divergences = results.filter((r) => r.barcode_divergence).length;
+  const items = results.map((r) => ({
+    trier_id: r.trier_id, name: r.name,
+    action: r.created ? "criar" : r.updated ? "atualizar" : "ignorar",
+    fields_updated: r.fields_updated || [],
+    fields_protected: r.fields_protected || [],
+    barcode_divergence: !!r.barcode_divergence,
+    reason: r.reason,
+  }));
+  return { ok: true, mode: effMode, offset, pageSize, total: list.length, created, updated, skipped, divergences, items };
+}
+
+async function actionListBarcodeDivergences(limit = 100, offset = 0) {
+  const { data, count } = await supabase
+    .from("trier_barcode_divergences")
+    .select("*, products(name, trier_product_id)", { count: "exact" })
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  return { ok: true, items: data || [], total: count || 0 };
+}
+
+async function actionResolveBarcodeDivergence(id: string, action: "keep_current" | "use_trier" | "ignore") {
+  const { data: div } = await supabase.from("trier_barcode_divergences").select("*").eq("id", id).maybeSingle();
+  if (!div) return { ok: false, error: "Divergência não encontrada" };
+  if (action === "use_trier" && div.product_id) {
+    await supabase.from("products").update({ barcode: div.trier_barcode, trier_barcode: div.trier_barcode }).eq("id", div.product_id);
+  }
+  await supabase.from("trier_barcode_divergences").update({
+    status: action === "keep_current" ? "kept_current" : action === "use_trier" ? "replaced" : "ignored",
+    resolved_at: new Date().toISOString(),
+  }).eq("id", id);
+  return { ok: true };
+}
+
+async function actionListProductSyncLogs(productId?: string, limit = 50) {
+  let q = supabase.from("product_sync_logs").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (productId) q = q.eq("product_id", productId);
+  const { data } = await q;
+  return { ok: true, items: data || [] };
+}
+
+async function actionSyncBarcodes(trigger = "manual") {
+  return actionSyncProducts(trigger, false, "barcode_only");
+}
+
+
 
 // ---------- AUTH ----------
 async function requireAdmin(req: Request) {
@@ -1346,7 +1663,15 @@ Deno.serve(async (req) => {
         result = { baseUrl: s.base_url, endpoint, finalUrl: buildTrierUrl(s.base_url, endpoint) };
         break;
       }
-      case "sync-products": result = runAsync("products", () => actionSyncProducts(trigger, !!body.changed)); break;
+      case "sync-products": result = runAsync("products", () => actionSyncProducts(trigger, !!body.changed, body.mode as SyncMode | undefined)); break;
+      case "sync-barcodes": result = runAsync("barcodes", () => actionSyncBarcodes(trigger)); break;
+      case "mark-stalled-jobs": result = await actionMarkStalledJobs(Number(body.minutes) || 20); break;
+      case "toggle-auto-sync": result = await actionToggleAutoSync(!!body.paused); break;
+      case "set-sync-mode": result = await actionSetSyncMode(body.mode as SyncMode); break;
+      case "simulate-sync-page": result = await actionSimulateSyncPage(Number(body.offset) || 0, Number(body.pageSize) || 50, body.mode as SyncMode | undefined); break;
+      case "list-barcode-divergences": result = await actionListBarcodeDivergences(Number(body.limit) || 100, Number(body.offset) || 0); break;
+      case "resolve-barcode-divergence": result = await actionResolveBarcodeDivergence(body.id, body.action); break;
+      case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
       case "sync-categories": result = runAsync("categories", () => actionSyncCategories(trigger)); break;
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
       case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;

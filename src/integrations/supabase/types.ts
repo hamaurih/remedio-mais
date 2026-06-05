@@ -755,6 +755,56 @@ export type Database = {
         }
         Relationships: []
       }
+      product_sync_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          fields_protected: Json | null
+          fields_updated: Json | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          product_id: string | null
+          status: string
+          sync_type: string
+          trier_product_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          fields_protected?: Json | null
+          fields_updated?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          product_id?: string | null
+          status?: string
+          sync_type: string
+          trier_product_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          fields_protected?: Json | null
+          fields_updated?: Json | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          product_id?: string | null
+          status?: string
+          sync_type?: string
+          trier_product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_sync_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -789,6 +839,15 @@ export type Database = {
           last_trier_sync_at: string | null
           lock_manual_price: boolean
           lock_manual_stock: boolean
+          manual_active: boolean
+          manual_barcode: boolean
+          manual_category: boolean
+          manual_description: boolean
+          manual_image: boolean
+          manual_name: boolean
+          manual_override: boolean
+          manual_seo: boolean
+          manual_shelves: boolean
           manufacturer: string | null
           max_discount_percentage: number | null
           medicine_list_type: string | null
@@ -853,6 +912,15 @@ export type Database = {
           last_trier_sync_at?: string | null
           lock_manual_price?: boolean
           lock_manual_stock?: boolean
+          manual_active?: boolean
+          manual_barcode?: boolean
+          manual_category?: boolean
+          manual_description?: boolean
+          manual_image?: boolean
+          manual_name?: boolean
+          manual_override?: boolean
+          manual_seo?: boolean
+          manual_shelves?: boolean
           manufacturer?: string | null
           max_discount_percentage?: number | null
           medicine_list_type?: string | null
@@ -917,6 +985,15 @@ export type Database = {
           last_trier_sync_at?: string | null
           lock_manual_price?: boolean
           lock_manual_stock?: boolean
+          manual_active?: boolean
+          manual_barcode?: boolean
+          manual_category?: boolean
+          manual_description?: boolean
+          manual_image?: boolean
+          manual_name?: boolean
+          manual_override?: boolean
+          manual_seo?: boolean
+          manual_shelves?: boolean
           manufacturer?: string | null
           max_discount_percentage?: number | null
           medicine_list_type?: string | null
@@ -1141,6 +1218,50 @@ export type Database = {
         }
         Relationships: []
       }
+      trier_barcode_divergences: {
+        Row: {
+          created_at: string
+          current_barcode: string | null
+          id: string
+          product_id: string | null
+          resolved_at: string | null
+          status: string
+          trier_barcode: string | null
+          trier_product_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_barcode?: string | null
+          id?: string
+          product_id?: string | null
+          resolved_at?: string | null
+          status?: string
+          trier_barcode?: string | null
+          trier_product_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_barcode?: string | null
+          id?: string
+          product_id?: string | null
+          resolved_at?: string | null
+          status?: string
+          trier_barcode?: string | null
+          trier_product_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trier_barcode_divergences_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trier_logs: {
         Row: {
           created_at: string
@@ -1220,6 +1341,7 @@ export type Database = {
       }
       trier_settings: {
         Row: {
+          auto_sync_paused: boolean
           base_url: string
           bearer_token: string | null
           branch_code: string | null
@@ -1244,12 +1366,14 @@ export type Database = {
           send_orders_enabled: boolean
           sync_categories_enabled: boolean
           sync_discounts_enabled: boolean
+          sync_mode: string
           sync_prices_enabled: boolean
           sync_products_enabled: boolean
           sync_stock_enabled: boolean
           updated_at: string
         }
         Insert: {
+          auto_sync_paused?: boolean
           base_url?: string
           bearer_token?: string | null
           branch_code?: string | null
@@ -1274,12 +1398,14 @@ export type Database = {
           send_orders_enabled?: boolean
           sync_categories_enabled?: boolean
           sync_discounts_enabled?: boolean
+          sync_mode?: string
           sync_prices_enabled?: boolean
           sync_products_enabled?: boolean
           sync_stock_enabled?: boolean
           updated_at?: string
         }
         Update: {
+          auto_sync_paused?: boolean
           base_url?: string
           bearer_token?: string | null
           branch_code?: string | null
@@ -1304,6 +1430,7 @@ export type Database = {
           send_orders_enabled?: boolean
           sync_categories_enabled?: boolean
           sync_discounts_enabled?: boolean
+          sync_mode?: string
           sync_prices_enabled?: boolean
           sync_products_enabled?: boolean
           sync_stock_enabled?: boolean
