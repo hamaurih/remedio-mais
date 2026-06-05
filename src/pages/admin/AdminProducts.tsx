@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search } from "lucide-react";
+import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 
