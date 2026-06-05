@@ -37,7 +37,10 @@ type Settings = {
   last_sync_prices_at: string | null; last_sync_discounts_at: string | null;
   sync_mode: SyncMode;
   auto_sync_paused: boolean;
+  stock_source: StockSource;
 };
+
+type StockSource = "loja" | "ecommerce" | "auto";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
