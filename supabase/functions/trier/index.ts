@@ -1557,7 +1557,8 @@ async function actionSyncStock(trigger = "manual") {
   const ecom = ecommerceParamOrOmit(s);
   const codFilial = s.branch_code ?? 1;
   const ecomStatus = ecom === undefined ? "omitido" : ecom;
-  const pageSize = PAGE_SIZE;
+  // Estoque: gateway Trier dá timeout (HTTP 556) com páginas grandes. Usar página menor.
+  const pageSize = 50;
 
   try {
     if (resumed) {
