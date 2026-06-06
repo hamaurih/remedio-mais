@@ -4,9 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatBRL, buildWhatsAppLink } from "@/lib/store";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { MessageCircle, Copy } from "lucide-react";
+
+const PAYMENT_LABEL: Record<string, string> = {
+  pending: "Pendente", approved: "Aprovado", rejected: "Recusado",
+  cancelled: "Cancelado", refunded: "Estornado", chargeback: "Chargeback",
+};
+const FULFILL_LABEL: Record<string, string> = {
+  unfulfilled: "Não iniciado", picking: "Separando", packed: "Embalado",
+  shipped: "Despachado", delivered: "Entregue", cancelled: "Cancelado",
+};
+
 
 const STATUSES = [
   "novo", "em_atendimento", "aguardando_pagamento", "separando",
