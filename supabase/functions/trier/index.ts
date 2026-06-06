@@ -1042,73 +1042,122 @@ async function applyStockPage(items: any[]) {
 
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
-  const job = await startJob(changed ? "products_changed" : "products", trigger);
-  try {
-    const allItems: any[] = [];
-    const metaByFilter: Record<string, PaginateMeta> = {};
-    if (changed) {
+  const sync_type = changed ? "products_changed" : "products";
+  const { job, resumed } = await getOrCreateResumableJob(sync_type, trigger);
+  const start = Date.now();
+  const prev = (job.details as any) || {};
+  // Phases for full sync: ativo_true -> ativo_false -> done. For changed: alterados -> done.
+  let phase: string = prev.phase || (changed ? "alterados" : "ativo_true");
+  let offset: number = Number(prev.next_offset) || 0;
+  let pages: number = Number(prev.pages_consulted) || 0;
+  let checked: number = Number(job.records_checked) || 0;
+  let created: number = Number(job.records_created) || 0;
+  let updated: number = Number(job.records_updated) || 0;
+  let ignored: number = Number(job.records_ignored) || 0;
+  let failed: number = Number(job.records_failed) || 0;
+  const ignored_reasons: Record<string, number> = prev.ignored_reasons || {};
+  const mode: SyncMode = modeOverride || s.sync_mode || "safe_operational";
+
+  const buildPath = (off: number): string => {
+    if (phase === "alterados") {
       const since = s.last_sync_products_at || new Date(Date.now() - 7 * 86400000).toISOString();
       const dataInicial = since.slice(0, 10);
       const dataFinal = new Date().toISOString().slice(0, 10);
-      const r = await paginateProducts(s, "/rest/integracao/produto/obter-alterados-v1", { dataInicial, dataFinal }, { ativo: "" });
-      allItems.push(...r.items);
-      metaByFilter["alterados"] = r.meta;
+      const qs = buildProductsQuery(s, off, PAGE_SIZE, { dataInicial, dataFinal }, { ativo: "" });
+      return `/rest/integracao/produto/obter-alterados-v1?${qs}`;
+    }
+    const ativo = phase === "ativo_true" ? "true" : "false";
+    const qs = buildProductsQuery(s, off, PAGE_SIZE, {}, { ativo });
+    return `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  };
+
+  try {
+    if (resumed) {
+      await log("products", "info", `Retomando sync (fase ${phase}, offset ${offset})`, { job_id: job.id });
     } else {
-      // Sincronização COMPLETA: percorre ativo=true e depois ativo=false para
-      // garantir o cadastro de produtos inativos/sem estoque também.
-      for (const ativo of ["true", "false"] as const) {
-        const r = await paginateProducts(s, "/rest/integracao/produto/obter-todos-v1", {}, { ativo });
-        // dedup por código (caso a API retorne em ambos)
-        const seen = new Set(allItems.map((t) => pickCode(t)));
-        for (const t of r.items) {
-          const c = pickCode(t);
-          if (!c || seen.has(c)) continue;
-          allItems.push(t); seen.add(c);
-        }
-        metaByFilter[`ativo_${ativo}`] = r.meta;
-      }
+      await log("products", "info", "Iniciando sincronização de produtos", { changed, phase, mode });
     }
 
-    const mode: SyncMode = modeOverride || s.sync_mode || "safe_operational";
-    const results: UpsertResult[] = [];
-    for (const t of allItems) results.push(await upsertProductFromTrier(t, { mode, stockSource: s.stock_source, syncType: changed ? "products_changed" : "products" }));
-    const sum = summarizeResults(results);
+    while (true) {
+      if (phase === "done") break;
+      if (Date.now() - start > MAX_RUN_MS) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_created: created, records_updated: updated,
+          records_failed: failed, records_ignored: ignored,
+          details: { ...prev, phase, next_offset: offset, pages_consulted: pages, ignored_reasons, mode },
+        });
+        await log("products", "info", `Pausado (deadline ${MAX_RUN_MS}ms). Fase ${phase}, próximo offset ${offset}.`, { job_id: job.id });
+        return { ok: true, paused: true, job_id: job.id, phase, next_offset: offset, checked, created, updated, ignored, failed };
+      }
+
+      const path = buildPath(offset);
+      let list: any[] = [];
+      try {
+        const json = await trierGet(s, path, { page: pages });
+        list = extractList(json);
+      } catch (e: any) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_created: created, records_updated: updated,
+          records_failed: failed, records_ignored: ignored,
+          details: { ...prev, phase, next_offset: offset, pages_consulted: pages, ignored_reasons, mode, last_error: String(e?.message || e).slice(0, 300) },
+        });
+        await log("products", "error", `Erro consultando página (fase ${phase}, offset ${offset}). Job pausado para retomada.`, { error: String(e?.message || e), job_id: job.id });
+        return { ok: false, paused: true, job_id: job.id, error: String(e?.message || e) };
+      }
+
+      const results: UpsertResult[] = [];
+      for (const t of list) {
+        results.push(await upsertProductFromTrier(t, { mode, stockSource: s.stock_source, syncType: sync_type }));
+      }
+      const sum = summarizeResults(results);
+      checked += list.length;
+      created += sum.created;
+      updated += sum.updated;
+      ignored += sum.ignored;
+      failed += sum.failed;
+      Object.entries(sum.ignored_reasons || {}).forEach(([k, v]) => {
+        ignored_reasons[k] = (ignored_reasons[k] || 0) + Number(v || 0);
+      });
+      pages++;
+
+      const advancedOffset = offset + PAGE_SIZE;
+      await updateJobProgress(job.id, {
+        records_checked: checked, records_created: created, records_updated: updated,
+        records_failed: failed, records_ignored: ignored,
+        details: { ...prev, phase, next_offset: advancedOffset, pages_consulted: pages, ignored_reasons, mode },
+      });
+
+      if (list.length < PAGE_SIZE) {
+        // end of phase
+        if (changed) { phase = "done"; break; }
+        if (phase === "ativo_true") { phase = "ativo_false"; offset = 0; continue; }
+        phase = "done"; break;
+      }
+      offset = advancedOffset;
+      await sleep(PAUSE_BETWEEN_PAGES_MS);
+    }
+
     await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
-
-    const total_returned_api = Object.values(metaByFilter).reduce((a, m) => a + m.total_returned, 0);
-    const pages = Object.values(metaByFilter).reduce((a, m) => a + m.pages, 0);
-    const last_offset = Math.max(0, ...Object.values(metaByFilter).map((m) => m.last_offset));
-    const stop_reasons = Object.fromEntries(Object.entries(metaByFilter).map(([k, m]) => [k, m.stop_reason]));
-
     await finishJob(job.id, {
-      status: sum.failed > 0 ? "partial" : "success",
-      records_checked: allItems.length,
-      records_created: sum.created,
-      records_updated: sum.updated,
-      records_failed: sum.failed,
-      records_ignored: sum.ignored,
-      details: {
-        total_returned_api,
-        unique_processed: allItems.length,
-        pages_consulted: pages,
-        last_offset,
-        stop_reasons,
-        ignored_reasons: sum.ignored_reasons,
-        per_filter: metaByFilter,
-      },
+      status: failed > 0 ? "partial" : "success",
+      records_checked: checked, records_created: created, records_updated: updated,
+      records_failed: failed, records_ignored: ignored,
+      details: { ...prev, phase: "done", next_offset: 0, pages_consulted: pages, ignored_reasons, mode, completed: true },
     });
-    const msg = allItems.length === 0
+    const msg = checked === 0
       ? "A Trier respondeu com sucesso, mas não retornou produtos para esses filtros."
-      : `Produtos: ${total_returned_api} retornados (API) · ${allItems.length} únicos · ${sum.created} criados · ${sum.updated} atualizados · ${sum.ignored} ignorados · ${sum.failed} com erro · ${pages} páginas · último offset ${last_offset}`;
-    await log("products", sum.failed > 0 ? "error" : "success", msg, { changed, total: allItems.length, total_returned_api, pages, last_offset, stop_reasons, ...sum });
-    return { ok: true, total: allItems.length, total_returned_api, pages, last_offset, stop_reasons, ...sum };
+      : `Produtos concluídos: ${checked} lidos · ${created} criados · ${updated} atualizados · ${ignored} ignorados · ${failed} erros · ${pages} páginas`;
+    await log("products", failed > 0 ? "error" : "success", msg, { changed, checked, created, updated, ignored, failed, pages });
+    return { ok: true, checked, created, updated, ignored, failed, pages };
   } catch (e: any) {
     const msg = String(e?.message || e).slice(0, 1200);
     await finishJob(job.id, { status: "error", error_message: msg });
-    await log("products", "error", "Erro na sincronização de produtos", { error: msg });
+    await log("products", "error", "Erro na sincronização de produtos", { error: msg, job_id: job.id });
     return { ok: false, error: msg };
   }
 }
+
+
 
 async function actionDiagnoseProductsPage() {
   const s = await getSettings();
