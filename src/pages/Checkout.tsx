@@ -262,14 +262,6 @@ export default function Checkout() {
                 disabled={deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)}
               >Continuar</Button>
             </div>
-
-            <div className="flex justify-between mt-6">
-              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
-              <Button
-                onClick={() => setStep(3)}
-                disabled={deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)}
-              >Continuar</Button>
-            </div>
           </Section>
         )}
 
