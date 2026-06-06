@@ -16,6 +16,7 @@ const items = [
   { to: "/admin/campanhas", label: "Campanhas", icon: Megaphone },
   { to: "/admin/ofertas", label: "Ofertas", icon: Tag },
   { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag },
+  { to: "/admin/clientes", label: "Clientes", icon: Users },
   { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
   { to: "/admin/receitas", label: "Receitas", icon: FileText },
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug },
