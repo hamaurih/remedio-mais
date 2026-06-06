@@ -379,6 +379,31 @@ async function finishJob(id: string, patch: any) {
   await supabase.from("trier_sync_jobs").update({ ...patch, finished_at: new Date().toISOString() }).eq("id", id);
 }
 
+// ---------- RESUMABLE JOB HELPERS ----------
+// Edge functions have a hard wall-clock limit. We give each sync run a soft budget
+// and "pause" the job when it expires, so the next cron tick can resume from where
+// it stopped without re-reading the same pages.
+const MAX_RUN_MS = 80_000;
+
+async function getOrCreateResumableJob(sync_type: string, trigger: string) {
+  const { data: paused } = await supabase.from("trier_sync_jobs")
+    .select("*").eq("sync_type", sync_type).eq("status", "paused")
+    .order("started_at", { ascending: false }).limit(1).maybeSingle();
+  if (paused) {
+    await supabase.from("trier_sync_jobs").update({ status: "running" }).eq("id", paused.id);
+    return { job: paused, resumed: true };
+  }
+  const { data } = await supabase.from("trier_sync_jobs")
+    .insert({ sync_type, trigger, status: "running" }).select().single();
+  return { job: data!, resumed: false };
+}
+
+async function pauseJob(id: string, patch: any) {
+  await supabase.from("trier_sync_jobs").update({ ...patch, status: "paused" }).eq("id", id);
+}
+
+
+
 // ---------- MAPPERS ----------
 function firstNonEmpty(...values: any[]): any {
   for (const v of values) {
