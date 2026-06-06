@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes } from "lucide-react";
+import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users } from "lucide-react";
 
 const items = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
