@@ -1774,15 +1774,37 @@ async function actionScheduled() {
     await log("scheduled", "info", "Sincronização automática pausada (auto_sync_paused=true). Nada será executado.");
     return { ok: true, paused: true, results: {} };
   }
+  // Close anything truly stuck before doing new work (worker died w/o pausing)
+  await actionMarkStalledJobs(5);
+
+  // Detect paused jobs to resume them on this tick regardless of "due" timer
+  const { data: pausedRows } = await supabase.from("trier_sync_jobs")
+    .select("sync_type").eq("status", "paused");
+  const paused = new Set((pausedRows || []).map((r: any) => r.sync_type));
+
   const now = Date.now();
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
   const results: any = {};
-  if (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes)) results.stock = await actionSyncStock("cron");
-  if (s.sync_prices_enabled && due(s.last_sync_prices_at, s.schedule_prices_minutes)) results.prices = await actionSyncPrices("cron");
-  if (s.sync_discounts_enabled && due(s.last_sync_discounts_at, s.schedule_discounts_minutes)) results.discounts = await actionSyncDiscounts("cron");
-  if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) results.products = await actionSyncProducts("cron", true);
+
+  if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
+    results.stock = await actionSyncStock("cron");
+  }
+  if (paused.has("prices") || (s.sync_prices_enabled && due(s.last_sync_prices_at, s.schedule_prices_minutes))) {
+    results.prices = await actionSyncPrices("cron");
+  }
+  if (paused.has("discounts") || (s.sync_discounts_enabled && due(s.last_sync_discounts_at, s.schedule_discounts_minutes))) {
+    results.discounts = await actionSyncDiscounts("cron");
+  }
+  if (paused.has("products")) {
+    results.products = await actionSyncProducts("cron", false);
+  } else if (paused.has("products_changed")) {
+    results.products = await actionSyncProducts("cron", true);
+  } else if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) {
+    results.products = await actionSyncProducts("cron", true);
+  }
   return { ok: true, results };
 }
+
 
 // ---------- SAFE-SYNC ACTIONS ----------
 
