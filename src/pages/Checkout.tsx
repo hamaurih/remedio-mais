@@ -41,6 +41,9 @@ export default function Checkout() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [reference, setReference] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
+  const [saveAddress, setSaveAddress] = useState(true);
 
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
@@ -52,7 +55,7 @@ export default function Checkout() {
   );
   const total = subtotal + deliveryFee;
 
-  // Carrega profile
+  // Carrega profile + endereços salvos
   useEffect(() => {
     if (!user) return;
     setEmail(user.email ?? "");
@@ -63,7 +66,46 @@ export default function Checkout() {
         setCpf((d) => d || (data as any).cpf || "");
       }
     });
+    supabase
+      .from("customer_addresses")
+      .select("*")
+      .eq("customer_id", user.id)
+      .order("is_default", { ascending: false })
+      .then(({ data }) => {
+        const list = data || [];
+        setSavedAddresses(list);
+        const def = list.find((a: any) => a.is_default) || list[0];
+        if (def) {
+          setSelectedAddressId(def.id);
+          applyAddress(def);
+          setSaveAddress(false);
+        }
+      });
   }, [user]);
+
+  const applyAddress = (a: any) => {
+    setCep(a.cep || "");
+    setStreet(a.street || "");
+    setNumber(a.number || "");
+    setComplement(a.complement || "");
+    setNeighborhood(a.neighborhood || "");
+    setCity(a.city || "");
+    setState(a.state || "");
+    setReference(a.reference || "");
+  };
+
+  const pickSavedAddress = (id: string) => {
+    setSelectedAddressId(id);
+    if (id === "new") {
+      setCep(""); setStreet(""); setNumber(""); setComplement("");
+      setNeighborhood(""); setCity(""); setState(""); setReference("");
+      setSaveAddress(true);
+    } else {
+      const a = savedAddresses.find((x) => x.id === id);
+      if (a) { applyAddress(a); setSaveAddress(false); }
+    }
+  };
+
 
   // Login obrigatório
   useEffect(() => {
@@ -93,10 +135,30 @@ export default function Checkout() {
     }
   };
 
+  const persistCustomerData = async () => {
+    if (!user) return;
+    // Atualiza profile com nome/telefone/cpf se vieram preenchidos
+    await supabase.from("profiles").update({
+      full_name: name || null,
+      phone: phone || null,
+      cpf: cpf || null,
+    }).eq("id", user.id);
+
+    // Salva endereço novo se aplicável
+    if (deliveryType === "delivery" && saveAddress && selectedAddressId === "new" && cep && street) {
+      await supabase.from("customer_addresses").insert({
+        customer_id: user.id,
+        cep, street, number, complement, neighborhood, city, state, reference,
+        is_default: savedAddresses.length === 0,
+      });
+    }
+  };
+
   const goPay = async () => {
     if (!user) return;
     setSubmitting(true);
     try {
+      await persistCustomerData();
       const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
         body: {
           items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
@@ -118,6 +180,7 @@ export default function Checkout() {
       setSubmitting(false);
     }
   };
+
 
   if (loading || !user) {
     return <Layout><div className="container py-16 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div></Layout>;
@@ -155,7 +218,26 @@ export default function Checkout() {
               </label>
             </RadioGroup>
 
-            {deliveryType === "delivery" && (
+            {deliveryType === "delivery" && savedAddresses.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <Label className="text-xs">Endereços salvos</Label>
+                <div className="space-y-2">
+                  {savedAddresses.map((a) => (
+                    <label key={a.id} className={`block border rounded-lg p-3 text-sm cursor-pointer ${selectedAddressId === a.id ? "border-primary bg-primary/5" : ""}`}>
+                      <input type="radio" name="saved-addr" className="sr-only" checked={selectedAddressId === a.id} onChange={() => pickSavedAddress(a.id)} />
+                      <div className="font-semibold">{a.street}, {a.number}{a.complement ? ` - ${a.complement}` : ""}</div>
+                      <div className="text-xs text-muted-foreground">{a.neighborhood} · {a.city}/{a.state} · CEP {a.cep}</div>
+                    </label>
+                  ))}
+                  <label className={`block border rounded-lg p-3 text-sm cursor-pointer ${selectedAddressId === "new" ? "border-primary bg-primary/5" : ""}`}>
+                    <input type="radio" name="saved-addr" className="sr-only" checked={selectedAddressId === "new"} onChange={() => pickSavedAddress("new")} />
+                    <div className="font-semibold">+ Usar outro endereço</div>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {deliveryType === "delivery" && selectedAddressId === "new" && (
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <Field label="CEP" className="col-span-2 sm:col-span-1">
                   <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
@@ -167,6 +249,10 @@ export default function Checkout() {
                 <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
                 <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
                 <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
+                <label className="col-span-2 flex items-center gap-2 text-xs">
+                  <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                  Salvar este endereço para próximos pedidos
+                </label>
               </div>
             )}
             <div className="flex justify-between mt-6">
