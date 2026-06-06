@@ -88,29 +88,43 @@ export default function AdminOrders() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Pedido #{view?.id?.slice(0, 6)}</DialogTitle></DialogHeader>
           {view && (
-            <div className="space-y-2 text-sm">
-              <div><strong>Cliente:</strong> {view.customer_name}</div>
-              <div><strong>Telefone:</strong> {view.customer_phone}</div>
-              <div><strong>Entrega:</strong> {view.delivery_method === "pickup" ? "Retirar na loja" : `Entrega - ${view.customer_address}`}</div>
-              {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
-              <div className="border-t pt-2 mt-2">
-                {view.order_items?.map((it: any) => (
-                  <div key={it.id} className="flex justify-between"><span>{it.quantity}x {it.product_name}</span><span>{formatBRL(it.unit_price * it.quantity)}</span></div>
-                ))}
-              </div>
-              <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span className="price">{formatBRL(view.total)}</span></div>
-              <div className="flex gap-2 pt-3 border-t">
-                <Button className="flex-1 bg-whatsapp hover:bg-whatsapp/90 text-white" asChild>
-                  <a href={buildWhatsAppLink(view.customer_phone, orderMessage(view))} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4 mr-2" />WhatsApp</a>
-                </Button>
-                <Button variant="outline" onClick={() => { navigator.clipboard.writeText(orderMessage(view)); toast.success("Mensagem copiada"); }}>
-                  <Copy className="h-4 w-4 mr-2" />Copiar
-                </Button>
-              </div>
-            </div>
+            <Tabs defaultValue="resumo">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="resumo">Resumo</TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
+              </TabsList>
+              <TabsContent value="resumo" className="space-y-2 text-sm pt-3">
+                <div><strong>Cliente:</strong> {view.customer_name}</div>
+                <div><strong>Telefone:</strong> {view.customer_phone}</div>
+                <div className="flex gap-2 flex-wrap">
+                  <Badge variant="secondary">Pgto: {PAYMENT_LABEL[view.payment_status] || view.payment_status}</Badge>
+                  <Badge variant="outline">Separação: {FULFILL_LABEL[view.fulfillment_status] || view.fulfillment_status}</Badge>
+                </div>
+                <div><strong>Entrega:</strong> {view.delivery_method === "pickup" ? "Retirar na loja" : `Entrega - ${view.customer_address}`}</div>
+                {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
+                <div className="border-t pt-2 mt-2">
+                  {view.order_items?.map((it: any) => (
+                    <div key={it.id} className="flex justify-between"><span>{it.quantity}x {it.product_name}</span><span>{formatBRL(it.unit_price * it.quantity)}</span></div>
+                  ))}
+                </div>
+                <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span className="price">{formatBRL(view.total)}</span></div>
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button className="flex-1 bg-whatsapp hover:bg-whatsapp/90 text-white" asChild>
+                    <a href={buildWhatsAppLink(view.customer_phone, orderMessage(view))} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4 mr-2" />WhatsApp</a>
+                  </Button>
+                  <Button variant="outline" onClick={() => { navigator.clipboard.writeText(orderMessage(view)); toast.success("Mensagem copiada"); }}>
+                    <Copy className="h-4 w-4 mr-2" />Copiar
+                  </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value="historico" className="pt-3">
+                <OrderHistory orderId={view.id} />
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
