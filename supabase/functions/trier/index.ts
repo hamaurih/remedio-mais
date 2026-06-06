@@ -1532,87 +1532,86 @@ async function actionSyncCategories(trigger = "manual") {
 
 async function actionSyncStock(trigger = "manual") {
   const s = await getSettings();
-  const job = await startJob("stock", trigger);
-  let updated = 0, ignored = 0, failed = 0, checked = 0, pages = 0, last_offset = 0;
-  const ignored_reasons: Record<string, number> = {};
+  const { job, resumed } = await getOrCreateResumableJob("stock", trigger);
+  const start = Date.now();
+  const prev = (job.details as any) || {};
+  let offset: number = Number(prev.next_offset) || 0;
+  let pages: number = Number(prev.pages_consulted) || 0;
+  let checked: number = Number(job.records_checked) || 0;
+  let updated: number = Number(job.records_updated) || 0;
+  let ignored: number = Number(job.records_ignored) || 0;
+  let failed: number = Number(job.records_failed) || 0;
+  const ignored_reasons: Record<string, number> = prev.ignored_reasons || {};
+  const ecom = ecommerceParamOrOmit(s);
+  const codFilial = s.branch_code ?? 1;
+  const ecomStatus = ecom === undefined ? "omitido" : ecom;
+  const pageSize = PAGE_SIZE;
+
   try {
-    const ecom = ecommerceParamOrOmit(s); // undefined => omitido
-    const codFilial = s.branch_code ?? 1;
-    const ecomStatus = ecom === undefined ? "omitido" : ecom;
+    if (resumed) {
+      await log("stock", "info", `Retomando sync de estoque (offset ${offset})`, { job_id: job.id, codFilial });
+    } else {
+      await log("stock", "info", "Iniciando sincronização de estoque", { endpoint: "/rest/integracao/estoque/obter-todos-v1", codFilial, integracaoEcommerce: ecomStatus, pageSize });
+    }
 
-    await log("stock", "info", "Iniciando sincronização de estoque", {
-      endpoint: "/rest/integracao/estoque/obter-todos-v1",
-      codFilial,
-      integracaoEcommerce: ecomStatus,
-      pageSize: 150,
-    });
-
-    let offset = 0;
-    const pageSize = PAGE_SIZE;
     while (true) {
+      if (Date.now() - start > MAX_RUN_MS) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+          details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, next_offset: offset, pages_consulted: pages, ignored_reasons },
+        });
+        await log("stock", "info", `Pausado (deadline ${MAX_RUN_MS}ms). Próximo offset ${offset}.`, { job_id: job.id });
+        return { ok: true, paused: true, job_id: job.id, next_offset: offset, checked, updated, ignored, failed };
+      }
       const path = `/rest/integracao/estoque/obter-todos-v1?${buildQueryParams({
         codFilial,
         primeiroRegistro: offset,
         quantidadeRegistros: pageSize,
         integracaoEcommerce: ecom,
       })}`;
-      const json = await trierGet(s, path, { page: pages });
-      const list = extractList(json);
+      let list: any[] = [];
+      try {
+        const json = await trierGet(s, path, { page: pages });
+        list = extractList(json);
+      } catch (e: any) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+          details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, next_offset: offset, pages_consulted: pages, ignored_reasons, last_error: String(e?.message || e).slice(0, 300) },
+        });
+        await log("stock", "error", `Erro consultando página (offset ${offset}). Job pausado para retomada.`, { error: String(e?.message || e), job_id: job.id });
+        return { ok: false, paused: true, job_id: job.id, error: String(e?.message || e) };
+      }
       const batch = await applyStockPage(list);
-
       checked += batch.checked;
       updated += batch.updated;
       ignored += batch.ignored;
       failed += batch.failed;
-      last_offset = offset;
-      pages += 1;
       Object.entries(batch.ignored_reasons).forEach(([reason, count]) => {
         ignored_reasons[reason] = (ignored_reasons[reason] || 0) + Number(count || 0);
       });
-
+      pages += 1;
+      const advanced = offset + pageSize;
       await updateJobProgress(job.id, {
-        records_checked: checked,
-        records_updated: updated,
-        records_failed: failed,
-        records_ignored: ignored,
-        details: {
-          codFilial,
-          integracaoEcommerce: ecomStatus,
-          total_returned: checked,
-          processed: updated + failed + ignored,
-          pages_consulted: pages,
-          last_offset,
-          ignored_reasons,
-        },
+        records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+        details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, next_offset: advanced, pages_consulted: pages, ignored_reasons },
       });
 
       if (list.length < pageSize) break;
-      offset += pageSize;
-      await sleep(PAUSE_BETWEEN_PAGES_MS);
+      offset = advanced;
       if (offset > 75000) break;
+      await sleep(PAUSE_BETWEEN_PAGES_MS);
     }
 
     await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() }).eq("id", 1);
     await log("stock", failed > 0 ? "error" : "success", `Estoque sincronizado: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, {
-      codFilial,
-      integracaoEcommerce: ecomStatus,
-      total_returned: checked,
-      updated,
-      ignored,
-      failed,
-      pages_consulted: pages,
-      last_offset,
-      ignored_reasons,
+      codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, updated, ignored, failed, pages_consulted: pages, ignored_reasons,
     });
     await finishJob(job.id, {
-      status: "success",
-      records_checked: checked,
-      records_updated: updated,
-      records_failed: failed,
-      records_ignored: ignored,
-      details: { codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, pages_consulted: pages, last_offset, ignored_reasons },
+      status: failed > 0 ? "error" : "success",
+      records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+      details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, pages_consulted: pages, next_offset: 0, ignored_reasons, completed: true },
     });
-    return { ok: true, total: checked, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus, pages_consulted: pages, last_offset };
+    return { ok: true, total: checked, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus, pages_consulted: pages };
   } catch (e: any) {
     const msg = String(e.message).slice(0, 1200);
     await log("stock", "error", "Erro na sincronização de estoque", { error: msg, job_id: job.id });
@@ -1620,6 +1619,8 @@ async function actionSyncStock(trigger = "manual") {
     return { ok: false, error: e.message };
   }
 }
+
+
 
 async function actionSyncPrices(trigger = "manual") {
   const s = await getSettings();
