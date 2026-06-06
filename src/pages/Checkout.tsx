@@ -41,6 +41,9 @@ export default function Checkout() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [reference, setReference] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
+  const [saveAddress, setSaveAddress] = useState(true);
 
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
@@ -52,7 +55,7 @@ export default function Checkout() {
   );
   const total = subtotal + deliveryFee;
 
-  // Carrega profile
+  // Carrega profile + endereços salvos
   useEffect(() => {
     if (!user) return;
     setEmail(user.email ?? "");
@@ -63,7 +66,46 @@ export default function Checkout() {
         setCpf((d) => d || (data as any).cpf || "");
       }
     });
+    supabase
+      .from("customer_addresses")
+      .select("*")
+      .eq("customer_id", user.id)
+      .order("is_default", { ascending: false })
+      .then(({ data }) => {
+        const list = data || [];
+        setSavedAddresses(list);
+        const def = list.find((a: any) => a.is_default) || list[0];
+        if (def) {
+          setSelectedAddressId(def.id);
+          applyAddress(def);
+          setSaveAddress(false);
+        }
+      });
   }, [user]);
+
+  const applyAddress = (a: any) => {
+    setCep(a.cep || "");
+    setStreet(a.street || "");
+    setNumber(a.number || "");
+    setComplement(a.complement || "");
+    setNeighborhood(a.neighborhood || "");
+    setCity(a.city || "");
+    setState(a.state || "");
+    setReference(a.reference || "");
+  };
+
+  const pickSavedAddress = (id: string) => {
+    setSelectedAddressId(id);
+    if (id === "new") {
+      setCep(""); setStreet(""); setNumber(""); setComplement("");
+      setNeighborhood(""); setCity(""); setState(""); setReference("");
+      setSaveAddress(true);
+    } else {
+      const a = savedAddresses.find((x) => x.id === id);
+      if (a) { applyAddress(a); setSaveAddress(false); }
+    }
+  };
+
 
   // Login obrigatório
   useEffect(() => {
