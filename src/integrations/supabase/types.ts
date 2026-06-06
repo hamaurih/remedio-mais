@@ -446,6 +446,50 @@ export type Database = {
         }
         Relationships: []
       }
+      order_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string | null
+          metadata: Json
+          new_status: string | null
+          old_status: string | null
+          order_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json
+          new_status?: string | null
+          old_status?: string | null
+          order_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json
+          new_status?: string | null
+          old_status?: string | null
+          order_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           controlled: boolean
@@ -518,10 +562,12 @@ export type Database = {
           delivery_number: string | null
           delivery_reference: string | null
           delivery_state: string | null
+          delivery_status: string
           delivery_street: string | null
           delivery_type: string
           discount: number
           external_reference: string | null
+          fulfillment_status: string
           id: string
           mercado_pago_checkout_url: string | null
           mercado_pago_order_id: string | null
@@ -563,10 +609,12 @@ export type Database = {
           delivery_number?: string | null
           delivery_reference?: string | null
           delivery_state?: string | null
+          delivery_status?: string
           delivery_street?: string | null
           delivery_type?: string
           discount?: number
           external_reference?: string | null
+          fulfillment_status?: string
           id?: string
           mercado_pago_checkout_url?: string | null
           mercado_pago_order_id?: string | null
@@ -608,10 +656,12 @@ export type Database = {
           delivery_number?: string | null
           delivery_reference?: string | null
           delivery_state?: string | null
+          delivery_status?: string
           delivery_street?: string | null
           delivery_type?: string
           discount?: number
           external_reference?: string | null
+          fulfillment_status?: string
           id?: string
           mercado_pago_checkout_url?: string | null
           mercado_pago_order_id?: string | null
