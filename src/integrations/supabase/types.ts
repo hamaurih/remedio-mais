@@ -960,13 +960,16 @@ export type Database = {
           manual_seo: boolean
           manual_shelves: boolean
           manufacturer: string | null
+          mapping_status: string
           max_discount_percentage: number | null
           medicine_list_type: string | null
           minimum_stock: number
           name: string
+          needs_review: boolean
           on_sale: boolean
           pix_discount_percentage: number | null
           price: number
+          price_origin: string
           product_badge: string | null
           promo_price: number | null
           promotion_end: string | null
@@ -982,6 +985,7 @@ export type Database = {
           slug: string
           source: string | null
           stock: number
+          stock_origin: string
           stock_quantity: number | null
           sync_with_trier: boolean
           tags: string | null
@@ -1037,13 +1041,16 @@ export type Database = {
           manual_seo?: boolean
           manual_shelves?: boolean
           manufacturer?: string | null
+          mapping_status?: string
           max_discount_percentage?: number | null
           medicine_list_type?: string | null
           minimum_stock?: number
           name: string
+          needs_review?: boolean
           on_sale?: boolean
           pix_discount_percentage?: number | null
           price?: number
+          price_origin?: string
           product_badge?: string | null
           promo_price?: number | null
           promotion_end?: string | null
@@ -1059,6 +1066,7 @@ export type Database = {
           slug: string
           source?: string | null
           stock?: number
+          stock_origin?: string
           stock_quantity?: number | null
           sync_with_trier?: boolean
           tags?: string | null
@@ -1114,13 +1122,16 @@ export type Database = {
           manual_seo?: boolean
           manual_shelves?: boolean
           manufacturer?: string | null
+          mapping_status?: string
           max_discount_percentage?: number | null
           medicine_list_type?: string | null
           minimum_stock?: number
           name?: string
+          needs_review?: boolean
           on_sale?: boolean
           pix_discount_percentage?: number | null
           price?: number
+          price_origin?: string
           product_badge?: string | null
           promo_price?: number | null
           promotion_end?: string | null
@@ -1136,6 +1147,7 @@ export type Database = {
           slug?: string
           source?: string | null
           stock?: number
+          stock_origin?: string
           stock_quantity?: number | null
           sync_with_trier?: boolean
           tags?: string | null
@@ -1726,6 +1738,30 @@ export type Database = {
       }
     }
     Views: {
+      products_health_summary: {
+        Row: {
+          ativos: number | null
+          ativos_sem_estoque: number | null
+          com_barcode: number | null
+          com_estoque: number | null
+          com_promo: number | null
+          com_trier_id: number | null
+          estoque_baixo_ativos: number | null
+          ja_sincronizado: number | null
+          mapeados: number | null
+          marcados_revisao: number | null
+          orfaos: number | null
+          origem_import: number | null
+          origem_manual: number | null
+          origem_trier: number | null
+          revisar: number | null
+          sem_preco: number | null
+          total: number | null
+          ultima_sync: string | null
+          vendaveis: number | null
+        }
+        Relationships: []
+      }
       store_settings_public: {
         Row: {
           address: string | null
