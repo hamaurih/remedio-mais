@@ -56,7 +56,8 @@ export default function AdminOrders() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">#</th><th className="p-3">Data</th><th className="p-3">Cliente</th>
-            <th className="p-3">Telefone</th><th className="p-3">Tipo</th><th className="p-3">Total</th>
+            <th className="p-3">Tipo</th><th className="p-3">Total</th>
+            <th className="p-3">Pagamento</th><th className="p-3">Separação</th>
             <th className="p-3">Status</th><th></th>
           </tr></thead>
           <tbody>
@@ -64,10 +65,11 @@ export default function AdminOrders() {
               <tr key={o.id} className="border-t">
                 <td className="p-3 text-xs font-mono">{o.id.slice(0, 6)}</td>
                 <td className="p-3 text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
-                <td className="p-3 font-medium">{o.customer_name}</td>
-                <td className="p-3">{o.customer_phone}</td>
+                <td className="p-3 font-medium">{o.customer_name}<div className="text-xs text-muted-foreground">{o.customer_phone}</div></td>
                 <td className="p-3 text-xs">{o.delivery_method === "pickup" ? "Retirada" : "Entrega"}</td>
                 <td className="p-3 price">{formatBRL(o.total)}</td>
+                <td className="p-3"><Badge variant="secondary">{PAYMENT_LABEL[o.payment_status] || o.payment_status || "—"}</Badge></td>
+                <td className="p-3"><Badge variant="outline">{FULFILL_LABEL[o.fulfillment_status] || o.fulfillment_status || "—"}</Badge></td>
                 <td className="p-3">
                   <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
                     <SelectTrigger className="h-8 w-[170px]"><SelectValue /></SelectTrigger>
@@ -77,8 +79,9 @@ export default function AdminOrders() {
                 <td className="p-3 text-right"><Button size="sm" variant="outline" onClick={() => setView(o)}>Ver</Button></td>
               </tr>
             ))}
-            {data?.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhum pedido ainda.</td></tr>}
+            {data?.length === 0 && <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhum pedido ainda.</td></tr>}
           </tbody>
+
         </table>
       </div>
       <Dialog open={!!view} onOpenChange={(v) => !v && setView(null)}>
