@@ -218,7 +218,26 @@ export default function Checkout() {
               </label>
             </RadioGroup>
 
-            {deliveryType === "delivery" && (
+            {deliveryType === "delivery" && savedAddresses.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <Label className="text-xs">Endereços salvos</Label>
+                <div className="space-y-2">
+                  {savedAddresses.map((a) => (
+                    <label key={a.id} className={`block border rounded-lg p-3 text-sm cursor-pointer ${selectedAddressId === a.id ? "border-primary bg-primary/5" : ""}`}>
+                      <input type="radio" name="saved-addr" className="sr-only" checked={selectedAddressId === a.id} onChange={() => pickSavedAddress(a.id)} />
+                      <div className="font-semibold">{a.street}, {a.number}{a.complement ? ` - ${a.complement}` : ""}</div>
+                      <div className="text-xs text-muted-foreground">{a.neighborhood} · {a.city}/{a.state} · CEP {a.cep}</div>
+                    </label>
+                  ))}
+                  <label className={`block border rounded-lg p-3 text-sm cursor-pointer ${selectedAddressId === "new" ? "border-primary bg-primary/5" : ""}`}>
+                    <input type="radio" name="saved-addr" className="sr-only" checked={selectedAddressId === "new"} onChange={() => pickSavedAddress("new")} />
+                    <div className="font-semibold">+ Usar outro endereço</div>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {deliveryType === "delivery" && selectedAddressId === "new" && (
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <Field label="CEP" className="col-span-2 sm:col-span-1">
                   <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
@@ -230,8 +249,20 @@ export default function Checkout() {
                 <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
                 <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
                 <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
+                <label className="col-span-2 flex items-center gap-2 text-xs">
+                  <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                  Salvar este endereço para próximos pedidos
+                </label>
               </div>
             )}
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+              <Button
+                onClick={() => setStep(3)}
+                disabled={deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)}
+              >Continuar</Button>
+            </div>
+
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
               <Button
