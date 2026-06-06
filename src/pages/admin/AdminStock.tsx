@@ -40,12 +40,12 @@ export default function AdminStock() {
   const { data: products } = useQuery({
     queryKey: ["admin_stock_products", mappingFilter],
     queryFn: async () => {
-      let qy = supabase
+      let qy: any = (supabase as any)
         .from("products")
-        .select("id, name, sku, barcode, stock, minimum_stock, trier_stock_quantity, mapping_status, needs_review, price, ecommerce_price, price_origin, stock_origin, active" as any)
+        .select("id, name, sku, barcode, stock, minimum_stock, trier_stock_quantity, mapping_status, needs_review, price, ecommerce_price, price_origin, stock_origin, active")
         .order("name")
         .limit(500);
-      if (mappingFilter !== "all") qy = qy.eq("mapping_status" as any, mappingFilter);
+      if (mappingFilter !== "all") qy = qy.eq("mapping_status", mappingFilter);
       return (await qy).data || [];
     },
   });
