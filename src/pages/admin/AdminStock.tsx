@@ -18,20 +18,36 @@ const TYPE_VARIANT: Record<string, "default" | "secondary" | "destructive" | "ou
   entrada: "default", saida: "destructive", ajuste: "secondary", reserva: "outline", cancelamento: "outline",
 };
 
+const MAPPING_LABEL: Record<string, string> = {
+  mapped: "Trier", orphan: "Órfão", needs_review: "Revisar", unknown: "—",
+};
+const MAPPING_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  mapped: "default", orphan: "destructive", needs_review: "outline", unknown: "secondary",
+};
+
 export default function AdminStock() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [mappingFilter, setMappingFilter] = useState<string>("mapped");
   const [openNew, setOpenNew] = useState(false);
 
+  const { data: health } = useQuery({
+    queryKey: ["products_health_summary"],
+    queryFn: async () => (await (supabase as any).from("products_health_summary").select("*").maybeSingle()).data,
+  });
+
   const { data: products } = useQuery({
-    queryKey: ["admin_stock_products"],
-    queryFn: async () =>
-      (await supabase
+    queryKey: ["admin_stock_products", mappingFilter],
+    queryFn: async () => {
+      let qy = supabase
         .from("products")
-        .select("id, name, sku, barcode, stock, minimum_stock, trier_stock_quantity")
+        .select("id, name, sku, barcode, stock, minimum_stock, trier_stock_quantity, mapping_status, needs_review, price, ecommerce_price, price_origin, stock_origin, active" as any)
         .order("name")
-        .limit(500)).data || [],
+        .limit(500);
+      if (mappingFilter !== "all") qy = qy.eq("mapping_status" as any, mappingFilter);
+      return (await qy).data || [];
+    },
   });
 
   const { data: movements } = useQuery({
@@ -49,14 +65,12 @@ export default function AdminStock() {
 
   const filteredProducts = useMemo(() => {
     const t = q.toLowerCase().trim();
-    const list = products || [];
+    const list = (products || []) as any[];
     if (!t) return list.slice(0, 50);
     return list.filter((p: any) =>
       [p.name, p.sku, p.barcode].some((v) => (v || "").toLowerCase().includes(t)),
     ).slice(0, 50);
   }, [products, q]);
-
-  const lowStock = (products || []).filter((p: any) => (p.stock ?? 0) <= (p.minimum_stock ?? 0));
 
   return (
     <div className="p-6 space-y-6">
@@ -65,21 +79,39 @@ export default function AdminStock() {
         <Button onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-2" />Novo movimento</Button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card title="Produtos cadastrados" value={products?.length ?? "—"} />
-        <Card title="Em estoque baixo" value={lowStock.length} warn />
-        <Card title="Movimentos (últimos 200)" value={movements?.length ?? "—"} />
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card title="Vendáveis (ativo + estoque + preço)" value={health?.vendaveis ?? "—"} />
+        <Card title="Mapeados ao Trier" value={health?.mapeados ?? "—"} />
+        <Card title="Órfãos (desativados)" value={health?.orfaos ?? "—"} warn />
+        <Card title="Ativos sem estoque" value={health?.ativos_sem_estoque ?? "—"} warn />
       </div>
 
       <div className="bg-card border rounded-xl shadow-card p-5 space-y-3">
-        <div className="font-bold">Produtos</div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="font-bold">Produtos</div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Filtro:</span>
+            <Select value={mappingFilter} onValueChange={setMappingFilter}>
+              <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mapped">Mapeados Trier</SelectItem>
+                <SelectItem value="needs_review">Precisa revisão</SelectItem>
+                <SelectItem value="orphan">Órfãos</SelectItem>
+                <SelectItem value="unknown">Sem classificação</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <Input placeholder="Buscar por nome, SKU ou código de barras..." value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-secondary text-left">
               <tr>
                 <th className="p-2">Produto</th>
-                <th className="p-2">SKU</th>
+                <th className="p-2">SKU / Barcode</th>
+                <th className="p-2">Mapeamento</th>
+                <th className="p-2">Preço (fonte)</th>
                 <th className="p-2">Estoque site</th>
                 <th className="p-2">Estoque Trier</th>
                 <th className="p-2">Mín.</th>
@@ -90,8 +122,22 @@ export default function AdminStock() {
                 const low = (p.stock ?? 0) <= (p.minimum_stock ?? 0);
                 return (
                   <tr key={p.id} className="border-t">
-                    <td className="p-2">{p.name}</td>
-                    <td className="p-2 text-xs font-mono">{p.sku || "—"}</td>
+                    <td className="p-2">
+                      {p.name}
+                      {!p.active && <span className="ml-2 text-xs text-muted-foreground">(inativo)</span>}
+                    </td>
+                    <td className="p-2 text-xs font-mono text-muted-foreground">
+                      {p.sku || "—"}<br/>{p.barcode || ""}
+                    </td>
+                    <td className="p-2">
+                      <Badge variant={MAPPING_VARIANT[p.mapping_status] || "secondary"}>
+                        {MAPPING_LABEL[p.mapping_status] || p.mapping_status}
+                      </Badge>
+                    </td>
+                    <td className="p-2 text-xs">
+                      {p.price != null ? `R$ ${Number(p.price).toFixed(2)}` : "—"}
+                      <div className="text-muted-foreground">{p.price_origin}</div>
+                    </td>
                     <td className={`p-2 ${low ? "text-primary font-semibold" : ""}`}>
                       {low && <AlertTriangle className="inline h-3 w-3 mr-1" />}
                       {p.stock ?? 0}
@@ -102,7 +148,7 @@ export default function AdminStock() {
                 );
               })}
               {filteredProducts.length === 0 && (
-                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Nenhum produto.</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Nenhum produto.</td></tr>
               )}
             </tbody>
           </table>
@@ -154,10 +200,11 @@ export default function AdminStock() {
       <NewMovementDialog
         open={openNew}
         onOpenChange={setOpenNew}
-        products={products || []}
+        products={(products || []) as any[]}
         onSaved={() => {
           qc.invalidateQueries({ queryKey: ["stock_movements"] });
           qc.invalidateQueries({ queryKey: ["admin_stock_products"] });
+          qc.invalidateQueries({ queryKey: ["products_health_summary"] });
         }}
       />
     </div>
@@ -223,7 +270,7 @@ function NewMovementDialog({
       if (type === "entrada") next = current + qty;
       else if (type === "saida") next = Math.max(0, current - qty);
       else if (type === "ajuste") next = qty;
-      await supabase.from("products").update({ stock: next }).eq("id", productId);
+      await supabase.from("products").update({ stock: next, stock_origin: "manual" } as any).eq("id", productId);
     }
     setSaving(false);
     toast.success("Movimento registrado");
