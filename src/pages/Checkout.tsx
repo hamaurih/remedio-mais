@@ -135,10 +135,30 @@ export default function Checkout() {
     }
   };
 
+  const persistCustomerData = async () => {
+    if (!user) return;
+    // Atualiza profile com nome/telefone/cpf se vieram preenchidos
+    await supabase.from("profiles").update({
+      full_name: name || null,
+      phone: phone || null,
+      cpf: cpf || null,
+    }).eq("id", user.id);
+
+    // Salva endereço novo se aplicável
+    if (deliveryType === "delivery" && saveAddress && selectedAddressId === "new" && cep && street) {
+      await supabase.from("customer_addresses").insert({
+        customer_id: user.id,
+        cep, street, number, complement, neighborhood, city, state, reference,
+        is_default: savedAddresses.length === 0,
+      });
+    }
+  };
+
   const goPay = async () => {
     if (!user) return;
     setSubmitting(true);
     try {
+      await persistCustomerData();
       const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
         body: {
           items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
@@ -160,6 +180,7 @@ export default function Checkout() {
       setSubmitting(false);
     }
   };
+
 
   if (loading || !user) {
     return <Layout><div className="container py-16 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div></Layout>;
