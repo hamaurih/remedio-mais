@@ -257,6 +257,65 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_addresses: {
+        Row: {
+          cep: string
+          city: string
+          complement: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          is_default: boolean
+          label: string | null
+          neighborhood: string | null
+          number: string | null
+          reference: string | null
+          state: string
+          street: string
+          updated_at: string
+        }
+        Insert: {
+          cep: string
+          city: string
+          complement?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          neighborhood?: string | null
+          number?: string | null
+          reference?: string | null
+          state: string
+          street: string
+          updated_at?: string
+        }
+        Update: {
+          cep?: string
+          city?: string
+          complement?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          neighborhood?: string | null
+          number?: string | null
+          reference?: string | null
+          state?: string
+          street?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_addresses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       home_mosaic_tiles: {
         Row: {
           active: boolean
