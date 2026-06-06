@@ -4,9 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatBRL, buildWhatsAppLink } from "@/lib/store";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { MessageCircle, Copy } from "lucide-react";
+
+const PAYMENT_LABEL: Record<string, string> = {
+  pending: "Pendente", approved: "Aprovado", rejected: "Recusado",
+  cancelled: "Cancelado", refunded: "Estornado", chargeback: "Chargeback",
+};
+const FULFILL_LABEL: Record<string, string> = {
+  unfulfilled: "Não iniciado", picking: "Separando", packed: "Embalado",
+  shipped: "Despachado", delivered: "Entregue", cancelled: "Cancelado",
+};
+
 
 const STATUSES = [
   "novo", "em_atendimento", "aguardando_pagamento", "separando",
@@ -44,7 +56,8 @@ export default function AdminOrders() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">#</th><th className="p-3">Data</th><th className="p-3">Cliente</th>
-            <th className="p-3">Telefone</th><th className="p-3">Tipo</th><th className="p-3">Total</th>
+            <th className="p-3">Tipo</th><th className="p-3">Total</th>
+            <th className="p-3">Pagamento</th><th className="p-3">Separação</th>
             <th className="p-3">Status</th><th></th>
           </tr></thead>
           <tbody>
@@ -52,10 +65,11 @@ export default function AdminOrders() {
               <tr key={o.id} className="border-t">
                 <td className="p-3 text-xs font-mono">{o.id.slice(0, 6)}</td>
                 <td className="p-3 text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
-                <td className="p-3 font-medium">{o.customer_name}</td>
-                <td className="p-3">{o.customer_phone}</td>
+                <td className="p-3 font-medium">{o.customer_name}<div className="text-xs text-muted-foreground">{o.customer_phone}</div></td>
                 <td className="p-3 text-xs">{o.delivery_method === "pickup" ? "Retirada" : "Entrega"}</td>
                 <td className="p-3 price">{formatBRL(o.total)}</td>
+                <td className="p-3"><Badge variant="secondary">{PAYMENT_LABEL[o.payment_status] || o.payment_status || "—"}</Badge></td>
+                <td className="p-3"><Badge variant="outline">{FULFILL_LABEL[o.fulfillment_status] || o.fulfillment_status || "—"}</Badge></td>
                 <td className="p-3">
                   <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
                     <SelectTrigger className="h-8 w-[170px]"><SelectValue /></SelectTrigger>
@@ -65,37 +79,78 @@ export default function AdminOrders() {
                 <td className="p-3 text-right"><Button size="sm" variant="outline" onClick={() => setView(o)}>Ver</Button></td>
               </tr>
             ))}
-            {data?.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhum pedido ainda.</td></tr>}
+            {data?.length === 0 && <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhum pedido ainda.</td></tr>}
           </tbody>
+
         </table>
       </div>
       <Dialog open={!!view} onOpenChange={(v) => !v && setView(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Pedido #{view?.id?.slice(0, 6)}</DialogTitle></DialogHeader>
           {view && (
-            <div className="space-y-2 text-sm">
-              <div><strong>Cliente:</strong> {view.customer_name}</div>
-              <div><strong>Telefone:</strong> {view.customer_phone}</div>
-              <div><strong>Entrega:</strong> {view.delivery_method === "pickup" ? "Retirar na loja" : `Entrega - ${view.customer_address}`}</div>
-              {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
-              <div className="border-t pt-2 mt-2">
-                {view.order_items?.map((it: any) => (
-                  <div key={it.id} className="flex justify-between"><span>{it.quantity}x {it.product_name}</span><span>{formatBRL(it.unit_price * it.quantity)}</span></div>
-                ))}
-              </div>
-              <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span className="price">{formatBRL(view.total)}</span></div>
-              <div className="flex gap-2 pt-3 border-t">
-                <Button className="flex-1 bg-whatsapp hover:bg-whatsapp/90 text-white" asChild>
-                  <a href={buildWhatsAppLink(view.customer_phone, orderMessage(view))} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4 mr-2" />WhatsApp</a>
-                </Button>
-                <Button variant="outline" onClick={() => { navigator.clipboard.writeText(orderMessage(view)); toast.success("Mensagem copiada"); }}>
-                  <Copy className="h-4 w-4 mr-2" />Copiar
-                </Button>
-              </div>
-            </div>
+            <Tabs defaultValue="resumo">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="resumo">Resumo</TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
+              </TabsList>
+              <TabsContent value="resumo" className="space-y-2 text-sm pt-3">
+                <div><strong>Cliente:</strong> {view.customer_name}</div>
+                <div><strong>Telefone:</strong> {view.customer_phone}</div>
+                <div className="flex gap-2 flex-wrap">
+                  <Badge variant="secondary">Pgto: {PAYMENT_LABEL[view.payment_status] || view.payment_status}</Badge>
+                  <Badge variant="outline">Separação: {FULFILL_LABEL[view.fulfillment_status] || view.fulfillment_status}</Badge>
+                </div>
+                <div><strong>Entrega:</strong> {view.delivery_method === "pickup" ? "Retirar na loja" : `Entrega - ${view.customer_address}`}</div>
+                {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
+                <div className="border-t pt-2 mt-2">
+                  {view.order_items?.map((it: any) => (
+                    <div key={it.id} className="flex justify-between"><span>{it.quantity}x {it.product_name}</span><span>{formatBRL(it.unit_price * it.quantity)}</span></div>
+                  ))}
+                </div>
+                <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span className="price">{formatBRL(view.total)}</span></div>
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button className="flex-1 bg-whatsapp hover:bg-whatsapp/90 text-white" asChild>
+                    <a href={buildWhatsAppLink(view.customer_phone, orderMessage(view))} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4 mr-2" />WhatsApp</a>
+                  </Button>
+                  <Button variant="outline" onClick={() => { navigator.clipboard.writeText(orderMessage(view)); toast.success("Mensagem copiada"); }}>
+                    <Copy className="h-4 w-4 mr-2" />Copiar
+                  </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value="historico" className="pt-3">
+                <OrderHistory orderId={view.id} />
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
+
+function OrderHistory({ orderId }: { orderId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["order_events", orderId],
+    queryFn: async () => (await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: false })).data || [],
+  });
+  if (isLoading) return <div className="text-xs text-muted-foreground">Carregando...</div>;
+  if (!data?.length) return <div className="text-xs text-muted-foreground">Sem eventos registrados.</div>;
+  return (
+    <div className="space-y-2 max-h-80 overflow-auto">
+      {data.map((e: any) => (
+        <div key={e.id} className="text-xs border rounded p-2">
+          <div className="flex justify-between">
+            <span className="font-semibold">{e.type}</span>
+            <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString("pt-BR")}</span>
+          </div>
+          {(e.old_status || e.new_status) && (
+            <div className="text-muted-foreground">{e.old_status || "—"} → <strong>{e.new_status || "—"}</strong></div>
+          )}
+          {e.message && <div>{e.message}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
