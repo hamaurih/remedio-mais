@@ -8,7 +8,7 @@ const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
 const PAGE_SIZE = 150;
 const RETRY_MAX = 6;
-const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504, 556]);
 const RETRY_NETWORK_CODES = ["ECONNRESET", "ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNREFUSED", "EAI_AGAIN"];
 const PAUSE_BETWEEN_PAGES_MS = 400;
 
@@ -732,10 +732,22 @@ async function upsertProductFromTrier(
     if (opts.simulate) {
       return { created: true, trier_id: trierId, name, fields_updated: Object.keys(mapped) };
     }
-    const { data: ins, error } = await supabase.from("products").insert(mapped).select("id").single();
-    if (error) {
-      await recordProductSyncLog({ trier_product_id: trierId, sync_type: opts.syncType || "create", status: "error", error_message: error.message });
-      return { failed: true, error: `insert: ${error.message}`, trier_id: trierId, name };
+    let ins: any = null;
+    let insErr: any = null;
+    {
+      const r = await supabase.from("products").insert(mapped).select("id").single();
+      ins = r.data; insErr = r.error;
+    }
+    // Slug colidiu com produto legado (sem trier_product_id). Retentamos com sufixo único.
+    if (insErr && /duplicate key.*products_slug_key/i.test(insErr.message || "")) {
+      const suffix = `-t${trierId}-${Math.random().toString(36).slice(2, 6)}`;
+      mapped.slug = `${slugify((mapped.name || "produto"))}${suffix}`;
+      const r2 = await supabase.from("products").insert(mapped).select("id").single();
+      ins = r2.data; insErr = r2.error;
+    }
+    if (insErr) {
+      await recordProductSyncLog({ trier_product_id: trierId, sync_type: opts.syncType || "create", status: "error", error_message: insErr.message });
+      return { failed: true, error: `insert: ${insErr.message}`, trier_id: trierId, name };
     }
     await supabase.from("trier_product_mappings").insert({
       product_id: ins.id, trier_product_id: trierId, trier_barcode: mapped.barcode, trier_name: mapped.name,
@@ -1545,7 +1557,8 @@ async function actionSyncStock(trigger = "manual") {
   const ecom = ecommerceParamOrOmit(s);
   const codFilial = s.branch_code ?? 1;
   const ecomStatus = ecom === undefined ? "omitido" : ecom;
-  const pageSize = PAGE_SIZE;
+  // Estoque: gateway Trier dá timeout (HTTP 556) com páginas grandes. Usar página menor.
+  const pageSize = 50;
 
   try {
     if (resumed) {
