@@ -128,3 +128,29 @@ export default function AdminOrders() {
     </div>
   );
 }
+
+function OrderHistory({ orderId }: { orderId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["order_events", orderId],
+    queryFn: async () => (await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: false })).data || [],
+  });
+  if (isLoading) return <div className="text-xs text-muted-foreground">Carregando...</div>;
+  if (!data?.length) return <div className="text-xs text-muted-foreground">Sem eventos registrados.</div>;
+  return (
+    <div className="space-y-2 max-h-80 overflow-auto">
+      {data.map((e: any) => (
+        <div key={e.id} className="text-xs border rounded p-2">
+          <div className="flex justify-between">
+            <span className="font-semibold">{e.type}</span>
+            <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString("pt-BR")}</span>
+          </div>
+          {(e.old_status || e.new_status) && (
+            <div className="text-muted-foreground">{e.old_status || "—"} → <strong>{e.new_status || "—"}</strong></div>
+          )}
+          {e.message && <div>{e.message}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
