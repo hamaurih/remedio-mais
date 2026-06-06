@@ -8,7 +8,7 @@ const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
 const PAGE_SIZE = 150;
 const RETRY_MAX = 6;
-const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504, 556]);
 const RETRY_NETWORK_CODES = ["ECONNRESET", "ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNREFUSED", "EAI_AGAIN"];
 const PAUSE_BETWEEN_PAGES_MS = 400;
 
