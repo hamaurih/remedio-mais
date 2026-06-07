@@ -56,17 +56,41 @@ export default function Index() {
     queryKey: ["shelf_offers"],
     queryFn: async () => {
       const nowIso = new Date().toISOString();
-      const { data } = await supabase
+      // 1) shelf tag
+      const tagged = await supabase
         .from("products")
         .select("*")
-        .eq("active", true)
-        .gt("stock", 0)
-        .or("shelves.cs.{ofertas-da-semana},on_sale.eq.true")
+        .eq("active", true).gt("stock", 0).gt("price", 0)
+        .contains("shelves", ["ofertas-da-semana"])
+        .limit(12);
+      if (tagged.data && tagged.data.length > 0) return tagged.data as Product[];
+      // 2) on_sale
+      const onSale = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true).gt("stock", 0).gt("price", 0)
+        .eq("on_sale", true)
         .or(`promotion_start.is.null,promotion_start.lte.${nowIso}`)
         .or(`promotion_end.is.null,promotion_end.gte.${nowIso}`)
+        .limit(12);
+      if (onSale.data && onSale.data.length > 0) return onSale.data as Product[];
+      // 3) promo_price < price
+      const promo = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true).gt("stock", 0).gt("price", 0)
+        .not("promo_price", "is", null)
+        .limit(24);
+      const promoFiltered = (promo.data || []).filter((p: any) => p.promo_price != null && Number(p.promo_price) < Number(p.price)).slice(0, 12);
+      if (promoFiltered.length > 0) return promoFiltered as Product[];
+      // 4) fallback: recém atualizados
+      const recent = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
-      return (data || []) as Product[];
+      return (recent.data || []) as Product[];
     },
   });
   const bestsellers = useQuery({
@@ -74,7 +98,16 @@ export default function Index() {
     queryFn: async () => {
       const t = await shelfBy("mais-vendidos")();
       if (t) return t;
-      return await fetchShelf((q) => q.eq("featured", true))();
+      const feat = await fetchShelf((q) => q.eq("featured", true).gt("price", 0))();
+      if (feat.length > 0) return feat;
+      // último fallback: recém atualizados
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true).gt("stock", 0).gt("price", 0)
+        .order("updated_at", { ascending: false })
+        .limit(12);
+      return (data || []) as Product[];
     },
   });
   const meds = useQuery({
