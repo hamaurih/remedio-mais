@@ -34,6 +34,7 @@ import Campaign from "./pages/Campaign.tsx";
 import Checkout from "./pages/Checkout.tsx";
 import OrderReturn from "./pages/OrderReturn.tsx";
 import AdminPayments from "./pages/admin/AdminPayments.tsx";
+import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 
 
 
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="pagamentos" element={<AdminPayments />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
             <Route path="config" element={<AdminSettings />} />
+            <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
           </Route>
