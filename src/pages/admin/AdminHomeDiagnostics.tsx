@@ -105,7 +105,7 @@ export default function AdminHomeDiagnostics() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Por prateleira (com filtros públicos: active + stock>0 + price>0)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{"Por prateleira (filtros públicos: active + stock>0 + price>0)"}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {!s ? <div className="text-sm text-muted-foreground">Carregando…</div> : (
             <div className="space-y-3 text-sm">
