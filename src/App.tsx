@@ -89,6 +89,7 @@ const App = () => (
             <Route path="pagamentos" element={<AdminPayments />} />
             <Route path="receitas" element={<AdminPrescriptions />} />
             <Route path="config" element={<AdminSettings />} />
+            <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
           </Route>
