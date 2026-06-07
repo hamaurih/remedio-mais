@@ -19,7 +19,7 @@ export function BenefitCards() {
   const items: Benefit[] = [
     { icon: Truck, title: "Entrega rápida", desc: "Em Campina Grande", to: "/categoria/ofertas" },
     { icon: Store, title: "Retire na loja", desc: "Reserve online", to: "/categoria/medicamentos" },
-    { icon: MessageCircle, title: "Peça pelo WhatsApp", desc: "Atendimento humano", href: wa },
+    { icon: MessageCircle, title: "Suporte pelo WhatsApp", desc: "Tire dúvidas com nossa equipe", href: wa },
     { icon: FileText, title: "Envie sua receita", desc: "Análise da farmácia", to: "/enviar-receita" },
     { icon: BadgePercent, title: "Preço baixo todo dia", desc: "Ofertas reais", to: "/categoria/ofertas" },
   ];
