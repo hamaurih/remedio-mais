@@ -34,6 +34,7 @@ import Campaign from "./pages/Campaign.tsx";
 import Checkout from "./pages/Checkout.tsx";
 import OrderReturn from "./pages/OrderReturn.tsx";
 import AdminPayments from "./pages/admin/AdminPayments.tsx";
+import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 
 
 
