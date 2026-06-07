@@ -20,6 +20,7 @@ const items = [
   { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
   { to: "/admin/receitas", label: "Receitas", icon: FileText },
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug },
+  { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity },
   { to: "/admin/config", label: "Configurações", icon: Settings },
 ];
 
