@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, ArrowUp, ArrowDown, Upload } from "lucide-react";
+import { Trash2, Plus, ArrowUp, ArrowDown, Upload, CheckCircle2, AlertTriangle, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
+import { EntityPicker, type PickedEntity } from "./EntityPicker";
 
 type Variant = {
   id?: string;
