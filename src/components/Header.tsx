@@ -80,12 +80,6 @@ export function Header() {
             />
           </form>
 
-          <div className="flex items-center gap-1 ml-auto">
-            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-              <Link to={user ? (isAdmin ? "/admin" : "/") : "/auth"}>
-                <User className="h-4 w-4 mr-1" /> {user ? (isAdmin ? "Admin" : "Conta") : "Entrar"}
-              </Link>
-            </Button>
           <div className="flex items-center gap-2 ml-auto">
             {/* Atendimento WhatsApp (não é fluxo de compra) */}
             <a
