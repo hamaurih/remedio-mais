@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
+import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
@@ -307,6 +308,7 @@ export default function AdminProducts() {
               <TabsTrigger value="images">Imagens</TabsTrigger>
               <TabsTrigger value="price">Preço</TabsTrigger>
               <TabsTrigger value="stock">Estoque</TabsTrigger>
+              <TabsTrigger value="variants">Variações</TabsTrigger>
               <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
