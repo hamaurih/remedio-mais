@@ -2,7 +2,23 @@ import { Instagram, Facebook, MessageCircle, MapPin, Phone, Mail, Clock } from "
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
 import { buildWhatsAppLink } from "@/lib/store";
+import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import logoRed from "@/assets/logo-red.png";
+
+function renderFooterLinks(items: MenuItem[], fallback: { label: string; href: string }[]) {
+  const list = items.length > 0
+    ? items.filter((i) => i.show_on_desktop || i.show_on_mobile).map((i) => ({ label: i.label, href: resolveMenuHref(i), newTab: i.open_in_new_tab }))
+    : fallback.map((f) => ({ ...f, newTab: false }));
+  return list.map((l) =>
+    l.href.startsWith("http") || l.newTab ? (
+      <li key={l.href + l.label}>
+        <a className="hover:text-primary" href={l.href} target={l.newTab ? "_blank" : undefined} rel={l.newTab ? "noopener" : undefined}>{l.label}</a>
+      </li>
+    ) : (
+      <li key={l.href + l.label}><Link className="hover:text-primary" to={l.href}>{l.label}</Link></li>
+    ),
+  );
+}
 
 // TikTok icon (lucide não tem) – SVG inline
 function TikTokIcon({ className = "h-4 w-4" }: { className?: string }) {
