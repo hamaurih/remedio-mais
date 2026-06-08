@@ -86,6 +86,7 @@ export default function AdminCategories() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">Imagem</th><th className="p-3">Nome</th><th className="p-3">Slug</th>
+            <th className="p-3">Grupo (mega menu)</th>
             <th className="p-3">Ordem</th><th className="p-3">Menu</th><th className="p-3">Home</th><th className="p-3">Ativa</th><th></th>
           </tr></thead>
           <tbody>
@@ -94,6 +95,7 @@ export default function AdminCategories() {
                 <td className="p-2">{c.image_url ? <img src={c.image_url} alt="" className="w-10 h-10 object-cover rounded" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
                 <td className="p-3 font-medium">{c.name}</td>
                 <td className="p-3 text-muted-foreground">{c.slug}</td>
+                <td className="p-3 text-muted-foreground">{c.macro_group || <span className="opacity-50">—</span>}</td>
                 <td className="p-3">{c.position}</td>
                 <td className="p-3">{c.show_in_menu ? "Sim" : "—"}</td>
                 <td className="p-3">{c.show_on_home ? "Sim" : "—"}</td>
