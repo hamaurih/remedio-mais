@@ -38,7 +38,7 @@ export const PAGE_KEYS: { key: string; label: string; path: string }[] = [
   { key: "medicamentos", label: "Medicamentos", path: "/categoria/medicamentos" },
   { key: "genericos", label: "Genéricos", path: "/categoria/genericos" },
   { key: "send_prescription", label: "Enviar Receita", path: "/enviar-receita" },
-  { key: "contact", label: "Fale Conosco", path: "/contato" },
+  { key: "contact", label: "Fale Conosco", path: "/fale-conosco" },
   { key: "privacy", label: "Política de Privacidade", path: "/politica-de-privacidade" },
   { key: "terms", label: "Termos de Uso", path: "/termos-de-uso" },
   { key: "returns", label: "Trocas e Devoluções", path: "/trocas-e-devolucoes" },
