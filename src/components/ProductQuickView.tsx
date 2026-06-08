@@ -91,14 +91,15 @@ export function ProductQuickView() {
     enabled: !!p?.id && open,
   });
 
-  if (!p) return null;
-
-  // Variants
+  // Variants (hooks must run before any early return)
   const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && open && !!p?.has_variants);
   const selectedVariant: ProductVariant | undefined = useMemo(
     () => variants.find((v) => v.id === selectedVariantId),
     [variants, selectedVariantId],
   );
+
+  if (!p) return null;
+
   const hasVariants = !!p?.has_variants && variants.length > 0;
 
   const baseStock = typeof p.stock === "number" ? p.stock : 0;
