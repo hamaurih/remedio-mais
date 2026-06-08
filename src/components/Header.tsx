@@ -11,21 +11,6 @@ import { PromoTicker } from "./PromoTicker";
 import { CategoryNav } from "./CategoryNav";
 import logoRed from "@/assets/logo-red.png";
 
-const CATS = [
-  { name: "Ofertas", slug: "ofertas" },
-  { name: "Medicamentos", slug: "medicamentos" },
-  { name: "Genéricos", slug: "genericos" },
-  { name: "Dor e Febre", slug: "dor-e-febre" },
-  { name: "Gripe e Resfriado", slug: "gripe-e-resfriado" },
-  { name: "Vitaminas", slug: "vitaminas" },
-  { name: "Higiene Pessoal", slug: "higiene-pessoal" },
-  { name: "Mamães e Bebês", slug: "mamaes-e-bebes" },
-  { name: "Dermocosméticos", slug: "dermocosmeticos" },
-  { name: "Conveniência", slug: "conveniencia" },
-  { name: "Primeiros Socorros", slug: "primeiros-socorros" },
-  { name: "Aparelhos de Saúde", slug: "aparelhos-de-saude" },
-];
-
 export function Header() {
   const { data: settings } = useStoreSettings();
   const cart = useCart();
@@ -160,7 +145,7 @@ export function Header() {
         </form>
       </div>
 
-      <CategoryNav categories={CATS} />
+      <CategoryNav />
     </header>
   );
 }
