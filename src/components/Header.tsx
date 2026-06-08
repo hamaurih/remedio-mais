@@ -145,7 +145,7 @@ export function Header() {
         </form>
       </div>
 
-      <CategoryNav categories={CATS} />
+      <CategoryNav />
     </header>
   );
 }
