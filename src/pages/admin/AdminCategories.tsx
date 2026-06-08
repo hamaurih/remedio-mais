@@ -13,8 +13,18 @@ import { toast } from "sonner";
 const empty: any = {
   id: "", name: "", slug: "", description: "", icon: "", image_url: "",
   position: 0, active: true, show_in_menu: true, show_on_home: true,
-  link: "", band_color: "#E11D2E",
+  link: "", band_color: "#E11D2E", macro_group: "",
 };
+
+const MACRO_GROUPS = [
+  "Medicamentos e Saúde",
+  "Dermo e Beleza",
+  "Higiene Pessoal",
+  "Mamães e Bebês",
+  "Vitaminas e Suplementos",
+  "Conveniência",
+  "Primeiros Socorros",
+];
 
 
 const slugify = (s: string) =>
@@ -76,6 +86,7 @@ export default function AdminCategories() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">Imagem</th><th className="p-3">Nome</th><th className="p-3">Slug</th>
+            <th className="p-3">Grupo (mega menu)</th>
             <th className="p-3">Ordem</th><th className="p-3">Menu</th><th className="p-3">Home</th><th className="p-3">Ativa</th><th></th>
           </tr></thead>
           <tbody>
@@ -84,6 +95,7 @@ export default function AdminCategories() {
                 <td className="p-2">{c.image_url ? <img src={c.image_url} alt="" className="w-10 h-10 object-cover rounded" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
                 <td className="p-3 font-medium">{c.name}</td>
                 <td className="p-3 text-muted-foreground">{c.slug}</td>
+                <td className="p-3 text-muted-foreground">{c.macro_group || <span className="opacity-50">—</span>}</td>
                 <td className="p-3">{c.position}</td>
                 <td className="p-3">{c.show_in_menu ? "Sim" : "—"}</td>
                 <td className="p-3">{c.show_on_home ? "Sim" : "—"}</td>
@@ -104,6 +116,19 @@ export default function AdminCategories() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>Nome *</Label><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
             <div className="space-y-1"><Label>Slug (auto)</Label><Input value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} placeholder={editing.name && slugify(editing.name)} /></div>
+            <div className="space-y-1">
+              <Label>Grupo do mega menu</Label>
+              <Input
+                list="macro-groups-list"
+                value={editing.macro_group || ""}
+                onChange={(e) => setEditing({ ...editing, macro_group: e.target.value })}
+                placeholder="Ex.: Medicamentos e Saúde"
+              />
+              <datalist id="macro-groups-list">
+                {MACRO_GROUPS.map((g) => <option key={g} value={g} />)}
+              </datalist>
+              <p className="text-xs text-muted-foreground">Define em qual coluna do menu "Todas as Categorias" esta categoria aparece. Deixe em branco para ocultá-la do mega menu.</p>
+            </div>
             <div className="space-y-1"><Label>Descrição</Label><Textarea value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Ícone (lucide)</Label><Input value={editing.icon || ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} placeholder="Pill, Heart..." /></div>

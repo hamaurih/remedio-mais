@@ -216,6 +216,7 @@ export type Database = {
           id: string
           image_url: string | null
           link: string | null
+          macro_group: string | null
           name: string
           position: number
           show_in_menu: boolean
@@ -232,6 +233,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           link?: string | null
+          macro_group?: string | null
           name: string
           position?: number
           show_in_menu?: boolean
@@ -248,6 +250,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           link?: string | null
+          macro_group?: string | null
           name?: string
           position?: number
           show_in_menu?: boolean
