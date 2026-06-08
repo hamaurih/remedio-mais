@@ -86,9 +86,58 @@ export function Header() {
                 <User className="h-4 w-4 mr-1" /> {user ? (isAdmin ? "Admin" : "Conta") : "Entrar"}
               </Link>
             </Button>
-            <Button asChild size="icon" variant="ghost" className="text-whatsapp hidden md:inline-flex">
-              <a href={wa} target="_blank" rel="noopener" aria-label="WhatsApp"><MessageCircle className="h-5 w-5" /></a>
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Atendimento WhatsApp (não é fluxo de compra) */}
+            <a
+              href={wa}
+              target="_blank"
+              rel="noopener"
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
+              aria-label="Atendimento WhatsApp"
+            >
+              <span className="rounded-full bg-whatsapp/10 text-whatsapp p-2">
+                <MessageCircle className="h-4 w-4" />
+              </span>
+              <span className="leading-tight text-left">
+                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Atendimento WhatsApp</span>
+                <span className="block text-sm font-bold text-foreground">{waDisplay}</span>
+              </span>
+            </a>
+
+            {/* Mobile: só ícone do WhatsApp */}
+            <Button asChild size="icon" variant="ghost" className="text-whatsapp lg:hidden" aria-label="Atendimento WhatsApp">
+              <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-5 w-5" /></a>
             </Button>
+
+            {/* Login / conta */}
+            <Link
+              to={user ? (isAdmin ? "/admin" : "/") : "/auth"}
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
+            >
+              <span className="rounded-full bg-accent text-primary p-2">
+                <User className="h-4 w-4" />
+              </span>
+              <span className="leading-tight text-left">
+                {user ? (
+                  <>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Bem-vindo</span>
+                    <span className="block text-sm font-bold text-foreground">{isAdmin ? "Admin" : "Minha conta"}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Olá, faça seu</span>
+                    <span className="block text-sm font-bold text-foreground">Login <span className="font-normal text-muted-foreground">ou cadastre-se</span></span>
+                  </>
+                )}
+              </span>
+            </Link>
+
+            {/* Mobile login icon */}
+            <Button asChild size="icon" variant="ghost" className="md:hidden" aria-label="Entrar">
+              <Link to={user ? "/" : "/auth"}><User className="h-5 w-5" /></Link>
+            </Button>
+
+            {/* Carrinho */}
             <Button asChild variant="ghost" size="sm" className="relative">
               <Link to="/carrinho" aria-label="Carrinho">
                 <ShoppingCart className="h-5 w-5" />
