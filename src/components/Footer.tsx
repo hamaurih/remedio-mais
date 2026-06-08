@@ -40,6 +40,9 @@ function formatPhone(raw: string | null | undefined) {
 
 export function Footer() {
   const { data: s } = useStoreSettings();
+  const { data: institutional = [] } = useMenu("footer_institutional");
+  const { data: support = [] } = useMenu("footer_support");
+  const { data: footerCats = [] } = useMenu("footer_categories");
   const year = new Date().getFullYear();
 
   const waRaw = s?.whatsapp || "5583999286000";
