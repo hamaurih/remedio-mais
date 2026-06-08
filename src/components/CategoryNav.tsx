@@ -22,6 +22,7 @@ export interface Category {
   name: string;
   slug: string;
   macro_group?: string | null;
+  show_in_menu?: boolean | null;
 }
 
 const DEFAULT_CATS: Category[] = [
