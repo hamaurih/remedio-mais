@@ -196,11 +196,51 @@ export function ProductVariantsManager({ productId, onChangeSummary }: { product
         <Button type="button" size="sm" onClick={add}><Plus className="h-4 w-4 mr-1" /> Nova variação</Button>
       </div>
 
+      {/* Status / conexão com o site */}
+      {(() => {
+        const activeCount = rows.filter((r) => r.active && (r.variation_value || "").trim()).length;
+        const connected = !!parent?.has_variants && activeCount > 0 && !!parent?.active;
+        return (
+          <div className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${connected ? "border-green-500/40 bg-green-500/5" : "border-amber-500/40 bg-amber-500/5"}`}>
+            {connected ? <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" /> : <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}
+            <div className="flex-1">
+              {connected ? (
+                <div><strong>Conectado ao site.</strong> O produto aparece com seletor de {rows[0]?.variation_type || "variação"} ({activeCount} {activeCount === 1 ? "opção ativa" : "opções ativas"}).</div>
+              ) : (
+                <div>
+                  <strong>Ainda não está aparecendo no site.</strong>{" "}
+                  {!parent?.active && "O produto pai está inativo. "}
+                  {activeCount === 0 && "Adicione e ative ao menos uma variação. "}
+                  Depois clique em <em>Salvar variações</em>.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Importar produto existente como variação */}
+      <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <PackageSearch className="h-4 w-4 text-primary" />
+          <div className="text-sm font-semibold">Importar produto existente como variação</div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Busque um produto pelo nome (ex.: "Fralda Pampers G"). Os dados (preço, estoque, código Trier, EAN, imagem) são copiados para uma nova variação. Por padrão o produto original fica inativo para não duplicar no site.
+        </div>
+        <EntityPicker kind="product" onPick={importFromProduct} placeholder="Buscar produto por nome, SKU ou EAN..." />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input type="checkbox" checked={deactivateOriginal} onChange={(e) => setDeactivateOriginal(e.target.checked)} />
+          Desativar o produto original ao salvar (recomendado)
+        </label>
+      </div>
+
       {rows.length === 0 && (
         <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
-          Sem variações cadastradas. Clique em <strong>Nova variação</strong> para começar.
+          Sem variações cadastradas. Use a busca acima ou clique em <strong>Nova variação</strong>.
         </div>
       )}
+
 
       <div className="space-y-3">
         {rows.map((r, idx) => (
