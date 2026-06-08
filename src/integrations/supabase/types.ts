@@ -1338,8 +1338,10 @@ export type Database = {
           address: string | null
           afe: string | null
           cnpj: string | null
+          contact_email: string | null
           crf: string | null
           delivery_fee: number | null
+          facebook: string | null
           footer_text: string | null
           hero_subtitle: string | null
           hero_title: string | null
@@ -1353,7 +1355,9 @@ export type Database = {
           sanitary_license: string | null
           sanitary_notice: string | null
           served_neighborhoods: string | null
+          state_registration: string | null
           store_name: string | null
+          tiktok: string | null
           updated_at: string
           whatsapp: string | null
         }
@@ -1361,8 +1365,10 @@ export type Database = {
           address?: string | null
           afe?: string | null
           cnpj?: string | null
+          contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
@@ -1376,7 +1382,9 @@ export type Database = {
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
+          state_registration?: string | null
           store_name?: string | null
+          tiktok?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -1384,8 +1392,10 @@ export type Database = {
           address?: string | null
           afe?: string | null
           cnpj?: string | null
+          contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
@@ -1399,7 +1409,9 @@ export type Database = {
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
+          state_registration?: string | null
           store_name?: string | null
+          tiktok?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -1767,8 +1779,10 @@ export type Database = {
           address: string | null
           afe: string | null
           cnpj: string | null
+          contact_email: string | null
           crf: string | null
           delivery_fee: number | null
+          facebook: string | null
           footer_text: string | null
           hero_subtitle: string | null
           hero_title: string | null
@@ -1782,15 +1796,19 @@ export type Database = {
           sanitary_license: string | null
           sanitary_notice: string | null
           served_neighborhoods: string | null
+          state_registration: string | null
           store_name: string | null
+          tiktok: string | null
           whatsapp: string | null
         }
         Insert: {
           address?: string | null
           afe?: string | null
           cnpj?: string | null
+          contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
@@ -1804,15 +1822,19 @@ export type Database = {
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
+          state_registration?: string | null
           store_name?: string | null
+          tiktok?: string | null
           whatsapp?: string | null
         }
         Update: {
           address?: string | null
           afe?: string | null
           cnpj?: string | null
+          contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
@@ -1826,7 +1848,9 @@ export type Database = {
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
+          state_registration?: string | null
           store_name?: string | null
+          tiktok?: string | null
           whatsapp?: string | null
         }
         Relationships: []
