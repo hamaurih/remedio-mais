@@ -34,7 +34,16 @@ export function Header() {
   const nav = useNavigate();
   const { user, isAdmin } = useAuth();
 
-  const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", "Olá! Vim pelo site.");
+  const waRaw = settings?.whatsapp || "5583999286000";
+  const wa = buildWhatsAppLink(waRaw, "Olá! Preciso de atendimento.");
+  // formata "5583999286000" → "(83) 99928-6000"
+  const waDisplay = (() => {
+    const d = waRaw.replace(/\D/g, "");
+    const local = d.length >= 12 ? d.slice(-11) : d;
+    if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+    if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+    return waRaw;
+  })();
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
