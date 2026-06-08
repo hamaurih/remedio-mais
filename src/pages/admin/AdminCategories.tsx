@@ -116,6 +116,19 @@ export default function AdminCategories() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>Nome *</Label><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
             <div className="space-y-1"><Label>Slug (auto)</Label><Input value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} placeholder={editing.name && slugify(editing.name)} /></div>
+            <div className="space-y-1">
+              <Label>Grupo do mega menu</Label>
+              <Input
+                list="macro-groups-list"
+                value={editing.macro_group || ""}
+                onChange={(e) => setEditing({ ...editing, macro_group: e.target.value })}
+                placeholder="Ex.: Medicamentos e Saúde"
+              />
+              <datalist id="macro-groups-list">
+                {MACRO_GROUPS.map((g) => <option key={g} value={g} />)}
+              </datalist>
+              <p className="text-xs text-muted-foreground">Define em qual coluna do menu "Todas as Categorias" esta categoria aparece. Deixe em branco para ocultá-la do mega menu.</p>
+            </div>
             <div className="space-y-1"><Label>Descrição</Label><Textarea value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Ícone (lucide)</Label><Input value={editing.icon || ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} placeholder="Pill, Heart..." /></div>
