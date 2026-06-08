@@ -161,7 +161,11 @@ export default function Checkout() {
       await persistCustomerData();
       const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
         body: {
-          items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
+          items: items.map((i) => ({
+            id: i.product_id || i.id,
+            variant_id: i.variant_id || null,
+            quantity: i.quantity,
+          })),
           payment_method: paymentMethod,
           delivery_type: deliveryType,
           customer: { name, email, phone, cpf: cpf || undefined },
@@ -270,7 +274,10 @@ export default function Checkout() {
             <div className="space-y-2 text-sm">
               {items.map((i) => (
                 <div key={i.id} className="flex justify-between">
-                  <span>{i.quantity}x {i.name}</span>
+                  <span>
+                    {i.quantity}x {i.name}
+                    {i.variant_label && <span className="text-muted-foreground"> · {i.variant_label}</span>}
+                  </span>
                   <span>{formatBRL(i.price * i.quantity)}</span>
                 </div>
               ))}
