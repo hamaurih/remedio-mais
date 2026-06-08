@@ -380,6 +380,18 @@ export default function AdminProducts() {
               )}
             </TabsContent>
 
+            <TabsContent value="variants" className="pt-3">
+              {editing.id ? (
+                <ProductVariantsManager productId={editing.id} />
+              ) : (
+                <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
+                  Salve o produto primeiro (botão <strong>Salvar e continuar</strong>) para cadastrar variações como tamanhos, sabores ou volumes.
+                </div>
+              )}
+            </TabsContent>
+
+
+
             <TabsContent value="shelf" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.featured} onCheckedChange={(v) => setEditing({ ...editing, featured: v })} /><Label>Destaque na home</Label></div>
               <div>
