@@ -13,8 +13,18 @@ import { toast } from "sonner";
 const empty: any = {
   id: "", name: "", slug: "", description: "", icon: "", image_url: "",
   position: 0, active: true, show_in_menu: true, show_on_home: true,
-  link: "", band_color: "#E11D2E",
+  link: "", band_color: "#E11D2E", macro_group: "",
 };
+
+const MACRO_GROUPS = [
+  "Medicamentos e Saúde",
+  "Dermo e Beleza",
+  "Higiene Pessoal",
+  "Mamães e Bebês",
+  "Vitaminas e Suplementos",
+  "Conveniência",
+  "Primeiros Socorros",
+];
 
 
 const slugify = (s: string) =>
