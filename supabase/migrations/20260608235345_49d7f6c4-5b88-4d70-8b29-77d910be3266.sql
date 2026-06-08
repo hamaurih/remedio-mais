@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.sync_parent_has_variants() FROM PUBLIC, anon, authenticated;
