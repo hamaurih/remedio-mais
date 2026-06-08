@@ -166,13 +166,13 @@ function MegaMenuMobile({ categories }: { categories: Category[] }) {
 }
 
 export function CategoryNav({ categories }: { categories?: Category[] }) {
-  // Prefer live categories from DB so mega menu reflects published items
+  // Prefer live categories from DB so menu reflects published items
   const { data: live } = useQuery({
     queryKey: ["nav_categories"],
     queryFn: async () => {
       const { data } = await supabase
         .from("categories")
-        .select("name, slug, macro_group")
+        .select("name, slug, macro_group, show_in_menu")
         .eq("active", true)
         .order("position");
       return (data ?? []) as Category[];
@@ -182,12 +182,19 @@ export function CategoryNav({ categories }: { categories?: Category[] }) {
   const cats = categories ?? live ?? DEFAULT_CATS;
   // Merge with defaults — DB entries (with macro_group) override defaults
   const bySlug = new Map<string, Category>();
-  DEFAULT_CATS.forEach((c) => bySlug.set(c.slug, c));
+  DEFAULT_CATS.forEach((c) => bySlug.set(c.slug, { ...c, show_in_menu: true }));
   cats.forEach((c) => {
     const prev = bySlug.get(c.slug);
-    bySlug.set(c.slug, { ...prev, ...c, macro_group: c.macro_group ?? prev?.macro_group ?? null });
+    bySlug.set(c.slug, {
+      ...prev,
+      ...c,
+      macro_group: c.macro_group ?? prev?.macro_group ?? null,
+      show_in_menu: c.show_in_menu ?? prev?.show_in_menu ?? true,
+    });
   });
   const merged = Array.from(bySlug.values());
+  // Chips: somente categorias marcadas como "Aparece no menu" no admin
+  const chipList = merged.filter((c) => c.show_in_menu !== false);
 
   return (
     <nav className="border-t bg-background">
@@ -203,7 +210,7 @@ export function CategoryNav({ categories }: { categories?: Category[] }) {
         {/* Chips */}
         <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
           <ul className="flex gap-1 md:gap-2 whitespace-nowrap text-sm items-center">
-            {merged.map((c) => (
+            {chipList.map((c) => (
               <li key={c.slug} className="snap-start">
                 <Link
                   to={`/categoria/${c.slug}`}
