@@ -12,6 +12,7 @@ import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
 import { calculatePixPrice, resolvePixPercentage } from "@/lib/pix";
 import { onQuickView } from "@/lib/quickview";
 import { ProductCard, type Product } from "./ProductCard";
+import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "./VariantSelector";
 import { toast } from "sonner";
 
 export function ProductQuickView() {
@@ -21,8 +22,9 @@ export function ProductQuickView() {
   const { data: settings } = useStoreSettings();
   const [qty, setQty] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
-  useEffect(() => onQuickView((p) => { setProduct(p); setQty(1); setActiveImage(p.image_url || null); setOpen(true); }), []);
+  useEffect(() => onQuickView((p) => { setProduct(p); setQty(1); setActiveImage(p.image_url || null); setSelectedVariantId(null); setOpen(true); }), []);
 
   // Fetch full product (gallery, pix discount, etc.) — uses slug from card
   const { data: full } = useQuery({
