@@ -21,70 +21,54 @@ import { cn } from "@/lib/utils";
 export interface Category {
   name: string;
   slug: string;
+  macro_group?: string | null;
 }
 
 const DEFAULT_CATS: Category[] = [
   { name: "Ofertas", slug: "ofertas" },
-  { name: "Medicamentos", slug: "medicamentos" },
-  { name: "Genéricos", slug: "genericos" },
-  { name: "Dor e Febre", slug: "dor-e-febre" },
-  { name: "Gripe e Resfriado", slug: "gripe-e-resfriado" },
-  { name: "Vitaminas", slug: "vitaminas" },
-  { name: "Higiene Pessoal", slug: "higiene-pessoal" },
-  { name: "Mamães e Bebês", slug: "mamaes-e-bebes" },
-  { name: "Dermocosméticos", slug: "dermocosmeticos" },
-  { name: "Conveniência", slug: "conveniencia" },
-  { name: "Primeiros Socorros", slug: "primeiros-socorros" },
-  { name: "Aparelhos de Saúde", slug: "aparelhos-de-saude" },
+  { name: "Medicamentos", slug: "medicamentos", macro_group: "Medicamentos e Saúde" },
+  { name: "Genéricos", slug: "genericos", macro_group: "Medicamentos e Saúde" },
+  { name: "Dor e Febre", slug: "dor-e-febre", macro_group: "Medicamentos e Saúde" },
+  { name: "Gripe e Resfriado", slug: "gripe-e-resfriado", macro_group: "Medicamentos e Saúde" },
+  { name: "Vitaminas", slug: "vitaminas", macro_group: "Vitaminas e Suplementos" },
+  { name: "Higiene Pessoal", slug: "higiene-pessoal", macro_group: "Higiene Pessoal" },
+  { name: "Mamães e Bebês", slug: "mamaes-e-bebes", macro_group: "Mamães e Bebês" },
+  { name: "Dermocosméticos", slug: "dermocosmeticos", macro_group: "Dermo e Beleza" },
+  { name: "Conveniência", slug: "conveniencia", macro_group: "Conveniência" },
+  { name: "Primeiros Socorros", slug: "primeiros-socorros", macro_group: "Primeiros Socorros" },
+  { name: "Aparelhos de Saúde", slug: "aparelhos-de-saude", macro_group: "Medicamentos e Saúde" },
 ];
 
-type Macro = { label: string; slugs: string[] };
-
-const MACROS: Macro[] = [
-  {
-    label: "Medicamentos e Saúde",
-    slugs: [
-      "medicamentos",
-      "genericos",
-      "dor-e-febre",
-      "gripe-e-resfriado",
-      "aparelhos-de-saude",
-    ],
-  },
-  {
-    label: "Dermo e Beleza",
-    slugs: ["dermocosmeticos", "beleza", "cabelos", "perfumaria"],
-  },
-  {
-    label: "Higiene Pessoal",
-    slugs: ["higiene-pessoal", "higiene-bucal", "papel-higienico"],
-  },
-  {
-    label: "Mamães e Bebês",
-    slugs: ["mamaes-e-bebes", "fraldas", "infantil"],
-  },
-  {
-    label: "Vitaminas e Suplementos",
-    slugs: ["vitaminas", "suplementos"],
-  },
-  {
-    label: "Conveniência",
-    slugs: ["conveniencia"],
-  },
-  {
-    label: "Primeiros Socorros",
-    slugs: ["primeiros-socorros"],
-  },
+const GROUP_ORDER = [
+  "Medicamentos e Saúde",
+  "Dermo e Beleza",
+  "Higiene Pessoal",
+  "Mamães e Bebês",
+  "Vitaminas e Suplementos",
+  "Conveniência",
+  "Primeiros Socorros",
 ];
 
 function buildMacroGroups(all: Category[]) {
-  const bySlug = new Map(all.map((c) => [c.slug, c]));
-  return MACROS.map((m) => {
-    const items = m.slugs
-      .map((s) => bySlug.get(s))
-      .filter(Boolean) as Category[];
-    return { label: m.label, items };
-  }).filter((g) => g.items.length > 0);
+  const byGroup = new Map<string, Category[]>();
+  all.forEach((c) => {
+    const g = (c.macro_group || "").trim();
+    if (!g) return;
+    const list = byGroup.get(g) ?? [];
+    if (!list.find((x) => x.slug === c.slug)) list.push(c);
+    byGroup.set(g, list);
+  });
+  const ordered: { label: string; items: Category[] }[] = [];
+  GROUP_ORDER.forEach((g) => {
+    if (byGroup.has(g)) {
+      ordered.push({ label: g, items: byGroup.get(g)! });
+      byGroup.delete(g);
+    }
+  });
+  Array.from(byGroup.entries()).forEach(([label, items]) =>
+    ordered.push({ label, items })
+  );
+  return ordered;
 }
 
 function MegaMenuDesktop({ categories }: { categories: Category[] }) {
