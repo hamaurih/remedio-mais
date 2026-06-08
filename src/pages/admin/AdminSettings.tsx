@@ -97,6 +97,7 @@ export default function AdminSettings() {
           <TabsContent value="legal" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Razão social</Label><Input value={s.legal_name || ""} onChange={set("legal_name")} /></div>
             <div className="space-y-1"><Label>CNPJ</Label><Input value={s.cnpj || ""} onChange={set("cnpj")} /></div>
+            <div className="space-y-1"><Label>Inscrição Estadual</Label><Input value={s.state_registration || ""} onChange={set("state_registration")} /></div>
             <div className="space-y-1"><Label>Farmacêutico responsável</Label><Input value={s.pharmacist_name || ""} onChange={set("pharmacist_name")} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>CRF</Label><Input value={s.crf || ""} onChange={set("crf")} /></div>
