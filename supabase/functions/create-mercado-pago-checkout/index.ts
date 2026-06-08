@@ -3,7 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
-type CartItem = { id: string; quantity: number };
+type CartItem = { id: string; variant_id?: string | null; quantity: number };
 type CheckoutBody = {
   items: CartItem[];
   payment_method: "pix" | "credit_card";
@@ -60,11 +60,22 @@ Deno.serve(async (req) => {
 
     // Carrega produtos + valida estoque/receita
     const ids = body.items.map((i) => i.id);
+    const variantIds = body.items.map((i) => i.variant_id).filter(Boolean) as string[];
     const { data: products, error: prodErr } = await admin
       .from("products")
-      .select("id,name,slug,price,promo_price,image_url,stock,active,controlled,requires_prescription,cart_quantity_limit")
+      .select("id,name,slug,price,promo_price,image_url,stock,active,controlled,requires_prescription,cart_quantity_limit,has_variants")
       .in("id", ids);
     if (prodErr) return json({ error: prodErr.message }, 500);
+
+    let variantsById = new Map<string, any>();
+    if (variantIds.length) {
+      const { data: variants, error: varErr } = await admin
+        .from("product_variants")
+        .select("id,parent_product_id,trier_product_id,barcode,variation_type,variation_value,name,price,promo_price,stock,image_url,active")
+        .in("id", variantIds);
+      if (varErr) return json({ error: varErr.message }, 500);
+      variantsById = new Map((variants || []).map((v: any) => [v.id, v]));
+    }
 
     const byId = new Map(products!.map((p: any) => [p.id, p]));
     const orderItems: any[] = [];
@@ -72,7 +83,20 @@ Deno.serve(async (req) => {
     for (const ci of body.items) {
       const p: any = byId.get(ci.id);
       if (!p || !p.active) return json({ error: `Produto indisponível: ${ci.id}` }, 400);
-      if ((p.stock ?? 0) <= 0) return json({ error: `Sem estoque: ${p.name}` }, 400);
+
+      let variant: any = null;
+      if (ci.variant_id) {
+        variant = variantsById.get(ci.variant_id);
+        if (!variant || !variant.active || variant.parent_product_id !== p.id) {
+          return json({ error: `Variação inválida: ${p.name}` }, 400);
+        }
+      } else if (p.has_variants) {
+        return json({ error: `Selecione uma opção para: ${p.name}` }, 400);
+      }
+
+      const stock = variant ? (variant.stock ?? 0) : (p.stock ?? 0);
+      if (stock <= 0) return json({ error: `Sem estoque: ${p.name}` }, 400);
+
       if (p.controlled || p.requires_prescription) {
         const { data: rx } = await admin
           .from("prescriptions")
@@ -81,12 +105,21 @@ Deno.serve(async (req) => {
           .limit(1).maybeSingle();
         if (!rx) return json({ error: `Receita necessária aprovada: ${p.name}` }, 400);
       }
-      const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, p.stock));
-      const unit = Number(p.promo_price ?? p.price);
+      const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, stock));
+      const unit = variant
+        ? Number(variant.promo_price ?? variant.price ?? p.promo_price ?? p.price)
+        : Number(p.promo_price ?? p.price);
       const line = unit * qty;
       subtotal += line;
+      const variantLabel = variant
+        ? `${(variant.variation_type || "tamanho").replace(/^./, (c: string) => c.toUpperCase())}: ${variant.variation_value}`
+        : null;
       orderItems.push({
-        product_id: p.id, product_name: p.name, product_image_url: p.image_url,
+        product_id: p.id,
+        variant_id: variant?.id ?? null,
+        variant_label: variantLabel,
+        product_name: variant ? `${p.name} — ${variantLabel}` : p.name,
+        product_image_url: variant?.image_url || p.image_url,
         quantity: qty, unit_price: unit, total: line,
         requires_prescription: !!p.requires_prescription, controlled: !!p.controlled,
       });

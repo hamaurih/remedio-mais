@@ -29,6 +29,9 @@ export default function Cart() {
                   <img src={i.image_url || productPlaceholder} alt={i.name} className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
                   <div className="flex-1">
                     <div className="font-medium text-sm line-clamp-2">{i.name}</div>
+                    {i.variant_label && (
+                      <div className="text-[11px] text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>
+                    )}
                     <div className="text-primary font-bold mt-1">{formatBRL(i.price)}</div>
                   </div>
                   <div className="flex items-center gap-1">

@@ -13,6 +13,7 @@ export type Product = {
   on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
   stock?: number; cart_quantity_limit?: number | null;
   created_at?: string | null;
+  has_variants?: boolean | null;
 };
 
 type BadgeKind = "oferta" | "generico" | "mais-vendido" | "novo" | null;
@@ -52,7 +53,12 @@ export function ProductCard({ p }: { p: Product }) {
       toast.error("Produto indisponível no momento.");
       return;
     }
-    addToCart({ id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
+    if (p.has_variants) {
+      // Force user to pick a variant via QuickView
+      openQuickView(p);
+      return;
+    }
+    addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
     toast.success("Adicionado ao carrinho");
   };
 
@@ -133,7 +139,7 @@ export function ProductCard({ p }: { p: Product }) {
             disabled={outOfStock}
             className="mt-3 w-full h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-60"
           >
-            <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : "Adicionar"}
+            <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : (p.has_variants ? "Escolher opção" : "Adicionar")}
           </Button>
         )}
       </div>

@@ -1,6 +1,9 @@
 // Lightweight cart store using localStorage + custom events
 export type CartItem = {
-  id: string;
+  id: string;            // unique line key (variant.id when variant, otherwise product.id)
+  product_id?: string;   // parent product id (always set for new items)
+  variant_id?: string | null;
+  variant_label?: string | null; // e.g. "Tamanho: XXG"
   name: string;
   price: number;
   image_url?: string | null;
@@ -23,7 +26,7 @@ export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
   const items = getCart();
   const existing = items.find((i) => i.id === item.id);
   if (existing) existing.quantity += qty;
-  else items.push({ ...item, quantity: qty });
+  else items.push({ ...item, product_id: item.product_id || item.id, quantity: qty });
   save(items);
 }
 

@@ -12,6 +12,7 @@ import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
 import { calculatePixPrice, resolvePixPercentage } from "@/lib/pix";
 import { onQuickView } from "@/lib/quickview";
 import { ProductCard, type Product } from "./ProductCard";
+import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "./VariantSelector";
 import { toast } from "sonner";
 
 export function ProductQuickView() {
@@ -21,8 +22,9 @@ export function ProductQuickView() {
   const { data: settings } = useStoreSettings();
   const [qty, setQty] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
-  useEffect(() => onQuickView((p) => { setProduct(p); setQty(1); setActiveImage(p.image_url || null); setOpen(true); }), []);
+  useEffect(() => onQuickView((p) => { setProduct(p); setQty(1); setActiveImage(p.image_url || null); setSelectedVariantId(null); setOpen(true); }), []);
 
   // Fetch full product (gallery, pix discount, etc.) — uses slug from card
   const { data: full } = useQuery({
@@ -91,23 +93,53 @@ export function ProductQuickView() {
 
   if (!p) return null;
 
-  const finalPrice = p.promo_price ?? p.price;
-  const hasDiscount = !!p.promo_price && p.promo_price < p.price;
-  const discount = hasDiscount ? Math.round((1 - p.promo_price / p.price) * 100) : 0;
+  // Variants
+  const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && open && !!p?.has_variants);
+  const selectedVariant: ProductVariant | undefined = useMemo(
+    () => variants.find((v) => v.id === selectedVariantId),
+    [variants, selectedVariantId],
+  );
+  const hasVariants = !!p?.has_variants && variants.length > 0;
+
+  const baseStock = typeof p.stock === "number" ? p.stock : 0;
+  const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : baseStock;
+  const stock = hasVariants ? variantStock : baseStock;
+  const outOfStock = stock <= 0;
+
+  const basePrice = hasVariants && selectedVariant ? Number(selectedVariant.price ?? p.price) : Number(p.price);
+  const basePromo = hasVariants && selectedVariant ? selectedVariant.promo_price : p.promo_price;
+  const finalPrice = basePromo ?? basePrice;
+  const hasDiscount = !!basePromo && basePromo < basePrice;
+  const discount = hasDiscount ? Math.round((1 - basePromo / basePrice) * 100) : 0;
   const pixPct = resolvePixPercentage(p.pix_discount_percentage, (settings as any)?.pix_discount_percentage, (settings as any)?.pix_discount_enabled);
   const pixPrice = calculatePixPrice(finalPrice, pixPct);
-  const stock = typeof p.stock === "number" ? p.stock : 0;
-  const outOfStock = stock <= 0;
   const maxQty = Math.min(stock || 99, p.cart_quantity_limit || 99) || 99;
 
+  const variantImage = hasVariants && selectedVariant?.image_url ? selectedVariant.image_url : null;
+  const displayImage = activeImage || variantImage || p.image_url || productPlaceholder;
+  const variantCode = hasVariants && selectedVariant ? selectedVariant.trier_product_id : null;
+
   const waPhone = (settings as any)?.whatsapp || "5583999286000";
-  const waMsg = `Olá! Tenho interesse neste produto:\n\nProduto: ${p.name}\nCódigo: ${p.trier_product_id || p.sku || p.id}\nQuantidade: ${qty}\nPreço: ${formatBRL(finalPrice)}${pixPrice ? `\nPreço Pix: ${formatBRL(pixPrice)}` : ""}\n\nGostaria de consultar disponibilidade e entrega.`;
+  const waMsg = `Olá! Tenho interesse neste produto:\n\nProduto: ${p.name}${hasVariants && selectedVariant ? ` (${buildVariantLabel(selectedVariant)})` : ""}\nCódigo: ${variantCode || p.trier_product_id || p.sku || p.id}\nQuantidade: ${qty}\nPreço: ${formatBRL(finalPrice)}${pixPrice ? `\nPreço Pix: ${formatBRL(pixPrice)}` : ""}\n\nGostaria de consultar disponibilidade e entrega.`;
   const wa = buildWhatsAppLink(waPhone, waMsg);
 
   const handleAdd = () => {
     if (p.controlled) { toast.error("Medicamento controlado. Envie sua receita."); return; }
-    if (outOfStock) { toast.error("Produto indisponível."); return; }
-    addToCart({ id: p.id, name: p.name, price: finalPrice, image_url: p.image_url }, qty);
+    if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
+    if (outOfStock) { toast.error("Sem estoque para esta opção."); return; }
+    if (hasVariants && selectedVariant) {
+      addToCart({
+        id: selectedVariant.id,
+        product_id: p.id,
+        variant_id: selectedVariant.id,
+        variant_label: buildVariantLabel(selectedVariant),
+        name: p.name,
+        price: Number(finalPrice),
+        image_url: selectedVariant.image_url || p.image_url,
+      }, qty);
+    } else {
+      addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url }, qty);
+    }
     toast.success(`${qty}x adicionado ao carrinho`);
   };
 
@@ -122,7 +154,7 @@ export function ProductQuickView() {
           {/* Gallery */}
           <div>
             <div className="bg-secondary/40 rounded-xl border aspect-square flex items-center justify-center overflow-hidden group">
-              <img src={activeImage || p.image_url || productPlaceholder} alt={p.name} className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
+              <img src={displayImage} alt={p.name} className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
             </div>
             {gallery.length > 1 && (
               <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -156,7 +188,26 @@ export function ProductQuickView() {
               </div>
             )}
 
+            {hasVariants && (
+              <div className="mt-4">
+                <VariantSelector
+                  variants={variants}
+                  selectedId={selectedVariantId}
+                  onSelect={(v) => { setSelectedVariantId(v.id); setActiveImage(null); }}
+                />
+                {selectedVariant && (
+                  <div className="text-[11px] text-muted-foreground mt-2">
+                    {selectedVariant.stock > 0
+                      ? <>Estoque: <strong>{selectedVariant.stock}</strong> un.</>
+                      : <span className="text-primary font-semibold">Sem estoque nesta opção</span>}
+                    {selectedVariant.trier_product_id && <> · Cód.: {selectedVariant.trier_product_id}</>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="my-4 border-t" />
+
 
             {/* Price */}
             <div>

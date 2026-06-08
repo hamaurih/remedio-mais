@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
+import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
@@ -307,6 +308,7 @@ export default function AdminProducts() {
               <TabsTrigger value="images">Imagens</TabsTrigger>
               <TabsTrigger value="price">Preço</TabsTrigger>
               <TabsTrigger value="stock">Estoque</TabsTrigger>
+              <TabsTrigger value="variants">Variações</TabsTrigger>
               <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
@@ -377,6 +379,18 @@ export default function AdminProducts() {
                 <div className="bg-primary/10 text-primary text-sm p-2 rounded flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Estoque baixo!</div>
               )}
             </TabsContent>
+
+            <TabsContent value="variants" className="pt-3">
+              {editing.id ? (
+                <ProductVariantsManager productId={editing.id} />
+              ) : (
+                <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
+                  Salve o produto primeiro (botão <strong>Salvar e continuar</strong>) para cadastrar variações como tamanhos, sabores ou volumes.
+                </div>
+              )}
+            </TabsContent>
+
+
 
             <TabsContent value="shelf" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.featured} onCheckedChange={(v) => setEditing({ ...editing, featured: v })} /><Label>Destaque na home</Label></div>
