@@ -74,6 +74,10 @@ const App = () => (
           <Route path="/buscar" element={<Search />} />
           <Route path="/departamentos" element={<Departamentos />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
+          <Route path="/termos-de-uso" element={<Terms />} />
+          <Route path="/trocas-e-devolucoes" element={<Returns />} />
+          <Route path="/fale-conosco" element={<Contact />} />
           <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
