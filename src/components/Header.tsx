@@ -1,34 +1,17 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, MessageCircle, Phone } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useCart } from "@/hooks/useCart";
-import { useState } from "react";
-import { buildWhatsAppLink } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { PromoTicker } from "./PromoTicker";
 import { CategoryNav } from "./CategoryNav";
+import { SearchAutocomplete } from "./SearchAutocomplete";
 import logoRed from "@/assets/logo-red.png";
 
 export function Header() {
-  const { data: settings } = useStoreSettings();
   const cart = useCart();
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
-  const [q, setQ] = useState("");
-  const nav = useNavigate();
   const { user, isAdmin } = useAuth();
-
-  const waRaw = settings?.whatsapp || "5583999286000";
-  const wa = buildWhatsAppLink(waRaw, "Olá! Preciso de atendimento.");
-  // formata "5583999286000" → "(83) 99928-6000"
-  const waDisplay = (() => {
-    const d = waRaw.replace(/\D/g, "");
-    const local = d.length >= 12 ? d.slice(-11) : d;
-    if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
-    if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
-    return waRaw;
-  })();
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
@@ -52,42 +35,9 @@ export function Header() {
             />
           </Link>
 
-          <form
-            onSubmit={(e) => { e.preventDefault(); if (q.trim()) nav(`/buscar?q=${encodeURIComponent(q.trim())}`); }}
-            className="hidden md:flex flex-1 relative max-w-2xl"
-          >
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="O que você está procurando?"
-              className="pl-10 h-11 rounded-full bg-secondary border-transparent focus-visible:ring-primary w-full"
-            />
-          </form>
+          <SearchAutocomplete className="hidden md:block flex-1 max-w-3xl" />
 
           <div className="flex items-center gap-2 ml-auto">
-            {/* Atendimento WhatsApp (não é fluxo de compra) */}
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener"
-              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
-              aria-label="Atendimento WhatsApp"
-            >
-              <span className="rounded-full bg-whatsapp/10 text-whatsapp p-2">
-                <MessageCircle className="h-4 w-4" />
-              </span>
-              <span className="leading-tight text-left">
-                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Atendimento WhatsApp</span>
-                <span className="block text-sm font-bold text-foreground">{waDisplay}</span>
-              </span>
-            </a>
-
-            {/* Mobile: só ícone do WhatsApp */}
-            <Button asChild size="icon" variant="ghost" className="text-whatsapp lg:hidden" aria-label="Atendimento WhatsApp">
-              <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-5 w-5" /></a>
-            </Button>
-
             {/* Login / conta */}
             <Link
               to={user ? (isAdmin ? "/admin" : "/") : "/auth"}
@@ -131,18 +81,9 @@ export function Header() {
         </div>
 
         {/* Mobile search */}
-        <form
-          onSubmit={(e) => { e.preventDefault(); if (q.trim()) nav(`/buscar?q=${encodeURIComponent(q.trim())}`); }}
-          className="md:hidden mt-3 relative"
-        >
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="O que você está procurando?"
-            className="pl-10 h-10 rounded-full bg-secondary border-transparent focus-visible:ring-primary w-full"
-          />
-        </form>
+        <div className="md:hidden mt-3">
+          <SearchAutocomplete compact />
+        </div>
       </div>
 
       <CategoryNav />
