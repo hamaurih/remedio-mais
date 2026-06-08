@@ -93,23 +93,53 @@ export function ProductQuickView() {
 
   if (!p) return null;
 
-  const finalPrice = p.promo_price ?? p.price;
-  const hasDiscount = !!p.promo_price && p.promo_price < p.price;
-  const discount = hasDiscount ? Math.round((1 - p.promo_price / p.price) * 100) : 0;
+  // Variants
+  const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && open && !!p?.has_variants);
+  const selectedVariant: ProductVariant | undefined = useMemo(
+    () => variants.find((v) => v.id === selectedVariantId),
+    [variants, selectedVariantId],
+  );
+  const hasVariants = !!p?.has_variants && variants.length > 0;
+
+  const baseStock = typeof p.stock === "number" ? p.stock : 0;
+  const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : baseStock;
+  const stock = hasVariants ? variantStock : baseStock;
+  const outOfStock = stock <= 0;
+
+  const basePrice = hasVariants && selectedVariant ? Number(selectedVariant.price ?? p.price) : Number(p.price);
+  const basePromo = hasVariants && selectedVariant ? selectedVariant.promo_price : p.promo_price;
+  const finalPrice = basePromo ?? basePrice;
+  const hasDiscount = !!basePromo && basePromo < basePrice;
+  const discount = hasDiscount ? Math.round((1 - basePromo / basePrice) * 100) : 0;
   const pixPct = resolvePixPercentage(p.pix_discount_percentage, (settings as any)?.pix_discount_percentage, (settings as any)?.pix_discount_enabled);
   const pixPrice = calculatePixPrice(finalPrice, pixPct);
-  const stock = typeof p.stock === "number" ? p.stock : 0;
-  const outOfStock = stock <= 0;
   const maxQty = Math.min(stock || 99, p.cart_quantity_limit || 99) || 99;
 
+  const variantImage = hasVariants && selectedVariant?.image_url ? selectedVariant.image_url : null;
+  const displayImage = activeImage || variantImage || p.image_url || productPlaceholder;
+  const variantCode = hasVariants && selectedVariant ? selectedVariant.trier_product_id : null;
+
   const waPhone = (settings as any)?.whatsapp || "5583999286000";
-  const waMsg = `Olá! Tenho interesse neste produto:\n\nProduto: ${p.name}\nCódigo: ${p.trier_product_id || p.sku || p.id}\nQuantidade: ${qty}\nPreço: ${formatBRL(finalPrice)}${pixPrice ? `\nPreço Pix: ${formatBRL(pixPrice)}` : ""}\n\nGostaria de consultar disponibilidade e entrega.`;
+  const waMsg = `Olá! Tenho interesse neste produto:\n\nProduto: ${p.name}${hasVariants && selectedVariant ? ` (${buildVariantLabel(selectedVariant)})` : ""}\nCódigo: ${variantCode || p.trier_product_id || p.sku || p.id}\nQuantidade: ${qty}\nPreço: ${formatBRL(finalPrice)}${pixPrice ? `\nPreço Pix: ${formatBRL(pixPrice)}` : ""}\n\nGostaria de consultar disponibilidade e entrega.`;
   const wa = buildWhatsAppLink(waPhone, waMsg);
 
   const handleAdd = () => {
     if (p.controlled) { toast.error("Medicamento controlado. Envie sua receita."); return; }
-    if (outOfStock) { toast.error("Produto indisponível."); return; }
-    addToCart({ id: p.id, name: p.name, price: finalPrice, image_url: p.image_url }, qty);
+    if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
+    if (outOfStock) { toast.error("Sem estoque para esta opção."); return; }
+    if (hasVariants && selectedVariant) {
+      addToCart({
+        id: selectedVariant.id,
+        product_id: p.id,
+        variant_id: selectedVariant.id,
+        variant_label: buildVariantLabel(selectedVariant),
+        name: p.name,
+        price: Number(finalPrice),
+        image_url: selectedVariant.image_url || p.image_url,
+      }, qty);
+    } else {
+      addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url }, qty);
+    }
     toast.success(`${qty}x adicionado ao carrinho`);
   };
 
