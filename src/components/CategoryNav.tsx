@@ -171,7 +171,7 @@ export function CategoryNav({ categories }: { categories?: Category[] }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("categories")
-        .select("name, slug")
+        .select("name, slug, macro_group")
         .eq("active", true)
         .order("position");
       return (data ?? []) as Category[];
@@ -179,9 +179,13 @@ export function CategoryNav({ categories }: { categories?: Category[] }) {
   });
 
   const cats = categories ?? live ?? DEFAULT_CATS;
-  // Merge with defaults to keep familiar chips even if DB is empty for some
+  // Merge with defaults — DB entries (with macro_group) override defaults
   const bySlug = new Map<string, Category>();
-  [...DEFAULT_CATS, ...cats].forEach((c) => bySlug.set(c.slug, c));
+  DEFAULT_CATS.forEach((c) => bySlug.set(c.slug, c));
+  cats.forEach((c) => {
+    const prev = bySlug.get(c.slug);
+    bySlug.set(c.slug, { ...prev, ...c, macro_group: c.macro_group ?? prev?.macro_group ?? null });
+  });
   const merged = Array.from(bySlug.values());
 
   return (
