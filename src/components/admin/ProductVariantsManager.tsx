@@ -30,15 +30,17 @@ const TYPES = ["tamanho", "volume", "sabor", "quantidade", "apresentação", "co
 export function ProductVariantsManager({ productId, onChangeSummary }: { productId: string; onChangeSummary?: (info: { count: number; hasAnyStock: boolean }) => void }) {
   const [rows, setRows] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(false);
+  const [parent, setParent] = useState<{ name?: string; has_variants?: boolean; active?: boolean } | null>(null);
+  const [deactivateOriginal, setDeactivateOriginal] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("product_variants")
-      .select("*")
-      .eq("parent_product_id", productId)
-      .order("position", { ascending: true });
+    const [{ data }, { data: p }] = await Promise.all([
+      supabase.from("product_variants").select("*").eq("parent_product_id", productId).order("position", { ascending: true }),
+      supabase.from("products").select("name,has_variants,active").eq("id", productId).maybeSingle(),
+    ]);
     setRows((data || []) as Variant[]);
+    setParent((p as any) || null);
     setLoading(false);
     onChangeSummary?.({
       count: (data || []).length,
@@ -47,6 +49,41 @@ export function ProductVariantsManager({ productId, onChangeSummary }: { product
   };
 
   useEffect(() => { if (productId) load(); /* eslint-disable-next-line */ }, [productId]);
+
+  const importFromProduct = async (picked: PickedEntity | null) => {
+    if (!picked) return;
+    if (picked.id === productId) { toast.error("Este é o produto pai. Escolha outro produto."); return; }
+    const { data: full } = await supabase
+      .from("products")
+      .select("name,price,promo_price,stock,trier_product_id,barcode,image_url")
+      .eq("id", picked.id)
+      .maybeSingle();
+    const f: any = full || picked.raw || {};
+    if (rows.some((r: any) => r._source_product_id === picked.id || (f.trier_product_id && r.trier_product_id === f.trier_product_id))) {
+      toast.error("Este produto já foi importado como variação.");
+      return;
+    }
+    const valueGuess = (f.name || "").split(/\s+/).slice(-1)[0] || "Novo";
+    setRows((rs) => [
+      ...rs,
+      {
+        parent_product_id: productId,
+        trier_product_id: f.trier_product_id || null,
+        barcode: f.barcode || null,
+        variation_type: rs[0]?.variation_type || "tamanho",
+        variation_value: valueGuess,
+        name: f.name || null,
+        price: f.price ?? null,
+        promo_price: f.promo_price ?? null,
+        stock: f.stock ?? 0,
+        image_url: f.image_url || null,
+        active: true,
+        position: rs.length,
+        _source_product_id: picked.id,
+      } as any,
+    ]);
+    toast.success(`"${f.name}" adicionado como variação. Ajuste o valor (P, M, G...) e salve.`);
+  };
 
   const add = () => {
     setRows((rs) => [
