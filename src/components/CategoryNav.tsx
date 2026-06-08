@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/accordion";
 import { Menu, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 
 export interface Category {
+  id?: string;
   name: string;
   slug: string;
   macro_group?: string | null;
@@ -50,38 +52,31 @@ const GROUP_ORDER = [
   "Primeiros Socorros",
 ];
 
-function buildMacroGroups(all: Category[]) {
-  const byGroup = new Map<string, Category[]>();
-  all.forEach((c) => {
-    const g = (c.macro_group || "").trim();
-    if (!g) return;
+type MegaItem = { label: string; href: string; group: string };
+
+function buildGroups(items: MegaItem[]) {
+  const byGroup = new Map<string, MegaItem[]>();
+  items.forEach((it) => {
+    const g = it.group || "Outros";
     const list = byGroup.get(g) ?? [];
-    if (!list.find((x) => x.slug === c.slug)) list.push(c);
+    if (!list.find((x) => x.href === it.href)) list.push(it);
     byGroup.set(g, list);
   });
-  const ordered: { label: string; items: Category[] }[] = [];
+  const ordered: { label: string; items: MegaItem[] }[] = [];
   GROUP_ORDER.forEach((g) => {
     if (byGroup.has(g)) {
       ordered.push({ label: g, items: byGroup.get(g)! });
       byGroup.delete(g);
     }
   });
-  Array.from(byGroup.entries()).forEach(([label, items]) =>
-    ordered.push({ label, items })
-  );
+  Array.from(byGroup.entries()).forEach(([label, items]) => ordered.push({ label, items }));
   return ordered;
 }
 
-function MegaMenuDesktop({ categories }: { categories: Category[] }) {
+function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> }) {
   const [open, setOpen] = useState(false);
-  const groups = buildMacroGroups(categories);
-
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button
         type="button"
         className="inline-flex items-center gap-1.5 px-3 md:px-4 py-1.5 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-sm hover:shadow-md transition"
@@ -91,24 +86,16 @@ function MegaMenuDesktop({ categories }: { categories: Category[] }) {
         <Menu className="h-4 w-4" /> Todas as Categorias
         <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
       </button>
-
       {open && (
         <div className="absolute left-0 top-full pt-2 z-50 w-[min(960px,90vw)]">
           <div className="bg-card border border-border rounded-xl shadow-xl p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
             {groups.map((g) => (
               <div key={g.label} className="min-w-0">
-                <div className="text-xs uppercase tracking-wider font-extrabold text-primary mb-2">
-                  {g.label}
-                </div>
+                <div className="text-xs uppercase tracking-wider font-extrabold text-primary mb-2">{g.label}</div>
                 <ul className="space-y-1.5">
                   {g.items.map((c) => (
-                    <li key={c.slug}>
-                      <Link
-                        to={`/categoria/${c.slug}`}
-                        className="text-sm text-foreground hover:text-primary transition-colors"
-                      >
-                        {c.name}
-                      </Link>
+                    <li key={c.href}>
+                      <Link to={c.href} className="text-sm text-foreground hover:text-primary transition-colors">{c.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -121,15 +108,11 @@ function MegaMenuDesktop({ categories }: { categories: Category[] }) {
   );
 }
 
-function MegaMenuMobile({ categories }: { categories: Category[] }) {
-  const groups = buildMacroGroups(categories);
+function MegaMenuMobile({ groups }: { groups: ReturnType<typeof buildGroups> }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0"
-        >
+        <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
           <Menu className="h-4 w-4" /> Categorias
         </button>
       </SheetTrigger>
@@ -140,19 +123,12 @@ function MegaMenuMobile({ categories }: { categories: Category[] }) {
         <Accordion type="multiple" className="px-2 py-2">
           {groups.map((g) => (
             <AccordionItem key={g.label} value={g.label} className="border-b">
-              <AccordionTrigger className="px-2 text-sm font-bold">
-                {g.label}
-              </AccordionTrigger>
+              <AccordionTrigger className="px-2 text-sm font-bold">{g.label}</AccordionTrigger>
               <AccordionContent>
                 <ul className="px-2 pb-2 space-y-1">
                   {g.items.map((c) => (
-                    <li key={c.slug}>
-                      <Link
-                        to={`/categoria/${c.slug}`}
-                        className="block py-1.5 text-sm text-foreground hover:text-primary"
-                      >
-                        {c.name}
-                      </Link>
+                    <li key={c.href}>
+                      <Link to={c.href} className="block py-1.5 text-sm text-foreground hover:text-primary">{c.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -165,58 +141,85 @@ function MegaMenuMobile({ categories }: { categories: Category[] }) {
   );
 }
 
-export function CategoryNav({ categories }: { categories?: Category[] }) {
-  // Prefer live categories from DB so menu reflects published items
+export function CategoryNav() {
+  // Live categories — keeps macro_group info for grouping the mega menu
   const { data: live } = useQuery({
     queryKey: ["nav_categories"],
     queryFn: async () => {
       const { data } = await supabase
         .from("categories")
-        .select("name, slug, macro_group, show_in_menu")
+        .select("id, name, slug, macro_group, show_in_menu")
         .eq("active", true)
         .order("position");
       return (data ?? []) as Category[];
     },
   });
 
-  const cats = categories ?? live ?? DEFAULT_CATS;
-  // Merge with defaults — DB entries (with macro_group) override defaults
-  const bySlug = new Map<string, Category>();
-  DEFAULT_CATS.forEach((c) => bySlug.set(c.slug, { ...c, show_in_menu: true }));
-  cats.forEach((c) => {
-    const prev = bySlug.get(c.slug);
-    bySlug.set(c.slug, {
-      ...prev,
-      ...c,
-      macro_group: c.macro_group ?? prev?.macro_group ?? null,
-      show_in_menu: c.show_in_menu ?? prev?.show_in_menu ?? true,
-    });
+  const { data: headerMenu = [] } = useMenu("header_main");
+  const { data: allCatsMenu = [] } = useMenu("all_categories");
+
+  // Map category_id -> macro_group from live categories
+  const macroById = new Map<string, string | null>();
+  const macroBySlug = new Map<string, string | null>();
+  const liveBySlug = new Map<string, Category>();
+  (live ?? []).forEach((c) => {
+    if (c.id) macroById.set(c.id, c.macro_group ?? null);
+    macroBySlug.set(c.slug, c.macro_group ?? null);
+    liveBySlug.set(c.slug, c);
   });
-  const merged = Array.from(bySlug.values());
-  // Chips: somente categorias marcadas como "Aparece no menu" no admin
-  const chipList = merged.filter((c) => c.show_in_menu !== false);
+  DEFAULT_CATS.forEach((c) => {
+    if (!macroBySlug.has(c.slug)) macroBySlug.set(c.slug, c.macro_group ?? null);
+  });
+
+  const resolveGroup = (m: MenuItem) =>
+    (m.category_id && macroById.get(m.category_id)) ||
+    (m.slug && macroBySlug.get(m.slug)) ||
+    "Outros";
+
+  // CHIPS — prefer header_main from DB, fallback to live categories
+  const chipsFromMenu: { label: string; href: string; key: string }[] = headerMenu
+    .filter((m) => m.show_on_desktop || m.show_on_mobile)
+    .map((m) => ({ label: m.label, href: resolveMenuHref(m), key: m.id }));
+
+  const chipsFallback = (() => {
+    const bySlug = new Map<string, Category>();
+    DEFAULT_CATS.forEach((c) => bySlug.set(c.slug, { ...c, show_in_menu: true }));
+    (live ?? []).forEach((c) => bySlug.set(c.slug, { ...(bySlug.get(c.slug) || {}), ...c, show_in_menu: c.show_in_menu ?? true }));
+    return Array.from(bySlug.values())
+      .filter((c) => c.show_in_menu !== false)
+      .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, key: c.slug }));
+  })();
+
+  const chipList = chipsFromMenu.length > 0 ? chipsFromMenu : chipsFallback;
+
+  // MEGA MENU — prefer all_categories from DB grouped by macro_group, fallback to live
+  const megaItems: MegaItem[] = allCatsMenu.length > 0
+    ? allCatsMenu.map((m) => ({ label: m.label, href: resolveMenuHref(m), group: resolveGroup(m) || "Outros" }))
+    : (live ?? DEFAULT_CATS)
+        .filter((c) => c.macro_group)
+        .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, group: c.macro_group || "Outros" }));
+
+  const groups = buildGroups(megaItems);
 
   return (
     <nav className="border-t bg-background">
       <div className="container flex items-stretch gap-2 py-2 md:py-2.5">
-        {/* Mega menu trigger */}
         <div className="hidden md:flex items-center">
-          <MegaMenuDesktop categories={merged} />
+          <MegaMenuDesktop groups={groups} />
         </div>
         <div className="md:hidden flex items-center">
-          <MegaMenuMobile categories={merged} />
+          <MegaMenuMobile groups={groups} />
         </div>
 
-        {/* Chips */}
         <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
           <ul className="flex gap-1 md:gap-2 whitespace-nowrap text-sm items-center">
             {chipList.map((c) => (
-              <li key={c.slug} className="snap-start">
+              <li key={c.key} className="snap-start">
                 <Link
-                  to={`/categoria/${c.slug}`}
+                  to={c.href}
                   className="inline-block px-3 md:px-4 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-medium relative group"
                 >
-                  <span>{c.name}</span>
+                  <span>{c.label}</span>
                   <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
                 </Link>
               </li>

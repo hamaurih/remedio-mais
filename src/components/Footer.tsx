@@ -2,7 +2,23 @@ import { Instagram, Facebook, MessageCircle, MapPin, Phone, Mail, Clock } from "
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
 import { buildWhatsAppLink } from "@/lib/store";
+import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import logoRed from "@/assets/logo-red.png";
+
+function renderFooterLinks(items: MenuItem[], fallback: { label: string; href: string }[]) {
+  const list = items.length > 0
+    ? items.filter((i) => i.show_on_desktop || i.show_on_mobile).map((i) => ({ label: i.label, href: resolveMenuHref(i), newTab: i.open_in_new_tab }))
+    : fallback.map((f) => ({ ...f, newTab: false }));
+  return list.map((l) =>
+    l.href.startsWith("http") || l.newTab ? (
+      <li key={l.href + l.label}>
+        <a className="hover:text-primary" href={l.href} target={l.newTab ? "_blank" : undefined} rel={l.newTab ? "noopener" : undefined}>{l.label}</a>
+      </li>
+    ) : (
+      <li key={l.href + l.label}><Link className="hover:text-primary" to={l.href}>{l.label}</Link></li>
+    ),
+  );
+}
 
 // TikTok icon (lucide não tem) – SVG inline
 function TikTokIcon({ className = "h-4 w-4" }: { className?: string }) {
@@ -24,6 +40,9 @@ function formatPhone(raw: string | null | undefined) {
 
 export function Footer() {
   const { data: s } = useStoreSettings();
+  const { data: institutional = [] } = useMenu("footer_institutional");
+  const { data: support = [] } = useMenu("footer_support");
+  const { data: footerCats = [] } = useMenu("footer_categories");
   const year = new Date().getFullYear();
 
   const waRaw = s?.whatsapp || "5583999286000";
@@ -101,18 +120,30 @@ export function Footer() {
           <div>
             <h4 className="font-bold mb-3 text-foreground">Atendimento</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link className="hover:text-primary" to="/fale-conosco">Fale Conosco</Link></li>
-              <li><Link className="hover:text-primary" to="/enviar-receita">Envio de Receita</Link></li>
-              <li><Link className="hover:text-primary" to="/trocas-e-devolucoes">Trocas e Devoluções</Link></li>
+              {renderFooterLinks(support, [
+                { label: "Fale Conosco", href: "/fale-conosco" },
+                { label: "Envio de Receita", href: "/enviar-receita" },
+                { label: "Trocas e Devoluções", href: "/trocas-e-devolucoes" },
+              ])}
             </ul>
           </div>
           <div>
             <h4 className="font-bold mb-3 text-foreground">Institucional</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link className="hover:text-primary" to="/politica-de-privacidade">Política de Privacidade</Link></li>
-              <li><Link className="hover:text-primary" to="/termos-de-uso">Termos de Uso</Link></li>
+              {renderFooterLinks(institutional, [
+                { label: "Política de Privacidade", href: "/politica-de-privacidade" },
+                { label: "Termos de Uso", href: "/termos-de-uso" },
+              ])}
             </ul>
           </div>
+          {footerCats.length > 0 && (
+            <div className="col-span-2">
+              <h4 className="font-bold mb-3 text-foreground">Categorias</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground grid grid-cols-2 gap-x-3">
+                {renderFooterLinks(footerCats, [])}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 

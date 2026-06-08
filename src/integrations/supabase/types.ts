@@ -508,6 +508,107 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_items: {
+        Row: {
+          active: boolean
+          badge_text: string | null
+          campaign_id: string | null
+          category_id: string | null
+          created_at: string
+          highlight: boolean
+          icon: string | null
+          id: string
+          label: string
+          link_type: string
+          menu_area: string
+          open_in_new_tab: boolean
+          page_key: string | null
+          parent_id: string | null
+          position: number
+          product_id: string | null
+          show_on_desktop: boolean
+          show_on_mobile: boolean
+          slug: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          active?: boolean
+          badge_text?: string | null
+          campaign_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          highlight?: boolean
+          icon?: string | null
+          id?: string
+          label: string
+          link_type?: string
+          menu_area: string
+          open_in_new_tab?: boolean
+          page_key?: string | null
+          parent_id?: string | null
+          position?: number
+          product_id?: string | null
+          show_on_desktop?: boolean
+          show_on_mobile?: boolean
+          slug?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          active?: boolean
+          badge_text?: string | null
+          campaign_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          highlight?: boolean
+          icon?: string | null
+          id?: string
+          label?: string
+          link_type?: string
+          menu_area?: string
+          open_in_new_tab?: boolean
+          page_key?: string | null
+          parent_id?: string | null
+          position?: number
+          product_id?: string | null
+          show_on_desktop?: boolean
+          show_on_mobile?: boolean
+          slug?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_events: {
         Row: {
           created_at: string
