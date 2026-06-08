@@ -159,8 +159,15 @@ export function ProductVariantsManager({ productId, onChangeSummary }: { product
           await supabase.from("product_variants").insert(payload);
         }
       }
-      // Mark parent as has_variants when there is at least one variant
-      const hasAny = rows.some((r) => r.variation_value.trim());
+      // Deactivate source products that were imported (so they don't show as duplicates on the site)
+      if (deactivateOriginal) {
+        const sourceIds = (rows as any[]).map((r) => r._source_product_id).filter(Boolean);
+        if (sourceIds.length) {
+          await supabase.from("products").update({ active: false }).in("id", sourceIds);
+        }
+      }
+      // Mark parent as has_variants when there is at least one active variant
+      const hasAny = rows.some((r) => r.variation_value.trim() && r.active);
       await supabase.from("products").update({
         has_variants: hasAny,
         variation_type: hasAny ? rows[0]?.variation_type || "tamanho" : null,
