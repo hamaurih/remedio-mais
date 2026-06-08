@@ -120,18 +120,30 @@ export function Footer() {
           <div>
             <h4 className="font-bold mb-3 text-foreground">Atendimento</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link className="hover:text-primary" to="/fale-conosco">Fale Conosco</Link></li>
-              <li><Link className="hover:text-primary" to="/enviar-receita">Envio de Receita</Link></li>
-              <li><Link className="hover:text-primary" to="/trocas-e-devolucoes">Trocas e Devoluções</Link></li>
+              {renderFooterLinks(support, [
+                { label: "Fale Conosco", href: "/fale-conosco" },
+                { label: "Envio de Receita", href: "/enviar-receita" },
+                { label: "Trocas e Devoluções", href: "/trocas-e-devolucoes" },
+              ])}
             </ul>
           </div>
           <div>
             <h4 className="font-bold mb-3 text-foreground">Institucional</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link className="hover:text-primary" to="/politica-de-privacidade">Política de Privacidade</Link></li>
-              <li><Link className="hover:text-primary" to="/termos-de-uso">Termos de Uso</Link></li>
+              {renderFooterLinks(institutional, [
+                { label: "Política de Privacidade", href: "/politica-de-privacidade" },
+                { label: "Termos de Uso", href: "/termos-de-uso" },
+              ])}
             </ul>
           </div>
+          {footerCats.length > 0 && (
+            <div className="col-span-2">
+              <h4 className="font-bold mb-3 text-foreground">Categorias</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground grid grid-cols-2 gap-x-3">
+                {renderFooterLinks(footerCats, [])}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
