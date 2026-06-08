@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, MessageCircle } from "lucide-react";
+import { Search, ShoppingCart, User, MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
@@ -34,7 +34,16 @@ export function Header() {
   const nav = useNavigate();
   const { user, isAdmin } = useAuth();
 
-  const wa = buildWhatsAppLink(settings?.whatsapp || "5583999286000", "Olá! Vim pelo site.");
+  const waRaw = settings?.whatsapp || "5583999286000";
+  const wa = buildWhatsAppLink(waRaw, "Olá! Preciso de atendimento.");
+  // formata "5583999286000" → "(83) 99928-6000"
+  const waDisplay = (() => {
+    const d = waRaw.replace(/\D/g, "");
+    const local = d.length >= 12 ? d.slice(-11) : d;
+    if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+    if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+    return waRaw;
+  })();
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
@@ -71,15 +80,58 @@ export function Header() {
             />
           </form>
 
-          <div className="flex items-center gap-1 ml-auto">
-            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-              <Link to={user ? (isAdmin ? "/admin" : "/") : "/auth"}>
-                <User className="h-4 w-4 mr-1" /> {user ? (isAdmin ? "Admin" : "Conta") : "Entrar"}
-              </Link>
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Atendimento WhatsApp (não é fluxo de compra) */}
+            <a
+              href={wa}
+              target="_blank"
+              rel="noopener"
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
+              aria-label="Atendimento WhatsApp"
+            >
+              <span className="rounded-full bg-whatsapp/10 text-whatsapp p-2">
+                <MessageCircle className="h-4 w-4" />
+              </span>
+              <span className="leading-tight text-left">
+                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Atendimento WhatsApp</span>
+                <span className="block text-sm font-bold text-foreground">{waDisplay}</span>
+              </span>
+            </a>
+
+            {/* Mobile: só ícone do WhatsApp */}
+            <Button asChild size="icon" variant="ghost" className="text-whatsapp lg:hidden" aria-label="Atendimento WhatsApp">
+              <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-5 w-5" /></a>
             </Button>
-            <Button asChild size="icon" variant="ghost" className="text-whatsapp hidden md:inline-flex">
-              <a href={wa} target="_blank" rel="noopener" aria-label="WhatsApp"><MessageCircle className="h-5 w-5" /></a>
+
+            {/* Login / conta */}
+            <Link
+              to={user ? (isAdmin ? "/admin" : "/") : "/auth"}
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
+            >
+              <span className="rounded-full bg-accent text-primary p-2">
+                <User className="h-4 w-4" />
+              </span>
+              <span className="leading-tight text-left">
+                {user ? (
+                  <>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Bem-vindo</span>
+                    <span className="block text-sm font-bold text-foreground">{isAdmin ? "Admin" : "Minha conta"}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Olá, faça seu</span>
+                    <span className="block text-sm font-bold text-foreground">Login <span className="font-normal text-muted-foreground">ou cadastre-se</span></span>
+                  </>
+                )}
+              </span>
+            </Link>
+
+            {/* Mobile login icon */}
+            <Button asChild size="icon" variant="ghost" className="md:hidden" aria-label="Entrar">
+              <Link to={user ? "/" : "/auth"}><User className="h-5 w-5" /></Link>
             </Button>
+
+            {/* Carrinho */}
             <Button asChild variant="ghost" size="sm" className="relative">
               <Link to="/carrinho" aria-label="Carrinho">
                 <ShoppingCart className="h-5 w-5" />

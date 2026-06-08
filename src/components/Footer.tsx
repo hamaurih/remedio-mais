@@ -1,43 +1,152 @@
-import { MapPin, Phone, Instagram, Clock } from "lucide-react";
+import { Instagram, Facebook, MessageCircle, MapPin, Phone, Mail, Clock } from "lucide-react";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
+import { buildWhatsAppLink } from "@/lib/store";
 import logoRed from "@/assets/logo-red.png";
+
+// TikTok icon (lucide não tem) – SVG inline
+function TikTokIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M16.5 3a5.5 5.5 0 0 0 5 5v3a8.5 8.5 0 0 1-5-1.6V15a6 6 0 1 1-6-6c.34 0 .67.03 1 .09v3.13A3 3 0 1 0 13.5 15V3h3z" />
+    </svg>
+  );
+}
+
+function formatPhone(raw: string | null | undefined) {
+  if (!raw) return "";
+  const d = raw.replace(/\D/g, "");
+  const local = d.length >= 12 ? d.slice(-11) : d;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return raw;
+}
 
 export function Footer() {
   const { data: s } = useStoreSettings();
+  const year = new Date().getFullYear();
+
+  const waRaw = s?.whatsapp || "5583999286000";
+  const waLink = buildWhatsAppLink(waRaw, "Olá! Vim pelo site.");
+  const waText = formatPhone(waRaw) || "(83) 99928-6000";
+
+  const address =
+    s?.address ||
+    "Av. Mal. Floriano Peixoto, 4050 - Malvinas, Campina Grande - PB, 58428-111";
+  const instagram = s?.instagram || "https://www.instagram.com/atacadaodosmedicamentoscg/";
+
+  const socials = [
+    { key: "whatsapp", href: waLink, label: "WhatsApp", icon: MessageCircle, className: "bg-whatsapp text-white hover:opacity-90" },
+    { key: "instagram", href: instagram || "", label: "Instagram", icon: Instagram, className: "bg-foreground/5 text-foreground hover:bg-foreground/10" },
+    { key: "facebook", href: s?.facebook || "", label: "Facebook", icon: Facebook, className: "bg-foreground/5 text-foreground hover:bg-foreground/10" },
+    { key: "tiktok", href: s?.tiktok || "", label: "TikTok", icon: TikTokIcon, className: "bg-foreground/5 text-foreground hover:bg-foreground/10" },
+  ].filter((s2) => !!s2.href);
+
+  const Field = ({ icon: Icon, children }: { icon: any; children: React.ReactNode }) => (
+    <li className="flex gap-2 items-start">
+      <Icon className="h-4 w-4 mt-0.5 shrink-0 text-primary/70" />
+      <span>{children}</span>
+    </li>
+  );
+
   return (
-    <footer className="mt-16 bg-secondary/60 border-t">
-      <div className="container py-10 grid gap-8 md:grid-cols-4">
-        <div>
-          <img src={logoRed} alt="Atacadão dos Medicamentos" className="h-10 w-auto object-contain mb-3" />
-          <p className="text-sm text-muted-foreground">Preço baixo todo dia, atendimento rápido e entrega local em Campina Grande - PB.</p>
+    <footer className="mt-16 bg-secondary/40 border-t">
+      <div className="container py-10 grid gap-10 md:grid-cols-12">
+        {/* Marca + endereço */}
+        <div className="md:col-span-4 space-y-4">
+          <img src={logoRed} alt="Atacadão dos Medicamentos" className="h-12 w-auto object-contain" />
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Farmácia em Campina Grande - PB. Atendimento humano, preço justo e regularidade sanitária.
+          </p>
+          {socials.length > 0 && (
+            <div className="flex items-center gap-2 pt-1">
+              {socials.map((soc) => (
+                <a
+                  key={soc.key}
+                  href={soc.href}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label={soc.label}
+                  className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors ${soc.className}`}
+                >
+                  <soc.icon className="h-4 w-4" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
-        <div>
-          <h4 className="font-semibold mb-3">Contato</h4>
+
+        {/* Contato */}
+        <div className="md:col-span-4">
+          <h4 className="font-bold mb-3 text-foreground">Contato</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex gap-2"><Phone className="h-4 w-4 mt-0.5" /> (83) 99928-6000</li>
-            <li className="flex gap-2"><MapPin className="h-4 w-4 mt-0.5" /> {s?.address}</li>
-            <li className="flex gap-2"><Clock className="h-4 w-4 mt-0.5" /> {s?.hours}</li>
-            {s?.instagram && (
-              <li className="flex gap-2"><Instagram className="h-4 w-4 mt-0.5" /> <a className="hover:text-primary" href={s.instagram} target="_blank" rel="noopener">@atacadaodosmedicamentoscg</a></li>
+            <Field icon={MapPin}>{address}</Field>
+            <Field icon={Phone}>
+              <a href={waLink} target="_blank" rel="noopener" className="hover:text-primary">
+                {waText}
+              </a>{" "}
+              <span className="text-xs">(WhatsApp)</span>
+            </Field>
+            {s?.contact_email && (
+              <Field icon={Mail}>
+                <a className="hover:text-primary" href={`mailto:${s.contact_email}`}>{s.contact_email}</a>
+              </Field>
             )}
+            {s?.hours && <Field icon={Clock}>{s.hours}</Field>}
           </ul>
         </div>
-        <div>
-          <h4 className="font-semibold mb-3">Institucional</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li><Link className="hover:text-primary" to="/categoria/ofertas">Ofertas</Link></li>
-            <li><Link className="hover:text-primary" to="/enviar-receita">Enviar receita</Link></li>
-            <li><Link className="hover:text-primary" to="/auth">Área administrativa</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-semibold mb-3">Aviso</h4>
-          <p className="text-xs text-muted-foreground">As informações dos produtos são meramente informativas. Consulte o farmacêutico em caso de dúvidas. Para medicamentos que exigem receita, a venda está sujeita à apresentação e conferência do documento.</p>
+
+        {/* Links úteis */}
+        <div className="md:col-span-4 grid grid-cols-2 gap-6">
+          <div>
+            <h4 className="font-bold mb-3 text-foreground">Atendimento</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link className="hover:text-primary" to="/fale-conosco">Fale Conosco</Link></li>
+              <li><Link className="hover:text-primary" to="/enviar-receita">Envio de Receita</Link></li>
+              <li><Link className="hover:text-primary" to="/trocas-e-devolucoes">Trocas e Devoluções</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold mb-3 text-foreground">Institucional</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link className="hover:text-primary" to="/politica-de-privacidade">Política de Privacidade</Link></li>
+              <li><Link className="hover:text-primary" to="/termos-de-uso">Termos de Uso</Link></li>
+            </ul>
+          </div>
         </div>
       </div>
+
+      {/* Dados legais */}
+      <div className="border-t bg-background/60">
+        <div className="container py-6 grid gap-6 md:grid-cols-12 text-xs text-muted-foreground">
+          <div className="md:col-span-7 space-y-1 leading-relaxed">
+            {s?.legal_name && <div><span className="font-semibold text-foreground">Razão social:</span> {s.legal_name}</div>}
+            {s?.cnpj && <div><span className="font-semibold text-foreground">CNPJ:</span> {s.cnpj}</div>}
+            {s?.state_registration && <div><span className="font-semibold text-foreground">Inscrição Estadual:</span> {s.state_registration}</div>}
+            {(s?.pharmacist_name || s?.crf) && (
+              <div>
+                <span className="font-semibold text-foreground">Farmacêutico responsável:</span>{" "}
+                {s?.pharmacist_name}{s?.crf ? ` — ${s.crf}` : ""}
+              </div>
+            )}
+            {s?.sanitary_license && <div><span className="font-semibold text-foreground">Licença sanitária:</span> {s.sanitary_license}</div>}
+            {s?.afe && <div><span className="font-semibold text-foreground">AFE/ANVISA:</span> {s.afe}</div>}
+          </div>
+          <div className="md:col-span-5 leading-relaxed">
+            <p>
+              As imagens dos produtos são meramente ilustrativas. Preços e promoções podem sofrer alterações sem aviso prévio.
+              Medicamentos sujeitos à disponibilidade de estoque. Produtos com exigência de receita ou controle especial passam por
+              análise farmacêutica antes da liberação da compra. <strong className="text-foreground">Não se automedique. Consulte um profissional de saúde.</strong>
+            </p>
+            <p className="mt-2">
+              A privacidade e a segurança dos clientes são prioridades da Farmácia Atacadão dos Medicamentos.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="border-t py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Farmácia Atacadão dos Medicamentos. Todos os direitos reservados.
+        © {year} {s?.legal_name || "Farmácia Atacadão dos Medicamentos"}. Todos os direitos reservados.
       </div>
     </footer>
   );

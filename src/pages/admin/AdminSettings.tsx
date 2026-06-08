@@ -48,9 +48,14 @@ export default function AdminSettings() {
           <TabsContent value="loja" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Nome da loja</Label><Input value={s.store_name || ""} onChange={set("store_name")} /></div>
             <div className="space-y-1"><Label>WhatsApp (só números, com DDI)</Label><Input value={s.whatsapp || ""} onChange={set("whatsapp")} placeholder="5583999286000" /></div>
+            <div className="space-y-1"><Label>E-mail de contato</Label><Input type="email" value={s.contact_email || ""} onChange={set("contact_email")} placeholder="contato@..." /></div>
             <div className="space-y-1"><Label>Endereço</Label><Textarea value={s.address || ""} onChange={set("address")} /></div>
-            <div className="space-y-1"><Label>Instagram (URL)</Label><Input value={s.instagram || ""} onChange={set("instagram")} /></div>
-            <div className="space-y-1"><Label>Horário de funcionamento</Label><Input value={s.hours || ""} onChange={set("hours")} /></div>
+            <div className="space-y-1"><Label>Horário de funcionamento</Label><Input value={s.hours || ""} onChange={set("hours")} placeholder="Seg a Sáb, 7h às 22h" /></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              <div className="space-y-1"><Label>Instagram (URL)</Label><Input value={s.instagram || ""} onChange={set("instagram")} placeholder="https://instagram.com/..." /></div>
+              <div className="space-y-1"><Label>Facebook (URL)</Label><Input value={s.facebook || ""} onChange={set("facebook")} placeholder="https://facebook.com/..." /></div>
+              <div className="space-y-1"><Label>TikTok (URL)</Label><Input value={s.tiktok || ""} onChange={set("tiktok")} placeholder="https://tiktok.com/@..." /></div>
+            </div>
           </TabsContent>
 
           <TabsContent value="entrega" className="space-y-3 pt-3">
@@ -92,6 +97,7 @@ export default function AdminSettings() {
           <TabsContent value="legal" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Razão social</Label><Input value={s.legal_name || ""} onChange={set("legal_name")} /></div>
             <div className="space-y-1"><Label>CNPJ</Label><Input value={s.cnpj || ""} onChange={set("cnpj")} /></div>
+            <div className="space-y-1"><Label>Inscrição Estadual</Label><Input value={s.state_registration || ""} onChange={set("state_registration")} /></div>
             <div className="space-y-1"><Label>Farmacêutico responsável</Label><Input value={s.pharmacist_name || ""} onChange={set("pharmacist_name")} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>CRF</Label><Input value={s.crf || ""} onChange={set("crf")} /></div>
