@@ -154,7 +154,7 @@ export function ProductQuickView() {
           {/* Gallery */}
           <div>
             <div className="bg-secondary/40 rounded-xl border aspect-square flex items-center justify-center overflow-hidden group">
-              <img src={activeImage || p.image_url || productPlaceholder} alt={p.name} className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
+              <img src={displayImage} alt={p.name} className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
             </div>
             {gallery.length > 1 && (
               <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -188,7 +188,26 @@ export function ProductQuickView() {
               </div>
             )}
 
+            {hasVariants && (
+              <div className="mt-4">
+                <VariantSelector
+                  variants={variants}
+                  selectedId={selectedVariantId}
+                  onSelect={(v) => { setSelectedVariantId(v.id); setActiveImage(null); }}
+                />
+                {selectedVariant && (
+                  <div className="text-[11px] text-muted-foreground mt-2">
+                    {selectedVariant.stock > 0
+                      ? <>Estoque: <strong>{selectedVariant.stock}</strong> un.</>
+                      : <span className="text-primary font-semibold">Sem estoque nesta opção</span>}
+                    {selectedVariant.trier_product_id && <> · Cód.: {selectedVariant.trier_product_id}</>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="my-4 border-t" />
+
 
             {/* Price */}
             <div>
