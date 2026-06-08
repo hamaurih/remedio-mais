@@ -665,6 +665,8 @@ export type Database = {
           requires_prescription: boolean
           total: number | null
           unit_price: number
+          variant_id: string | null
+          variant_label: string | null
         }
         Insert: {
           controlled?: boolean
@@ -677,6 +679,8 @@ export type Database = {
           requires_prescription?: boolean
           total?: number | null
           unit_price: number
+          variant_id?: string | null
+          variant_label?: string | null
         }
         Update: {
           controlled?: boolean
@@ -689,6 +693,8 @@ export type Database = {
           requires_prescription?: boolean
           total?: number | null
           unit_price?: number
+          variant_id?: string | null
+          variant_label?: string | null
         }
         Relationships: [
           {
@@ -703,6 +709,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -1018,6 +1031,71 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          active: boolean
+          barcode: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          name: string | null
+          parent_product_id: string
+          position: number
+          price: number | null
+          promo_price: number | null
+          sku: string | null
+          stock: number
+          trier_product_id: string | null
+          updated_at: string
+          variation_type: string
+          variation_value: string
+        }
+        Insert: {
+          active?: boolean
+          barcode?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string | null
+          parent_product_id: string
+          position?: number
+          price?: number | null
+          promo_price?: number | null
+          sku?: string | null
+          stock?: number
+          trier_product_id?: string | null
+          updated_at?: string
+          variation_type?: string
+          variation_value: string
+        }
+        Update: {
+          active?: boolean
+          barcode?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string | null
+          parent_product_id?: string
+          position?: number
+          price?: number | null
+          promo_price?: number | null
+          sku?: string | null
+          stock?: number
+          trier_product_id?: string | null
+          updated_at?: string
+          variation_type?: string
+          variation_value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_parent_product_id_fkey"
+            columns: ["parent_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -1043,6 +1121,7 @@ export type Database = {
           gallery_images: string[]
           group_code: string | null
           group_name: string | null
+          has_variants: boolean
           id: string
           image_url: string | null
           is_active: boolean | null
@@ -1099,6 +1178,7 @@ export type Database = {
           trier_product_id: string | null
           trier_stock_quantity: number | null
           updated_at: string
+          variation_type: string | null
         }
         Insert: {
           active?: boolean
@@ -1124,6 +1204,7 @@ export type Database = {
           gallery_images?: string[]
           group_code?: string | null
           group_name?: string | null
+          has_variants?: boolean
           id?: string
           image_url?: string | null
           is_active?: boolean | null
@@ -1180,6 +1261,7 @@ export type Database = {
           trier_product_id?: string | null
           trier_stock_quantity?: number | null
           updated_at?: string
+          variation_type?: string | null
         }
         Update: {
           active?: boolean
@@ -1205,6 +1287,7 @@ export type Database = {
           gallery_images?: string[]
           group_code?: string | null
           group_name?: string | null
+          has_variants?: boolean
           id?: string
           image_url?: string | null
           is_active?: boolean | null
@@ -1261,6 +1344,7 @@ export type Database = {
           trier_product_id?: string | null
           trier_stock_quantity?: number | null
           updated_at?: string
+          variation_type?: string | null
         }
         Relationships: [
           {
