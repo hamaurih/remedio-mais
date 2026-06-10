@@ -145,3 +145,74 @@ function ShelfRow({ name, rows, note }: { name: string; rows: [string, number][]
     </div>
   );
 }
+
+function VariantsDiagnosticsCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["diag_variants"],
+    queryFn: async () => {
+      const { data: parents } = await supabase
+        .from("products")
+        .select("id,name,has_variants,active,variation_type")
+        .eq("has_variants", true);
+      const ids = (parents || []).map((p: any) => p.id);
+      if (!ids.length) return { parents: [], variants: [] as any[] };
+      const { data: variants } = await supabase
+        .from("product_variants")
+        .select("id,parent_product_id,variation_value,price,promo_price,barcode,trier_product_id,stock,active");
+      return { parents: parents || [], variants: variants || [] };
+    },
+  });
+
+  const rows = (data?.parents || []).map((p: any) => {
+    const vs = (data!.variants || []).filter((v: any) => v.parent_product_id === p.id);
+    const active = vs.filter((v: any) => v.active);
+    const issues: string[] = [];
+    if (!p.active) issues.push("pai inativo");
+    if (active.length === 0) issues.push("sem variações ativas");
+    if (active.length === 1) issues.push("apenas 1 variação");
+    const noPrice = active.filter((v: any) => !v.price || Number(v.price) <= 0).length;
+    const noBarcode = active.filter((v: any) => !v.barcode).length;
+    const noTrier = active.filter((v: any) => !v.trier_product_id).length;
+    const noStock = active.filter((v: any) => (v.stock ?? 0) <= 0).length;
+    if (noPrice) issues.push(`${noPrice} sem preço`);
+    if (noBarcode) issues.push(`${noBarcode} sem EAN`);
+    if (noTrier) issues.push(`${noTrier} sem cód. Trier`);
+    if (noStock === active.length && active.length) issues.push("todas sem estoque");
+    return { p, count: active.length, total: vs.length, issues };
+  });
+
+  const incomplete = rows.filter((r) => r.issues.length > 0);
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Variações de produtos</CardTitle></CardHeader>
+      <CardContent>
+        {isLoading ? <div className="text-sm text-muted-foreground">Carregando…</div> : (
+          <>
+            <div className="text-sm text-muted-foreground mb-3">
+              {rows.length} produto(s) pai com variações. {incomplete.length} com pendências.
+            </div>
+            {incomplete.length === 0 ? (
+              <div className="text-sm text-emerald-600 font-semibold">Tudo certo — todas as variações estão completas.</div>
+            ) : (
+              <div className="space-y-2">
+                {incomplete.map((r) => (
+                  <div key={r.p.id} className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                    <div className="font-semibold">{r.p.name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {r.count} ativa(s) de {r.total} · tipo: {r.p.variation_type || "—"}
+                    </div>
+                    <ul className="mt-1 ml-4 list-disc text-destructive">
+                      {r.issues.map((i) => <li key={i}>{i}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
