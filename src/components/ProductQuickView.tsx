@@ -197,11 +197,14 @@ export function ProductQuickView() {
                   onSelect={(v) => { setSelectedVariantId(v.id); setActiveImage(null); }}
                 />
                 {selectedVariant && (
-                  <div className="text-[11px] text-muted-foreground mt-2">
-                    {selectedVariant.stock > 0
-                      ? <>Estoque: <strong>{selectedVariant.stock}</strong> un.</>
-                      : <span className="text-primary font-semibold">Sem estoque nesta opção</span>}
-                    {selectedVariant.trier_product_id && <> · Cód.: {selectedVariant.trier_product_id}</>}
+                  <div className="text-[11px] text-muted-foreground mt-2 space-y-0.5">
+                    <div>
+                      {selectedVariant.stock > 0
+                        ? <>Estoque: <strong>{selectedVariant.stock}</strong> un.</>
+                        : <span className="text-primary font-semibold">Sem estoque nesta opção</span>}
+                      {selectedVariant.trier_product_id && <> · Cód.: {selectedVariant.trier_product_id}</>}
+                    </div>
+                    {selectedVariant.barcode && <div>EAN: <strong>{selectedVariant.barcode}</strong></div>}
                   </div>
                 )}
               </div>

@@ -90,11 +90,14 @@ export default function Product() {
                   onSelect={(v) => setSelectedVariantId(v.id)}
                 />
                 {selectedVariant && (
-                  <div className="text-xs text-muted-foreground mt-2">
-                    {selectedVariant.stock > 0
-                      ? <>Em estoque: <strong>{selectedVariant.stock}</strong> un.</>
-                      : <span className="text-primary font-semibold">Sem estoque nesta opção</span>}
-                    {selectedVariant.trier_product_id && <> · Cód.: {selectedVariant.trier_product_id}</>}
+                  <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+                    <div>
+                      {selectedVariant.stock > 0
+                        ? <>Em estoque: <strong>{selectedVariant.stock}</strong> un.</>
+                        : <span className="text-primary font-semibold">Sem estoque nesta opção</span>}
+                      {selectedVariant.trier_product_id && <> · Cód.: {selectedVariant.trier_product_id}</>}
+                    </div>
+                    {selectedVariant.barcode && <div>EAN: <strong>{selectedVariant.barcode}</strong></div>}
                   </div>
                 )}
               </div>
