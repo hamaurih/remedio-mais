@@ -104,6 +104,9 @@ export default function AdminHomeDiagnostics() {
         </CardContent>
       </Card>
 
+      <VariantsDiagnosticsCard />
+
+
       <Card>
         <CardHeader><CardTitle>{"Por prateleira (filtros públicos: active + stock>0 + price>0)"}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
