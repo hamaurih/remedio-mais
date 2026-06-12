@@ -32,19 +32,42 @@ export default function Category() {
     enabled: !!slug,
   });
 
+  // Detecta se a categoria visitada é um "hub" (nome bate com o macro_group, ex.: Medicamentos ⊂ "Medicamentos e Saúde")
+  const isHub = !!cat?.macro_group && !!cat?.name &&
+    cat.macro_group.toLowerCase().includes(cat.name.toLowerCase());
+
+  const { data: siblingIds } = useQuery({
+    queryKey: ["cat_siblings", cat?.macro_group, isHub],
+    queryFn: async () => {
+      if (!isHub || !cat?.macro_group) return null;
+      const { data } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("active", true)
+        .eq("macro_group", cat.macro_group);
+      return (data ?? []).map((r: any) => r.id);
+    },
+    enabled: !!cat && isHub,
+  });
+
   const { data: products } = useQuery({
-    queryKey: ["cat_products", slug, sort, filters],
+    queryKey: ["cat_products", slug, sort, filters, siblingIds],
     queryFn: async () => {
       let q: any = supabase.from("products").select("*").eq("active", true);
       if (slug === "ofertas") q = q.eq("on_sale", true);
-      else if (cat) q = q.eq("category_id", cat.id);
-      else return [];
+      else if (cat) {
+        if (isHub && siblingIds && siblingIds.length > 0) {
+          q = q.in("category_id", siblingIds);
+        } else {
+          q = q.eq("category_id", cat.id);
+        }
+      } else return [];
       q = buildQuery(q, filters);
       q = sortQuery(q, sort);
-      const { data } = await q.limit(120);
+      const { data } = await q.limit(240);
       return applyClientFilters((data || []) as Product[], filters);
     },
-    enabled: !!slug && (slug === "ofertas" || !!cat),
+    enabled: !!slug && (slug === "ofertas" || !!cat) && (!isHub || !!siblingIds),
   });
 
   const manufacturers = useMemo(() => {
