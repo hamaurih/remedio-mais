@@ -101,23 +101,49 @@ export function CampaignAutoBanner({
           )}
         >
           {picks.length > 0 ? (
-            <div className="absolute inset-0 flex items-center justify-center gap-2 md:gap-3">
-              {picks.map((p, i) => (
-                <div
-                  key={p.id}
-                  className={cn(
-                    "relative flex-1 h-full flex items-center justify-center min-w-0",
-                    i === 1 && picks.length === 3 && "scale-110 z-10",
-                  )}
-                >
-                  <img
-                    src={p.image_url!}
-                    alt={p.name}
-                    loading="lazy"
-                    className="max-h-full max-w-full object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.18)]"
-                  />
-                </div>
-              ))}
+            <div className="absolute inset-0 flex items-end justify-center gap-2 md:gap-3 pb-1">
+              {picks.map((p, i) => {
+                const base = p.price ?? null;
+                const promo = p.promo_price ?? null;
+                const hasDiscount = !!base && !!promo && promo < base;
+                const pct = hasDiscount ? Math.round(((base! - promo!) / base!) * 100) : 0;
+                const showPrice = !!promo || !!base;
+                return (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "relative flex-1 h-full flex flex-col items-center justify-end min-w-0",
+                      i === 1 && picks.length === 3 && "scale-105 z-10",
+                    )}
+                  >
+                    {hasDiscount && (
+                      <span className="absolute top-0 right-0 z-10 bg-primary text-primary-foreground text-[10px] md:text-[11px] font-extrabold px-1.5 py-0.5 rounded-full shadow-md leading-none">
+                        -{pct}%
+                      </span>
+                    )}
+                    <div className="flex-1 w-full flex items-center justify-center min-h-0">
+                      <img
+                        src={p.image_url!}
+                        alt={p.name}
+                        loading="lazy"
+                        className="max-h-full max-w-full object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.18)]"
+                      />
+                    </div>
+                    {showPrice && (
+                      <div className="mt-1 text-center leading-tight">
+                        {hasDiscount && (
+                          <div className="text-[9px] md:text-[10px] line-through text-muted-foreground leading-none">
+                            {base!.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </div>
+                        )}
+                        <div className="text-[11px] md:text-[13px] font-extrabold text-primary leading-none">
+                          {(promo ?? base)!.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/40 text-sm">
