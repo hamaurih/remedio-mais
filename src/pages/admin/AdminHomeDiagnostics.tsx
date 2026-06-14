@@ -157,6 +157,44 @@ function ShelfRow({ name, rows, note }: { name: string; rows: [string, number][]
   );
 }
 
+function NoBarcodeCard({ totals }: { totals: any }) {
+  const t = totals;
+  if (!t) return null;
+  const pct = t.total ? Math.round((t.no_barcode / t.total) * 100) : 0;
+  return (
+    <Card>
+      <CardHeader><CardTitle>Sem código de barras (EAN)</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Total sem EAN</div>
+            <div className="text-2xl font-bold tabular-nums">{t.no_barcode}</div>
+            <div className="text-xs text-muted-foreground mt-1">{pct}% do catálogo</div>
+          </div>
+          <div className="rounded-lg border border-amber-500/40 bg-amber-50/50 p-3">
+            <div className="text-xs text-muted-foreground">Sem EAN + stock &gt; 0</div>
+            <div className="text-2xl font-bold tabular-nums text-amber-700">{t.no_barcode_stock_pos}</div>
+            <div className="text-xs text-muted-foreground mt-1">prioridade para correção</div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Sem EAN + stock ≤ 0</div>
+            <div className="text-2xl font-bold tabular-nums">{t.no_barcode_stock_zero}</div>
+            <div className="text-xs text-muted-foreground mt-1">sem estoque, menos urgente</div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Com EAN</div>
+            <div className="text-2xl font-bold tabular-nums">{t.total - t.no_barcode}</div>
+            <div className="text-xs text-muted-foreground mt-1">{100 - pct}% do catálogo</div>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Esses produtos vêm da Trier sem <code>codigoBarras</code>. O site sincroniza tudo, mas se a origem não tiver o campo preenchido, não há como gerar o EAN automaticamente. Para corrigir, cadastre o código de barras no cadastro do produto na Trier e refaça a sincronização.
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function VariantsDiagnosticsCard() {
   const { data, isLoading } = useQuery({
     queryKey: ["diag_variants"],
