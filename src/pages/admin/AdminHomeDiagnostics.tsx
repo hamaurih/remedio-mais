@@ -43,6 +43,9 @@ export default function AdminHomeDiagnostics() {
       shelf_bestsellers: await countWith((q) => q.contains("shelves", ["mais-vendidos"])),
       home_eligible: await countWith((q) => q.eq("active", true).gt("stock", 0).gt("price", 0)),
       stock_pos_inactive: await countWith((q) => q.gt("stock", 0).eq("active", false)),
+      no_barcode: await countWith((q) => q.or("barcode.is.null,barcode.eq.")),
+      no_barcode_stock_pos: await countWith((q) => q.or("barcode.is.null,barcode.eq.").gt("stock", 0)),
+      no_barcode_stock_zero: await countWith((q) => q.or("barcode.is.null,barcode.eq.").lte("stock", 0)),
     }),
   });
 
