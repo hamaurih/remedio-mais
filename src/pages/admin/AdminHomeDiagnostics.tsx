@@ -191,11 +191,78 @@ function NoBarcodeCard({ totals }: { totals: any }) {
             <div className="text-xs text-muted-foreground mt-1">{100 - pct}% do catálogo</div>
           </div>
         </div>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <ExportNoBarcodeButton onlyStockPositive priority />
+          <ExportNoBarcodeButton />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              const { data, error } = await supabase.functions.invoke("trier", { body: { action: "sync-barcodes", trigger: "manual" } });
+              if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+              else toast({ title: "Sincronização de EAN iniciada", description: "Vai puxar da Trier apenas os códigos de barras. Verifique em Integrações › Trier." });
+            }}
+          >
+            Resincronizar EANs da Trier
+          </Button>
+        </div>
         <div className="text-xs text-muted-foreground">
-          Esses produtos vêm da Trier sem <code>codigoBarras</code>. O site sincroniza tudo, mas se a origem não tiver o campo preenchido, não há como gerar o EAN automaticamente. Para corrigir, cadastre o código de barras no cadastro do produto na Trier e refaça a sincronização.
+          <strong>Como resolver:</strong> exporte a lista (CSV) → cadastre o <code>codigoBarras</code> no produto dentro da Trier → clique em <em>Resincronizar EANs da Trier</em>. Enquanto a Trier não tiver o EAN cadastrado, nenhuma sincronização vai conseguir preencher o campo no site (a origem manda vazio).
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ExportNoBarcodeButton({ onlyStockPositive = false, priority = false }: { onlyStockPositive?: boolean; priority?: boolean }) {
+  const [loading, setLoading] = useState(false);
+  const handle = async () => {
+    setLoading(true);
+    try {
+      const pageSize = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        let q = supabase
+          .from("products")
+          .select("trier_product_id,sku,name,stock,price,category_id,active")
+          .or("barcode.is.null,barcode.eq.")
+          .order("stock", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (onlyStockPositive) q = q.gt("stock", 0);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      const header = ["trier_product_id", "sku", "name", "stock", "price", "active"];
+      const csv = [
+        header.join(","),
+        ...all.map((r) =>
+          [r.trier_product_id ?? "", r.sku ?? "", `"${String(r.name ?? "").replace(/"/g, '""')}"`, r.stock ?? 0, r.price ?? 0, r.active ? "1" : "0"].join(","),
+        ),
+      ].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = onlyStockPositive ? "produtos-sem-ean-com-estoque.csv" : "produtos-sem-ean-todos.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: `Exportados ${all.length} produtos`, description: a.download });
+    } catch (e: any) {
+      toast({ title: "Erro ao exportar", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <Button size="sm" variant={priority ? "default" : "outline"} onClick={handle} disabled={loading}>
+      {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+      {onlyStockPositive ? "Exportar prioritários (stock > 0)" : "Exportar todos sem EAN"}
+    </Button>
   );
 }
 
