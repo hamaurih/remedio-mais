@@ -43,6 +43,9 @@ export default function AdminHomeDiagnostics() {
       shelf_bestsellers: await countWith((q) => q.contains("shelves", ["mais-vendidos"])),
       home_eligible: await countWith((q) => q.eq("active", true).gt("stock", 0).gt("price", 0)),
       stock_pos_inactive: await countWith((q) => q.gt("stock", 0).eq("active", false)),
+      no_barcode: await countWith((q) => q.or("barcode.is.null,barcode.eq.")),
+      no_barcode_stock_pos: await countWith((q) => q.or("barcode.is.null,barcode.eq.").gt("stock", 0)),
+      no_barcode_stock_zero: await countWith((q) => q.or("barcode.is.null,barcode.eq.").lte("stock", 0)),
     }),
   });
 
@@ -94,6 +97,9 @@ export default function AdminHomeDiagnostics() {
               { label: "Shelves: mais-vendidos", value: t.shelf_bestsellers },
               { label: "Elegível para home (active+stock+price)", value: t.home_eligible, warn: t.home_eligible === 0 },
               { label: "Stock>0 mas inativos", value: t.stock_pos_inactive, warn: t.stock_pos_inactive > 50 },
+              { label: "Sem código de barras", value: t.no_barcode, warn: t.no_barcode > 500 },
+              { label: "Sem EAN + stock>0", value: t.no_barcode_stock_pos, warn: t.no_barcode_stock_pos > 100 },
+              { label: "Sem EAN + stock<=0", value: t.no_barcode_stock_zero },
             ]} />
           )}
           {t && t.stock_pos_inactive > 50 && (
@@ -101,10 +107,15 @@ export default function AdminHomeDiagnostics() {
               <strong>Atenção:</strong> existem {t.stock_pos_inactive} produtos com estoque positivo marcados como inativos. Verifique a regra de ativação da sincronização.
             </div>
           )}
+          {t && t.no_barcode_stock_pos > 0 && (
+            <div className="mt-3 p-3 rounded-lg border border-amber-500/40 bg-amber-50/50 text-sm">
+              <strong>Prioridade:</strong> {t.no_barcode_stock_pos} produtos sem EAN têm estoque positivo e estão vendendo. Se não tiverem EAN cadastrado na Trier, o checkout pode ter problemas com leitura de código de barras.
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <VariantsDiagnosticsCard />
+      <NoBarcodeCard totals={totals.data} />
 
 
       <Card>
@@ -143,6 +154,44 @@ function ShelfRow({ name, rows, note }: { name: string; rows: [string, number][]
       </ul>
       {note && <div className="text-xs text-muted-foreground mt-1">{note}</div>}
     </div>
+  );
+}
+
+function NoBarcodeCard({ totals }: { totals: any }) {
+  const t = totals;
+  if (!t) return null;
+  const pct = t.total ? Math.round((t.no_barcode / t.total) * 100) : 0;
+  return (
+    <Card>
+      <CardHeader><CardTitle>Sem código de barras (EAN)</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Total sem EAN</div>
+            <div className="text-2xl font-bold tabular-nums">{t.no_barcode}</div>
+            <div className="text-xs text-muted-foreground mt-1">{pct}% do catálogo</div>
+          </div>
+          <div className="rounded-lg border border-amber-500/40 bg-amber-50/50 p-3">
+            <div className="text-xs text-muted-foreground">Sem EAN + stock &gt; 0</div>
+            <div className="text-2xl font-bold tabular-nums text-amber-700">{t.no_barcode_stock_pos}</div>
+            <div className="text-xs text-muted-foreground mt-1">prioridade para correção</div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Sem EAN + stock ≤ 0</div>
+            <div className="text-2xl font-bold tabular-nums">{t.no_barcode_stock_zero}</div>
+            <div className="text-xs text-muted-foreground mt-1">sem estoque, menos urgente</div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Com EAN</div>
+            <div className="text-2xl font-bold tabular-nums">{t.total - t.no_barcode}</div>
+            <div className="text-xs text-muted-foreground mt-1">{100 - pct}% do catálogo</div>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Esses produtos vêm da Trier sem <code>codigoBarras</code>. O site sincroniza tudo, mas se a origem não tiver o campo preenchido, não há como gerar o EAN automaticamente. Para corrigir, cadastre o código de barras no cadastro do produto na Trier e refaça a sincronização.
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
