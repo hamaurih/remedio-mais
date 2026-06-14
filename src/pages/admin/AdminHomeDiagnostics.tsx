@@ -97,6 +97,9 @@ export default function AdminHomeDiagnostics() {
               { label: "Shelves: mais-vendidos", value: t.shelf_bestsellers },
               { label: "Elegível para home (active+stock+price)", value: t.home_eligible, warn: t.home_eligible === 0 },
               { label: "Stock>0 mas inativos", value: t.stock_pos_inactive, warn: t.stock_pos_inactive > 50 },
+              { label: "Sem código de barras", value: t.no_barcode, warn: t.no_barcode > 500 },
+              { label: "Sem EAN + stock>0", value: t.no_barcode_stock_pos, warn: t.no_barcode_stock_pos > 100 },
+              { label: "Sem EAN + stock<=0", value: t.no_barcode_stock_zero },
             ]} />
           )}
           {t && t.stock_pos_inactive > 50 && (
@@ -104,10 +107,15 @@ export default function AdminHomeDiagnostics() {
               <strong>Atenção:</strong> existem {t.stock_pos_inactive} produtos com estoque positivo marcados como inativos. Verifique a regra de ativação da sincronização.
             </div>
           )}
+          {t && t.no_barcode_stock_pos > 0 && (
+            <div className="mt-3 p-3 rounded-lg border border-amber-500/40 bg-amber-50/50 text-sm">
+              <strong>Prioridade:</strong> {t.no_barcode_stock_pos} produtos sem EAN têm estoque positivo e estão vendendo. Se não tiverem EAN cadastrado na Trier, o checkout pode ter problemas com leitura de código de barras.
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <VariantsDiagnosticsCard />
+      <NoBarcodeCard totals={totals.data} />
 
 
       <Card>
