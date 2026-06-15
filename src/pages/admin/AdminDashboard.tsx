@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const kpis = useQuery({
     queryKey: ["admin_bi_kpis", days],
     queryFn: async () => {
-      const head = (q: any) => q.select("id", { count: "exact", head: true });
+      const headP = <T,>(p: any) => p as Promise<{ count: number | null }>;
       const [
         prodAll, prodActive, prodLow, prodSale, prodNoEAN, prodNoEANStock,
         ordersAll, ordersPaid, ordersPending, ordersCancelled, ordersInRange,
@@ -42,25 +42,25 @@ export default function AdminDashboard() {
         customers, presc, prescPending,
         stockAgg, syncRecent,
       ] = await Promise.all([
-        head(supabase.from("products")),
-        head(supabase.from("products").eq("active", true)),
-        head(supabase.from("products").lte("stock", 5).gt("stock", -9999).eq("active", true)),
-        head(supabase.from("products").or("on_sale.eq.true,promo_price.not.is.null")),
-        head(supabase.from("products").or("barcode.is.null,barcode.eq.")),
-        head(supabase.from("products").or("barcode.is.null,barcode.eq.").gt("stock", 0)),
-        head(supabase.from("orders")),
-        head(supabase.from("orders").eq("payment_status", "approved")),
-        head(supabase.from("orders").eq("payment_status", "pending")),
-        head(supabase.from("orders").eq("payment_status", "cancelled")),
-        head(supabase.from("orders").gte("created_at", since)),
+        headP(supabase.from("products").select("id", { count: "exact", head: true })),
+        headP(supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true)),
+        headP(supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true).lte("stock", 5)),
+        headP(supabase.from("products").select("id", { count: "exact", head: true }).or("on_sale.eq.true,promo_price.not.is.null")),
+        headP(supabase.from("products").select("id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.")),
+        headP(supabase.from("products").select("id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.").gt("stock", 0)),
+        headP(supabase.from("orders").select("id", { count: "exact", head: true })),
+        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "approved")),
+        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "pending")),
+        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "cancelled")),
+        headP(supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", since)),
         supabase.from("orders").select("total"),
         supabase.from("orders").select("total").eq("payment_status", "approved"),
         supabase.from("orders").select("total").eq("payment_status", "approved").gte("created_at", since),
-        head(supabase.from("profiles")),
-        head(supabase.from("prescriptions")),
-        head(supabase.from("prescriptions").in("status", ["recebida", "pendente"])),
+        headP(supabase.from("profiles").select("id", { count: "exact", head: true })),
+        headP(supabase.from("prescriptions").select("id", { count: "exact", head: true })),
+        headP(supabase.from("prescriptions").select("id", { count: "exact", head: true }).in("status", ["recebida", "pendente"])),
         supabase.from("products").select("stock,price").eq("active", true).gt("stock", 0),
-        head(supabase.from("product_sync_logs").gte("created_at", since)),
+        headP(supabase.from("product_sync_logs").select("id", { count: "exact", head: true }).gte("created_at", since)),
       ]);
 
       const sum = (rows: any[] | null, key = "total") =>
