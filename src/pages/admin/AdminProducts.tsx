@@ -65,7 +65,7 @@ export default function AdminProducts() {
       let q = supabase
         .from("products")
         .select("*, categories(name)", { count: "exact" })
-        .order("created_at", { ascending: false });
+        .order("name", { ascending: true });
       if (search) q = q.ilike("name", `%${search}%`);
       if (catFilter !== "all") q = q.eq("category_id", catFilter);
       if (manuFilter !== "all") q = q.eq("manufacturer", manuFilter);
