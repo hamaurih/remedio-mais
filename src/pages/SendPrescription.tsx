@@ -26,30 +26,28 @@ export default function SendPrescription() {
     e.preventDefault();
     const parsed = schema.safeParse({ name, phone, notes });
     if (!parsed.success) { toast.error("Preencha os campos corretamente"); return; }
+    if (file && file.size > 10 * 1024 * 1024) { toast.error("Arquivo até 10 MB"); return; }
 
     setSubmitting(true);
     try {
-      let file_url: string | null = null;
-      if (file) {
-        if (file.size > 10 * 1024 * 1024) { toast.error("Arquivo até 10 MB"); setSubmitting(false); return; }
-        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-        const path = `public/${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage.from("prescriptions").upload(path, file);
-        if (upErr) throw upErr;
-        file_url = path;
-      }
-      const { error } = await supabase.from("prescriptions").insert({
-        customer_name: name, customer_phone: phone, notes: notes || null, file_url, status: "recebida",
-      });
-      if (error) throw error;
+      const fd = new FormData();
+      fd.append("name", parsed.data.name);
+      fd.append("phone", parsed.data.phone);
+      if (parsed.data.notes) fd.append("notes", parsed.data.notes);
+      if (file) fd.append("file", file);
+
+      const { data, error } = await supabase.functions.invoke("submit-prescription", { body: fd });
+      if (error || (data && (data as any).error)) throw new Error((data as any)?.error || error?.message);
+
       toast.success("Receita recebida para análise!");
       setName(""); setPhone(""); setNotes(""); setFile(null);
     } catch (e: any) {
-      toast.error("Erro ao enviar. Tente novamente.");
+      toast.error(e?.message || "Erro ao enviar. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
   };
+
 
   return (
     <Layout>
