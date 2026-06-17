@@ -22,6 +22,7 @@ const items = [
   { to: "/admin/receitas", label: "Receitas", icon: FileText },
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity },
+  { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert },
   { to: "/admin/config", label: "Configurações", icon: Settings },
 ];
 
