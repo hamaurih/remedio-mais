@@ -40,6 +40,7 @@ import OrderReturn from "./pages/OrderReturn.tsx";
 import AdminPayments from "./pages/admin/AdminPayments.tsx";
 import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 import AdminMenus from "./pages/admin/AdminMenus.tsx";
+import AdminDataQuality from "./pages/admin/AdminDataQuality.tsx";
 
 
 
