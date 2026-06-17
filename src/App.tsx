@@ -40,6 +40,7 @@ import OrderReturn from "./pages/OrderReturn.tsx";
 import AdminPayments from "./pages/admin/AdminPayments.tsx";
 import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 import AdminMenus from "./pages/admin/AdminMenus.tsx";
+import AdminDataQuality from "./pages/admin/AdminDataQuality.tsx";
 
 
 
@@ -100,6 +101,7 @@ const App = () => (
             <Route path="config" element={<AdminSettings />} />
             <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
             <Route path="menus" element={<AdminMenus />} />
+            <Route path="qualidade-dados" element={<AdminDataQuality />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
           </Route>

@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon } from "lucide-react";
+import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert } from "lucide-react";
 
 const items = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -22,6 +22,7 @@ const items = [
   { to: "/admin/receitas", label: "Receitas", icon: FileText },
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity },
+  { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert },
   { to: "/admin/config", label: "Configurações", icon: Settings },
 ];
 
