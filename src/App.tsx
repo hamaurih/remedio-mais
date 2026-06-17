@@ -101,6 +101,7 @@ const App = () => (
             <Route path="config" element={<AdminSettings />} />
             <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
             <Route path="menus" element={<AdminMenus />} />
+            <Route path="qualidade-dados" element={<AdminDataQuality />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
           </Route>
