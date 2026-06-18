@@ -63,6 +63,18 @@ const CTA_COLORS = [
   { value: "amarelo", label: "Amarelo" },
 ];
 
+const ANIMATION_TYPES = [
+  { value: "none", label: "Sem animação" },
+  { value: "float", label: "Produto flutuando" },
+  { value: "slide-in", label: "Produto entrando pela direita" },
+  { value: "soft-zoom", label: "Zoom suave no produto" },
+  { value: "badge-pulse", label: "Selo pulsando" },
+  { value: "shine", label: "Brilho passando" },
+  { value: "cta-pulse", label: "CTA pulsando leve" },
+  { value: "confetti", label: "Confete leve" },
+  { value: "hover", label: "Card com hover animado" },
+];
+
 export default function AdminPromoBanner() {
   const [blocks, setBlocks] = useState<PromoBlock[]>([]);
   const [loading, setLoading] = useState(true);
