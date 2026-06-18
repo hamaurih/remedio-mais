@@ -96,6 +96,7 @@ const empty: any = {
   linked_entity_type: "manual", linked_entity_id: null, linked_entity_slug: "",
   animation_type: "float", show_text_over_image: false, image_fit: "cover",
   product_size: "large", show_side_shapes: true, side_shapes_color: "",
+  title_font: "default", title_size: "lg", title_color: "", support_color: "", legal_color: "",
 };
 
 export default function AdminBanners() {
