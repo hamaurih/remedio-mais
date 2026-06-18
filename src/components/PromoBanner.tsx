@@ -195,6 +195,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
 
   const isFeatured = type === "destaque_grande";
   const isSmall = type === "card_pequeno";
+  const anim = animClasses(block);
 
   // banner_completo OR arte_completa: image fills card, text optional overlay
   const fullImage = type === "banner_completo" || mode === "arte_completa";
@@ -206,18 +207,22 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
           src={block.image_url!}
           alt={block.title ?? "Promoção"}
           loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]",
+            anim.img,
+          )}
         />
         {showText && (block.title || block.badge_text) && (
           <div className="absolute inset-0 z-10 flex flex-col justify-end p-3 bg-gradient-to-t from-black/60 to-transparent text-white">
             {block.badge_text && (
-              <span className="self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground">
+              <span className={cn("self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground", anim.badge)}>
                 {block.badge_text}
               </span>
             )}
             {block.title && <h3 className="text-sm font-extrabold line-clamp-2">{block.title}</h3>}
           </div>
         )}
+        <AnimOverlay kind={anim.overlay} />
       </>
     );
   }
@@ -237,6 +242,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
             {block.badge_text && (
               <span className={cn(
                 "inline-block max-w-full truncate text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground",
+                anim.badge,
               )}>
                 {block.badge_text}
               </span>
