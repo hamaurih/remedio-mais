@@ -60,6 +60,30 @@ export type HeroSlide = {
   product_size?: ProductSize | null;
   show_side_shapes?: boolean | null;
   side_shapes_color?: string | null;
+  title_font?: string | null;
+  title_color?: string | null;
+  support_color?: string | null;
+  legal_color?: string | null;
+  title_size?: string | null; // 'sm' | 'md' | 'lg' | 'xl'
+};
+
+export const TITLE_FONTS: Record<string, string> = {
+  default: "",
+  inter: "'Inter', system-ui, sans-serif",
+  poppins: "'Poppins', sans-serif",
+  montserrat: "'Montserrat', sans-serif",
+  oswald: "'Oswald', sans-serif",
+  "bebas-neue": "'Bebas Neue', sans-serif",
+  "playfair-display": "'Playfair Display', serif",
+  "dm-serif-display": "'DM Serif Display', serif",
+  archivo: "'Archivo Black', sans-serif",
+};
+
+const TITLE_SIZE_FLUID: Record<string, string> = {
+  sm: "clamp(1.1rem, 2.4vw, 1.6rem)",
+  md: "clamp(1.3rem, 3vw, 2rem)",
+  lg: "clamp(1.5rem, 3.6vw, 2.4rem)",
+  xl: "clamp(1.7rem, 4.2vw, 2.8rem)",
 };
 
 const FALLBACK: HeroSlide[] = [
