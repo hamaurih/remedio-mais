@@ -68,14 +68,15 @@ const LINK_KINDS = [
 ];
 
 const empty: any = {
-  id: "", title: "", subtitle: "", cta_text: "", image_url: "", mobile_image_url: "",
+  id: "", title: "", subtitle: "", cta_text: "confira", image_url: "", mobile_image_url: "",
   link: "", position: 0, placement: "hero", active: true, start_date: null, end_date: null,
   banner_type: "image", published: true, support_text: "", legal_text: "",
   discount_percent: null, discount_prefix: "com até", discount_suffix: "de desconto",
   product_image_url: "", background_image_url: "", background_color: "", accent_color: "", button_color: "",
-  product_position: "right", text_position: "left", visual_style: "red-soft",
+  product_position: "center", text_position: "left", visual_style: "red-soft",
   linked_entity_type: "manual", linked_entity_id: null, linked_entity_slug: "",
   animation_type: "float", show_text_over_image: false, image_fit: "cover",
+  product_size: "large", show_side_shapes: true, side_shapes_color: "",
 };
 
 export default function AdminBanners() {
