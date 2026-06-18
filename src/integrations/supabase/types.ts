@@ -46,52 +46,115 @@ export type Database = {
       }
       banners: {
         Row: {
+          accent_color: string | null
           active: boolean
+          animation_type: string
+          background_color: string | null
+          background_image_url: string | null
+          banner_type: string
+          button_color: string | null
           created_at: string
           cta_text: string | null
+          discount_percent: number | null
+          discount_prefix: string | null
+          discount_suffix: string | null
           end_date: string | null
           id: string
+          image_fit: string
           image_url: string | null
+          legal_text: string | null
           link: string | null
+          linked_entity_id: string | null
+          linked_entity_slug: string | null
+          linked_entity_type: string | null
           mobile_image_url: string | null
           placement: string
           position: number
+          product_image_url: string | null
+          product_position: string
+          published: boolean
+          show_text_over_image: boolean
           start_date: string | null
           subtitle: string | null
+          support_text: string | null
+          text_position: string
           title: string | null
           updated_at: string
+          visual_style: string
         }
         Insert: {
+          accent_color?: string | null
           active?: boolean
+          animation_type?: string
+          background_color?: string | null
+          background_image_url?: string | null
+          banner_type?: string
+          button_color?: string | null
           created_at?: string
           cta_text?: string | null
+          discount_percent?: number | null
+          discount_prefix?: string | null
+          discount_suffix?: string | null
           end_date?: string | null
           id?: string
+          image_fit?: string
           image_url?: string | null
+          legal_text?: string | null
           link?: string | null
+          linked_entity_id?: string | null
+          linked_entity_slug?: string | null
+          linked_entity_type?: string | null
           mobile_image_url?: string | null
           placement?: string
           position?: number
+          product_image_url?: string | null
+          product_position?: string
+          published?: boolean
+          show_text_over_image?: boolean
           start_date?: string | null
           subtitle?: string | null
+          support_text?: string | null
+          text_position?: string
           title?: string | null
           updated_at?: string
+          visual_style?: string
         }
         Update: {
+          accent_color?: string | null
           active?: boolean
+          animation_type?: string
+          background_color?: string | null
+          background_image_url?: string | null
+          banner_type?: string
+          button_color?: string | null
           created_at?: string
           cta_text?: string | null
+          discount_percent?: number | null
+          discount_prefix?: string | null
+          discount_suffix?: string | null
           end_date?: string | null
           id?: string
+          image_fit?: string
           image_url?: string | null
+          legal_text?: string | null
           link?: string | null
+          linked_entity_id?: string | null
+          linked_entity_slug?: string | null
+          linked_entity_type?: string | null
           mobile_image_url?: string | null
           placement?: string
           position?: number
+          product_image_url?: string | null
+          product_position?: string
+          published?: boolean
+          show_text_over_image?: boolean
           start_date?: string | null
           subtitle?: string | null
+          support_text?: string | null
+          text_position?: string
           title?: string | null
           updated_at?: string
+          visual_style?: string
         }
         Relationships: []
       }
