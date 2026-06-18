@@ -339,6 +339,7 @@ export function PromoBlockPreview({ block, index = 0 }: { block: PromoBlock; ind
         "group relative overflow-hidden rounded-xl border border-sky-100 shadow-sm",
         sizeClass(type),
         styleBg ? "" : bgClass(block),
+        animClasses(block).wrapper,
       )}
     >
       <CardInner block={block} type={type} />
@@ -364,6 +365,7 @@ function Tile({ block, index }: { block: PromoBlock; index: number }) {
         "transition-all hover:-translate-y-0.5",
         sizeClass(type),
         styleBg ? "" : bgClass(block),
+        animClasses(block).wrapper,
       )}
     >
       <CardInner block={block} type={type} />
