@@ -329,9 +329,26 @@ export default function AdminBanners() {
                     <div className="space-y-1"><Label>Cor botão</Label><Input type="color" value={editing.button_color || "#d4213d"} onChange={(e) => setEditing({ ...editing, button_color: e.target.value })} /></div>
                   </div>
                   <div className="space-y-1">
-                    <Label>Imagem do produto (PNG/WEBP recortado)</Label>
+                    <Label>Imagem dos produtos (PNG/WEBP recortado, sem fundo)</Label>
                     {editing.product_image_url && <img src={editing.product_image_url} className="h-20 object-contain mb-1" />}
                     <Input type="file" accept="image/*" onChange={(e) => setProductFile(e.target.files?.[0] || null)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label>Tamanho do produto no banner</Label>
+                      <Select value={editing.product_size || "large"} onValueChange={(v) => setEditing({ ...editing, product_size: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{PRODUCT_SIZES.map((p) => <SelectItem key={p.v} value={p.v}>{p.l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Cor das formas laterais</Label>
+                      <Input type="color" value={editing.side_shapes_color || "#E5253E"} onChange={(e) => setEditing({ ...editing, side_shapes_color: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={editing.show_side_shapes !== false} onCheckedChange={(v) => setEditing({ ...editing, show_side_shapes: v })} />
+                    <Label>Mostrar formas decorativas laterais</Label>
                   </div>
                   <div className="space-y-1">
                     <Label>Imagem de fundo opcional</Label>
