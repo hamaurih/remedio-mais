@@ -864,6 +864,51 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_errors: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          http_status: number | null
+          id: string
+          message: string | null
+          mp_error: Json | null
+          order_id: string | null
+          payload_summary: Json | null
+          stage: string
+          supabase_error: Json | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          http_status?: number | null
+          id?: string
+          message?: string | null
+          mp_error?: Json | null
+          order_id?: string | null
+          payload_summary?: Json | null
+          stage: string
+          supabase_error?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          http_status?: number | null
+          id?: string
+          message?: string | null
+          mp_error?: Json | null
+          order_id?: string | null
+          payload_summary?: Json | null
+          stage?: string
+          supabase_error?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       payment_events: {
         Row: {
           created_at: string
