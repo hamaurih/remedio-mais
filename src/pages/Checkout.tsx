@@ -175,12 +175,32 @@ export default function Checkout() {
           return_origin: window.location.origin,
         },
       });
-      if (error) throw error;
+
+      // Extrair o erro real do body da Edge Function (mesmo em respostas não-2xx)
+      if (error) {
+        let parsed: any = null;
+        try {
+          const resp: Response | undefined = (error as any)?.context;
+          if (resp && typeof resp.text === "function") {
+            const text = await resp.text();
+            try { parsed = JSON.parse(text); } catch { parsed = { error: text }; }
+          }
+        } catch { /* ignore */ }
+        const msg = parsed?.error || parsed?.message || (error as any)?.message || "Falha ao iniciar pagamento";
+        const code = parsed?.error_code ? ` [${parsed.error_code}]` : "";
+        throw new Error(`${msg}${code}`);
+      }
+
+      if (data && data.success === false) {
+        const code = data.error_code ? ` [${data.error_code}]` : "";
+        throw new Error(`${data.error || "Falha ao iniciar pagamento"}${code}`);
+      }
       if (!data?.checkout_url) throw new Error("URL de checkout não recebida");
+
       clearCart();
       window.location.href = data.checkout_url;
     } catch (e: any) {
-      toast.error(e.message || "Falha ao iniciar pagamento");
+      toast.error(e?.message || "Falha ao iniciar pagamento", { duration: 8000 });
       setSubmitting(false);
     }
   };
