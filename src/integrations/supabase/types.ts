@@ -62,6 +62,7 @@ export type Database = {
           id: string
           image_fit: string
           image_url: string | null
+          legal_color: string | null
           legal_text: string | null
           link: string | null
           linked_entity_id: string | null
@@ -79,9 +80,13 @@ export type Database = {
           side_shapes_color: string | null
           start_date: string | null
           subtitle: string | null
+          support_color: string | null
           support_text: string | null
           text_position: string
           title: string | null
+          title_color: string | null
+          title_font: string | null
+          title_size: string | null
           updated_at: string
           visual_style: string
         }
@@ -102,6 +107,7 @@ export type Database = {
           id?: string
           image_fit?: string
           image_url?: string | null
+          legal_color?: string | null
           legal_text?: string | null
           link?: string | null
           linked_entity_id?: string | null
@@ -119,9 +125,13 @@ export type Database = {
           side_shapes_color?: string | null
           start_date?: string | null
           subtitle?: string | null
+          support_color?: string | null
           support_text?: string | null
           text_position?: string
           title?: string | null
+          title_color?: string | null
+          title_font?: string | null
+          title_size?: string | null
           updated_at?: string
           visual_style?: string
         }
@@ -142,6 +152,7 @@ export type Database = {
           id?: string
           image_fit?: string
           image_url?: string | null
+          legal_color?: string | null
           legal_text?: string | null
           link?: string | null
           linked_entity_id?: string | null
@@ -159,9 +170,13 @@ export type Database = {
           side_shapes_color?: string | null
           start_date?: string | null
           subtitle?: string | null
+          support_color?: string | null
           support_text?: string | null
           text_position?: string
           title?: string | null
+          title_color?: string | null
+          title_font?: string | null
+          title_size?: string | null
           updated_at?: string
           visual_style?: string
         }
