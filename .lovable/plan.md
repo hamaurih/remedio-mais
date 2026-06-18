@@ -1,86 +1,74 @@
+# Plano: Ranking manual, relacionados e sugestão de genérico
 
-# Plano — Checkout Mercado Pago e fluxo de compra completo
+## 1. Mais vendidos — ordem manual
 
-Esta é uma mudança grande. Vou dividir em fases para entregar com segurança, sem quebrar home/Trier/banners. Quero sua confirmação antes de começar.
+**Banco:** novo campo `bestseller_rank int` em `products` (null = não aparece na vitrine; quanto menor, mais à frente).
 
-## Fase 1 — Banco de dados
+**Admin (`AdminProducts.tsx`):**
+- Nova coluna "Vitrine #" com input numérico inline (salva ao sair do campo).
+- Novo botão "Organizar Mais Vendidos" que abre um modal com a lista atual ordenada, com drag-and-drop (`@dnd-kit`) — salvar reescreve os `bestseller_rank` em sequência (10, 20, 30…).
 
-Migrations:
+**Site (`Index.tsx` shelf "Mais Vendidos"):**
+- Passa a buscar `products` com `bestseller_rank not null` ordenado asc (limit 12).
+- Fallback antigo (featured/recentes) só usado se ninguém estiver rankeado.
 
-1. **`orders`** — adicionar colunas:
-   - `user_id`, `customer_email`, `customer_cpf`
-   - `subtotal`, `discount`
-   - `delivery_type` (`pickup`/`delivery`), `delivery_cep`, `delivery_street`, `delivery_number`, `delivery_complement`, `delivery_neighborhood`, `delivery_city`, `delivery_state`, `delivery_reference`, `delivery_fee`
-   - `payment_gateway`, `payment_method` (`pix`/`credit_card`), `payment_status` (`pending`/`approved`/`rejected`/`cancelled`/`expired`/`refunded`)
-   - `order_status` novo enum textual (`aguardando_pagamento`/`pago`/`em_separacao`/`pronto_para_retirada`/`saiu_para_entrega`/`entregue`/`cancelado`) — manter coluna `status` antiga como alias durante transição
-   - `mercado_pago_preference_id`, `mercado_pago_payment_id`, `mercado_pago_order_id`, `mercado_pago_checkout_url`, `external_reference`
-   - `paid_at`, `cancelled_at`
-   - Ajustar policy de INSERT para exigir `auth.uid() = user_id` e `payment_status='pending'`
+## 2. Produtos relacionados
 
-2. **`order_items`** — adicionar `product_image_url`, `total`, `requires_prescription`, `controlled`.
+**Banco:**
+- Nova tabela `product_related (product_id, related_product_id, position int)` — PK composta, FKs com cascade.
+- Coluna `active_ingredient text` em `products` (também usada pelo item 3).
 
-3. **`payment_events`** (nova) — `order_id`, `gateway`, `event_type`, `external_id` (unique), `payload jsonb`, `processed`.
+**Admin (editor do produto em `AdminProducts.tsx`):**
+- Nova seção "Produtos Relacionados" com `EntityPicker` permitindo escolher manualmente vários produtos + ordem (drag).
 
-4. **`admin_notifications`** (nova) — `type`, `title`, `message`, `order_id`, `read`.
+**Site (`Product.tsx`):** novo bloco "Produtos relacionados" abaixo da descrição.
 
-5. **`payment_settings`** (nova, singleton) — `gateway`, `environment` (`sandbox`/`production`), `pix_enabled`, `credit_card_enabled`, `boleto_enabled`, `modo_integracao`. Token/secret ficam em **Secrets** (`MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_WEBHOOK_SECRET`, `MERCADO_PAGO_PUBLIC_KEY`), nunca na tabela.
+Lógica de seleção (hook `useRelatedProducts`):
+1. Se existirem manuais em `product_related` → usa eles na ordem definida.
+2. Senão, busca automaticamente até 8 produtos ativos com estoque, priorizando nesta ordem: mesmo `active_ingredient` → mesma `category_id` + mesmo `manufacturer` → mesma `category_id`. Exclui o próprio produto e variantes.
 
-6. **`prescriptions`** — adicionar `product_id`, `user_id`, `approved_at`. Status novos: `recebida`/`em_analise`/`aprovada`/`reprovada`.
+## 3. Aviso de genérico/similar
 
-7. Todas com GRANTs + RLS adequados.
+**Banco em `products`:**
+- `is_generic boolean default false` — marca produtos que SÃO genéricos.
+- `generic_equivalent_id uuid` — link manual: produto de marca → produto genérico equivalente.
+- Reaproveita `active_ingredient` do item 2 para fallback automático.
 
-## Fase 2 — Secrets e Edge Functions
+**Admin:** no editor de produto, dois campos novos:
+- Checkbox "Este produto é genérico".
+- Selector "Genérico equivalente" (só aparece se não for genérico) — busca produtos com `is_generic = true`.
 
-Pedir via `add_secret`:
-- `MERCADO_PAGO_ACCESS_TOKEN`
-- `MERCADO_PAGO_PUBLIC_KEY`
-- `MERCADO_PAGO_WEBHOOK_SECRET`
+**Lógica de sugestão (`useGenericSuggestion(product)`):**
+1. Se produto já é genérico ou controlado → não sugere nada.
+2. Se tem `generic_equivalent_id` → usa ele (manual).
+3. Senão, busca automaticamente: produto ativo com estoque, `is_generic = true`, mesmo `active_ingredient`, preço final menor que o atual, ordenado por preço asc → pega o mais barato.
+4. Só retorna se a economia for ≥ 5%.
 
-Edge functions:
-- **`create-mercado-pago-checkout`** — exige JWT, valida carrinho no banco, recalcula preços, bloqueia sem estoque e controlados sem receita aprovada, cria `order` com `payment_status=pending`, cria preference no MP (Pix ou Cartão), salva `preference_id`+`checkout_url`, retorna URL.
-- **`mercado-pago-webhook`** (público, valida assinatura) — salva em `payment_events` (idempotente via `external_id` unique), busca pagamento na API MP, valida `external_reference` e valor, atualiza `payment_status`/`order_status`, cria `admin_notifications` em caso de approved.
-- **`check-mercado-pago-status`** — consulta status sob demanda (página de retorno e admin).
-
-## Fase 3 — Frontend público
-
-- **`ProductCard`** + **`ProductQuickView`**: botão principal "Adicionar"; controlado/receita → "Enviar receita"; WhatsApp vira botão pequeno "Tirar dúvida". Sem estoque → não renderiza (filtro nas queries).
-- Queries das prateleiras/categoria/busca/PromoMosaic/CampaignShelf: filtrar `stock > 0`.
-- **`Cart`**: remover finalização WhatsApp; botão "Finalizar compra" → `/checkout`.
-- **`Checkout`** (novo, multi-step):
-  1. exige login (redireciona p/ `/auth?next=/checkout`)
-  2. dados (nome/email/telefone/CPF — preenche do profile)
-  3. entrega/retirada com CEP (ViaCEP) + endereço
-  4. revisão
-  5. método de pagamento Pix/Cartão → chama `create-mercado-pago-checkout` → redireciona p/ `init_point`
-- **Páginas de retorno**: `/pedido/sucesso`, `/pedido/pendente`, `/pedido/falha` (todas usam `check-mercado-pago-status`).
-
-## Fase 4 — Admin
-
-- **`AdminPayments`** (novo) — configurar ambiente, toggles, botão "Testar conexão", aviso de que tokens vivem em Secrets.
-- **`AdminOrders`** — adicionar colunas pagamento, endereço completo, MP IDs, botões "Verificar pagamento" / "Atualizar status" / "Enviar para Trier" (só após `approved`).
-- **`AdminPrescriptions`** — fluxo `recebida`/`em_analise`/`aprovada`/`reprovada` vinculado a produto+usuário.
-- **Sino de notificações** no header do admin lendo `admin_notifications`.
-
-## Fase 5 — Trier e profile
-
-- Bloquear envio para Trier enquanto `payment_status ≠ approved` (ajuste mínimo, sem mexer na integração em si).
-- Adicionar `phone`, `cpf` em `profiles` para preencher checkout.
-
----
+**UI:**
+- **Modal ao clicar "Adicionar ao carrinho"** em `ProductCard` e `Product.tsx`: se houver sugestão, abre modal "Existe um genérico equivalente: [nome] por R$X — economia de Y%" com botões "Trocar pelo genérico" / "Continuar com o original".
+- **Aviso no carrinho (`Cart.tsx`):** para cada item que tem sugestão, mostra linha discreta "💊 Existe genérico mais barato: R$X (economize Y%)" com botão "Trocar".
 
 ## Detalhes técnicos
 
-- Mercado Pago via **Checkout Pro redirect** (`/checkout/v1/redirect?pref_id=...`), sem dados de cartão no nosso código.
-- Webhook valida `x-signature` HMAC com `MERCADO_PAGO_WEBHOOK_SECRET`.
-- Idempotência: `payment_events.external_id` UNIQUE + `processed` flag.
-- `external_reference = order.id` para casar webhook ↔ pedido.
-- Não removo a coluna `status` antiga de orders nesta fase para não quebrar AdminOrders/Trier; faço alias.
+**Migrações (uma só):**
+- `ALTER TABLE products ADD COLUMN bestseller_rank int, active_ingredient text, is_generic boolean default false, generic_equivalent_id uuid REFERENCES products(id) ON DELETE SET NULL;`
+- `CREATE INDEX` em `bestseller_rank`, `active_ingredient`, `is_generic`.
+- `CREATE TABLE product_related (...)` + GRANT (`SELECT` para anon/authenticated; `ALL` para service_role; admin gerencia via `has_role`) + RLS + policies.
 
-## Confirmações que preciso de você
+**Arquivos novos:**
+- `src/hooks/useRelatedProducts.ts`
+- `src/hooks/useGenericSuggestion.ts`
+- `src/components/GenericSuggestionDialog.tsx`
+- `src/components/admin/BestsellersReorderDialog.tsx`
+- `src/components/admin/RelatedProductsPicker.tsx`
 
-1. Pode pedir os 3 secrets do Mercado Pago agora? (Access Token, Public Key, Webhook Secret — Sandbox primeiro)
-2. CPF: obrigatório no cadastro ou só no checkout? Sugiro **só no checkout** (Pix exige; cartão pode exigir).
-3. Frete: deixar fixo em `store_settings.delivery_fee` por enquanto (já existe), sem cálculo por CEP?
-4. Posso entregar em duas mensagens (Fase 1+2 banco/backend → você confirma → Fase 3+4 front/admin)? Isso reduz risco.
+**Arquivos editados:**
+- `src/pages/admin/AdminProducts.tsx` — coluna rank, botão organizar, campos genérico, picker relacionados
+- `src/pages/Index.tsx` — query "Mais Vendidos" usa `bestseller_rank`
+- `src/pages/Product.tsx` — bloco relacionados + integração modal genérico
+- `src/components/ProductCard.tsx` — interceptar "Adicionar" para checar sugestão
+- `src/pages/Cart.tsx` — aviso por item com botão trocar
 
-Confirma para eu começar pela Fase 1 (migration).
+**Dependência:** `@dnd-kit/core` + `@dnd-kit/sortable` (drag-and-drop dos mais vendidos e relacionados).
+
+Posso prosseguir?

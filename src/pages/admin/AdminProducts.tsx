@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload, Star } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
+import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
+import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
@@ -36,6 +38,7 @@ const empty: any = {
   requires_prescription: false, controlled: false, tarja: "", custom_warning: "",
   product_badge: "", seo_title: "", seo_description: "", seo_keywords: "",
   active: true, shelves: [] as string[],
+  bestseller_rank: null, is_generic: false, generic_equivalent_id: null,
 };
 
 const slugify = (s: string) =>
@@ -44,6 +47,7 @@ const slugify = (s: string) =>
 export default function AdminProducts() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [reorderOpen, setReorderOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
@@ -200,11 +204,13 @@ export default function AdminProducts() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-extrabold">Produtos</h1>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setReorderOpen(true)}><Star className="h-4 w-4 mr-2" /> Organizar Mais Vendidos</Button>
           <Button variant="outline" asChild><a href="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</a></Button>
           <Button variant="outline" asChild><a href="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</a></Button>
           <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
         </div>
       </div>
+      <BestsellersReorderDialog open={reorderOpen} onOpenChange={setReorderOpen} />
 
       <div className="bg-card border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px]">
@@ -310,6 +316,8 @@ export default function AdminProducts() {
               <TabsTrigger value="stock">Estoque</TabsTrigger>
               <TabsTrigger value="variants">Variações</TabsTrigger>
               <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
+              <TabsTrigger value="generic">Genérico</TabsTrigger>
+              <TabsTrigger value="related">Relacionados</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
             </TabsList>
@@ -439,7 +447,66 @@ export default function AdminProducts() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1 pt-2 border-t">
+                <Label className="flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Posição em "Mais Vendidos"</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Vazio = não aparece"
+                  value={editing.bestseller_rank ?? ""}
+                  onChange={(e) => setEditing({ ...editing, bestseller_rank: e.target.value ? Number(e.target.value) : null })}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Menor número aparece primeiro. Use o botão <strong>Organizar Mais Vendidos</strong> no topo para arrastar e ordenar visualmente.
+                </p>
+              </div>
             </TabsContent>
+
+            <TabsContent value="generic" className="space-y-4 pt-3">
+              <div className="flex items-center gap-2 p-3 border rounded-lg bg-emerald-50">
+                <Switch
+                  checked={!!editing.is_generic}
+                  onCheckedChange={(v) => setEditing({ ...editing, is_generic: v, generic_equivalent_id: v ? null : editing.generic_equivalent_id })}
+                />
+                <div>
+                  <Label className="font-semibold">Este produto é um genérico</Label>
+                  <p className="text-[11px] text-muted-foreground">Marque para que ele possa ser sugerido como alternativa mais barata em produtos de marca.</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Princípio ativo</Label>
+                <Input value={editing.active_ingredient || ""} onChange={(e) => setEditing({ ...editing, active_ingredient: e.target.value })} placeholder="Ex.: Paracetamol 500mg" />
+                <p className="text-[11px] text-muted-foreground">
+                  Usado para sugerir genéricos automaticamente quando dois produtos têm o mesmo princípio ativo.
+                </p>
+              </div>
+
+              {!editing.is_generic && (
+                <div className="space-y-1 pt-3 border-t">
+                  <Label>Genérico equivalente (manual)</Label>
+                  <GenericEquivalentPicker
+                    currentId={editing.generic_equivalent_id}
+                    selfId={editing.id}
+                    onPick={(id) => setEditing({ ...editing, generic_equivalent_id: id })}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Quando definido, este vínculo tem prioridade sobre a busca automática por princípio ativo.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="related" className="pt-3">
+              {editing.id ? (
+                <RelatedProductsPicker productId={editing.id} />
+              ) : (
+                <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
+                  Salve o produto primeiro (botão <strong>Salvar e continuar</strong>) para definir produtos relacionados.
+                </div>
+              )}
+            </TabsContent>
+
 
             <TabsContent value="reg" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.requires_prescription} onCheckedChange={(v) => setEditing({ ...editing, requires_prescription: v })} /><Label>Exige receita</Label></div>
@@ -469,6 +536,80 @@ export default function AdminProducts() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function GenericEquivalentPicker({ currentId, selfId, onPick }: { currentId: string | null; selfId: string; onPick: (id: string | null) => void }) {
+  const [current, setCurrent] = useState<any | null>(null);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!currentId) { setCurrent(null); return; }
+    supabase.from("products").select("id,name,manufacturer,image_url,price,promo_price").eq("id", currentId).maybeSingle().then(({ data }) => setCurrent(data));
+  }, [currentId]);
+
+  useEffect(() => {
+    if (search.length < 2) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id,name,manufacturer,image_url,price,promo_price")
+        .eq("is_generic", true)
+        .eq("active", true)
+        .ilike("name", `%${search}%`)
+        .neq("id", selfId || "00000000-0000-0000-0000-000000000000")
+        .limit(8);
+      setResults(data || []);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, selfId]);
+
+  if (current) {
+    return (
+      <div className="flex items-center gap-2 border rounded-md p-2 bg-background">
+        {current.image_url && <img src={current.image_url} alt="" className="h-10 w-10 object-contain" />}
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium truncate">{current.name}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {current.manufacturer || "—"} · {formatBRL(Number(current.promo_price ?? current.price))}
+          </div>
+        </div>
+        <Button size="icon" variant="ghost" onClick={() => onPick(null)}><X className="h-4 w-4" /></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Search className="h-4 w-4 absolute left-2 top-3 text-muted-foreground" />
+      <Input className="pl-8" placeholder="Buscar genérico..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      {results.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {results.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => { onPick(r.id); setCurrent(r); setSearch(""); setResults([]); }}
+              className="w-full flex items-center gap-2 p-2 hover:bg-accent text-left text-sm"
+            >
+              {r.image_url && <img src={r.image_url} alt="" className="h-8 w-8 object-contain shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="truncate">{r.name}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.manufacturer || "—"} · {formatBRL(Number(r.promo_price ?? r.price))}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {search.length >= 2 && results.length === 0 && (
+        <div className="text-xs text-muted-foreground mt-2">
+          Nenhum genérico encontrado. Marque produtos como "genérico" na própria aba para que apareçam aqui.
+        </div>
+      )}
     </div>
   );
 }
