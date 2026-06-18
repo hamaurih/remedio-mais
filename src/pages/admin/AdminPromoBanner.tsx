@@ -137,6 +137,7 @@ export default function AdminPromoBanner() {
         title: "Novo bloco",
         active: true,
         block_type: "card_medio",
+        animation_type: "float",
       });
     if (error) toast.error(error.message);
     else load();
