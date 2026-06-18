@@ -345,6 +345,22 @@ export default function AdminPromoBanner() {
                   </Select>
                 </div>
 
+                <div className="space-y-1">
+                  <Label>Tipo de animação</Label>
+                  <Select
+                    value={b.animation_type ?? "float"}
+                    onValueChange={(v) => update(b.id, { animation_type: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ANIMATION_TYPES.map((v) => (
+                        <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">Microanimação leve. Respeita "reduzir movimento" do sistema.</p>
+                </div>
+
                 <div className="flex items-center gap-2 pt-6">
                   <Switch checked={b.show_text ?? true} onCheckedChange={(v) => update(b.id, { show_text: v })} />
                   <Label className="cursor-pointer">Mostrar texto</Label>
