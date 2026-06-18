@@ -981,6 +981,42 @@ export type Database = {
         }
         Relationships: []
       }
+      product_related: {
+        Row: {
+          created_at: string
+          position: number
+          product_id: string
+          related_product_id: string
+        }
+        Insert: {
+          created_at?: string
+          position?: number
+          product_id: string
+          related_product_id: string
+        }
+        Update: {
+          created_at?: string
+          position?: number
+          product_id?: string
+          related_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_related_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_related_related_product_id_fkey"
+            columns: ["related_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_sync_logs: {
         Row: {
           created_at: string
@@ -1102,6 +1138,7 @@ export type Database = {
           active_ingredient: string | null
           active_ingredient_code: string | null
           barcode: string | null
+          bestseller_rank: number | null
           cart_quantity_limit: number | null
           category_external_id: string | null
           category_id: string | null
@@ -1119,12 +1156,14 @@ export type Database = {
           ecommerce_stock_quantity: number | null
           featured: boolean
           gallery_images: string[]
+          generic_equivalent_id: string | null
           group_code: string | null
           group_name: string | null
           has_variants: boolean
           id: string
           image_url: string | null
           is_active: boolean | null
+          is_generic: boolean
           laboratory: string | null
           laboratory_code: string | null
           last_stock_sync_at: string | null
@@ -1185,6 +1224,7 @@ export type Database = {
           active_ingredient?: string | null
           active_ingredient_code?: string | null
           barcode?: string | null
+          bestseller_rank?: number | null
           cart_quantity_limit?: number | null
           category_external_id?: string | null
           category_id?: string | null
@@ -1202,12 +1242,14 @@ export type Database = {
           ecommerce_stock_quantity?: number | null
           featured?: boolean
           gallery_images?: string[]
+          generic_equivalent_id?: string | null
           group_code?: string | null
           group_name?: string | null
           has_variants?: boolean
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_generic?: boolean
           laboratory?: string | null
           laboratory_code?: string | null
           last_stock_sync_at?: string | null
@@ -1268,6 +1310,7 @@ export type Database = {
           active_ingredient?: string | null
           active_ingredient_code?: string | null
           barcode?: string | null
+          bestseller_rank?: number | null
           cart_quantity_limit?: number | null
           category_external_id?: string | null
           category_id?: string | null
@@ -1285,12 +1328,14 @@ export type Database = {
           ecommerce_stock_quantity?: number | null
           featured?: boolean
           gallery_images?: string[]
+          generic_equivalent_id?: string | null
           group_code?: string | null
           group_name?: string | null
           has_variants?: boolean
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_generic?: boolean
           laboratory?: string | null
           laboratory_code?: string | null
           last_stock_sync_at?: string | null
@@ -1352,6 +1397,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_generic_equivalent_id_fkey"
+            columns: ["generic_equivalent_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
