@@ -35,7 +35,8 @@ export default function Index() {
 
   const { data: banners } = useQuery({
     queryKey: ["home_banners"],
-    queryFn: async () => (await supabase.from("banners").select("*").eq("active", true).order("position")).data || [],
+    queryFn: async () =>
+      (await supabase.from("banners").select("*").eq("active", true).eq("placement", "hero").order("position")).data || [],
   });
 
   const fetchShelf = (mod: (q: any) => any) => async () => {
