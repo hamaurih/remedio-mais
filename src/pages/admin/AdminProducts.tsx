@@ -539,3 +539,77 @@ export default function AdminProducts() {
     </div>
   );
 }
+
+function GenericEquivalentPicker({ currentId, selfId, onPick }: { currentId: string | null; selfId: string; onPick: (id: string | null) => void }) {
+  const [current, setCurrent] = useState<any | null>(null);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+
+  useMemo(() => {
+    if (!currentId) { setCurrent(null); return; }
+    supabase.from("products").select("id,name,manufacturer,image_url,price,promo_price").eq("id", currentId).maybeSingle().then(({ data }) => setCurrent(data));
+  }, [currentId]);
+
+  useMemo(() => {
+    if (search.length < 2) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id,name,manufacturer,image_url,price,promo_price")
+        .eq("is_generic", true)
+        .eq("active", true)
+        .ilike("name", `%${search}%`)
+        .neq("id", selfId || "00000000-0000-0000-0000-000000000000")
+        .limit(8);
+      setResults(data || []);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, selfId]);
+
+  if (current) {
+    return (
+      <div className="flex items-center gap-2 border rounded-md p-2 bg-background">
+        {current.image_url && <img src={current.image_url} alt="" className="h-10 w-10 object-contain" />}
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium truncate">{current.name}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {current.manufacturer || "—"} · {formatBRL(Number(current.promo_price ?? current.price))}
+          </div>
+        </div>
+        <Button size="icon" variant="ghost" onClick={() => onPick(null)}><X className="h-4 w-4" /></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Search className="h-4 w-4 absolute left-2 top-3 text-muted-foreground" />
+      <Input className="pl-8" placeholder="Buscar genérico..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      {results.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {results.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => { onPick(r.id); setCurrent(r); setSearch(""); setResults([]); }}
+              className="w-full flex items-center gap-2 p-2 hover:bg-accent text-left text-sm"
+            >
+              {r.image_url && <img src={r.image_url} alt="" className="h-8 w-8 object-contain shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="truncate">{r.name}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.manufacturer || "—"} · {formatBRL(Number(r.promo_price ?? r.price))}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {search.length >= 2 && results.length === 0 && (
+        <div className="text-xs text-muted-foreground mt-2">
+          Nenhum genérico encontrado. Marque produtos como "genérico" na própria aba para que apareçam aqui.
+        </div>
+      )}
+    </div>
+  );
+}
