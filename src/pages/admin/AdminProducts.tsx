@@ -9,10 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload, Star } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
+import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
+import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
@@ -36,6 +38,7 @@ const empty: any = {
   requires_prescription: false, controlled: false, tarja: "", custom_warning: "",
   product_badge: "", seo_title: "", seo_description: "", seo_keywords: "",
   active: true, shelves: [] as string[],
+  bestseller_rank: null, is_generic: false, generic_equivalent_id: null,
 };
 
 const slugify = (s: string) =>
@@ -44,6 +47,7 @@ const slugify = (s: string) =>
 export default function AdminProducts() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [reorderOpen, setReorderOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
@@ -200,11 +204,13 @@ export default function AdminProducts() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-extrabold">Produtos</h1>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setReorderOpen(true)}><Star className="h-4 w-4 mr-2" /> Organizar Mais Vendidos</Button>
           <Button variant="outline" asChild><a href="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</a></Button>
           <Button variant="outline" asChild><a href="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</a></Button>
           <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
         </div>
       </div>
+      <BestsellersReorderDialog open={reorderOpen} onOpenChange={setReorderOpen} />
 
       <div className="bg-card border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px]">
