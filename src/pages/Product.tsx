@@ -27,6 +27,7 @@ export default function Product() {
   });
 
   const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && (p as any)?.has_variants);
+  const { data: related = [], isLoading: relatedLoading } = useRelatedProducts(p);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const selectedVariant: ProductVariant | undefined = useMemo(
     () => variants.find((v) => v.id === selectedVariantId),
@@ -49,20 +50,30 @@ export default function Product() {
     if ((p as any).controlled) { toast.error("Medicamento controlado. Envie sua receita."); return; }
     if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
     if (outOfStock) { toast.error("Sem estoque para esta opção"); return; }
-    if (hasVariants && selectedVariant) {
-      addToCart({
-        id: selectedVariant.id,
-        product_id: p.id,
-        variant_id: selectedVariant.id,
-        variant_label: buildVariantLabel(selectedVariant),
-        name: p.name,
-        price: Number(finalPrice),
-        image_url: displayImage,
-      });
-    } else {
-      addToCart({ id: p.id, product_id: p.id, name: p.name, price: Number(finalPrice), image_url: p.image_url });
-    }
-    toast.success("Adicionado ao carrinho");
+
+    const doAdd = () => {
+      if (hasVariants && selectedVariant) {
+        addToCart({
+          id: selectedVariant.id,
+          product_id: p.id,
+          variant_id: selectedVariant.id,
+          variant_label: buildVariantLabel(selectedVariant),
+          name: p.name,
+          price: Number(finalPrice),
+          image_url: displayImage,
+        });
+      } else {
+        addToCart({ id: p.id, product_id: p.id, name: p.name, price: Number(finalPrice), image_url: p.image_url });
+      }
+      toast.success("Adicionado ao carrinho");
+    };
+
+    // Se for variação, pula a checagem de genérico (variação é específica)
+    if (hasVariants) { doAdd(); return; }
+    openGenericCheck({
+      product: { ...(p as any), id: p.id, name: p.name, slug: p.slug, price: p.price, promo_price: (p as any).promo_price, image_url: p.image_url, manufacturer: (p as any).manufacturer, on_sale: (p as any).on_sale, requires_prescription: (p as any).requires_prescription, controlled: (p as any).controlled, has_variants: (p as any).has_variants },
+      onAddOriginal: doAdd,
+    });
   };
 
   return (
