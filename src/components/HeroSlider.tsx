@@ -60,6 +60,30 @@ export type HeroSlide = {
   product_size?: ProductSize | null;
   show_side_shapes?: boolean | null;
   side_shapes_color?: string | null;
+  title_font?: string | null;
+  title_color?: string | null;
+  support_color?: string | null;
+  legal_color?: string | null;
+  title_size?: string | null; // 'sm' | 'md' | 'lg' | 'xl'
+};
+
+export const TITLE_FONTS: Record<string, string> = {
+  default: "",
+  inter: "'Inter', system-ui, sans-serif",
+  poppins: "'Poppins', sans-serif",
+  montserrat: "'Montserrat', sans-serif",
+  oswald: "'Oswald', sans-serif",
+  "bebas-neue": "'Bebas Neue', sans-serif",
+  "playfair-display": "'Playfair Display', serif",
+  "dm-serif-display": "'DM Serif Display', serif",
+  archivo: "'Archivo Black', sans-serif",
+};
+
+const TITLE_SIZE_FLUID: Record<string, string> = {
+  sm: "clamp(1.1rem, 2.4vw, 1.6rem)",
+  md: "clamp(1.3rem, 3vw, 2rem)",
+  lg: "clamp(1.5rem, 3.6vw, 2.4rem)",
+  xl: "clamp(1.7rem, 4.2vw, 2.8rem)",
 };
 
 const FALLBACK: HeroSlide[] = [
@@ -217,30 +241,45 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         </div>
       )}
 
-      {/* Desktop layout: 28% | 44% | 28% */}
+      {/* Desktop layout: 28% | 44% | 28% — fluid */}
       <div
-        className="hidden md:grid relative h-full items-center gap-3 lg:gap-4 px-6 md:px-8 lg:px-12 pb-6"
+        className="hidden md:grid relative h-full items-center gap-2 lg:gap-4 px-4 md:px-6 lg:px-10 pb-4"
         style={{ gridTemplateColumns: "28% 44% 28%" }}
       >
         {/* LEFT: tagline */}
-        <div className={cn("z-10 flex flex-col justify-center pr-2", textAlignClass(s.text_position || "left"), style.text)}>
+        <div className={cn("z-10 flex flex-col justify-center pr-1 min-w-0", textAlignClass(s.text_position || "left"), style.text)}>
           {s.badge_text && (
-            <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-3 shadow-sm">
+            <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
               {s.badge_text}
             </span>
           )}
           {s.title && (
-            <h2 className="text-xl md:text-2xl lg:text-[2rem] xl:text-[2.4rem] font-extrabold leading-[1.05] tracking-tight">
+            <h2
+              className="font-extrabold leading-[1.05] tracking-tight break-words"
+              style={{
+                fontFamily: s.title_font && s.title_font !== "default" ? TITLE_FONTS[s.title_font] : undefined,
+                color: s.title_color || undefined,
+                fontSize: TITLE_SIZE_FLUID[s.title_size || "lg"],
+              }}
+            >
               {s.title}
             </h2>
           )}
-          {s.subtitle && <p className="mt-2 text-sm md:text-base opacity-80 max-w-[28ch]">{s.subtitle}</p>}
-          {s.support_text && <p className="mt-2 text-sm md:text-base font-medium opacity-90 max-w-[28ch]">{s.support_text}</p>}
+          {s.subtitle && (
+            <p className="mt-2 opacity-80 max-w-[28ch]" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.95rem)", color: s.support_color || undefined }}>
+              {s.subtitle}
+            </p>
+          )}
+          {s.support_text && (
+            <p className="mt-2 font-medium opacity-90 max-w-[28ch]" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.95rem)", color: s.support_color || undefined }}>
+              {s.support_text}
+            </p>
+          )}
         </div>
 
         {/* CENTER: product, contained safely within zone */}
-        <div className="relative z-[5] h-full flex items-end justify-center pb-4">
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 h-5 w-[60%] rounded-[50%] bg-foreground/20 blur-2xl" />
+        <div className="relative z-[5] h-full flex items-end justify-center pb-3 min-w-0">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 h-4 w-[60%] rounded-[50%] bg-foreground/20 blur-2xl" />
           <img
             src={productImg}
             alt={s.title || "Produto"}
@@ -249,38 +288,44 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
               productSize.desk,
               ANIM_PRODUCT[anim],
             )}
-            style={{ maxHeight: "clamp(180px, 75%, 280px)" }}
+            style={{ maxHeight: "clamp(160px, 70%, 280px)" }}
           />
         </div>
 
         {/* RIGHT: discount + CTA */}
-        <div className="z-10 flex flex-col items-center justify-center text-center pl-2">
+        <div className="z-10 flex flex-col items-center justify-center text-center pl-1 min-w-0">
           {discount != null ? (
             <>
               {s.discount_prefix && (
-                <div className={cn("text-xs lg:text-sm font-semibold uppercase tracking-wider leading-none", style.accent)} style={customAccent}>
+                <div
+                  className={cn("font-semibold uppercase tracking-wider leading-none", style.accent)}
+                  style={{ ...customAccent, fontSize: "clamp(0.65rem, 1vw, 0.85rem)" }}
+                >
                   {s.discount_prefix}
                 </div>
               )}
               <div className={cn("font-extrabold leading-none tracking-tight mt-1", style.accent)} style={customAccent}>
-                <span className="text-6xl lg:text-7xl xl:text-8xl">{discount}</span>
-                <span className="text-3xl lg:text-4xl align-top">%</span>
+                <span style={{ fontSize: "clamp(3rem, 6.5vw, 5.5rem)" }}>{discount}</span>
+                <span className="align-top" style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}>%</span>
               </div>
               {s.discount_suffix && (
-                <div className={cn("text-xs lg:text-sm font-semibold uppercase tracking-wider mt-1", style.accent)} style={customAccent}>
+                <div
+                  className={cn("font-semibold uppercase tracking-wider mt-1", style.accent)}
+                  style={{ ...customAccent, fontSize: "clamp(0.65rem, 1vw, 0.85rem)" }}
+                >
                   {s.discount_suffix}
                 </div>
               )}
             </>
           ) : s.new_price != null ? (
-            <div className={cn("text-4xl lg:text-5xl font-extrabold", style.accent)} style={customAccent}>{brl(Number(s.new_price))}</div>
+            <div className={cn("font-extrabold", style.accent)} style={{ ...customAccent, fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>{brl(Number(s.new_price))}</div>
           ) : null}
 
           {s.cta_text && (
             <Button
               asChild
-              size="lg"
-              className={cn("mt-4 font-bold uppercase tracking-wider rounded-full shadow-md px-7", !s.button_color && style.button)}
+              size="sm"
+              className={cn("mt-3 font-bold uppercase tracking-wider rounded-full shadow-md px-5 lg:px-7", !s.button_color && style.button)}
               style={customBtn}
             >
               <Link to={link}>{s.cta_text}</Link>
@@ -291,11 +336,8 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         {/* Legal text — bottom right (always anchored) */}
         {s.legal_text && (
           <p
-            className={cn(
-              "absolute bottom-3 right-6 text-[10px] lg:text-[11px] leading-tight text-right opacity-80 z-10",
-              style.legal,
-            )}
-            style={{ maxWidth: "280px" }}
+            className={cn("absolute bottom-2 right-4 leading-tight text-right opacity-80 z-10", style.legal)}
+            style={{ maxWidth: "260px", fontSize: "clamp(9px, 0.85vw, 11px)", color: s.legal_color || undefined }}
           >
             {s.legal_text}
           </p>
@@ -305,8 +347,19 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
       {/* Mobile layout */}
       <div className="md:hidden relative h-full min-h-[420px] flex flex-col items-center text-center px-5 py-5 gap-3">
         <div className={cn("w-full flex flex-col items-center", style.text)}>
-          {s.title && <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight">{s.title}</h2>}
-          {s.support_text && <p className="text-xs mt-1 opacity-80">{s.support_text}</p>}
+          {s.title && (
+            <h2
+              className="font-extrabold leading-tight"
+              style={{
+                fontFamily: s.title_font && s.title_font !== "default" ? TITLE_FONTS[s.title_font] : undefined,
+                color: s.title_color || undefined,
+                fontSize: "clamp(1.4rem, 6vw, 2rem)",
+              }}
+            >
+              {s.title}
+            </h2>
+          )}
+          {s.support_text && <p className="text-xs mt-1 opacity-80" style={{ color: s.support_color || undefined }}>{s.support_text}</p>}
         </div>
 
         <div className="flex-1 flex items-center justify-center w-full">
@@ -336,7 +389,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
               <Link to={link}>{s.cta_text}</Link>
             </Button>
           )}
-          {s.legal_text && <p className={cn("mt-2 text-[10px] leading-tight max-w-[34ch]", style.legal)}>{s.legal_text}</p>}
+          {s.legal_text && <p className={cn("mt-2 text-[10px] leading-tight max-w-[34ch]", style.legal)} style={{ color: s.legal_color || undefined }}>{s.legal_text}</p>}
         </div>
       </div>
     </div>
@@ -372,7 +425,8 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[440px] md:h-[380px] lg:h-[420px] xl:h-[440px]">
+      <div className="relative w-full h-[440px] md:h-[clamp(300px,38vw,440px)]">
+
         {data.map((s, i) => (
           <div
             key={s.id}

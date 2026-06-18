@@ -45,6 +45,25 @@ const PRODUCT_SIZES = [
   { v: "xlarge", l: "Extra grande" },
 ];
 
+const TITLE_FONTS = [
+  { v: "default", l: "Padrão do site" },
+  { v: "inter", l: "Inter" },
+  { v: "poppins", l: "Poppins" },
+  { v: "montserrat", l: "Montserrat" },
+  { v: "oswald", l: "Oswald (condensado)" },
+  { v: "bebas-neue", l: "Bebas Neue (impacto)" },
+  { v: "archivo", l: "Archivo Black" },
+  { v: "playfair-display", l: "Playfair Display (serifa)" },
+  { v: "dm-serif-display", l: "DM Serif Display (serifa)" },
+];
+
+const TITLE_SIZES = [
+  { v: "sm", l: "Pequeno" },
+  { v: "md", l: "Médio" },
+  { v: "lg", l: "Grande" },
+  { v: "xl", l: "Extra grande" },
+];
+
 const ANIMATIONS = [
   { v: "none", l: "Sem animação" },
   { v: "float", l: "Produto flutuando" },
@@ -77,6 +96,7 @@ const empty: any = {
   linked_entity_type: "manual", linked_entity_id: null, linked_entity_slug: "",
   animation_type: "float", show_text_over_image: false, image_fit: "cover",
   product_size: "large", show_side_shapes: true, side_shapes_color: "",
+  title_font: "default", title_size: "lg", title_color: "", support_color: "", legal_color: "",
 };
 
 export default function AdminBanners() {
@@ -232,7 +252,7 @@ export default function AdminBanners() {
 
           {/* Live preview — same component & sizing as public */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="relative h-[440px] md:h-[380px] lg:h-[420px] xl:h-[440px]">
+            <div className="relative w-full h-[440px] md:h-[clamp(300px,38vw,440px)]">
               <HeroSlidePreview s={preview} />
             </div>
           </div>
@@ -327,6 +347,27 @@ export default function AdminBanners() {
                     <div className="space-y-1"><Label>Cor fundo</Label><Input type="color" value={editing.background_color || "#ffffff"} onChange={(e) => setEditing({ ...editing, background_color: e.target.value })} /></div>
                     <div className="space-y-1"><Label>Cor destaque</Label><Input type="color" value={editing.accent_color || "#d4213d"} onChange={(e) => setEditing({ ...editing, accent_color: e.target.value })} /></div>
                     <div className="space-y-1"><Label>Cor botão</Label><Input type="color" value={editing.button_color || "#d4213d"} onChange={(e) => setEditing({ ...editing, button_color: e.target.value })} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label>Fonte do título</Label>
+                      <Select value={editing.title_font || "default"} onValueChange={(v) => setEditing({ ...editing, title_font: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{TITLE_FONTS.map((f) => <SelectItem key={f.v} value={f.v}>{f.l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Tamanho do título</Label>
+                      <Select value={editing.title_size || "lg"} onValueChange={(v) => setEditing({ ...editing, title_size: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{TITLE_SIZES.map((s) => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1"><Label>Cor do título</Label><Input type="color" value={editing.title_color || "#111111"} onChange={(e) => setEditing({ ...editing, title_color: e.target.value })} /></div>
+                    <div className="space-y-1"><Label>Cor texto apoio</Label><Input type="color" value={editing.support_color || "#444444"} onChange={(e) => setEditing({ ...editing, support_color: e.target.value })} /></div>
+                    <div className="space-y-1"><Label>Cor texto legal</Label><Input type="color" value={editing.legal_color || "#666666"} onChange={(e) => setEditing({ ...editing, legal_color: e.target.value })} /></div>
                   </div>
                   <div className="space-y-1">
                     <Label>Imagem dos produtos (PNG/WEBP recortado, sem fundo)</Label>
