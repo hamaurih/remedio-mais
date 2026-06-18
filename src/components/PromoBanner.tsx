@@ -292,6 +292,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
                 "inline-flex w-fit items-center gap-1 font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
                 ctaClass(block),
                 isFeatured ? "text-[11px] md:text-[12px] px-3 py-1" : "text-[10px] md:text-[11px] px-2.5 py-1",
+                anim.cta,
               )}>
                 {block.cta_text} →
               </span>
@@ -309,16 +310,19 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
           className={cn(
             "pointer-events-none absolute z-0 object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)] transition-transform duration-500 group-hover:scale-[1.04]",
             imgPosCls,
+            anim.img,
           )}
         />
       ) : (
         <div className={cn(
           "absolute right-3 bottom-3 z-0 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-sky-100 border border-sky-100 flex items-center justify-center",
           isFeatured ? "h-20 w-20" : isSmall ? "h-12 w-12" : "h-14 w-14",
+          anim.img,
         )}>
           <Icon className={cn("text-primary", isFeatured ? "h-10 w-10" : "h-6 w-6")} />
         </div>
       )}
+      <AnimOverlay kind={anim.overlay} />
     </>
   );
 }
