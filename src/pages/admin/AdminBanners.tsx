@@ -230,9 +230,9 @@ export default function AdminBanners() {
         <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing.id ? "Editar" : "Novo"} banner</DialogTitle></DialogHeader>
 
-          {/* Live preview */}
+          {/* Live preview — same component & sizing as public */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="relative h-[340px]">
+            <div className="relative h-[440px] md:h-[320px] lg:h-[360px]">
               <HeroSlidePreview s={preview} />
             </div>
           </div>
