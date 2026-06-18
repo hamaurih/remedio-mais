@@ -7,8 +7,16 @@ import heroImg from "@/assets/hero-pharmacy.jpg";
 
 export type HeroBackground = "light" | "soft-pink" | "soft-blue" | "soft-mint";
 export type BannerType = "image" | "auto_product" | "campaign_pro";
-export type VisualStyle = "light" | "red-soft" | "yellow-offer" | "wine-premium" | "blue-health";
+export type VisualStyle =
+  | "light"
+  | "red-soft"
+  | "yellow-offer"
+  | "wine-premium"
+  | "blue-health"
+  | "beige-health"
+  | "light-neutral";
 export type AnimationType = "none" | "float" | "shine" | "slide-in" | "zoom" | "confetti";
+export type ProductSize = "small" | "medium" | "large" | "xlarge";
 
 export type HeroSlide = {
   id: string;
@@ -49,33 +57,40 @@ export type HeroSlide = {
   image_fit?: "cover" | "contain" | null;
   start_date?: string | null;
   end_date?: string | null;
+  product_size?: ProductSize | null;
+  show_side_shapes?: boolean | null;
+  side_shapes_color?: string | null;
 };
 
 const FALLBACK: HeroSlide[] = [
   {
     id: "f1",
     banner_type: "campaign_pro",
-    title: "Economize na sua farmácia",
-    subtitle: "Medicamentos, higiene e cuidados para toda família",
-    support_text: "Promoção válida enquanto durarem os estoques",
+    title: "Abasteça sua farmacinha",
+    support_text: "Cuidado completo para sua saúde",
+    legal_text: "Promoção válida enquanto durarem os estoques.",
     discount_prefix: "com até",
-    discount_percent: 40,
+    discount_percent: 50,
     discount_suffix: "de desconto",
-    cta_text: "Confira",
+    cta_text: "confira",
     link: "/categoria/ofertas",
     visual_style: "red-soft",
     text_position: "left",
-    product_position: "right",
+    product_position: "center",
     animation_type: "float",
+    product_size: "large",
+    show_side_shapes: true,
   },
 ];
 
-export const VISUAL_STYLES: Record<VisualStyle, { bg: string; accent: string; text: string; button: string; legal: string }> = {
-  light:         { bg: "bg-gradient-to-br from-white via-white to-[#FAFAFA]",          accent: "text-primary",      text: "text-foreground", button: "bg-primary text-primary-foreground hover:bg-primary/90", legal: "text-muted-foreground" },
-  "red-soft":    { bg: "bg-gradient-to-br from-[#FFF5F6] via-white to-[#FFE4E8]",       accent: "text-primary",      text: "text-foreground", button: "bg-primary text-primary-foreground hover:bg-primary/90", legal: "text-muted-foreground" },
-  "yellow-offer":{ bg: "bg-gradient-to-br from-[#FFF8DB] via-[#FFFBEA] to-[#FFE9A8]",   accent: "text-[#B8410D]",    text: "text-foreground", button: "bg-[#B8410D] text-white hover:bg-[#9c3709]",            legal: "text-[#7a4a00]" },
-  "wine-premium":{ bg: "bg-gradient-to-br from-[#3A0F1A] via-[#4A1322] to-[#2A0A14]",   accent: "text-[#F5C46B]",    text: "text-white",      button: "bg-[#F5C46B] text-[#3A0F1A] hover:bg-[#e3b258]",         legal: "text-white/70" },
-  "blue-health": { bg: "bg-gradient-to-br from-[#E6F1FF] via-white to-[#CFE3FF]",       accent: "text-[#0A4DA2]",    text: "text-foreground", button: "bg-[#0A4DA2] text-white hover:bg-[#083d83]",             legal: "text-muted-foreground" },
+export const VISUAL_STYLES: Record<VisualStyle, { bg: string; accent: string; text: string; button: string; legal: string; shape: string }> = {
+  light:           { bg: "bg-gradient-to-br from-white via-white to-[#FAFAFA]",         accent: "text-primary",   text: "text-foreground", button: "bg-primary text-primary-foreground hover:bg-primary/90", legal: "text-muted-foreground", shape: "bg-primary/20" },
+  "light-neutral": { bg: "bg-gradient-to-br from-[#FAFAFA] via-white to-[#F1F1F1]",     accent: "text-primary",   text: "text-foreground", button: "bg-primary text-primary-foreground hover:bg-primary/90", legal: "text-muted-foreground", shape: "bg-primary/15" },
+  "red-soft":      { bg: "bg-gradient-to-br from-[#FFF5F6] via-white to-[#FFE4E8]",      accent: "text-primary",   text: "text-foreground", button: "bg-primary text-primary-foreground hover:bg-primary/90", legal: "text-muted-foreground", shape: "bg-[#E5253E]/85" },
+  "beige-health":  { bg: "bg-gradient-to-br from-[#FBF6EE] via-[#FDF8F0] to-[#F1E6D2]", accent: "text-[#B8410D]", text: "text-[#3A2A1A]",  button: "bg-[#B8410D] text-white hover:bg-[#9c3709]",            legal: "text-[#7a4a00]",        shape: "bg-[#B8410D]/80" },
+  "yellow-offer":  { bg: "bg-gradient-to-br from-[#FFF8DB] via-[#FFFBEA] to-[#FFE9A8]", accent: "text-[#B8410D]", text: "text-foreground", button: "bg-[#B8410D] text-white hover:bg-[#9c3709]",            legal: "text-[#7a4a00]",        shape: "bg-[#B8410D]/80" },
+  "wine-premium":  { bg: "bg-gradient-to-br from-[#3A0F1A] via-[#4A1322] to-[#2A0A14]", accent: "text-[#F5C46B]", text: "text-white",      button: "bg-[#F5C46B] text-[#3A0F1A] hover:bg-[#e3b258]",         legal: "text-white/70",         shape: "bg-[#F5C46B]/40" },
+  "blue-health":   { bg: "bg-gradient-to-br from-[#E6F1FF] via-white to-[#CFE3FF]",      accent: "text-[#0A4DA2]", text: "text-foreground", button: "bg-[#0A4DA2] text-white hover:bg-[#083d83]",             legal: "text-muted-foreground", shape: "bg-[#0A4DA2]/80" },
 };
 
 const ANIM_PRODUCT: Record<AnimationType, string> = {
@@ -85,6 +100,13 @@ const ANIM_PRODUCT: Record<AnimationType, string> = {
   "slide-in": "promo-animate-slide-in",
   zoom: "promo-animate-soft-zoom",
   confetti: "promo-animate-float",
+};
+
+const PRODUCT_SIZE: Record<ProductSize, { desk: string; mob: string }> = {
+  small:  { desk: "max-h-[70%] max-w-[60%]", mob: "max-h-[110px]" },
+  medium: { desk: "max-h-[82%] max-w-[75%]", mob: "max-h-[140px]" },
+  large:  { desk: "max-h-[95%] max-w-[90%]", mob: "max-h-[170px]" },
+  xlarge: { desk: "max-h-[105%] max-w-[100%]", mob: "max-h-[200px]" },
 };
 
 function resolveLink(s: HeroSlide): string {
@@ -148,6 +170,9 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
   const customBg = s.background_color ? { backgroundColor: s.background_color } : undefined;
   const customAccent = s.accent_color ? { color: s.accent_color } : undefined;
   const customBtn = s.button_color ? { backgroundColor: s.button_color } : undefined;
+  const productSize = PRODUCT_SIZE[(s.product_size as ProductSize) || "large"];
+  const showShapes = s.show_side_shapes !== false;
+  const shapeStyle = s.side_shapes_color ? { backgroundColor: s.side_shapes_color } : undefined;
 
   return (
     <div className={cn("relative h-full w-full overflow-hidden", !s.background_color && style.bg)} style={customBg}>
@@ -158,10 +183,33 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         </>
       )}
 
-      {/* Decorative */}
+      {/* Side decorative organic shapes */}
+      {showShapes && (
+        <>
+          <div
+            aria-hidden
+            style={shapeStyle}
+            className={cn(
+              "pointer-events-none absolute -left-24 md:-left-32 top-1/2 -translate-y-1/2 h-[140%] w-[28%] md:w-[22%]",
+              "rounded-[100%]",
+              !s.side_shapes_color && style.shape,
+            )}
+          />
+          <div
+            aria-hidden
+            style={shapeStyle}
+            className={cn(
+              "pointer-events-none absolute -right-24 md:-right-32 top-1/2 -translate-y-1/2 h-[140%] w-[28%] md:w-[22%]",
+              "rounded-[100%]",
+              !s.side_shapes_color && style.shape,
+            )}
+          />
+        </>
+      )}
+
+      {/* Soft glow halos */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -right-20 h-96 w-96 rounded-full bg-primary/[0.07] blur-3xl" />
-        <div className="absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-primary/[0.05] blur-3xl" />
+        <div className="absolute -top-32 right-1/4 h-72 w-72 rounded-full bg-white/40 blur-3xl" />
       </div>
 
       {anim === "shine" && <div className="promo-shine-overlay absolute inset-0 pointer-events-none" />}
@@ -171,66 +219,93 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         </div>
       )}
 
-      <div className="container relative h-full grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center py-4 md:py-6 px-6 md:px-10">
-        {/* Text column */}
-        <div className={cn("z-10 md:col-span-5 flex flex-col justify-center", textAlignClass(s.text_position), style.text)}>
+      {/* Desktop layout: 3 integrated zones */}
+      <div className="hidden md:grid container relative h-full grid-cols-12 gap-2 items-center py-4 px-8 lg:px-12">
+        {/* LEFT: tagline */}
+        <div className={cn("z-10 col-span-4 flex flex-col justify-center pr-2", textAlignClass(s.text_position || "left"), style.text)}>
           {s.badge_text && (
-            <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
+            <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-3 shadow-sm">
               {s.badge_text}
             </span>
           )}
           {s.title && (
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.6rem] font-extrabold leading-[1.05] tracking-tight">
+            <h2 className="text-3xl lg:text-[2.4rem] xl:text-[2.8rem] font-extrabold leading-[1.02] tracking-tight">
               {s.title}
             </h2>
           )}
-          {s.subtitle && <p className="mt-2 text-sm md:text-base opacity-80 max-w-md">{s.subtitle}</p>}
-          {s.support_text && <p className="mt-1 text-xs md:text-sm opacity-70 max-w-md">{s.support_text}</p>}
-
-          <div className="mt-4">
-            <Button asChild size="lg" className={cn("font-bold uppercase tracking-wide shadow-md", !s.button_color && style.button)} style={customBtn}>
-              <Link to={link}>{s.cta_text || "Aproveitar"}</Link>
-            </Button>
-          </div>
+          {s.subtitle && <p className="mt-2 text-sm md:text-base opacity-80 max-w-[28ch]">{s.subtitle}</p>}
+          {s.support_text && <p className="mt-2 text-sm md:text-base font-medium opacity-90 max-w-[28ch]">{s.support_text}</p>}
         </div>
 
-        {/* Product column */}
-        <div className={cn(
-          "hidden md:flex relative h-full items-center justify-center md:col-span-4",
-          s.product_position === "left" && "md:order-first",
-          s.product_position === "center" && "md:col-start-5",
-        )}>
-          <div className="relative h-full w-full flex items-center justify-center">
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 h-5 w-[55%] rounded-[50%] bg-foreground/15 blur-2xl" />
-            <img
-              src={productImg}
-              alt={s.title || "Produto"}
-              className={cn("relative max-h-[90%] max-w-[95%] object-contain drop-shadow-[0_24px_28px_rgba(0,0,0,0.22)]", ANIM_PRODUCT[anim])}
-            />
-          </div>
+        {/* CENTER: product, large and integrated */}
+        <div className="relative z-[5] col-span-4 h-full flex items-center justify-center">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 h-6 w-[65%] rounded-[50%] bg-foreground/20 blur-2xl" />
+          <img
+            src={productImg}
+            alt={s.title || "Produto"}
+            className={cn(
+              "relative object-contain drop-shadow-[0_30px_30px_rgba(0,0,0,0.28)]",
+              productSize.desk,
+              ANIM_PRODUCT[anim],
+            )}
+          />
         </div>
 
-        {/* Discount + CTA column */}
-        <div className="hidden md:flex md:col-span-3 flex-col items-center justify-center text-center">
-          {discount != null && (
+        {/* RIGHT: discount + CTA */}
+        <div className="z-10 col-span-4 flex flex-col items-center justify-center text-center pl-2">
+          {discount != null ? (
             <>
-              {s.discount_prefix && <div className={cn("text-xs md:text-sm font-semibold uppercase tracking-wider", style.accent)} style={customAccent}>{s.discount_prefix}</div>}
-              <div className={cn("font-extrabold leading-none tracking-tight", style.accent)} style={customAccent}>
-                <span className="text-5xl md:text-7xl">{discount}</span>
-                <span className="text-2xl md:text-3xl align-top">%</span>
+              {s.discount_prefix && (
+                <div className={cn("text-xs lg:text-sm font-semibold uppercase tracking-wider leading-none", style.accent)} style={customAccent}>
+                  {s.discount_prefix}
+                </div>
+              )}
+              <div className={cn("font-extrabold leading-none tracking-tight mt-1", style.accent)} style={customAccent}>
+                <span className="text-6xl lg:text-7xl xl:text-8xl">{discount}</span>
+                <span className="text-3xl lg:text-4xl align-top">%</span>
               </div>
-              {s.discount_suffix && <div className={cn("text-xs md:text-sm font-semibold uppercase tracking-wider mt-1", style.accent)} style={customAccent}>{s.discount_suffix}</div>}
+              {s.discount_suffix && (
+                <div className={cn("text-xs lg:text-sm font-semibold uppercase tracking-wider mt-1", style.accent)} style={customAccent}>
+                  {s.discount_suffix}
+                </div>
+              )}
             </>
-          )}
-          {s.new_price != null && discount == null && (
-            <div className={cn("text-4xl md:text-5xl font-extrabold", style.accent)} style={customAccent}>{brl(Number(s.new_price))}</div>
-          )}
-          {s.legal_text && <p className={cn("mt-2 text-[10px] md:text-[11px] max-w-[18ch] leading-tight", style.legal)}>{s.legal_text}</p>}
+          ) : s.new_price != null ? (
+            <div className={cn("text-4xl lg:text-5xl font-extrabold", style.accent)} style={customAccent}>{brl(Number(s.new_price))}</div>
+          ) : null}
+
+          <Button
+            asChild
+            size="lg"
+            className={cn("mt-4 font-bold uppercase tracking-wider rounded-full shadow-md px-7", !s.button_color && style.button)}
+            style={customBtn}
+          >
+            <Link to={link}>{s.cta_text || "confira"}</Link>
+          </Button>
         </div>
 
-        {/* Mobile: discount + product inline */}
-        <div className="md:hidden flex flex-col items-center gap-3 mt-1">
-          <img src={productImg} alt={s.title || "Produto"} className={cn("max-h-[140px] object-contain drop-shadow-xl", ANIM_PRODUCT[anim])} />
+        {/* Legal text — bottom right */}
+        {s.legal_text && (
+          <p className={cn("absolute bottom-2 right-4 text-[10px] lg:text-[11px] leading-tight max-w-[40%] text-right opacity-80", style.legal)}>
+            {s.legal_text}
+          </p>
+        )}
+      </div>
+
+      {/* Mobile layout */}
+      <div className="md:hidden relative h-full flex flex-col items-center justify-between text-center px-4 py-4">
+        <div className={cn("w-full flex flex-col items-center", style.text)}>
+          {s.title && <h2 className="text-xl font-extrabold leading-tight">{s.title}</h2>}
+          {s.support_text && <p className="text-xs mt-1 opacity-80">{s.support_text}</p>}
+        </div>
+
+        <img
+          src={productImg}
+          alt={s.title || "Produto"}
+          className={cn("my-1 object-contain drop-shadow-xl", productSize.mob, ANIM_PRODUCT[anim])}
+        />
+
+        <div className="flex flex-col items-center">
           {discount != null && (
             <div className={cn("flex items-end gap-1 font-extrabold leading-none", style.accent)} style={customAccent}>
               {s.discount_prefix && <span className="text-[10px] uppercase tracking-wider self-end mb-1">{s.discount_prefix}</span>}
@@ -239,7 +314,15 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
               {s.discount_suffix && <span className="text-[10px] uppercase tracking-wider self-end mb-1">{s.discount_suffix}</span>}
             </div>
           )}
-          {s.legal_text && <p className={cn("text-[10px] text-center max-w-[28ch] leading-tight", style.legal)}>{s.legal_text}</p>}
+          <Button
+            asChild
+            size="sm"
+            className={cn("mt-2 font-bold uppercase tracking-wider rounded-full px-5", !s.button_color && style.button)}
+            style={customBtn}
+          >
+            <Link to={link}>{s.cta_text || "confira"}</Link>
+          </Button>
+          {s.legal_text && <p className={cn("mt-2 text-[10px] leading-tight max-w-[32ch]", style.legal)}>{s.legal_text}</p>}
         </div>
       </div>
     </div>
