@@ -232,7 +232,7 @@ export default function AdminBanners() {
 
           {/* Live preview — same component & sizing as public */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="relative h-[440px] md:h-[320px] lg:h-[360px]">
+            <div className="relative h-[440px] md:h-[380px] lg:h-[420px] xl:h-[440px]">
               <HeroSlidePreview s={preview} />
             </div>
           </div>

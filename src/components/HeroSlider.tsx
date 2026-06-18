@@ -217,10 +217,10 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         </div>
       )}
 
-      {/* Desktop layout: 30% | 40% | 30% */}
+      {/* Desktop layout: 28% | 44% | 28% */}
       <div
-        className="hidden md:grid relative h-full items-center gap-4 px-8 lg:px-12 pb-8"
-        style={{ gridTemplateColumns: "30% 40% 30%" }}
+        className="hidden md:grid relative h-full items-center gap-3 lg:gap-4 px-6 md:px-8 lg:px-12 pb-6"
+        style={{ gridTemplateColumns: "28% 44% 28%" }}
       >
         {/* LEFT: tagline */}
         <div className={cn("z-10 flex flex-col justify-center pr-2", textAlignClass(s.text_position || "left"), style.text)}>
@@ -230,7 +230,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
             </span>
           )}
           {s.title && (
-            <h2 className="text-2xl lg:text-[2rem] xl:text-[2.4rem] font-extrabold leading-[1.05] tracking-tight">
+            <h2 className="text-xl md:text-2xl lg:text-[2rem] xl:text-[2.4rem] font-extrabold leading-[1.05] tracking-tight">
               {s.title}
             </h2>
           )}
@@ -372,7 +372,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[440px] md:h-[320px] lg:h-[360px]">
+      <div className="relative h-[440px] md:h-[380px] lg:h-[420px] xl:h-[440px]">
         {data.map((s, i) => (
           <div
             key={s.id}
