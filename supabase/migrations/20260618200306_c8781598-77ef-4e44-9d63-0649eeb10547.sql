@@ -1,0 +1,23 @@
+
+ALTER TABLE public.banners
+  ADD COLUMN IF NOT EXISTS banner_type text NOT NULL DEFAULT 'image',
+  ADD COLUMN IF NOT EXISTS published boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS support_text text,
+  ADD COLUMN IF NOT EXISTS legal_text text,
+  ADD COLUMN IF NOT EXISTS discount_percent integer,
+  ADD COLUMN IF NOT EXISTS discount_prefix text,
+  ADD COLUMN IF NOT EXISTS discount_suffix text,
+  ADD COLUMN IF NOT EXISTS product_image_url text,
+  ADD COLUMN IF NOT EXISTS background_image_url text,
+  ADD COLUMN IF NOT EXISTS background_color text,
+  ADD COLUMN IF NOT EXISTS accent_color text,
+  ADD COLUMN IF NOT EXISTS button_color text,
+  ADD COLUMN IF NOT EXISTS product_position text NOT NULL DEFAULT 'right',
+  ADD COLUMN IF NOT EXISTS text_position text NOT NULL DEFAULT 'left',
+  ADD COLUMN IF NOT EXISTS visual_style text NOT NULL DEFAULT 'light',
+  ADD COLUMN IF NOT EXISTS linked_entity_type text,
+  ADD COLUMN IF NOT EXISTS linked_entity_id uuid,
+  ADD COLUMN IF NOT EXISTS linked_entity_slug text,
+  ADD COLUMN IF NOT EXISTS animation_type text NOT NULL DEFAULT 'none',
+  ADD COLUMN IF NOT EXISTS show_text_over_image boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS image_fit text NOT NULL DEFAULT 'cover';
