@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -545,12 +545,12 @@ function GenericEquivalentPicker({ currentId, selfId, onPick }: { currentId: str
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<any[]>([]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (!currentId) { setCurrent(null); return; }
     supabase.from("products").select("id,name,manufacturer,image_url,price,promo_price").eq("id", currentId).maybeSingle().then(({ data }) => setCurrent(data));
   }, [currentId]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (search.length < 2) { setResults([]); return; }
     const t = setTimeout(async () => {
       const { data } = await supabase
