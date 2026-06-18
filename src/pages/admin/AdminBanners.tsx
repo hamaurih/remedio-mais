@@ -45,6 +45,25 @@ const PRODUCT_SIZES = [
   { v: "xlarge", l: "Extra grande" },
 ];
 
+const TITLE_FONTS = [
+  { v: "default", l: "Padrão do site" },
+  { v: "inter", l: "Inter" },
+  { v: "poppins", l: "Poppins" },
+  { v: "montserrat", l: "Montserrat" },
+  { v: "oswald", l: "Oswald (condensado)" },
+  { v: "bebas-neue", l: "Bebas Neue (impacto)" },
+  { v: "archivo", l: "Archivo Black" },
+  { v: "playfair-display", l: "Playfair Display (serifa)" },
+  { v: "dm-serif-display", l: "DM Serif Display (serifa)" },
+];
+
+const TITLE_SIZES = [
+  { v: "sm", l: "Pequeno" },
+  { v: "md", l: "Médio" },
+  { v: "lg", l: "Grande" },
+  { v: "xl", l: "Extra grande" },
+];
+
 const ANIMATIONS = [
   { v: "none", l: "Sem animação" },
   { v: "float", l: "Produto flutuando" },
