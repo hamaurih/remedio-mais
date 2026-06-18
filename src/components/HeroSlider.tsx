@@ -230,7 +230,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
             </span>
           )}
           {s.title && (
-            <h2 className="text-2xl lg:text-[2rem] xl:text-[2.4rem] font-extrabold leading-[1.05] tracking-tight">
+            <h2 className="text-xl md:text-2xl lg:text-[2rem] xl:text-[2.4rem] font-extrabold leading-[1.05] tracking-tight">
               {s.title}
             </h2>
           )}
