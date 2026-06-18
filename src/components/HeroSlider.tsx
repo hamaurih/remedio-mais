@@ -217,10 +217,10 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         </div>
       )}
 
-      {/* Desktop layout: 30% | 40% | 30% */}
+      {/* Desktop layout: 28% | 44% | 28% */}
       <div
-        className="hidden md:grid relative h-full items-center gap-4 px-8 lg:px-12 pb-8"
-        style={{ gridTemplateColumns: "30% 40% 30%" }}
+        className="hidden md:grid relative h-full items-center gap-3 lg:gap-4 px-6 md:px-8 lg:px-12 pb-6"
+        style={{ gridTemplateColumns: "28% 44% 28%" }}
       >
         {/* LEFT: tagline */}
         <div className={cn("z-10 flex flex-col justify-center pr-2", textAlignClass(s.text_position || "left"), style.text)}>
