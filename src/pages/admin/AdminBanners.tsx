@@ -348,6 +348,27 @@ export default function AdminBanners() {
                     <div className="space-y-1"><Label>Cor destaque</Label><Input type="color" value={editing.accent_color || "#d4213d"} onChange={(e) => setEditing({ ...editing, accent_color: e.target.value })} /></div>
                     <div className="space-y-1"><Label>Cor botão</Label><Input type="color" value={editing.button_color || "#d4213d"} onChange={(e) => setEditing({ ...editing, button_color: e.target.value })} /></div>
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label>Fonte do título</Label>
+                      <Select value={editing.title_font || "default"} onValueChange={(v) => setEditing({ ...editing, title_font: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{TITLE_FONTS.map((f) => <SelectItem key={f.v} value={f.v}>{f.l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Tamanho do título</Label>
+                      <Select value={editing.title_size || "lg"} onValueChange={(v) => setEditing({ ...editing, title_size: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{TITLE_SIZES.map((s) => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1"><Label>Cor do título</Label><Input type="color" value={editing.title_color || "#111111"} onChange={(e) => setEditing({ ...editing, title_color: e.target.value })} /></div>
+                    <div className="space-y-1"><Label>Cor texto apoio</Label><Input type="color" value={editing.support_color || "#444444"} onChange={(e) => setEditing({ ...editing, support_color: e.target.value })} /></div>
+                    <div className="space-y-1"><Label>Cor texto legal</Label><Input type="color" value={editing.legal_color || "#666666"} onChange={(e) => setEditing({ ...editing, legal_color: e.target.value })} /></div>
+                  </div>
                   <div className="space-y-1">
                     <Label>Imagem dos produtos (PNG/WEBP recortado, sem fundo)</Label>
                     {editing.product_image_url && <img src={editing.product_image_url} className="h-20 object-contain mb-1" />}
