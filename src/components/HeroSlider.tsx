@@ -372,7 +372,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[360px] sm:h-[340px] md:h-[300px] lg:h-[340px]">
+      <div className="relative h-[440px] md:h-[320px] lg:h-[360px]">
         {data.map((s, i) => (
           <div
             key={s.id}
