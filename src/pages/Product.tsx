@@ -10,6 +10,9 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { ShoppingCart, FileText, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "@/components/VariantSelector";
+import { useRelatedProducts } from "@/hooks/useRelatedProducts";
+import { ProductShelf } from "@/components/ProductShelf";
+import { openGenericCheck } from "@/lib/genericSuggestion";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();

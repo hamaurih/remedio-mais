@@ -1,15 +1,57 @@
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useCart } from "@/hooks/useCart";
 import { Button } from "@/components/ui/button";
-import { cartTotal, formatBRL, removeFromCart, updateQty } from "@/lib/store";
+import { addToCart, cartTotal, formatBRL, removeFromCart, updateQty } from "@/lib/store";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
+import { toast } from "sonner";
+
+function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
+  const [sug, setSug] = useState<GenericSuggestion | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const pid = item.product_id || item.id;
+    if (!pid) return;
+    fetchGenericSuggestion(pid).then((s) => { if (alive) setSug(s); });
+    return () => { alive = false; };
+  }, [item.id, item.product_id]);
+
+  if (!sug) return null;
+
+  const swap = () => {
+    removeFromCart(item.id);
+    addToCart({
+      id: sug.candidate.id,
+      product_id: sug.candidate.id,
+      name: sug.candidate.name,
+      price: sug.candidate.promo_price ?? sug.candidate.price,
+      image_url: sug.candidate.image_url,
+    }, item.quantity);
+    toast.success(`Trocado pelo genérico — economia de ${formatBRL(sug.savings * item.quantity)}`);
+    onSwapped();
+  };
+
+  return (
+    <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center gap-2">
+      <Sparkles className="h-4 w-4 text-emerald-700 shrink-0" />
+      <div className="flex-1 text-[12px] text-emerald-900 min-w-0">
+        Existe um <strong>genérico</strong> por <strong>{formatBRL(sug.finalPrice)}</strong> — economize {formatBRL(sug.savings)} ({Math.round(sug.pct * 100)}%)
+      </div>
+      <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-600 text-emerald-700 hover:bg-emerald-100" onClick={swap}>
+        Trocar
+      </Button>
+    </div>
+  );
+}
 
 export default function Cart() {
   const items = useCart();
   const total = cartTotal(items);
   const nav = useNavigate();
+  const [tick, setTick] = useState(0);
 
   return (
     <Layout>
@@ -25,21 +67,24 @@ export default function Cart() {
           <div className="grid lg:grid-cols-[1fr_360px] gap-6">
             <div className="space-y-3">
               {items.map((i) => (
-                <div key={i.id} className="bg-card border rounded-xl p-3 flex gap-3 items-center shadow-card">
-                  <img src={i.image_url || productPlaceholder} alt={i.name} className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
-                  <div className="flex-1">
-                    <div className="font-medium text-sm line-clamp-2">{i.name}</div>
-                    {i.variant_label && (
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>
-                    )}
-                    <div className="text-primary font-bold mt-1">{formatBRL(i.price)}</div>
+                <div key={i.id} className="bg-card border rounded-xl p-3 shadow-card">
+                  <div className="flex gap-3 items-center">
+                    <img src={i.image_url || productPlaceholder} alt={i.name} className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm line-clamp-2">{i.name}</div>
+                      {i.variant_label && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>
+                      )}
+                      <div className="text-primary font-bold mt-1">{formatBRL(i.price)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity - 1)}><Minus className="h-3 w-3" /></Button>
+                      <span className="w-8 text-center font-semibold">{i.quantity}</span>
+                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => removeFromCart(i.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity - 1)}><Minus className="h-3 w-3" /></Button>
-                    <span className="w-8 text-center font-semibold">{i.quantity}</span>
-                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity + 1)}><Plus className="h-3 w-3" /></Button>
-                  </div>
-                  <Button size="icon" variant="ghost" onClick={() => removeFromCart(i.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                  <GenericLine key={`${i.id}-${tick}`} item={i} onSwapped={() => setTick((t) => t + 1)} />
                 </div>
               ))}
             </div>
