@@ -146,6 +146,16 @@ export default function Product() {
           </div>
         </div>
       </div>
+
+      {(related.length > 0 || relatedLoading) && (
+        <ProductShelf
+          title="Produtos relacionados"
+          subtitle="Você também pode se interessar"
+          products={related}
+          loading={relatedLoading}
+          backgroundVariant="light"
+        />
+      )}
     </Layout>
   );
 }
