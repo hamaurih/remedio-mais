@@ -10,6 +10,16 @@ export type ImagePosition = "direita" | "esquerda" | "centro" | "fundo";
 export type ImageSize = "pequeno" | "medio" | "grande";
 export type BgColor = "azul_claro" | "vermelho_claro" | "branco" | "personalizado";
 export type CtaColor = "vermelho" | "azul" | "amarelo";
+export type AnimationType =
+  | "none"
+  | "float"
+  | "slide-in"
+  | "soft-zoom"
+  | "badge-pulse"
+  | "shine"
+  | "cta-pulse"
+  | "confetti"
+  | "hover";
 
 export type PromoBlock = {
   id: string;
@@ -35,6 +45,7 @@ export type PromoBlock = {
   bg_color?: BgColor | null;
   bg_custom?: string | null;
   cta_color?: CtaColor | null;
+  animation_type?: AnimationType | null;
 };
 
 const brl = (n: number) =>
@@ -142,6 +153,37 @@ function textMaxWidth(type: BlockType) {
   }
 }
 
+export function resolveAnimation(b: PromoBlock): AnimationType {
+  return (b.animation_type as AnimationType) ?? "float";
+}
+
+function animClasses(b: PromoBlock) {
+  const t = resolveAnimation(b);
+  return {
+    wrapper: t === "hover" ? "promo-animate-hover" : "",
+    img:
+      t === "float" ? "promo-animate-float"
+      : t === "soft-zoom" ? "promo-animate-soft-zoom"
+      : t === "slide-in" ? "promo-animate-slide-in"
+      : "",
+    badge: t === "badge-pulse" ? "promo-animate-pulse" : "",
+    cta: t === "cta-pulse" ? "promo-animate-cta-pulse" : "",
+    overlay: t === "shine" ? "shine" : t === "confetti" ? "confetti" : "",
+  };
+}
+
+function AnimOverlay({ kind }: { kind: string }) {
+  if (kind === "shine") return <div className="promo-shine-overlay" aria-hidden />;
+  if (kind === "confetti") {
+    return (
+      <div className="promo-confetti-overlay" aria-hidden>
+        <span /><span /><span /><span /><span /><span />
+      </div>
+    );
+  }
+  return null;
+}
+
 // ---------- inner card ----------
 function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
   const Icon = variantIcon[block.variant] ?? variantIcon.default;
@@ -153,6 +195,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
 
   const isFeatured = type === "destaque_grande";
   const isSmall = type === "card_pequeno";
+  const anim = animClasses(block);
 
   // banner_completo OR arte_completa: image fills card, text optional overlay
   const fullImage = type === "banner_completo" || mode === "arte_completa";
@@ -164,18 +207,22 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
           src={block.image_url!}
           alt={block.title ?? "Promoção"}
           loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]",
+            anim.img,
+          )}
         />
         {showText && (block.title || block.badge_text) && (
           <div className="absolute inset-0 z-10 flex flex-col justify-end p-3 bg-gradient-to-t from-black/60 to-transparent text-white">
             {block.badge_text && (
-              <span className="self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground">
+              <span className={cn("self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground", anim.badge)}>
                 {block.badge_text}
               </span>
             )}
             {block.title && <h3 className="text-sm font-extrabold line-clamp-2">{block.title}</h3>}
           </div>
         )}
+        <AnimOverlay kind={anim.overlay} />
       </>
     );
   }
@@ -195,6 +242,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
             {block.badge_text && (
               <span className={cn(
                 "inline-block max-w-full truncate text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground",
+                anim.badge,
               )}>
                 {block.badge_text}
               </span>
@@ -244,6 +292,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
                 "inline-flex w-fit items-center gap-1 font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
                 ctaClass(block),
                 isFeatured ? "text-[11px] md:text-[12px] px-3 py-1" : "text-[10px] md:text-[11px] px-2.5 py-1",
+                anim.cta,
               )}>
                 {block.cta_text} →
               </span>
@@ -261,16 +310,19 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
           className={cn(
             "pointer-events-none absolute z-0 object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)] transition-transform duration-500 group-hover:scale-[1.04]",
             imgPosCls,
+            anim.img,
           )}
         />
       ) : (
         <div className={cn(
           "absolute right-3 bottom-3 z-0 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-sky-100 border border-sky-100 flex items-center justify-center",
           isFeatured ? "h-20 w-20" : isSmall ? "h-12 w-12" : "h-14 w-14",
+          anim.img,
         )}>
           <Icon className={cn("text-primary", isFeatured ? "h-10 w-10" : "h-6 w-6")} />
         </div>
       )}
+      <AnimOverlay kind={anim.overlay} />
     </>
   );
 }
@@ -287,6 +339,7 @@ export function PromoBlockPreview({ block, index = 0 }: { block: PromoBlock; ind
         "group relative overflow-hidden rounded-xl border border-sky-100 shadow-sm",
         sizeClass(type),
         styleBg ? "" : bgClass(block),
+        animClasses(block).wrapper,
       )}
     >
       <CardInner block={block} type={type} />
@@ -312,6 +365,7 @@ function Tile({ block, index }: { block: PromoBlock; index: number }) {
         "transition-all hover:-translate-y-0.5",
         sizeClass(type),
         styleBg ? "" : bgClass(block),
+        animClasses(block).wrapper,
       )}
     >
       <CardInner block={block} type={type} />

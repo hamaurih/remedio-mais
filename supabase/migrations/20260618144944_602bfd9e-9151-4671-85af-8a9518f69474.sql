@@ -1,0 +1,1 @@
+ALTER TABLE public.promo_banner_blocks ADD COLUMN IF NOT EXISTS animation_type text DEFAULT 'float';

@@ -63,6 +63,18 @@ const CTA_COLORS = [
   { value: "amarelo", label: "Amarelo" },
 ];
 
+const ANIMATION_TYPES = [
+  { value: "none", label: "Sem animação" },
+  { value: "float", label: "Produto flutuando" },
+  { value: "slide-in", label: "Produto entrando pela direita" },
+  { value: "soft-zoom", label: "Zoom suave no produto" },
+  { value: "badge-pulse", label: "Selo pulsando" },
+  { value: "shine", label: "Brilho passando" },
+  { value: "cta-pulse", label: "CTA pulsando leve" },
+  { value: "confetti", label: "Confete leve" },
+  { value: "hover", label: "Card com hover animado" },
+];
+
 export default function AdminPromoBanner() {
   const [blocks, setBlocks] = useState<PromoBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +137,7 @@ export default function AdminPromoBanner() {
         title: "Novo bloco",
         active: true,
         block_type: "card_medio",
+        animation_type: "float",
       });
     if (error) toast.error(error.message);
     else load();
@@ -330,6 +343,22 @@ export default function AdminPromoBanner() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Tipo de animação</Label>
+                  <Select
+                    value={b.animation_type ?? "float"}
+                    onValueChange={(v) => update(b.id, { animation_type: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ANIMATION_TYPES.map((v) => (
+                        <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">Microanimação leve. Respeita "reduzir movimento" do sistema.</p>
                 </div>
 
                 <div className="flex items-center gap-2 pt-6">
