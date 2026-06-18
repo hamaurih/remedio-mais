@@ -1438,6 +1438,7 @@ export type Database = {
       promo_banner_blocks: {
         Row: {
           active: boolean
+          animation_type: string | null
           badge_text: string | null
           bg_color: string
           bg_custom: string | null
@@ -1465,6 +1466,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          animation_type?: string | null
           badge_text?: string | null
           bg_color?: string
           bg_custom?: string | null
@@ -1492,6 +1494,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          animation_type?: string | null
           badge_text?: string | null
           bg_color?: string
           bg_custom?: string | null
