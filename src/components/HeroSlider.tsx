@@ -425,7 +425,9 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative h-[440px] md:h-[380px] lg:h-[420px] xl:h-[440px]">
+      <div className="relative h-[440px] md:h-auto" style={{ height: undefined }}>
+        <div className="md:hidden h-[440px]" />
+        <div className="hidden md:block" style={{ height: "clamp(300px, 38vw, 440px)" }} />
         {data.map((s, i) => (
           <div
             key={s.id}
