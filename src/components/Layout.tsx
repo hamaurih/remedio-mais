@@ -4,6 +4,7 @@ import { Footer } from "./Footer";
 import { WhatsAppFab } from "./WhatsAppFab";
 import { ProductQuickView } from "./ProductQuickView";
 import { PromoBanner } from "./PromoBanner";
+import { GenericSuggestionDialog } from "./GenericSuggestionDialog";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <Footer />
       <WhatsAppFab />
       <ProductQuickView />
+      <GenericSuggestionDialog />
     </div>
   );
 }

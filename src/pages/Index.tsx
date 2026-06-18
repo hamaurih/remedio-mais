@@ -96,11 +96,22 @@ export default function Index() {
   const bestsellers = useQuery({
     queryKey: ["shelf_bestsellers"],
     queryFn: async () => {
+      // 1) Ordem manual definida no admin (bestseller_rank)
+      const ranked = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true).gt("stock", 0).gt("price", 0)
+        .not("bestseller_rank", "is", null)
+        .order("bestseller_rank", { ascending: true })
+        .limit(12);
+      if (ranked.data && ranked.data.length > 0) return ranked.data as Product[];
+      // 2) Fallback antigo: tag de prateleira
       const t = await shelfBy("mais-vendidos")();
       if (t) return t;
+      // 3) Fallback: destaques
       const feat = await fetchShelf((q) => q.eq("featured", true).gt("price", 0))();
       if (feat.length > 0) return feat;
-      // último fallback: recém atualizados
+      // 4) último fallback: recém atualizados
       const { data } = await supabase
         .from("products")
         .select("*")

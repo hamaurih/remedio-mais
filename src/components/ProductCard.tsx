@@ -5,6 +5,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
 import { toast } from "sonner";
 import { openQuickView } from "@/lib/quickview";
+import { openGenericCheck } from "@/lib/genericSuggestion";
 
 export type Product = {
   id: string; name: string; slug: string;
@@ -58,8 +59,12 @@ export function ProductCard({ p }: { p: Product }) {
       openQuickView(p);
       return;
     }
-    addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
-    toast.success("Adicionado ao carrinho");
+    const doAdd = () => {
+      addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
+      toast.success("Adicionado ao carrinho");
+    };
+    // Checa se existe genérico equivalente (modal abre se houver, senão adiciona direto)
+    openGenericCheck({ product: p, onAddOriginal: doAdd });
   };
 
   return (
