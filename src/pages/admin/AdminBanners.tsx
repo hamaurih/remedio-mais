@@ -29,11 +29,20 @@ const BANNER_TYPES = [
 ];
 
 const VISUAL_STYLES = [
+  { v: "light-neutral", l: "Claro neutro" },
   { v: "light", l: "Claro" },
   { v: "red-soft", l: "Vermelho suave" },
+  { v: "beige-health", l: "Bege saúde" },
   { v: "yellow-offer", l: "Amarelo oferta" },
   { v: "wine-premium", l: "Vinho premium" },
   { v: "blue-health", l: "Azul saúde" },
+];
+
+const PRODUCT_SIZES = [
+  { v: "small", l: "Pequeno" },
+  { v: "medium", l: "Médio" },
+  { v: "large", l: "Grande" },
+  { v: "xlarge", l: "Extra grande" },
 ];
 
 const ANIMATIONS = [
