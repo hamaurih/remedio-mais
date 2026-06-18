@@ -72,8 +72,11 @@ export type Database = {
           position: number
           product_image_url: string | null
           product_position: string
+          product_size: string | null
           published: boolean
+          show_side_shapes: boolean | null
           show_text_over_image: boolean
+          side_shapes_color: string | null
           start_date: string | null
           subtitle: string | null
           support_text: string | null
@@ -109,8 +112,11 @@ export type Database = {
           position?: number
           product_image_url?: string | null
           product_position?: string
+          product_size?: string | null
           published?: boolean
+          show_side_shapes?: boolean | null
           show_text_over_image?: boolean
+          side_shapes_color?: string | null
           start_date?: string | null
           subtitle?: string | null
           support_text?: string | null
@@ -146,8 +152,11 @@ export type Database = {
           position?: number
           product_image_url?: string | null
           product_position?: string
+          product_size?: string | null
           published?: boolean
+          show_side_shapes?: boolean | null
           show_text_over_image?: boolean
+          side_shapes_color?: string | null
           start_date?: string | null
           subtitle?: string | null
           support_text?: string | null
