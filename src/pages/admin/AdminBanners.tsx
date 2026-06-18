@@ -247,10 +247,10 @@ export default function AdminBanners() {
                 </Select>
               </div>
 
-              <div className="space-y-1"><Label>Título principal</Label><Input value={editing.title || ""} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></div>
+              <div className="space-y-1"><Label>{showCampaignFields ? "Frase principal da campanha" : "Título principal"}</Label><Input value={editing.title || ""} onChange={(e) => setEditing({ ...editing, title: e.target.value })} placeholder={showCampaignFields ? "Abasteça sua farmacinha" : ""} /></div>
               <div className="space-y-1"><Label>Subtítulo</Label><Input value={editing.subtitle || ""} onChange={(e) => setEditing({ ...editing, subtitle: e.target.value })} /></div>
               {showCampaignFields && (
-                <div className="space-y-1"><Label>Texto de apoio</Label><Input value={editing.support_text || ""} onChange={(e) => setEditing({ ...editing, support_text: e.target.value })} /></div>
+                <div className="space-y-1"><Label>Texto de apoio</Label><Input value={editing.support_text || ""} onChange={(e) => setEditing({ ...editing, support_text: e.target.value })} placeholder="Cuidado completo para sua saúde" /></div>
               )}
 
               <div className="space-y-1"><Label>Texto do botão (CTA)</Label><Input value={editing.cta_text || ""} onChange={(e) => setEditing({ ...editing, cta_text: e.target.value })} /></div>
