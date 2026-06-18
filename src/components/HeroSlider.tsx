@@ -103,10 +103,10 @@ const ANIM_PRODUCT: Record<AnimationType, string> = {
 };
 
 const PRODUCT_SIZE: Record<ProductSize, { desk: string; mob: string }> = {
-  small:  { desk: "max-h-[70%] max-w-[60%]", mob: "max-h-[110px]" },
-  medium: { desk: "max-h-[82%] max-w-[75%]", mob: "max-h-[140px]" },
-  large:  { desk: "max-h-[95%] max-w-[90%]", mob: "max-h-[170px]" },
-  xlarge: { desk: "max-h-[105%] max-w-[100%]", mob: "max-h-[200px]" },
+  small:  { desk: "max-h-[55%] max-w-[90%]", mob: "max-h-[140px]" },
+  medium: { desk: "max-h-[65%] max-w-[95%]", mob: "max-h-[160px]" },
+  large:  { desk: "max-h-[75%] max-w-[100%]", mob: "max-h-[180px]" },
+  xlarge: { desk: "max-h-[85%] max-w-[100%]", mob: "max-h-[200px]" },
 };
 
 function resolveLink(s: HeroSlide): string {
