@@ -153,6 +153,37 @@ function textMaxWidth(type: BlockType) {
   }
 }
 
+export function resolveAnimation(b: PromoBlock): AnimationType {
+  return (b.animation_type as AnimationType) ?? "float";
+}
+
+function animClasses(b: PromoBlock) {
+  const t = resolveAnimation(b);
+  return {
+    wrapper: t === "hover" ? "promo-animate-hover" : "",
+    img:
+      t === "float" ? "promo-animate-float"
+      : t === "soft-zoom" ? "promo-animate-soft-zoom"
+      : t === "slide-in" ? "promo-animate-slide-in"
+      : "",
+    badge: t === "badge-pulse" ? "promo-animate-pulse" : "",
+    cta: t === "cta-pulse" ? "promo-animate-cta-pulse" : "",
+    overlay: t === "shine" ? "shine" : t === "confetti" ? "confetti" : "",
+  };
+}
+
+function AnimOverlay({ kind }: { kind: string }) {
+  if (kind === "shine") return <div className="promo-shine-overlay" aria-hidden />;
+  if (kind === "confetti") {
+    return (
+      <div className="promo-confetti-overlay" aria-hidden>
+        <span /><span /><span /><span /><span /><span />
+      </div>
+    );
+  }
+  return null;
+}
+
 // ---------- inner card ----------
 function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
   const Icon = variantIcon[block.variant] ?? variantIcon.default;
