@@ -10,6 +10,16 @@ export type ImagePosition = "direita" | "esquerda" | "centro" | "fundo";
 export type ImageSize = "pequeno" | "medio" | "grande";
 export type BgColor = "azul_claro" | "vermelho_claro" | "branco" | "personalizado";
 export type CtaColor = "vermelho" | "azul" | "amarelo";
+export type AnimationType =
+  | "none"
+  | "float"
+  | "slide-in"
+  | "soft-zoom"
+  | "badge-pulse"
+  | "shine"
+  | "cta-pulse"
+  | "confetti"
+  | "hover";
 
 export type PromoBlock = {
   id: string;
@@ -35,6 +45,7 @@ export type PromoBlock = {
   bg_color?: BgColor | null;
   bg_custom?: string | null;
   cta_color?: CtaColor | null;
+  animation_type?: AnimationType | null;
 };
 
 const brl = (n: number) =>
