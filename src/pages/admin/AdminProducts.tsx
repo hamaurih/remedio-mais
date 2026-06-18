@@ -447,7 +447,66 @@ export default function AdminProducts() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1 pt-2 border-t">
+                <Label className="flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Posição em "Mais Vendidos"</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Vazio = não aparece"
+                  value={editing.bestseller_rank ?? ""}
+                  onChange={(e) => setEditing({ ...editing, bestseller_rank: e.target.value ? Number(e.target.value) : null })}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Menor número aparece primeiro. Use o botão <strong>Organizar Mais Vendidos</strong> no topo para arrastar e ordenar visualmente.
+                </p>
+              </div>
             </TabsContent>
+
+            <TabsContent value="generic" className="space-y-4 pt-3">
+              <div className="flex items-center gap-2 p-3 border rounded-lg bg-emerald-50">
+                <Switch
+                  checked={!!editing.is_generic}
+                  onCheckedChange={(v) => setEditing({ ...editing, is_generic: v, generic_equivalent_id: v ? null : editing.generic_equivalent_id })}
+                />
+                <div>
+                  <Label className="font-semibold">Este produto é um genérico</Label>
+                  <p className="text-[11px] text-muted-foreground">Marque para que ele possa ser sugerido como alternativa mais barata em produtos de marca.</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Princípio ativo</Label>
+                <Input value={editing.active_ingredient || ""} onChange={(e) => setEditing({ ...editing, active_ingredient: e.target.value })} placeholder="Ex.: Paracetamol 500mg" />
+                <p className="text-[11px] text-muted-foreground">
+                  Usado para sugerir genéricos automaticamente quando dois produtos têm o mesmo princípio ativo.
+                </p>
+              </div>
+
+              {!editing.is_generic && (
+                <div className="space-y-1 pt-3 border-t">
+                  <Label>Genérico equivalente (manual)</Label>
+                  <GenericEquivalentPicker
+                    currentId={editing.generic_equivalent_id}
+                    selfId={editing.id}
+                    onPick={(id) => setEditing({ ...editing, generic_equivalent_id: id })}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Quando definido, este vínculo tem prioridade sobre a busca automática por princípio ativo.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="related" className="pt-3">
+              {editing.id ? (
+                <RelatedProductsPicker productId={editing.id} />
+              ) : (
+                <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
+                  Salve o produto primeiro (botão <strong>Salvar e continuar</strong>) para definir produtos relacionados.
+                </div>
+              )}
+            </TabsContent>
+
 
             <TabsContent value="reg" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.requires_prescription} onCheckedChange={(v) => setEditing({ ...editing, requires_prescription: v })} /><Label>Exige receita</Label></div>
