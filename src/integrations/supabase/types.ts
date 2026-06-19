@@ -51,6 +51,7 @@ export type Database = {
           animation_type: string
           background_color: string | null
           background_image_url: string | null
+          background_intensity: string | null
           banner_type: string
           button_color: string | null
           created_at: string
@@ -78,6 +79,7 @@ export type Database = {
           show_side_shapes: boolean | null
           show_text_over_image: boolean
           side_shapes_color: string | null
+          side_shapes_size: string | null
           start_date: string | null
           subtitle: string | null
           support_color: string | null
@@ -96,6 +98,7 @@ export type Database = {
           animation_type?: string
           background_color?: string | null
           background_image_url?: string | null
+          background_intensity?: string | null
           banner_type?: string
           button_color?: string | null
           created_at?: string
@@ -123,6 +126,7 @@ export type Database = {
           show_side_shapes?: boolean | null
           show_text_over_image?: boolean
           side_shapes_color?: string | null
+          side_shapes_size?: string | null
           start_date?: string | null
           subtitle?: string | null
           support_color?: string | null
@@ -141,6 +145,7 @@ export type Database = {
           animation_type?: string
           background_color?: string | null
           background_image_url?: string | null
+          background_intensity?: string | null
           banner_type?: string
           button_color?: string | null
           created_at?: string
@@ -168,6 +173,7 @@ export type Database = {
           show_side_shapes?: boolean | null
           show_text_over_image?: boolean
           side_shapes_color?: string | null
+          side_shapes_size?: string | null
           start_date?: string | null
           subtitle?: string | null
           support_color?: string | null
