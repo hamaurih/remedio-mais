@@ -2,6 +2,7 @@
 // Requer usuário autenticado. Token do MP é lido de Deno.env (Secrets).
 // Logs e diagnóstico estruturados (gravados em public.payment_errors).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { safeLog as maskedLog, safeError, maskId, maskEmail, maskSensitiveData } from "../_shared/mask.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,7 @@ function maskToken(t?: string) {
   return `present(len=${t.length},prefix=${t.slice(0, 6)}…)`;
 }
 function safeLog(label: string, data: Record<string, unknown>) {
-  try { console.log(`[mp-checkout] ${label}`, JSON.stringify(data)); } catch { console.log(`[mp-checkout] ${label}`, data); }
+  maskedLog(`[mp-checkout] ${label}`, data);
 }
 
 async function recordError(adminClient: any, payload: {
@@ -45,7 +46,7 @@ async function recordError(adminClient: any, payload: {
   try {
     await adminClient.from("payment_errors").insert(payload);
   } catch (e) {
-    console.log("[mp-checkout] failed to insert payment_errors", (e as Error).message);
+    safeError("[mp-checkout] failed to insert payment_errors", { message: (e as Error).message });
   }
 }
 
