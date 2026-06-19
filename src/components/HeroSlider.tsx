@@ -60,6 +60,8 @@ export type HeroSlide = {
   product_size?: ProductSize | null;
   show_side_shapes?: boolean | null;
   side_shapes_color?: string | null;
+  side_shapes_size?: "small" | "medium" | "large" | null;
+  background_intensity?: "off" | "xsoft" | "soft" | "medium" | null;
   title_font?: string | null;
   title_color?: string | null;
   support_color?: string | null;
