@@ -1,6 +1,7 @@
 // Webhook do Mercado Pago: idempotente, valida HMAC x-signature, bloqueia divergência de valor.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { safeLog, safeError, maskId } from "../_shared/mask.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
       gateway: "mercado_pago", event_type: topic, external_id: externalId, payload,
     });
     if (insErr && !insErr.message.includes("duplicate")) {
-      console.error("event insert error", insErr);
+      safeError("[mp-webhook] event insert error", { code: insErr.code, message: insErr.message });
     }
     if (insErr?.message.includes("duplicate")) return ok();
 
@@ -78,9 +79,16 @@ Deno.serve(async (req) => {
     });
     const pay = await payRes.json();
     if (!payRes.ok) {
-      console.error("MP payment fetch error", pay);
+      safeError("[mp-webhook] MP payment fetch failed", { status: payRes.status, paymentId: maskId(String(paymentId)) });
       return ok();
     }
+
+    safeLog("[mp-webhook] payment fetched", {
+      payment_id: maskId(String(paymentId)),
+      status: pay.status,
+      external_reference: maskId(String(pay.external_reference ?? "")),
+      transaction_amount: pay.transaction_amount,
+    });
 
     const externalReference = pay.external_reference as string | undefined;
     if (!externalReference) return ok();
@@ -143,7 +151,7 @@ Deno.serve(async (req) => {
     }
     return ok();
   } catch (e) {
-    console.error("webhook error", e);
+    safeError("[mp-webhook] unexpected error", { message: (e as Error)?.message });
     return ok();
   }
 });
@@ -179,5 +187,5 @@ async function logError(
       payload_summary: summary ?? null,
       order_id: orderId ?? null,
     });
-  } catch (e) { console.error("payment_errors log failed", e); }
+  } catch (e) { safeError("[mp-webhook] payment_errors log failed", { message: (e as Error)?.message }); }
 }
