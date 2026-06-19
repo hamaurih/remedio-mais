@@ -1,6 +1,7 @@
 // Webhook do Mercado Pago: idempotente, valida HMAC x-signature, bloqueia divergência de valor.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { safeLog, safeError, maskId } from "../_shared/mask.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
