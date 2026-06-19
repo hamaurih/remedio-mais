@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       gateway: "mercado_pago", event_type: topic, external_id: externalId, payload,
     });
     if (insErr && !insErr.message.includes("duplicate")) {
-      console.error("event insert error", insErr);
+      safeError("[mp-webhook] event insert error", { code: insErr.code, message: insErr.message });
     }
     if (insErr?.message.includes("duplicate")) return ok();
 
@@ -79,9 +79,16 @@ Deno.serve(async (req) => {
     });
     const pay = await payRes.json();
     if (!payRes.ok) {
-      console.error("MP payment fetch error", pay);
+      safeError("[mp-webhook] MP payment fetch failed", { status: payRes.status, paymentId: maskId(String(paymentId)) });
       return ok();
     }
+
+    safeLog("[mp-webhook] payment fetched", {
+      payment_id: maskId(String(paymentId)),
+      status: pay.status,
+      external_reference: maskId(String(pay.external_reference ?? "")),
+      transaction_amount: pay.transaction_amount,
+    });
 
     const externalReference = pay.external_reference as string | undefined;
     if (!externalReference) return ok();
@@ -144,7 +151,7 @@ Deno.serve(async (req) => {
     }
     return ok();
   } catch (e) {
-    console.error("webhook error", e);
+    safeError("[mp-webhook] unexpected error", { message: (e as Error)?.message });
     return ok();
   }
 });
