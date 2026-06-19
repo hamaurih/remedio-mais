@@ -95,7 +95,7 @@ const empty: any = {
   product_position: "center", text_position: "left", visual_style: "red-soft",
   linked_entity_type: "manual", linked_entity_id: null, linked_entity_slug: "",
   animation_type: "float", show_text_over_image: false, image_fit: "cover",
-  product_size: "large", show_side_shapes: true, side_shapes_color: "",
+  product_size: "large", show_side_shapes: true, side_shapes_color: "", side_shapes_size: "medium", background_intensity: "xsoft",
   title_font: "default", title_size: "lg", title_color: "", support_color: "", legal_color: "",
 };
 
