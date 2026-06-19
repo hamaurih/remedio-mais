@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { safeLog, safeError, maskId, maskPath, maskPhone } from "../_shared/mask.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,10 +71,11 @@ Deno.serve(async (req) => {
         .from("prescriptions")
         .upload(path, bytes, { contentType: mime, upsert: false });
       if (upErr) {
-        console.error("upload error", upErr.message);
+        safeError("[submit-prescription] upload error", { message: upErr.message, mime, size: file.size, path: maskPath(path) });
         return json({ error: "Falha ao salvar o arquivo." }, 500);
       }
       file_url = path;
+      safeLog("[submit-prescription] upload ok", { path: maskPath(path), mime, size: file.size });
     }
 
     const auth = req.headers.get("authorization") || "";
@@ -92,13 +94,14 @@ Deno.serve(async (req) => {
       user_id,
     });
     if (insErr) {
-      console.error("insert error", insErr.message);
+      safeError("[submit-prescription] insert error", { message: insErr.message, user_id: maskId(user_id ?? "") });
       return json({ error: "Falha ao registrar a receita." }, 500);
     }
 
+    safeLog("[submit-prescription] saved", { user_id: maskId(user_id ?? ""), phone: maskPhone(phone), has_file: !!file_url });
     return json({ ok: true });
   } catch (e) {
-    console.error("submit-prescription unexpected", e);
+    safeError("[submit-prescription] unexpected", { message: (e as Error)?.message });
     return json({ error: "Erro inesperado." }, 500);
   }
 });
