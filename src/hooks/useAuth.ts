@@ -17,6 +17,7 @@ export function useAuth() {
         if (!mounted) return;
         setUser(null);
         setIsAdmin(false);
+        setLoading(false);
         return;
       }
       const { data, error } = await supabase.auth.getUser();
@@ -24,6 +25,7 @@ export function useAuth() {
       if (error || !data?.user) {
         setUser(null);
         setIsAdmin(false);
+        setLoading(false);
         return;
       }
       setUser(data.user);
@@ -35,6 +37,7 @@ export function useAuth() {
         .maybeSingle();
       if (!mounted) return;
       setIsAdmin(!!role);
+      setLoading(false);
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -46,7 +49,6 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!mounted) return;
       setSession(s);
-      setLoading(false);
       void refreshUser(s);
     });
 
