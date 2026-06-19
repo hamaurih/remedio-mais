@@ -82,10 +82,23 @@ export const TITLE_FONTS: Record<string, string> = {
 };
 
 const TITLE_SIZE_FLUID: Record<string, string> = {
-  sm: "clamp(1.1rem, 2.4vw, 1.6rem)",
-  md: "clamp(1.3rem, 3vw, 2rem)",
-  lg: "clamp(1.5rem, 3.6vw, 2.4rem)",
-  xl: "clamp(1.7rem, 4.2vw, 2.8rem)",
+  sm: "clamp(1.6rem, 2.6vw, 2.1rem)",
+  md: "clamp(1.9rem, 3vw, 2.5rem)",
+  lg: "clamp(2.1rem, 3.4vw, 2.9rem)",
+  xl: "clamp(2.4rem, 3.8vw, 3.2rem)",
+};
+
+const SHAPE_SIZE: Record<string, string> = {
+  small:  "w-[90px] md:w-[110px]",
+  medium: "w-[120px] md:w-[150px]",
+  large:  "w-[150px] md:w-[200px]",
+};
+
+const BG_INTENSITY: Record<string, number> = {
+  off: 0,
+  xsoft: 0.08,
+  soft: 0.14,
+  medium: 0.22,
 };
 
 const FALLBACK: HeroSlide[] = [
