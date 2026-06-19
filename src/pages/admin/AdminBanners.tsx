@@ -391,6 +391,35 @@ export default function AdminBanners() {
                     <Switch checked={editing.show_side_shapes !== false} onCheckedChange={(v) => setEditing({ ...editing, show_side_shapes: v })} />
                     <Label>Mostrar formas decorativas laterais</Label>
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label>Tamanho das formas laterais</Label>
+                      <Select value={editing.side_shapes_size || "medium"} onValueChange={(v) => setEditing({ ...editing, side_shapes_size: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="small">Pequeno</SelectItem>
+                          <SelectItem value="medium">Médio</SelectItem>
+                          <SelectItem value="large">Grande</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Intensidade do fundo</Label>
+                      <Select value={editing.background_intensity || "xsoft"} onValueChange={(v) => setEditing({ ...editing, background_intensity: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="off">Desligado</SelectItem>
+                          <SelectItem value="xsoft">Muito suave</SelectItem>
+                          <SelectItem value="soft">Suave</SelectItem>
+                          <SelectItem value="medium">Médio</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={editing.show_side_shapes !== false} onCheckedChange={(v) => setEditing({ ...editing, show_side_shapes: v })} />
+                    <Label>Mostrar formas decorativas laterais</Label>
+                  </div>
                   <div className="space-y-1">
                     <Label>Imagem de fundo opcional</Label>
                     {editing.background_image_url && <img src={editing.background_image_url} className="h-20 object-cover w-full rounded mb-1" />}
