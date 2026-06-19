@@ -455,7 +455,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative w-full h-[440px] md:h-[clamp(300px,38vw,440px)]">
+      <div className="relative w-full h-[440px] md:h-[clamp(300px,32vw,360px)] md:rounded-2xl overflow-hidden">
 
         {data.map((s, i) => (
           <div
