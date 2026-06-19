@@ -488,22 +488,24 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
             >
               <ChevronRight className="h-5 w-5" />
             </button>
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-              {data.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setIdx(i)}
-                  className={cn(
-                    "h-2 rounded-full transition-all duration-300",
-                    i === idx ? "bg-primary w-7" : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/60",
-                  )}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
           </>
         )}
       </div>
+      {data.length > 1 && (
+        <div className="flex justify-center gap-1.5 py-2.5 bg-white">
+          {data.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={cn(
+                "h-2 rounded-full transition-all duration-300",
+                i === idx ? "bg-primary w-7" : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/60",
+              )}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
