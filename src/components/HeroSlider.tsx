@@ -60,6 +60,8 @@ export type HeroSlide = {
   product_size?: ProductSize | null;
   show_side_shapes?: boolean | null;
   side_shapes_color?: string | null;
+  side_shapes_size?: "small" | "medium" | "large" | null;
+  background_intensity?: "off" | "xsoft" | "soft" | "medium" | null;
   title_font?: string | null;
   title_color?: string | null;
   support_color?: string | null;
@@ -80,10 +82,23 @@ export const TITLE_FONTS: Record<string, string> = {
 };
 
 const TITLE_SIZE_FLUID: Record<string, string> = {
-  sm: "clamp(1.1rem, 2.4vw, 1.6rem)",
-  md: "clamp(1.3rem, 3vw, 2rem)",
-  lg: "clamp(1.5rem, 3.6vw, 2.4rem)",
-  xl: "clamp(1.7rem, 4.2vw, 2.8rem)",
+  sm: "clamp(1.6rem, 2.6vw, 2.1rem)",
+  md: "clamp(1.9rem, 3vw, 2.5rem)",
+  lg: "clamp(2.1rem, 3.4vw, 2.9rem)",
+  xl: "clamp(2.4rem, 3.8vw, 3.2rem)",
+};
+
+const SHAPE_SIZE: Record<string, string> = {
+  small:  "w-[90px] md:w-[110px]",
+  medium: "w-[120px] md:w-[150px]",
+  large:  "w-[150px] md:w-[200px]",
+};
+
+const BG_INTENSITY: Record<string, number> = {
+  off: 0,
+  xsoft: 0.08,
+  soft: 0.14,
+  medium: 0.22,
 };
 
 const FALLBACK: HeroSlide[] = [
@@ -197,24 +212,30 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
   const productSize = PRODUCT_SIZE[(s.product_size as ProductSize) || "large"];
   const showShapes = s.show_side_shapes !== false;
   const shapeStyle = s.side_shapes_color ? { backgroundColor: s.side_shapes_color } : undefined;
+  const shapeSize = SHAPE_SIZE[(s.side_shapes_size as string) || "medium"];
+  const bgIntensity = BG_INTENSITY[(s.background_intensity as string) ?? "xsoft"] ?? 0.08;
 
   return (
     <div className={cn("relative h-full w-full overflow-hidden", !s.background_color && style.bg)} style={customBg}>
-      {s.background_image_url && (
-        <>
-          <img src={s.background_image_url} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-25" />
-          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-white/30" />
-        </>
+      {s.background_image_url && bgIntensity > 0 && (
+        <img
+          src={s.background_image_url}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover blur-[2px]"
+          style={{ opacity: bgIntensity }}
+        />
       )}
 
-      {/* Side decorative organic shapes (behind everything) */}
+      {/* Side decorative organic shapes (behind content) */}
       {showShapes && (
         <>
           <div
             aria-hidden
             style={shapeStyle}
             className={cn(
-              "pointer-events-none absolute -left-24 md:-left-32 top-1/2 -translate-y-1/2 h-[140%] w-[28%] md:w-[22%] z-0 rounded-[100%]",
+              "pointer-events-none absolute -left-12 md:-left-16 top-1/2 -translate-y-1/2 h-[160%] z-0 rounded-[100%] opacity-90",
+              shapeSize,
               !s.side_shapes_color && style.shape,
             )}
           />
@@ -222,14 +243,15 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
             aria-hidden
             style={shapeStyle}
             className={cn(
-              "pointer-events-none absolute -right-24 md:-right-32 top-1/2 -translate-y-1/2 h-[140%] w-[28%] md:w-[22%] z-0 rounded-[100%]",
+              "pointer-events-none absolute -right-12 md:-right-16 top-1/2 -translate-y-1/2 h-[160%] z-0 rounded-[100%] opacity-90",
+              shapeSize,
               !s.side_shapes_color && style.shape,
             )}
           />
         </>
       )}
 
-      {/* Soft glow halos */}
+      {/* Soft glow halo */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
         <div className="absolute -top-32 right-1/4 h-72 w-72 rounded-full bg-white/40 blur-3xl" />
       </div>
@@ -241,13 +263,13 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         </div>
       )}
 
-      {/* Desktop layout: 28% | 44% | 28% — fluid */}
+      {/* Desktop layout: 32% | 38% | 30% */}
       <div
-        className="hidden md:grid relative h-full items-center gap-2 lg:gap-4 px-4 md:px-6 lg:px-10 pb-4"
-        style={{ gridTemplateColumns: "28% 44% 28%" }}
+        className="hidden md:grid relative h-full items-center gap-4 lg:gap-6 px-12 lg:px-16 pb-6"
+        style={{ gridTemplateColumns: "32% 38% 30%" }}
       >
         {/* LEFT: tagline */}
-        <div className={cn("z-10 flex flex-col justify-center pr-1 min-w-0", textAlignClass(s.text_position || "left"), style.text)}>
+        <div className={cn("z-10 flex flex-col justify-center min-w-0 max-w-[360px]", textAlignClass(s.text_position || "left"), style.text)}>
           {s.badge_text && (
             <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
               {s.badge_text}
@@ -255,77 +277,32 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
           )}
           {s.title && (
             <h2
-              className="font-extrabold leading-[1.05] tracking-tight break-words"
+              className="font-extrabold tracking-tight break-words"
               style={{
                 fontFamily: s.title_font && s.title_font !== "default" ? TITLE_FONTS[s.title_font] : undefined,
                 color: s.title_color || undefined,
                 fontSize: TITLE_SIZE_FLUID[s.title_size || "lg"],
+                lineHeight: 1.0,
               }}
             >
               {s.title}
             </h2>
           )}
           {s.subtitle && (
-            <p className="mt-2 opacity-80 max-w-[28ch]" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.95rem)", color: s.support_color || undefined }}>
+            <p className="mt-3 opacity-80" style={{ fontSize: "clamp(0.8rem, 1.1vw, 1rem)", color: s.support_color || undefined }}>
               {s.subtitle}
             </p>
           )}
           {s.support_text && (
-            <p className="mt-2 font-medium opacity-90 max-w-[28ch]" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.95rem)", color: s.support_color || undefined }}>
+            <p className="mt-2 font-medium opacity-90" style={{ fontSize: "clamp(0.8rem, 1.1vw, 1rem)", color: s.support_color || undefined }}>
               {s.support_text}
             </p>
           )}
-        </div>
-
-        {/* CENTER: product, contained safely within zone */}
-        <div className="relative z-[5] h-full flex items-end justify-center pb-3 min-w-0">
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 h-4 w-[60%] rounded-[50%] bg-foreground/20 blur-2xl" />
-          <img
-            src={productImg}
-            alt={s.title || "Produto"}
-            className={cn(
-              "relative object-contain drop-shadow-[0_24px_24px_rgba(0,0,0,0.25)]",
-              productSize.desk,
-              ANIM_PRODUCT[anim],
-            )}
-            style={{ maxHeight: "clamp(160px, 70%, 280px)" }}
-          />
-        </div>
-
-        {/* RIGHT: discount + CTA */}
-        <div className="z-10 flex flex-col items-center justify-center text-center pl-1 min-w-0">
-          {discount != null ? (
-            <>
-              {s.discount_prefix && (
-                <div
-                  className={cn("font-semibold uppercase tracking-wider leading-none", style.accent)}
-                  style={{ ...customAccent, fontSize: "clamp(0.65rem, 1vw, 0.85rem)" }}
-                >
-                  {s.discount_prefix}
-                </div>
-              )}
-              <div className={cn("font-extrabold leading-none tracking-tight mt-1", style.accent)} style={customAccent}>
-                <span style={{ fontSize: "clamp(3rem, 6.5vw, 5.5rem)" }}>{discount}</span>
-                <span className="align-top" style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}>%</span>
-              </div>
-              {s.discount_suffix && (
-                <div
-                  className={cn("font-semibold uppercase tracking-wider mt-1", style.accent)}
-                  style={{ ...customAccent, fontSize: "clamp(0.65rem, 1vw, 0.85rem)" }}
-                >
-                  {s.discount_suffix}
-                </div>
-              )}
-            </>
-          ) : s.new_price != null ? (
-            <div className={cn("font-extrabold", style.accent)} style={{ ...customAccent, fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>{brl(Number(s.new_price))}</div>
-          ) : null}
-
-          {s.cta_text && (
+          {/* CTA stays here when there is no discount */}
+          {discount == null && s.cta_text && (
             <Button
               asChild
-              size="sm"
-              className={cn("mt-3 font-bold uppercase tracking-wider rounded-full shadow-md px-5 lg:px-7", !s.button_color && style.button)}
+              className={cn("mt-4 self-start font-bold uppercase tracking-wider rounded-full shadow-md h-12 px-8", !s.button_color && style.button)}
               style={customBtn}
             >
               <Link to={link}>{s.cta_text}</Link>
@@ -333,11 +310,64 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
           )}
         </div>
 
-        {/* Legal text — bottom right (always anchored) */}
+        {/* CENTER: product */}
+        <div className="relative z-[5] h-full flex items-center justify-center min-w-0">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 h-4 w-[60%] rounded-[50%] bg-foreground/20 blur-2xl" />
+          <img
+            src={productImg}
+            alt={s.title || "Produto"}
+            className={cn(
+              "relative object-contain drop-shadow-[0_24px_24px_rgba(0,0,0,0.25)] max-w-full",
+              ANIM_PRODUCT[anim],
+            )}
+            style={{ maxHeight: "75%" }}
+          />
+        </div>
+
+        {/* RIGHT: discount + CTA */}
+        <div className="z-10 flex flex-col items-center justify-center text-center min-w-0">
+          {discount != null ? (
+            <>
+              {s.discount_prefix && (
+                <div
+                  className={cn("font-semibold uppercase tracking-wider leading-none", style.accent)}
+                  style={{ ...customAccent, fontSize: "clamp(0.7rem, 1vw, 0.9rem)" }}
+                >
+                  {s.discount_prefix}
+                </div>
+              )}
+              <div className={cn("font-extrabold leading-none tracking-tight mt-1", style.accent)} style={customAccent}>
+                <span style={{ fontSize: "clamp(3.2rem, 6.5vw, 5.5rem)" }}>{discount}</span>
+                <span className="align-top" style={{ fontSize: "clamp(1.6rem, 3vw, 2.5rem)" }}>%</span>
+              </div>
+              {s.discount_suffix && (
+                <div
+                  className={cn("font-semibold uppercase tracking-wider mt-1", style.accent)}
+                  style={{ ...customAccent, fontSize: "clamp(0.7rem, 1vw, 0.9rem)" }}
+                >
+                  {s.discount_suffix}
+                </div>
+              )}
+              {s.cta_text && (
+                <Button
+                  asChild
+                  className={cn("mt-4 font-bold uppercase tracking-wider rounded-full shadow-md h-12 px-8", !s.button_color && style.button)}
+                  style={customBtn}
+                >
+                  <Link to={link}>{s.cta_text}</Link>
+                </Button>
+              )}
+            </>
+          ) : s.new_price != null ? (
+            <div className={cn("font-extrabold", style.accent)} style={{ ...customAccent, fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>{brl(Number(s.new_price))}</div>
+          ) : null}
+        </div>
+
+        {/* Legal text — bottom right */}
         {s.legal_text && (
           <p
-            className={cn("absolute bottom-2 right-4 leading-tight text-right opacity-80 z-10", style.legal)}
-            style={{ maxWidth: "260px", fontSize: "clamp(9px, 0.85vw, 11px)", color: s.legal_color || undefined }}
+            className={cn("absolute bottom-2 right-6 leading-tight text-right opacity-70 z-10", style.legal)}
+            style={{ maxWidth: "260px", fontSize: "clamp(9px, 0.8vw, 11px)", color: s.legal_color || undefined }}
           >
             {s.legal_text}
           </p>
@@ -425,7 +455,7 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative w-full h-[440px] md:h-[clamp(300px,38vw,440px)]">
+      <div className="relative w-full h-[440px] md:h-[clamp(300px,32vw,360px)] md:rounded-2xl overflow-hidden">
 
         {data.map((s, i) => (
           <div
@@ -458,22 +488,24 @@ export function HeroSlider({ slides }: { slides?: HeroSlide[] }) {
             >
               <ChevronRight className="h-5 w-5" />
             </button>
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-              {data.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setIdx(i)}
-                  className={cn(
-                    "h-2 rounded-full transition-all duration-300",
-                    i === idx ? "bg-primary w-7" : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/60",
-                  )}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
           </>
         )}
       </div>
+      {data.length > 1 && (
+        <div className="flex justify-center gap-1.5 py-2.5 bg-white">
+          {data.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={cn(
+                "h-2 rounded-full transition-all duration-300",
+                i === idx ? "bg-primary w-7" : "bg-muted-foreground/30 w-2 hover:bg-muted-foreground/60",
+              )}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

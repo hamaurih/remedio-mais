@@ -95,7 +95,7 @@ const empty: any = {
   product_position: "center", text_position: "left", visual_style: "red-soft",
   linked_entity_type: "manual", linked_entity_id: null, linked_entity_slug: "",
   animation_type: "float", show_text_over_image: false, image_fit: "cover",
-  product_size: "large", show_side_shapes: true, side_shapes_color: "",
+  product_size: "large", show_side_shapes: true, side_shapes_color: "", side_shapes_size: "medium", background_intensity: "xsoft",
   title_font: "default", title_size: "lg", title_color: "", support_color: "", legal_color: "",
 };
 
@@ -252,7 +252,7 @@ export default function AdminBanners() {
 
           {/* Live preview — same component & sizing as public */}
           <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="relative w-full h-[440px] md:h-[clamp(300px,38vw,440px)]">
+            <div className="relative w-full h-[440px] md:h-[clamp(300px,32vw,360px)] md:rounded-2xl overflow-hidden">
               <HeroSlidePreview s={preview} />
             </div>
           </div>
@@ -385,6 +385,35 @@ export default function AdminBanners() {
                     <div className="space-y-1">
                       <Label>Cor das formas laterais</Label>
                       <Input type="color" value={editing.side_shapes_color || "#E5253E"} onChange={(e) => setEditing({ ...editing, side_shapes_color: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={editing.show_side_shapes !== false} onCheckedChange={(v) => setEditing({ ...editing, show_side_shapes: v })} />
+                    <Label>Mostrar formas decorativas laterais</Label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label>Tamanho das formas laterais</Label>
+                      <Select value={editing.side_shapes_size || "medium"} onValueChange={(v) => setEditing({ ...editing, side_shapes_size: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="small">Pequeno</SelectItem>
+                          <SelectItem value="medium">Médio</SelectItem>
+                          <SelectItem value="large">Grande</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Intensidade do fundo</Label>
+                      <Select value={editing.background_intensity || "xsoft"} onValueChange={(v) => setEditing({ ...editing, background_intensity: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="off">Desligado</SelectItem>
+                          <SelectItem value="xsoft">Muito suave</SelectItem>
+                          <SelectItem value="soft">Suave</SelectItem>
+                          <SelectItem value="medium">Médio</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
