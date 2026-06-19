@@ -56,22 +56,18 @@ export function maskAddress(addr?: string | null): string {
  * Mascara recursivamente qualquer objeto antes de console.log/log remoto.
  * Substitui valores de chaves sensíveis e aplica heurística em CPF/email/phone.
  */
-export function maskSensitiveData<T = unknown>(input: T, depth = 0): T {
+export function maskSensitiveData(input: unknown, depth = 0): unknown {
   if (depth > 6 || input == null) return input;
   if (typeof input === "string") {
     let s = input;
-    // CPF 000.000.000-00 ou 11 dígitos
     s = s.replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, (m) => maskCpf(m));
-    // Email
     s = s.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, (m) => maskEmail(m));
-    // Telefones BR (10-11 dígitos com possíveis separadores)
     s = s.replace(/\b(?:\+?55)?\s?\(?\d{2}\)?\s?9?\d{4}-?\d{4}\b/g, (m) => maskPhone(m));
-    // Bearer tokens
     s = s.replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer ***");
-    return s as unknown as T;
+    return s;
   }
   if (Array.isArray(input)) {
-    return input.map((v) => maskSensitiveData(v, depth + 1)) as unknown as T;
+    return input.map((v) => maskSensitiveData(v, depth + 1));
   }
   if (typeof input === "object") {
     const out: Record<string, unknown> = {};
@@ -86,7 +82,7 @@ export function maskSensitiveData<T = unknown>(input: T, depth = 0): T {
       else if (lower === "address" || lower === "endereco" || lower === "endereço") out[k] = maskAddress(v as string);
       else out[k] = maskSensitiveData(v, depth + 1);
     }
-    return out as unknown as T;
+    return out;
   }
   return input;
 }
