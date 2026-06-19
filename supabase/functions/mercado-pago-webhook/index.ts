@@ -187,5 +187,5 @@ async function logError(
       payload_summary: summary ?? null,
       order_id: orderId ?? null,
     });
-  } catch (e) { console.error("payment_errors log failed", e); }
+  } catch (e) { safeError("[mp-webhook] payment_errors log failed", { message: (e as Error)?.message }); }
 }
