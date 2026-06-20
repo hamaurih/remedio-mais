@@ -166,8 +166,112 @@
   .promo-animate-pulse,
   .promo-animate-cta-pulse,
   .promo-shine-overlay::before,
-  .promo-confetti-overlay span {
+  .promo-confetti-overlay span,
+  .promo-deco-confetti span,
+  .promo-deco-snow span,
+  .promo-deco-hearts span,
+  .promo-deco-petals span,
+  .promo-deco-sparkle span {
     animation: none !important;
   }
   .promo-animate-hover { transition: none !important; }
+}
+
+/* ===== Decorações de tema (CSS leve, atrás do produto) ===== */
+.promo-deco { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; z-index: 1; }
+
+/* Bandeirinhas (São João) */
+.promo-deco-flags { display: flex; gap: 6px; padding: 6px 8px; align-items: flex-start; height: 14px; }
+.promo-deco-flags span {
+  flex: 1; height: 10px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  opacity: 0.85;
+}
+
+/* Confete (Carnaval) */
+@keyframes promo-deco-fall {
+  0% { transform: translateY(-10px) rotate(0); opacity: 0; }
+  15% { opacity: 0.85; }
+  100% { transform: translateY(220px) rotate(360deg); opacity: 0; }
+}
+.promo-deco-confetti span {
+  position: absolute; top: -8px; width: 7px; height: 10px; border-radius: 1px;
+  animation: promo-deco-fall 3.6s linear infinite;
+}
+.promo-deco-confetti span:nth-child(1) { left: 8%;  background:#a21caf; animation-delay: 0s; }
+.promo-deco-confetti span:nth-child(2) { left: 20%; background:#facc15; animation-delay: .4s; }
+.promo-deco-confetti span:nth-child(3) { left: 32%; background:#22d3ee; animation-delay: .9s; }
+.promo-deco-confetti span:nth-child(4) { left: 45%; background:#ec4899; animation-delay: 1.3s; }
+.promo-deco-confetti span:nth-child(5) { left: 58%; background:#16a34a; animation-delay: 1.8s; }
+.promo-deco-confetti span:nth-child(6) { left: 70%; background:#3b82f6; animation-delay: 2.2s; }
+.promo-deco-confetti span:nth-child(7) { left: 82%; background:#facc15; animation-delay: 2.6s; }
+.promo-deco-confetti span:nth-child(8) { left: 92%; background:#a21caf; animation-delay: 3.0s; }
+
+/* Neve / pontos de luz (Natal) */
+@keyframes promo-deco-snow {
+  0% { transform: translateY(-6px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(210px); opacity: 0; }
+}
+.promo-deco-snow span {
+  position: absolute; top: -6px; width: 5px; height: 5px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 30%, #fde68a 100%);
+  box-shadow: 0 0 6px rgba(253,224,71,0.7);
+  animation: promo-deco-snow 5s linear infinite;
+}
+.promo-deco-snow span:nth-child(1) { left: 12%; animation-delay: 0s; }
+.promo-deco-snow span:nth-child(2) { left: 28%; animation-delay: 1s; }
+.promo-deco-snow span:nth-child(3) { left: 45%; animation-delay: 2s; }
+.promo-deco-snow span:nth-child(4) { left: 62%; animation-delay: 0.7s; }
+.promo-deco-snow span:nth-child(5) { left: 78%; animation-delay: 1.5s; }
+.promo-deco-snow span:nth-child(6) { left: 90%; animation-delay: 2.5s; }
+
+/* Ondas (Verão) */
+.promo-deco-waves { position: absolute; inset: auto 0 0 0; height: 60px; width: 100%; pointer-events: none; z-index: 1; }
+
+/* Corações (Namorados) / Pétalas (Mães) */
+@keyframes promo-deco-float-up {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  20%  { opacity: 0.9; }
+  100% { transform: translateY(-180px) scale(1.2); opacity: 0; }
+}
+.promo-deco-hearts span,
+.promo-deco-petals span {
+  position: absolute; bottom: -10px; font-size: 14px; opacity: 0.85;
+  animation: promo-deco-float-up 5s ease-in infinite;
+}
+.promo-deco-hearts span:nth-child(1) { left: 14%; animation-delay: 0s; }
+.promo-deco-hearts span:nth-child(2) { left: 36%; animation-delay: 1.2s; }
+.promo-deco-hearts span:nth-child(3) { left: 60%; animation-delay: 2.4s; font-size: 18px; }
+.promo-deco-hearts span:nth-child(4) { left: 82%; animation-delay: 3.6s; }
+.promo-deco-petals span:nth-child(1) { left: 14%; animation-delay: 0s; font-size: 16px; }
+.promo-deco-petals span:nth-child(2) { left: 38%; animation-delay: 1.4s; }
+.promo-deco-petals span:nth-child(3) { left: 62%; animation-delay: 2.8s; font-size: 18px; }
+.promo-deco-petals span:nth-child(4) { left: 84%; animation-delay: 4s; }
+
+/* Sparkles (Black Friday / luxo) */
+@keyframes promo-deco-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+.promo-deco-sparkle span {
+  position: absolute; font-size: 12px;
+  animation: promo-deco-twinkle 2.4s ease-in-out infinite;
+}
+.promo-deco-sparkle span:nth-child(1) { top: 14%; left: 18%; animation-delay: 0s; }
+.promo-deco-sparkle span:nth-child(2) { top: 28%; right: 16%; animation-delay: .5s; font-size: 16px; }
+.promo-deco-sparkle span:nth-child(3) { bottom: 20%; left: 22%; animation-delay: 1s; }
+.promo-deco-sparkle span:nth-child(4) { top: 56%; right: 30%; animation-delay: 1.5s; font-size: 14px; }
+.promo-deco-sparkle span:nth-child(5) { bottom: 30%; right: 12%; animation-delay: 2s; }
+
+/* Pontos suaves (genérico) */
+.promo-deco-dots { opacity: 0.4; }
+
+@media (max-width: 640px) {
+  .promo-deco-confetti span:nth-child(n+5),
+  .promo-deco-sparkle span:nth-child(n+4),
+  .promo-deco-snow span:nth-child(n+4),
+  .promo-deco-hearts span:nth-child(n+3),
+  .promo-deco-petals span:nth-child(n+3) { display: none; }
+  .promo-deco-dots { opacity: 0.25; }
 }
