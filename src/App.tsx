@@ -11,6 +11,7 @@ import Cart from "./pages/Cart.tsx";
 import SendPrescription from "./pages/SendPrescription.tsx";
 import Search from "./pages/Search.tsx";
 import Departamentos from "./pages/Departamentos.tsx";
+import Department from "./pages/Department.tsx";
 import Auth from "./pages/Auth.tsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Terms from "./pages/Terms.tsx";
