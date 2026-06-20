@@ -139,7 +139,9 @@ export default function AdminPromoBanner() {
         active: true,
         block_type: "card_medio",
         animation_type: "float",
-      });
+        theme_key: "default",
+        background_intensity: "soft",
+        decoration_enabled: true,
     if (error) toast.error(error.message);
     else load();
   };
