@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { MessageCircle, Copy, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { RefundPanel } from "@/components/admin/RefundPanel";
 
 const PAYMENT_LABEL: Record<string, string> = {
   pending: "Pendente", approved: "Aprovado", rejected: "Recusado",
@@ -196,9 +197,10 @@ export default function AdminOrders() {
           <DialogHeader><DialogTitle>Pedido #{view?.id?.slice(0, 6)}</DialogTitle></DialogHeader>
           {view && (
             <Tabs defaultValue="separacao">
-              <TabsList className="grid grid-cols-3 w-full">
+              <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="separacao">Separação</TabsTrigger>
                 <TabsTrigger value="resumo">Resumo</TabsTrigger>
+                <TabsTrigger value="reembolso">Reembolso</TabsTrigger>
                 <TabsTrigger value="historico">Histórico</TabsTrigger>
               </TabsList>
 
@@ -241,6 +243,10 @@ export default function AdminOrders() {
                     <Copy className="h-4 w-4 mr-2" />Copiar
                   </Button>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="reembolso">
+                <RefundPanel order={view} />
               </TabsContent>
 
               <TabsContent value="historico" className="pt-3">
