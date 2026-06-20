@@ -256,7 +256,7 @@ export function CategoryNav() {
     const cat = catsWithDept.find((c) => c.id === s.category_id);
     if (!cat) return;
     const arr = subsByCategory.get(s.category_id) ?? [];
-    arr.push({ label: s.name, href: `/categoria/${cat.slug}?sub=${s.slug}` });
+    arr.push({ label: s.name, href: `/categoria/${cat.slug}/${s.slug}` });
     subsByCategory.set(s.category_id, arr);
   });
 
