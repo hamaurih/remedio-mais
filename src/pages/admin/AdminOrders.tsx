@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { MessageCircle, Copy, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { RefundPanel } from "@/components/admin/RefundPanel";
 
 const PAYMENT_LABEL: Record<string, string> = {
   pending: "Pendente", approved: "Aprovado", rejected: "Recusado",
