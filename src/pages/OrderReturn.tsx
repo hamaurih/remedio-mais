@@ -74,6 +74,23 @@ export default function OrderReturn({ status }: { status: Status }) {
             </div>
           )}
 
+          {order && events.length > 0 && (
+            <div className="text-left border-t pt-4">
+              <div className="text-sm font-semibold mb-2">Acompanhamento do pedido</div>
+              <ol className="space-y-2">
+                {events.filter((e) => ["created", "order_status", "payment_status", "fulfillment_status", "delivery_status", "refund_completed"].includes(e.type)).map((e) => (
+                  <li key={e.id} className="flex gap-3 text-xs">
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-medium">{eventLabel(e)}</div>
+                      <div className="text-muted-foreground text-[10px]">{new Date(e.created_at).toLocaleString("pt-BR")}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             {effective === "pending" && (
               <Button onClick={refresh} variant="outline" className="flex-1">Verificar novamente</Button>
