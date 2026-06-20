@@ -619,9 +619,139 @@ function DiagnosticsTab() {
         <Card label="Categorias sem produtos" value={stats.catsEmpty} />
         <Card label="Subcategorias sem produtos" value={stats.subsEmpty} />
       </div>
-      <div className="p-4 bg-secondary/40 rounded-xl text-sm text-muted-foreground">
-        <strong>Próxima rodada (Fase 3):</strong> aplicar mapeamento Trier em produtos sem classificação manual (botão de execução), seção “Classificação comercial” no editor de produto, e mega menu novo.
+      <ApplyTrierMapping />
+    </div>
+  );
+}
+
+// ---------- APPLY TRIER MAPPING ----------
+function ApplyTrierMapping() {
+  const qc = useQueryClient();
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{ scanned: number; matched: number; applied: number; skipped: number } | null>(null);
+
+  const run = async (dryRun: boolean) => {
+    setRunning(true);
+    setResult(null);
+    try {
+      // Load active rules ordered by priority
+      const { data: rules } = await sb.from("trier_category_mappings").select("*").eq("active", true).order("priority");
+      if (!rules || rules.length === 0) {
+        toast.error("Nenhuma regra ativa. Crie regras na aba Mapeamento Trier.");
+        setRunning(false);
+        return;
+      }
+
+      // Load products in batches with their trier-derived fields and name
+      const PAGE = 1000;
+      let offset = 0;
+      let scanned = 0, matched = 0, applied = 0, skipped = 0;
+
+      while (true) {
+        const { data: products, error } = await sb.from("products")
+          .select("id, name, category_name, group_name, department_name")
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (!products || products.length === 0) break;
+
+        const productIds = products.map((p: any) => p.id);
+        // Existing primary taxonomy rows for these products
+        const { data: existingTax } = await sb.from("product_taxonomy")
+          .select("product_id, is_manual, id")
+          .eq("is_primary", true)
+          .in("product_id", productIds);
+        const existingMap = new Map<string, any>();
+        (existingTax || []).forEach((t: any) => existingMap.set(t.product_id, t));
+
+        const inserts: any[] = [];
+        const updates: { id: string; payload: any }[] = [];
+
+        for (const p of products) {
+          scanned++;
+          const existing = existingMap.get(p.id);
+          if (existing?.is_manual) { skipped++; continue; }
+
+          const fieldMap: Record<string, string> = {
+            nomeCategoria: p.category_name || "",
+            nomeGrupo: p.group_name || "",
+            nomeDepartamento: p.department_name || "",
+            productName: p.name || "",
+          };
+
+          let hit: any = null;
+          for (const r of rules) {
+            const raw = fieldMap[r.source_field] || "";
+            const a = r.case_sensitive ? raw : raw.toLowerCase();
+            const b = r.case_sensitive ? r.match_value : r.match_value.toLowerCase();
+            let ok = false;
+            if (r.match_type === "equals") ok = a === b;
+            else if (r.match_type === "contains") ok = a.includes(b);
+            else if (r.match_type === "starts_with") ok = a.startsWith(b);
+            if (ok) { hit = r; break; }
+          }
+          if (!hit) continue;
+          matched++;
+
+          const payload = {
+            department_id: hit.department_id,
+            category_id: hit.category_id,
+            subcategory_id: hit.subcategory_id,
+            is_manual: false,
+            source: "trier_map",
+          };
+
+          if (dryRun) { applied++; continue; }
+          if (existing) updates.push({ id: existing.id, payload });
+          else inserts.push({ product_id: p.id, is_primary: true, ...payload });
+          applied++;
+        }
+
+        if (!dryRun) {
+          if (inserts.length > 0) {
+            const { error: ie } = await sb.from("product_taxonomy").insert(inserts);
+            if (ie) throw ie;
+          }
+          for (const u of updates) {
+            const { error: ue } = await sb.from("product_taxonomy").update(u.payload).eq("id", u.id);
+            if (ue) throw ue;
+          }
+        }
+
+        if (products.length < PAGE) break;
+        offset += PAGE;
+      }
+
+      setResult({ scanned, matched, applied, skipped });
+      toast.success(dryRun ? `Simulação: ${applied} produtos seriam classificados` : `${applied} produtos classificados`);
+      if (!dryRun) qc.invalidateQueries({ queryKey: ["taxonomy_diag"] });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="p-4 bg-secondary/40 rounded-xl space-y-3">
+      <div>
+        <strong className="text-sm">Aplicar mapeamento Trier</strong>
+        <p className="text-xs text-muted-foreground">
+          Executa todas as regras ativas em produtos que <strong>não</strong> têm classificação manual.
+          Produtos com classificação manual nunca são sobrescritos.
+        </p>
       </div>
+      <div className="flex gap-2">
+        <Button variant="outline" disabled={running} onClick={() => run(true)}>Simular (dry-run)</Button>
+        <Button disabled={running} onClick={() => run(false)}>Aplicar agora</Button>
+      </div>
+      {result && (
+        <div className="text-xs text-muted-foreground grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t">
+          <div>Analisados: <strong>{result.scanned}</strong></div>
+          <div>Com regra correspondente: <strong>{result.matched}</strong></div>
+          <div>Classificados: <strong className="text-whatsapp">{result.applied}</strong></div>
+          <div>Pulados (manuais): <strong>{result.skipped}</strong></div>
+        </div>
+      )}
     </div>
   );
 }

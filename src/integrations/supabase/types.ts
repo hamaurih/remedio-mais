@@ -1447,6 +1447,7 @@ export type Database = {
           category_external_id: string | null
           category_id: string | null
           category_name: string | null
+          commercial_tags: string[]
           controlled: boolean
           created_at: string
           custom_warning: string | null
@@ -1507,6 +1508,8 @@ export type Database = {
           seo_title: string | null
           shelves: string[]
           short_description: string | null
+          show_in_filters: boolean
+          show_in_menu: boolean
           sku: string | null
           slug: string
           source: string | null
@@ -1533,6 +1536,7 @@ export type Database = {
           category_external_id?: string | null
           category_id?: string | null
           category_name?: string | null
+          commercial_tags?: string[]
           controlled?: boolean
           created_at?: string
           custom_warning?: string | null
@@ -1593,6 +1597,8 @@ export type Database = {
           seo_title?: string | null
           shelves?: string[]
           short_description?: string | null
+          show_in_filters?: boolean
+          show_in_menu?: boolean
           sku?: string | null
           slug: string
           source?: string | null
@@ -1619,6 +1625,7 @@ export type Database = {
           category_external_id?: string | null
           category_id?: string | null
           category_name?: string | null
+          commercial_tags?: string[]
           controlled?: boolean
           created_at?: string
           custom_warning?: string | null
@@ -1679,6 +1686,8 @@ export type Database = {
           seo_title?: string | null
           shelves?: string[]
           short_description?: string | null
+          show_in_filters?: boolean
+          show_in_menu?: boolean
           sku?: string | null
           slug?: string
           source?: string | null

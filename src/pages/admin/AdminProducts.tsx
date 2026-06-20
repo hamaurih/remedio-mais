@@ -15,6 +15,7 @@ import { formatBRL } from "@/lib/store";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
+import { CommercialClassificationTab } from "@/components/admin/CommercialClassificationTab";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
@@ -318,6 +319,7 @@ export default function AdminProducts() {
               <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
               <TabsTrigger value="generic">Genérico</TabsTrigger>
               <TabsTrigger value="related">Relacionados</TabsTrigger>
+              <TabsTrigger value="commercial">Comercial</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
             </TabsList>
@@ -506,6 +508,12 @@ export default function AdminProducts() {
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="commercial" className="pt-3">
+              <CommercialClassificationTab productId={editing.id || null} />
+            </TabsContent>
+
+
 
 
             <TabsContent value="reg" className="space-y-3 pt-3">

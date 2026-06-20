@@ -73,7 +73,10 @@ function buildGroups(items: MegaItem[]) {
   return ordered;
 }
 
-function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> }) {
+type MegaCategory = { label: string; href: string; subs: { label: string; href: string }[] };
+type MegaGroupRich = { label: string; categories: MegaCategory[] };
+
+function MegaMenuDesktop({ groups }: { groups: MegaGroupRich[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
@@ -87,15 +90,24 @@ function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> })
         <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full pt-2 z-50 w-[min(960px,90vw)]">
-          <div className="bg-card border border-border rounded-xl shadow-xl p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+        <div className="absolute left-0 top-full pt-2 z-50 w-[min(1080px,92vw)]">
+          <div className="bg-card border border-border rounded-xl shadow-xl p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
             {groups.map((g) => (
               <div key={g.label} className="min-w-0">
                 <div className="text-xs uppercase tracking-wider font-extrabold text-primary mb-2">{g.label}</div>
-                <ul className="space-y-1.5">
-                  {g.items.map((c) => (
+                <ul className="space-y-2.5">
+                  {g.categories.map((c) => (
                     <li key={c.href}>
-                      <Link to={c.href} className="text-sm text-foreground hover:text-primary transition-colors">{c.label}</Link>
+                      <Link to={c.href} className="text-sm font-semibold text-foreground hover:text-primary transition-colors">{c.label}</Link>
+                      {c.subs.length > 0 && (
+                        <ul className="mt-1 ml-2 space-y-0.5 border-l border-border pl-2">
+                          {c.subs.map((s) => (
+                            <li key={s.href}>
+                              <Link to={s.href} className="text-xs text-muted-foreground hover:text-primary transition-colors">{s.label}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -108,7 +120,7 @@ function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> })
   );
 }
 
-function MegaMenuMobile({ groups }: { groups: ReturnType<typeof buildGroups> }) {
+function MegaMenuMobile({ groups }: { groups: MegaGroupRich[] }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -125,10 +137,19 @@ function MegaMenuMobile({ groups }: { groups: ReturnType<typeof buildGroups> }) 
             <AccordionItem key={g.label} value={g.label} className="border-b">
               <AccordionTrigger className="px-2 text-sm font-bold">{g.label}</AccordionTrigger>
               <AccordionContent>
-                <ul className="px-2 pb-2 space-y-1">
-                  {g.items.map((c) => (
+                <ul className="px-2 pb-2 space-y-2">
+                  {g.categories.map((c) => (
                     <li key={c.href}>
-                      <Link to={c.href} className="block py-1.5 text-sm text-foreground hover:text-primary">{c.label}</Link>
+                      <Link to={c.href} className="block py-1 text-sm font-semibold text-foreground hover:text-primary">{c.label}</Link>
+                      {c.subs.length > 0 && (
+                        <ul className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                          {c.subs.map((s) => (
+                            <li key={s.href}>
+                              <Link to={s.href} className="block py-0.5 text-xs text-muted-foreground hover:text-primary">{s.label}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -152,6 +173,41 @@ export function CategoryNav() {
         .eq("active", true)
         .order("position");
       return (data ?? []) as Category[];
+    },
+  });
+
+  // New taxonomy: departments + per-category subcategories
+  const { data: depts = [] } = useQuery({
+    queryKey: ["nav_departments"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("departments")
+        .select("id, name, slug, position, show_in_menu")
+        .eq("active", true)
+        .order("position");
+      return (data ?? []) as Array<{ id: string; name: string; slug: string; position: number; show_in_menu: boolean }>;
+    },
+  });
+  const { data: catsWithDept = [] } = useQuery({
+    queryKey: ["nav_cats_with_dept"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("categories")
+        .select("id, name, slug, department_id, position")
+        .eq("active", true)
+        .order("position");
+      return (data ?? []) as Array<{ id: string; name: string; slug: string; department_id: string | null; position: number }>;
+    },
+  });
+  const { data: subsAll = [] } = useQuery({
+    queryKey: ["nav_subs"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("subcategories")
+        .select("id, name, slug, category_id, position, show_in_menu")
+        .eq("active", true)
+        .order("position");
+      return (data ?? []) as Array<{ id: string; name: string; slug: string; category_id: string; position: number; show_in_menu: boolean }>;
     },
   });
 
@@ -192,14 +248,47 @@ export function CategoryNav() {
 
   const chipList = chipsFromMenu.length > 0 ? chipsFromMenu : chipsFallback;
 
-  // MEGA MENU — prefer all_categories from DB grouped by macro_group, fallback to live
-  const megaItems: MegaItem[] = allCatsMenu.length > 0
-    ? allCatsMenu.map((m) => ({ label: m.label, href: resolveMenuHref(m), group: resolveGroup(m) || "Outros" }))
-    : (live ?? DEFAULT_CATS)
-        .filter((c) => c.macro_group)
-        .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, group: c.macro_group || "Outros" }));
+  // ----- Build MEGA MENU groups (rich) -----
+  // Priority 1: new departments → categories → subcategories (when populated)
+  const subsByCategory = new Map<string, Array<{ label: string; href: string }>>();
+  subsAll.forEach((s) => {
+    if (s.show_in_menu === false) return;
+    const cat = catsWithDept.find((c) => c.id === s.category_id);
+    if (!cat) return;
+    const arr = subsByCategory.get(s.category_id) ?? [];
+    arr.push({ label: s.name, href: `/categoria/${cat.slug}?sub=${s.slug}` });
+    subsByCategory.set(s.category_id, arr);
+  });
 
-  const groups = buildGroups(megaItems);
+  const linkedDepartments = depts.filter(
+    (d) => d.show_in_menu !== false && catsWithDept.some((c) => c.department_id === d.id)
+  );
+
+  let groups: MegaGroupRich[];
+  if (linkedDepartments.length > 0) {
+    groups = linkedDepartments.map((d) => ({
+      label: d.name,
+      categories: catsWithDept
+        .filter((c) => c.department_id === d.id)
+        .map((c) => ({
+          label: c.name,
+          href: `/categoria/${c.slug}`,
+          subs: subsByCategory.get(c.id) ?? [],
+        })),
+    }));
+  } else {
+    // Fallback: legacy macro_group grouping
+    const megaItems: MegaItem[] = allCatsMenu.length > 0
+      ? allCatsMenu.map((m) => ({ label: m.label, href: resolveMenuHref(m), group: resolveGroup(m) || "Outros" }))
+      : (live ?? DEFAULT_CATS)
+          .filter((c) => c.macro_group)
+          .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, group: c.macro_group || "Outros" }));
+    const legacy = buildGroups(megaItems);
+    groups = legacy.map((g) => ({
+      label: g.label,
+      categories: g.items.map((it) => ({ label: it.label, href: it.href, subs: [] })),
+    }));
+  }
 
   return (
     <nav className="border-t bg-background">
