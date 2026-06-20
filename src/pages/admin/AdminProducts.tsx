@@ -319,6 +319,7 @@ export default function AdminProducts() {
               <TabsTrigger value="shelf">Exibição na Home</TabsTrigger>
               <TabsTrigger value="generic">Genérico</TabsTrigger>
               <TabsTrigger value="related">Relacionados</TabsTrigger>
+              <TabsTrigger value="commercial">Comercial</TabsTrigger>
               <TabsTrigger value="reg">Regulatório</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
             </TabsList>
