@@ -95,6 +95,7 @@ const App = () => (
             <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
             <Route path="estoque" element={<AdminStock />} />
             <Route path="clientes" element={<AdminCustomers />} />
+            <Route path="vendedores" element={<AdminSellers />} />
             <Route path="categorias" element={<AdminCategories />} />
             <Route path="taxonomia" element={<AdminTaxonomy />} />
             <Route path="banners" element={<AdminBanners />} />
