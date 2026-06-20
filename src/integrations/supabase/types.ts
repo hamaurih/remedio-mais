@@ -1779,6 +1779,8 @@ export type Database = {
         Row: {
           active: boolean
           animation_type: string | null
+          background_image_url: string | null
+          background_intensity: string | null
           badge_text: string | null
           bg_color: string
           bg_custom: string | null
@@ -1787,6 +1789,10 @@ export type Database = {
           cta_color: string
           cta_text: string | null
           cta_url: string | null
+          custom_background_color: string | null
+          custom_badge_color: string | null
+          custom_cta_color: string | null
+          decoration_enabled: boolean | null
           id: string
           image_mode: string
           image_position: string
@@ -1800,6 +1806,7 @@ export type Database = {
           show_price: boolean
           show_text: boolean
           subtitle: string | null
+          theme_key: string | null
           title: string | null
           updated_at: string
           variant: string
@@ -1807,6 +1814,8 @@ export type Database = {
         Insert: {
           active?: boolean
           animation_type?: string | null
+          background_image_url?: string | null
+          background_intensity?: string | null
           badge_text?: string | null
           bg_color?: string
           bg_custom?: string | null
@@ -1815,6 +1824,10 @@ export type Database = {
           cta_color?: string
           cta_text?: string | null
           cta_url?: string | null
+          custom_background_color?: string | null
+          custom_badge_color?: string | null
+          custom_cta_color?: string | null
+          decoration_enabled?: boolean | null
           id?: string
           image_mode?: string
           image_position?: string
@@ -1828,6 +1841,7 @@ export type Database = {
           show_price?: boolean
           show_text?: boolean
           subtitle?: string | null
+          theme_key?: string | null
           title?: string | null
           updated_at?: string
           variant?: string
@@ -1835,6 +1849,8 @@ export type Database = {
         Update: {
           active?: boolean
           animation_type?: string | null
+          background_image_url?: string | null
+          background_intensity?: string | null
           badge_text?: string | null
           bg_color?: string
           bg_custom?: string | null
@@ -1843,6 +1859,10 @@ export type Database = {
           cta_color?: string
           cta_text?: string | null
           cta_url?: string | null
+          custom_background_color?: string | null
+          custom_badge_color?: string | null
+          custom_cta_color?: string | null
+          decoration_enabled?: boolean | null
           id?: string
           image_mode?: string
           image_position?: string
@@ -1856,6 +1876,7 @@ export type Database = {
           show_price?: boolean
           show_text?: boolean
           subtitle?: string | null
+          theme_key?: string | null
           title?: string | null
           updated_at?: string
           variant?: string
