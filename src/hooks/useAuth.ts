@@ -6,6 +6,7 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export function useAuth() {
         if (!mounted) return;
         setUser(null);
         setIsAdmin(false);
+        setIsSeller(false);
         setLoading(false);
         return;
       }
@@ -25,18 +27,19 @@ export function useAuth() {
       if (error || !data?.user) {
         setUser(null);
         setIsAdmin(false);
+        setIsSeller(false);
         setLoading(false);
         return;
       }
       setUser(data.user);
-      const { data: role } = await supabase
+      const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", data.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", data.user.id);
       if (!mounted) return;
-      setIsAdmin(!!role);
+      const rs = (roles || []).map((r: any) => r.role);
+      setIsAdmin(rs.includes("admin"));
+      setIsSeller(rs.includes("seller"));
       setLoading(false);
     }
 
@@ -55,5 +58,5 @@ export function useAuth() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  return { session, user, isAdmin, loading };
+  return { session, user, isAdmin, isSeller, loading };
 }

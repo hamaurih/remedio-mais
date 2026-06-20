@@ -44,6 +44,7 @@ import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 import AdminMenus from "./pages/admin/AdminMenus.tsx";
 import AdminDataQuality from "./pages/admin/AdminDataQuality.tsx";
 import AdminTaxonomy from "./pages/admin/AdminTaxonomy.tsx";
+import AdminSellers from "./pages/admin/AdminSellers.tsx";
 
 
 
@@ -94,6 +95,7 @@ const App = () => (
             <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
             <Route path="estoque" element={<AdminStock />} />
             <Route path="clientes" element={<AdminCustomers />} />
+            <Route path="vendedores" element={<AdminSellers />} />
             <Route path="categorias" element={<AdminCategories />} />
             <Route path="taxonomia" element={<AdminTaxonomy />} />
             <Route path="banners" element={<AdminBanners />} />

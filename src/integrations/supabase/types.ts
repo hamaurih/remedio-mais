@@ -2700,6 +2700,20 @@ export type Database = {
       }
     }
     Functions: {
+      admin_invite_seller: { Args: { _email: string }; Returns: Json }
+      admin_list_sellers: {
+        Args: never
+        Returns: {
+          can_execute_refund: boolean
+          can_request_refund: boolean
+          can_view_prescriptions: boolean
+          email: string
+          full_name: string
+          granted_at: string
+          user_id: string
+        }[]
+      }
+      admin_revoke_seller: { Args: { _user_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
