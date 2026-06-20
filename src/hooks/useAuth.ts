@@ -58,5 +58,5 @@ export function useAuth() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  return { session, user, isAdmin, loading };
+  return { session, user, isAdmin, isSeller, loading };
 }
