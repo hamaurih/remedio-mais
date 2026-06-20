@@ -15,7 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import type { PromoBlock } from "@/components/PromoBanner";
 import { PromoBlockPreview, resolveBlockType, resolveImageMode } from "@/components/PromoBanner";
-import { Trash2, Plus, Upload, AlertCircle } from "lucide-react";
+import { PROMO_THEME_OPTIONS, INTENSITY_OPTIONS, PROMO_THEMES } from "@/lib/promoThemes";
+import { Trash2, Plus, Upload, AlertCircle, Palette } from "lucide-react";
 
 const VARIANTS = [
   { value: "anniversary", label: "Aniversário" },
