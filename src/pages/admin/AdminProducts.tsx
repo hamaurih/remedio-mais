@@ -509,6 +509,12 @@ export default function AdminProducts() {
               )}
             </TabsContent>
 
+            <TabsContent value="commercial" className="pt-3">
+              <CommercialClassificationTab productId={editing.id || null} />
+            </TabsContent>
+
+
+
 
             <TabsContent value="reg" className="space-y-3 pt-3">
               <div className="flex items-center gap-2"><Switch checked={editing.requires_prescription} onCheckedChange={(v) => setEditing({ ...editing, requires_prescription: v })} /><Label>Exige receita</Label></div>
