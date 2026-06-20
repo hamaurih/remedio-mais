@@ -77,8 +77,11 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
           </Button>
         </div>
       </aside>
-      <main className="flex-1 bg-background">
-        {children || <Outlet />}
+      <main className="flex-1 bg-background flex flex-col">
+        <header className="h-12 border-b bg-card flex items-center justify-end px-3 gap-2">
+          <NotificationsBell />
+        </header>
+        <div className="flex-1">{children || <Outlet />}</div>
       </main>
     </div>
   );
