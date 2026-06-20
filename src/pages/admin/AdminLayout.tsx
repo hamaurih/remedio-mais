@@ -3,41 +3,50 @@ import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree } from "lucide-react";
+import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog } from "lucide-react";
 
-const items = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/admin/produtos", label: "Produtos", icon: Package },
-  { to: "/admin/estoque", label: "Estoque", icon: Boxes },
-  { to: "/admin/categorias", label: "Categorias", icon: Tags },
-  { to: "/admin/taxonomia", label: "Taxonomia", icon: FolderTree },
-  { to: "/admin/menus", label: "Menus", icon: MenuIcon },
-  { to: "/admin/banners", label: "Banners", icon: ImageIcon },
-  { to: "/admin/mosaico", label: "Mosaico Home", icon: LayoutGrid },
-  { to: "/admin/promo-banner", label: "Faixa Promo (5 blocos)", icon: Tag },
-  { to: "/admin/campanhas", label: "Campanhas", icon: Megaphone },
-  { to: "/admin/ofertas", label: "Ofertas", icon: Tag },
-  { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag },
-  { to: "/admin/clientes", label: "Clientes", icon: Users },
-  { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { to: "/admin/receitas", label: "Receitas", icon: FileText },
-  { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug },
-  { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity },
-  { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert },
-  { to: "/admin/config", label: "Configurações", icon: Settings },
+type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller"> };
+
+const items: Item[] = [
+  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["admin"] },
+  { to: "/admin/produtos", label: "Produtos", icon: Package, roles: ["admin"] },
+  { to: "/admin/estoque", label: "Estoque", icon: Boxes, roles: ["admin"] },
+  { to: "/admin/categorias", label: "Categorias", icon: Tags, roles: ["admin"] },
+  { to: "/admin/taxonomia", label: "Taxonomia", icon: FolderTree, roles: ["admin"] },
+  { to: "/admin/menus", label: "Menus", icon: MenuIcon, roles: ["admin"] },
+  { to: "/admin/banners", label: "Banners", icon: ImageIcon, roles: ["admin"] },
+  { to: "/admin/mosaico", label: "Mosaico Home", icon: LayoutGrid, roles: ["admin"] },
+  { to: "/admin/promo-banner", label: "Faixa Promo (5 blocos)", icon: Tag, roles: ["admin"] },
+  { to: "/admin/campanhas", label: "Campanhas", icon: Megaphone, roles: ["admin"] },
+  { to: "/admin/ofertas", label: "Ofertas", icon: Tag, roles: ["admin"] },
+  { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
+  { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
+  { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
+  { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard, roles: ["admin"] },
+  { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"] },
+  { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug, roles: ["admin"] },
+  { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity, roles: ["admin"] },
+  { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert, roles: ["admin"] },
+  { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, isSeller, loading } = useAuth();
   if (loading) return <div className="p-10 text-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
-  if (!isAdmin) return (
+  if (!isAdmin && !isSeller) return (
     <div className="container py-20 text-center">
       <h1 className="text-2xl font-bold mb-2">Acesso restrito</h1>
-      <p className="text-muted-foreground mb-4">Sua conta não tem permissão de administrador.</p>
-      <p className="text-xs text-muted-foreground max-w-md mx-auto">Para conceder, vá no painel da Lovable Cloud (Backend → Tabela <code>user_roles</code>) e adicione uma linha com seu user_id e role <code>admin</code>.</p>
+      <p className="text-muted-foreground mb-4">Sua conta não tem permissão de administrador ou vendedor.</p>
     </div>
   );
+
+  const visible = items.filter((it) => {
+    if (!it.roles) return isAdmin;
+    if (isAdmin) return it.roles.includes("admin");
+    if (isSeller) return it.roles.includes("seller");
+    return false;
+  });
 
   return (
     <div className="min-h-screen flex">
@@ -45,11 +54,11 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
         <div className="p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 bg-gradient-hero rounded-lg flex items-center justify-center text-primary-foreground font-extrabold">A+</div>
-            <div className="font-extrabold text-sm">Admin</div>
+            <div className="font-extrabold text-sm">{isAdmin ? "Admin" : "Vendedor"}</div>
           </div>
         </div>
-        <nav className="flex-1 p-2 space-y-1">
-          {items.map((it) => (
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+          {visible.map((it) => (
             <NavLink
               key={it.to}
               to={it.to}
