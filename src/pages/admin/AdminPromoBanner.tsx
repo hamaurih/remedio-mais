@@ -142,6 +142,7 @@ export default function AdminPromoBanner() {
         theme_key: "default",
         background_intensity: "soft",
         decoration_enabled: true,
+      });
     if (error) toast.error(error.message);
     else load();
   };
