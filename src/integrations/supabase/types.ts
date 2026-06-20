@@ -343,6 +343,7 @@ export type Database = {
           active: boolean
           band_color: string | null
           created_at: string
+          department_id: string | null
           description: string | null
           icon: string | null
           id: string
@@ -360,6 +361,7 @@ export type Database = {
           active?: boolean
           band_color?: string | null
           created_at?: string
+          department_id?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -377,6 +379,7 @@ export type Database = {
           active?: boolean
           band_color?: string | null
           created_at?: string
+          department_id?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -390,7 +393,15 @@ export type Database = {
           slug?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_addresses: {
         Row: {
@@ -450,6 +461,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      departments: {
+        Row: {
+          active: boolean
+          band_color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          name: string
+          position: number
+          show_in_menu: boolean
+          show_on_home: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          band_color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          position?: number
+          show_in_menu?: boolean
+          show_on_home?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          band_color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          position?: number
+          show_in_menu?: boolean
+          show_on_home?: boolean
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       home_mosaic_tiles: {
         Row: {
@@ -1244,6 +1303,74 @@ export type Database = {
           },
         ]
       }
+      product_taxonomy: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          department_id: string | null
+          id: string
+          is_manual: boolean
+          is_primary: boolean
+          product_id: string
+          source: string
+          subcategory_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          is_manual?: boolean
+          is_primary?: boolean
+          product_id: string
+          source?: string
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          is_manual?: boolean
+          is_primary?: boolean
+          product_id?: string
+          source?: string
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_taxonomy_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_taxonomy_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_taxonomy_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_taxonomy_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           active: boolean
@@ -1837,6 +1964,56 @@ export type Database = {
         }
         Relationships: []
       }
+      subcategories: {
+        Row: {
+          active: boolean
+          category_id: string
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          position: number
+          show_in_menu: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          position?: number
+          show_in_menu?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          position?: number
+          show_in_menu?: boolean
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trier_barcode_divergences: {
         Row: {
           created_at: string
@@ -1877,6 +2054,76 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trier_category_mappings: {
+        Row: {
+          active: boolean
+          case_sensitive: boolean
+          category_id: string | null
+          created_at: string
+          department_id: string | null
+          id: string
+          match_type: string
+          match_value: string
+          notes: string | null
+          priority: number
+          source_field: string
+          subcategory_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          case_sensitive?: boolean
+          category_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          match_type: string
+          match_value: string
+          notes?: string | null
+          priority?: number
+          source_field: string
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          case_sensitive?: boolean
+          category_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          match_type?: string
+          match_value?: string
+          notes?: string | null
+          priority?: number
+          source_field?: string
+          subcategory_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trier_category_mappings_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trier_category_mappings_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trier_category_mappings_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
             referencedColumns: ["id"]
           },
         ]
