@@ -25,10 +25,21 @@ export default function OrderReturn({ status }: { status: Status }) {
     } catch {}
     const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
     setOrder(data);
+    const { data: evs } = await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
+    setEvents(evs || []);
     setLoading(false);
   };
 
-  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [orderId]);
+  useEffect(() => {
+    refresh(); /* eslint-disable-next-line */
+    if (!orderId) return;
+    const ch = supabase
+      .channel(`order_${orderId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `id=eq.${orderId}` }, () => refresh())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_events", filter: `order_id=eq.${orderId}` }, () => refresh())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [orderId]);
 
   const isPaid = order?.payment_status === "approved";
   const effective: Status = isPaid ? "success" : status;
