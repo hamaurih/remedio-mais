@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog } from "lucide-react";
+import { NotificationsBell } from "@/components/admin/NotificationsBell";
 
 type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller"> };
 
