@@ -73,7 +73,10 @@ function buildGroups(items: MegaItem[]) {
   return ordered;
 }
 
-function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> }) {
+type MegaCategory = { label: string; href: string; subs: { label: string; href: string }[] };
+type MegaGroupRich = { label: string; categories: MegaCategory[] };
+
+function MegaMenuDesktop({ groups }: { groups: MegaGroupRich[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
@@ -87,15 +90,24 @@ function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> })
         <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full pt-2 z-50 w-[min(960px,90vw)]">
-          <div className="bg-card border border-border rounded-xl shadow-xl p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+        <div className="absolute left-0 top-full pt-2 z-50 w-[min(1080px,92vw)]">
+          <div className="bg-card border border-border rounded-xl shadow-xl p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
             {groups.map((g) => (
               <div key={g.label} className="min-w-0">
                 <div className="text-xs uppercase tracking-wider font-extrabold text-primary mb-2">{g.label}</div>
-                <ul className="space-y-1.5">
-                  {g.items.map((c) => (
+                <ul className="space-y-2.5">
+                  {g.categories.map((c) => (
                     <li key={c.href}>
-                      <Link to={c.href} className="text-sm text-foreground hover:text-primary transition-colors">{c.label}</Link>
+                      <Link to={c.href} className="text-sm font-semibold text-foreground hover:text-primary transition-colors">{c.label}</Link>
+                      {c.subs.length > 0 && (
+                        <ul className="mt-1 ml-2 space-y-0.5 border-l border-border pl-2">
+                          {c.subs.map((s) => (
+                            <li key={s.href}>
+                              <Link to={s.href} className="text-xs text-muted-foreground hover:text-primary transition-colors">{s.label}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -108,7 +120,7 @@ function MegaMenuDesktop({ groups }: { groups: ReturnType<typeof buildGroups> })
   );
 }
 
-function MegaMenuMobile({ groups }: { groups: ReturnType<typeof buildGroups> }) {
+function MegaMenuMobile({ groups }: { groups: MegaGroupRich[] }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -125,10 +137,19 @@ function MegaMenuMobile({ groups }: { groups: ReturnType<typeof buildGroups> }) 
             <AccordionItem key={g.label} value={g.label} className="border-b">
               <AccordionTrigger className="px-2 text-sm font-bold">{g.label}</AccordionTrigger>
               <AccordionContent>
-                <ul className="px-2 pb-2 space-y-1">
-                  {g.items.map((c) => (
+                <ul className="px-2 pb-2 space-y-2">
+                  {g.categories.map((c) => (
                     <li key={c.href}>
-                      <Link to={c.href} className="block py-1.5 text-sm text-foreground hover:text-primary">{c.label}</Link>
+                      <Link to={c.href} className="block py-1 text-sm font-semibold text-foreground hover:text-primary">{c.label}</Link>
+                      {c.subs.length > 0 && (
+                        <ul className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                          {c.subs.map((s) => (
+                            <li key={s.href}>
+                              <Link to={s.href} className="block py-0.5 text-xs text-muted-foreground hover:text-primary">{s.label}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   ))}
                 </ul>
