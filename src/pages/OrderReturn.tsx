@@ -8,6 +8,24 @@ import { CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
 
 type Status = "success" | "pending" | "failure";
 
+const STATUS_LABEL: Record<string, string> = {
+  novo: "Pedido recebido", em_atendimento: "Em atendimento", aguardando_pagamento: "Aguardando pagamento",
+  aprovado: "Pagamento aprovado", em_separacao: "Em separação", indisponivel: "Item indisponível",
+  pronto_retirada: "Pronto para retirada", saiu_para_entrega: "Saiu para entrega",
+  entregue: "Entregue", retirado: "Retirado", finalizado: "Concluído",
+  reembolso_pendente: "Reembolso em análise", reembolsado: "Reembolsado", cancelado: "Cancelado",
+  approved: "Pagamento aprovado", pending: "Pagamento pendente", rejected: "Pagamento recusado",
+  refunded: "Estornado", partially_refunded: "Estornado parcialmente",
+  picking: "Separando", packed: "Embalado", shipped: "Despachado", delivered: "Entregue",
+};
+
+function eventLabel(e: any) {
+  if (e.type === "created") return "Pedido recebido";
+  if (e.type === "refund_completed") return e.message || "Reembolso concluído";
+  const s = e.new_status;
+  return STATUS_LABEL[s] || e.message || s || e.type;
+}
+
 export default function OrderReturn({ status }: { status: Status }) {
   const loc = useLocation();
   const nav = useNavigate();
