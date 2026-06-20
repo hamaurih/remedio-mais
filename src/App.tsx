@@ -41,6 +41,7 @@ import AdminPayments from "./pages/admin/AdminPayments.tsx";
 import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 import AdminMenus from "./pages/admin/AdminMenus.tsx";
 import AdminDataQuality from "./pages/admin/AdminDataQuality.tsx";
+import AdminTaxonomy from "./pages/admin/AdminTaxonomy.tsx";
 
 
 
@@ -89,6 +90,7 @@ const App = () => (
             <Route path="estoque" element={<AdminStock />} />
             <Route path="clientes" element={<AdminCustomers />} />
             <Route path="categorias" element={<AdminCategories />} />
+            <Route path="taxonomia" element={<AdminTaxonomy />} />
             <Route path="banners" element={<AdminBanners />} />
             <Route path="banners/gerador" element={<AdminBannerGenerator />} />
             <Route path="promo-banner" element={<AdminPromoBanner />} />
