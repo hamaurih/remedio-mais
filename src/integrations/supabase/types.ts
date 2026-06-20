@@ -58,8 +58,13 @@ export type Database = {
           created_at: string
           id: string
           message: string | null
+          metadata: Json
           order_id: string | null
+          priority: string
           read: boolean
+          read_at: string | null
+          role_target: string
+          target_user_id: string | null
           title: string
           type: string
         }
@@ -67,8 +72,13 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string | null
+          metadata?: Json
           order_id?: string | null
+          priority?: string
           read?: boolean
+          read_at?: string | null
+          role_target?: string
+          target_user_id?: string | null
           title: string
           type: string
         }
@@ -76,8 +86,13 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string | null
+          metadata?: Json
           order_id?: string | null
+          priority?: string
           read?: boolean
+          read_at?: string | null
+          role_target?: string
+          target_user_id?: string | null
           title?: string
           type?: string
         }
@@ -848,12 +863,16 @@ export type Database = {
         Row: {
           controlled: boolean
           id: string
+          item_notes: string | null
+          item_status: string
           order_id: string
           product_id: string | null
           product_image_url: string | null
           product_name: string
           quantity: number
           requires_prescription: boolean
+          status_updated_at: string | null
+          status_updated_by: string | null
           total: number | null
           unit_price: number
           variant_id: string | null
@@ -862,12 +881,16 @@ export type Database = {
         Insert: {
           controlled?: boolean
           id?: string
+          item_notes?: string | null
+          item_status?: string
           order_id: string
           product_id?: string | null
           product_image_url?: string | null
           product_name: string
           quantity: number
           requires_prescription?: boolean
+          status_updated_at?: string | null
+          status_updated_by?: string | null
           total?: number | null
           unit_price: number
           variant_id?: string | null
@@ -876,12 +899,16 @@ export type Database = {
         Update: {
           controlled?: boolean
           id?: string
+          item_notes?: string | null
+          item_status?: string
           order_id?: string
           product_id?: string | null
           product_image_url?: string | null
           product_name?: string
           quantity?: number
           requires_prescription?: boolean
+          status_updated_at?: string | null
+          status_updated_by?: string | null
           total?: number | null
           unit_price?: number
           variant_id?: string | null
@@ -1832,6 +1859,146 @@ export type Database = {
           title?: string | null
           updated_at?: string
           variant?: string
+        }
+        Relationships: []
+      }
+      refund_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          order_item_id: string | null
+          product_id: string | null
+          quantity: number
+          reason: string | null
+          refund_request_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          order_item_id?: string | null
+          product_id?: string | null
+          quantity?: number
+          reason?: string | null
+          refund_request_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          order_item_id?: string | null
+          product_id?: string | null
+          quantity?: number
+          reason?: string | null
+          refund_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_items_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_items_refund_request_id_fkey"
+            columns: ["refund_request_id"]
+            isOneToOne: false
+            referencedRelation: "refund_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refund_requests: {
+        Row: {
+          amount: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string | null
+          mercado_pago_refund_id: string | null
+          order_id: string
+          payment_id: string | null
+          processed_at: string | null
+          processed_by: string | null
+          reason: string | null
+          requested_by: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          mercado_pago_refund_id?: string | null
+          order_id: string
+          payment_id?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          mercado_pago_refund_id?: string | null
+          order_id?: string
+          payment_id?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_permissions: {
+        Row: {
+          can_execute_refund: boolean
+          can_request_refund: boolean
+          can_view_prescriptions: boolean
+          created_at: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_execute_refund?: boolean
+          can_request_refund?: boolean
+          can_view_prescriptions?: boolean
+          created_at?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_execute_refund?: boolean
+          can_request_refund?: boolean
+          can_view_prescriptions?: boolean
+          created_at?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
