@@ -44,6 +44,7 @@ import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 import AdminMenus from "./pages/admin/AdminMenus.tsx";
 import AdminDataQuality from "./pages/admin/AdminDataQuality.tsx";
 import AdminTaxonomy from "./pages/admin/AdminTaxonomy.tsx";
+import AdminSellers from "./pages/admin/AdminSellers.tsx";
 
 
 
