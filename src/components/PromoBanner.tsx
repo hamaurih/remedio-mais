@@ -3,6 +3,13 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Tag, Sparkles, Pill, Percent, ShoppingBag } from "lucide-react";
+import {
+  getTheme,
+  INTENSITY_OPACITY,
+  type BackgroundIntensity,
+  type DecorationKind,
+  type PromoTheme,
+} from "@/lib/promoThemes";
 
 export type BlockType = "destaque_grande" | "card_medio" | "card_pequeno" | "banner_completo";
 export type ImageMode = "produto_sem_fundo" | "arte_completa";
@@ -46,6 +53,14 @@ export type PromoBlock = {
   bg_custom?: string | null;
   cta_color?: CtaColor | null;
   animation_type?: AnimationType | null;
+  // Novos — tema visual
+  theme_key?: string | null;
+  background_image_url?: string | null;
+  background_intensity?: BackgroundIntensity | null;
+  decoration_enabled?: boolean | null;
+  custom_background_color?: string | null;
+  custom_cta_color?: string | null;
+  custom_badge_color?: string | null;
 };
 
 const brl = (n: number) =>
@@ -72,32 +87,6 @@ export function resolveImageMode(b: PromoBlock): "produto_sem_fundo" | "arte_com
   return "produto_sem_fundo";
 }
 
-function bgClass(b: PromoBlock) {
-  switch (b.bg_color) {
-    case "vermelho_claro":
-      return "bg-gradient-to-br from-white via-[#ffecec] to-white";
-    case "branco":
-      return "bg-white";
-    case "personalizado":
-      return "";
-    case "azul_claro":
-    default:
-      return "bg-gradient-to-br from-white via-[#eef8ff] to-white";
-  }
-}
-
-function ctaClass(b: PromoBlock) {
-  switch (b.cta_color) {
-    case "azul":
-      return "bg-sky-600 text-white";
-    case "amarelo":
-      return "bg-amber-400 text-black";
-    case "vermelho":
-    default:
-      return "bg-primary text-primary-foreground";
-  }
-}
-
 // size: width/height per block_type
 function sizeClass(type: BlockType) {
   switch (type) {
@@ -113,7 +102,6 @@ function sizeClass(type: BlockType) {
 }
 
 function imageSizeStyle(type: BlockType, size: ImageSize | null | undefined) {
-  // Defaults by type
   const def: Record<BlockType, { maxH: string; maxW: string }> = {
     destaque_grande: { maxH: "82%", maxW: "48%" },
     card_medio:      { maxH: "70%", maxW: "40%" },
@@ -184,6 +172,129 @@ function AnimOverlay({ kind }: { kind: string }) {
   return null;
 }
 
+// Decoração visual do tema (leve, CSS puro, respeita reduced-motion via classes globais).
+function ThemeDecoration({ kind, accent }: { kind: DecorationKind; accent: string }) {
+  if (kind === "none") return null;
+  if (kind === "flags") {
+    return (
+      <div className="promo-deco promo-deco-flags" aria-hidden>
+        <span style={{ background: "#dc2626" }} />
+        <span style={{ background: "#facc15" }} />
+        <span style={{ background: "#0284c7" }} />
+        <span style={{ background: "#16a34a" }} />
+        <span style={{ background: "#dc2626" }} />
+        <span style={{ background: "#facc15" }} />
+        <span style={{ background: "#0284c7" }} />
+      </div>
+    );
+  }
+  if (kind === "confetti") {
+    return (
+      <div className="promo-deco promo-deco-confetti" aria-hidden>
+        <span /><span /><span /><span /><span /><span /><span /><span />
+      </div>
+    );
+  }
+  if (kind === "snow") {
+    return (
+      <div className="promo-deco promo-deco-snow" aria-hidden>
+        <span /><span /><span /><span /><span /><span />
+      </div>
+    );
+  }
+  if (kind === "waves") {
+    return (
+      <svg
+        className="promo-deco promo-deco-waves"
+        viewBox="0 0 400 80"
+        preserveAspectRatio="none"
+        aria-hidden
+      >
+        <path d="M0,40 C80,10 160,70 240,40 C320,10 400,50 400,50 L400,80 L0,80 Z" fill={accent} opacity="0.25" />
+        <path d="M0,55 C80,25 160,80 240,55 C320,30 400,65 400,65 L400,80 L0,80 Z" fill={accent} opacity="0.18" />
+      </svg>
+    );
+  }
+  if (kind === "hearts") {
+    return (
+      <div className="promo-deco promo-deco-hearts" aria-hidden style={{ color: accent }}>
+        <span>♥</span><span>♥</span><span>♥</span><span>♥</span>
+      </div>
+    );
+  }
+  if (kind === "petals") {
+    return (
+      <div className="promo-deco promo-deco-petals" aria-hidden style={{ color: accent }}>
+        <span>✿</span><span>❀</span><span>✿</span><span>❀</span>
+      </div>
+    );
+  }
+  if (kind === "sparkle") {
+    return (
+      <div className="promo-deco promo-deco-sparkle" aria-hidden style={{ color: accent }}>
+        <span>✦</span><span>✧</span><span>✦</span><span>✧</span><span>✦</span>
+      </div>
+    );
+  }
+  if (kind === "dots") {
+    return (
+      <div
+        className="promo-deco promo-deco-dots"
+        aria-hidden
+        style={{
+          background:
+            `radial-gradient(${accent} 1.5px, transparent 2px) 0 0 / 18px 18px`,
+        }}
+      />
+    );
+  }
+  if (kind === "shine_strip") {
+    return <div className="promo-deco promo-shine-overlay" aria-hidden />;
+  }
+  return null;
+}
+
+// Resolve cores finais aplicando overrides custom_* sobre o tema.
+function resolveStyle(b: PromoBlock): {
+  theme: PromoTheme;
+  containerStyle: React.CSSProperties;
+  textColor: string;
+  mutedColor: string;
+  badgeBg: string;
+  badgeFg: string;
+  ctaBg: string;
+  ctaFg: string;
+  priceColor: string;
+} {
+  const theme = getTheme(b.theme_key);
+  // background: custom_background_color > theme.background; legado bg_color/bg_custom mantido
+  const legacyBg =
+    b.bg_color === "personalizado" && b.bg_custom
+      ? b.bg_custom
+      : b.bg_color && b.bg_color !== "personalizado"
+        ? null
+        : null;
+  const bg = b.custom_background_color || theme.background || legacyBg || "#fff";
+  const badgeBg = b.custom_badge_color || theme.badgeColor;
+  const ctaBg = b.custom_cta_color || theme.ctaColor;
+
+  return {
+    theme,
+    containerStyle: {
+      background: bg,
+      border: theme.border,
+      boxShadow: theme.shadow,
+    },
+    textColor: theme.textColor,
+    mutedColor: theme.mutedTextColor,
+    badgeBg,
+    badgeFg: theme.badgeTextColor,
+    ctaBg,
+    ctaFg: theme.ctaTextColor,
+    priceColor: theme.priceColor,
+  };
+}
+
 // ---------- inner card ----------
 function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
   const Icon = variantIcon[block.variant] ?? variantIcon.default;
@@ -196,13 +307,43 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
   const isFeatured = type === "destaque_grande";
   const isSmall = type === "card_pequeno";
   const anim = animClasses(block);
+  const styles = resolveStyle(block);
+  const decoEnabled = block.decoration_enabled ?? true;
+  const decoKind: DecorationKind = decoEnabled ? styles.theme.decoration : "none";
 
-  // banner_completo OR arte_completa: image fills card, text optional overlay
   const fullImage = type === "banner_completo" || mode === "arte_completa";
+
+  // Background image opcional com intensidade
+  const bgImg = block.background_image_url;
+  const intensity = (block.background_intensity ?? "soft") as BackgroundIntensity;
+  const bgImgOpacity = INTENSITY_OPACITY[intensity] ?? 0.35;
+
+  const bgImageLayer = bgImg && bgImgOpacity > 0 ? (
+    <>
+      <img
+        src={bgImg}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+        style={{ opacity: bgImgOpacity, zIndex: 0 }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          zIndex: 0,
+          background: styles.theme.dark
+            ? "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.35))"
+            : "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.25))",
+        }}
+      />
+    </>
+  ) : null;
 
   if (fullImage && hasImage) {
     return (
       <>
+        {bgImageLayer}
         <img
           src={block.image_url!}
           alt={block.title ?? "Promoção"}
@@ -213,15 +354,28 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
           )}
         />
         {showText && (block.title || block.badge_text) && (
-          <div className="absolute inset-0 z-10 flex flex-col justify-end p-3 bg-gradient-to-t from-black/60 to-transparent text-white">
+          <div
+            className="absolute inset-0 z-10 flex flex-col justify-end p-3"
+            style={{
+              background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)",
+              color: "#fff",
+            }}
+          >
             {block.badge_text && (
-              <span className={cn("self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-primary text-primary-foreground", anim.badge)}>
+              <span
+                className={cn(
+                  "self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1",
+                  anim.badge,
+                )}
+                style={{ background: styles.badgeBg, color: styles.badgeFg }}
+              >
                 {block.badge_text}
               </span>
             )}
             {block.title && <h3 className="text-sm font-extrabold line-clamp-2">{block.title}</h3>}
           </div>
         )}
+        <ThemeDecoration kind={decoKind} accent={styles.theme.decorationAccent} />
         <AnimOverlay kind={anim.overlay} />
       </>
     );
@@ -230,36 +384,48 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
   // produto_sem_fundo layout
   const imgSize = imageSizeStyle(type, block.image_size ?? "medio");
   const imgPosCls = imagePosClasses(block.image_position ?? "direita");
-
-  // text padding
   const padCls = isFeatured ? "p-4" : isSmall ? "p-3" : "p-3.5";
 
   return (
     <>
+      {bgImageLayer}
+      <ThemeDecoration kind={decoKind} accent={styles.theme.decorationAccent} />
+
       {showText && (
-        <div className={cn("relative z-10 flex h-full flex-col", padCls, textMaxWidth(type))}>
+        <div
+          className={cn("relative z-10 flex h-full flex-col", padCls, textMaxWidth(type))}
+          style={{ color: styles.textColor }}
+        >
           <div className="min-w-0 flex-1 overflow-hidden">
             {block.badge_text && (
-              <span className={cn(
-                "inline-block max-w-full truncate text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 bg-primary text-primary-foreground",
-                anim.badge,
-              )}>
+              <span
+                className={cn(
+                  "inline-block max-w-full truncate text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5",
+                  anim.badge,
+                )}
+                style={{ background: styles.badgeBg, color: styles.badgeFg }}
+              >
                 {block.badge_text}
               </span>
             )}
             {block.title && (
-              <h3 className={cn(
-                "font-extrabold leading-tight text-foreground line-clamp-2",
-                isFeatured ? "text-[18px] md:text-[20px]" : isSmall ? "text-[12px] md:text-[13px]" : "text-[13px] md:text-[14px]",
-              )}>
+              <h3
+                className={cn(
+                  "font-extrabold leading-tight line-clamp-2",
+                  isFeatured ? "text-[18px] md:text-[20px]" : isSmall ? "text-[12px] md:text-[13px]" : "text-[13px] md:text-[14px]",
+                )}
+              >
                 {block.title}
               </h3>
             )}
             {block.subtitle && !isSmall && (
-              <p className={cn(
-                "text-muted-foreground mt-0.5 line-clamp-1",
-                isFeatured ? "text-[12px] md:text-[13px]" : "text-[11px] md:text-[12px]",
-              )}>
+              <p
+                className={cn(
+                  "mt-0.5 line-clamp-1",
+                  isFeatured ? "text-[12px] md:text-[13px]" : "text-[11px] md:text-[12px]",
+                )}
+                style={{ color: styles.mutedColor }}
+              >
                 {block.subtitle}
               </p>
             )}
@@ -269,31 +435,42 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
             {showPrice && block.new_price != null && (
               <div>
                 {block.price_suffix && (
-                  <div className="text-[9px] md:text-[10px] uppercase tracking-wider text-muted-foreground leading-tight truncate">
+                  <div
+                    className="text-[9px] md:text-[10px] uppercase tracking-wider leading-tight truncate"
+                    style={{ color: styles.mutedColor }}
+                  >
                     {block.price_suffix}
                   </div>
                 )}
                 {block.old_price != null && (
-                  <div className="text-[11px] line-through text-muted-foreground leading-none">
+                  <div
+                    className="text-[11px] line-through leading-none"
+                    style={{ color: styles.mutedColor }}
+                  >
                     {brl(Number(block.old_price))}
                   </div>
                 )}
-                <div className={cn(
-                  "font-extrabold leading-none text-primary",
-                  isFeatured ? "text-[24px] md:text-[28px]" : isSmall ? "text-[16px] md:text-[18px]" : "text-[19px] md:text-[21px]",
-                )}>
+                <div
+                  className={cn(
+                    "font-extrabold leading-none",
+                    isFeatured ? "text-[24px] md:text-[28px]" : isSmall ? "text-[16px] md:text-[18px]" : "text-[19px] md:text-[21px]",
+                  )}
+                  style={{ color: styles.priceColor }}
+                >
                   {brl(Number(block.new_price))}
                 </div>
               </div>
             )}
 
             {showCta && block.cta_text && (
-              <span className={cn(
-                "inline-flex w-fit items-center gap-1 font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
-                ctaClass(block),
-                isFeatured ? "text-[11px] md:text-[12px] px-3 py-1" : "text-[10px] md:text-[11px] px-2.5 py-1",
-                anim.cta,
-              )}>
+              <span
+                className={cn(
+                  "inline-flex w-fit items-center gap-1 font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
+                  isFeatured ? "text-[11px] md:text-[12px] px-3 py-1" : "text-[10px] md:text-[11px] px-2.5 py-1",
+                  anim.cta,
+                )}
+                style={{ background: styles.ctaBg, color: styles.ctaFg }}
+              >
                 {block.cta_text} →
               </span>
             )}
@@ -308,14 +485,14 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
           loading="lazy"
           style={{ maxHeight: imgSize.maxH, maxWidth: imgSize.maxW }}
           className={cn(
-            "pointer-events-none absolute z-0 object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)] transition-transform duration-500 group-hover:scale-[1.04]",
+            "pointer-events-none absolute z-[5] object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)] transition-transform duration-500 group-hover:scale-[1.04]",
             imgPosCls,
             anim.img,
           )}
         />
       ) : (
         <div className={cn(
-          "absolute right-3 bottom-3 z-0 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-sky-100 border border-sky-100 flex items-center justify-center",
+          "absolute right-3 bottom-3 z-[5] rounded-2xl bg-gradient-to-br from-sky-50 via-white to-sky-100 border border-sky-100 flex items-center justify-center",
           isFeatured ? "h-20 w-20" : isSmall ? "h-12 w-12" : "h-14 w-14",
           anim.img,
         )}>
@@ -330,15 +507,14 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
 // ---------- preview card (used in admin) ----------
 export function PromoBlockPreview({ block, index = 0 }: { block: PromoBlock; index?: number }) {
   const type = resolveBlockType(block, index);
-  const styleBg = block.bg_color === "personalizado" && block.bg_custom ? { background: block.bg_custom } : undefined;
+  const styles = resolveStyle(block);
 
   return (
     <div
-      style={styleBg}
+      style={styles.containerStyle}
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-sky-100 shadow-sm",
+        "group relative overflow-hidden rounded-xl",
         sizeClass(type),
-        styleBg ? "" : bgClass(block),
         animClasses(block).wrapper,
       )}
     >
@@ -352,19 +528,17 @@ function Tile({ block, index }: { block: PromoBlock; index: number }) {
   const type = resolveBlockType(block, index);
   const Wrapper: any = block.cta_url ? Link : "div";
   const wrapperProps = block.cta_url ? { to: block.cta_url } : {};
-  const styleBg = block.bg_color === "personalizado" && block.bg_custom ? { background: block.bg_custom } : undefined;
+  const styles = resolveStyle(block);
 
   return (
     <Wrapper
       {...wrapperProps}
       aria-label={block.title ?? "Promoção"}
-      style={styleBg}
+      style={styles.containerStyle}
       className={cn(
-        "group relative shrink-0 snap-start overflow-hidden rounded-xl border border-sky-100",
-        "shadow-[0_2px_8px_rgba(15,40,75,0.08)] hover:shadow-[0_8px_20px_rgba(15,40,75,0.14)]",
-        "transition-all hover:-translate-y-0.5",
+        "group relative shrink-0 snap-start overflow-hidden rounded-xl",
+        "hover:shadow-[0_8px_20px_rgba(15,40,75,0.18)] transition-all hover:-translate-y-0.5",
         sizeClass(type),
-        styleBg ? "" : bgClass(block),
         animClasses(block).wrapper,
       )}
     >
