@@ -8,12 +8,31 @@ import { CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
 
 type Status = "success" | "pending" | "failure";
 
+const STATUS_LABEL: Record<string, string> = {
+  novo: "Pedido recebido", em_atendimento: "Em atendimento", aguardando_pagamento: "Aguardando pagamento",
+  aprovado: "Pagamento aprovado", em_separacao: "Em separação", indisponivel: "Item indisponível",
+  pronto_retirada: "Pronto para retirada", saiu_para_entrega: "Saiu para entrega",
+  entregue: "Entregue", retirado: "Retirado", finalizado: "Concluído",
+  reembolso_pendente: "Reembolso em análise", reembolsado: "Reembolsado", cancelado: "Cancelado",
+  approved: "Pagamento aprovado", pending: "Pagamento pendente", rejected: "Pagamento recusado",
+  refunded: "Estornado", partially_refunded: "Estornado parcialmente",
+  picking: "Separando", packed: "Embalado", shipped: "Despachado", delivered: "Entregue",
+};
+
+function eventLabel(e: any) {
+  if (e.type === "created") return "Pedido recebido";
+  if (e.type === "refund_completed") return e.message || "Reembolso concluído";
+  const s = e.new_status;
+  return STATUS_LABEL[s] || e.message || s || e.type;
+}
+
 export default function OrderReturn({ status }: { status: Status }) {
   const loc = useLocation();
   const nav = useNavigate();
   const params = new URLSearchParams(loc.search);
   const orderId = params.get("order");
   const [order, setOrder] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
@@ -24,10 +43,21 @@ export default function OrderReturn({ status }: { status: Status }) {
     } catch {}
     const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
     setOrder(data);
+    const { data: evs } = await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
+    setEvents(evs || []);
     setLoading(false);
   };
 
-  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [orderId]);
+  useEffect(() => {
+    refresh(); /* eslint-disable-next-line */
+    if (!orderId) return;
+    const ch = supabase
+      .channel(`order_${orderId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `id=eq.${orderId}` }, () => refresh())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_events", filter: `order_id=eq.${orderId}` }, () => refresh())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [orderId]);
 
   const isPaid = order?.payment_status === "approved";
   const effective: Status = isPaid ? "success" : status;
@@ -59,6 +89,23 @@ export default function OrderReturn({ status }: { status: Status }) {
                 ))}
               </div>
               <div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span className="text-primary">{formatBRL(Number(order.total))}</span></div>
+            </div>
+          )}
+
+          {order && events.length > 0 && (
+            <div className="text-left border-t pt-4">
+              <div className="text-sm font-semibold mb-2">Acompanhamento do pedido</div>
+              <ol className="space-y-2">
+                {events.filter((e) => ["created", "order_status", "payment_status", "fulfillment_status", "delivery_status", "refund_completed"].includes(e.type)).map((e) => (
+                  <li key={e.id} className="flex gap-3 text-xs">
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-medium">{eventLabel(e)}</div>
+                      <div className="text-muted-foreground text-[10px]">{new Date(e.created_at).toLocaleString("pt-BR")}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
 
