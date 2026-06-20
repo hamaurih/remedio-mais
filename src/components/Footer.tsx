@@ -124,6 +124,7 @@ export function Footer() {
                 { label: "Fale Conosco", href: "/fale-conosco" },
                 { label: "Envio de Receita", href: "/enviar-receita" },
                 { label: "Trocas e Devoluções", href: "/trocas-e-devolucoes" },
+                { label: "Política de Reembolso", href: "/politica-de-reembolso" },
               ])}
             </ul>
           </div>

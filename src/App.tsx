@@ -16,6 +16,7 @@ import Auth from "./pages/Auth.tsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Terms from "./pages/Terms.tsx";
 import Returns from "./pages/Returns.tsx";
+import RefundPolicy from "./pages/RefundPolicy.tsx";
 import Contact from "./pages/Contact.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
@@ -83,6 +84,7 @@ const App = () => (
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<Terms />} />
           <Route path="/trocas-e-devolucoes" element={<Returns />} />
+          <Route path="/politica-de-reembolso" element={<RefundPolicy />} />
           <Route path="/fale-conosco" element={<Contact />} />
           <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
           <Route path="/admin" element={<AdminLayout />}>
