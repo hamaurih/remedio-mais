@@ -245,6 +245,10 @@ export default function AdminOrders() {
                 </div>
               </TabsContent>
 
+              <TabsContent value="reembolso">
+                <RefundPanel order={view} />
+              </TabsContent>
+
               <TabsContent value="historico" className="pt-3">
                 <OrderHistory orderId={view.id} />
               </TabsContent>
