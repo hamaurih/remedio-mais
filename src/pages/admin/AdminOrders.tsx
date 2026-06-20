@@ -197,9 +197,10 @@ export default function AdminOrders() {
           <DialogHeader><DialogTitle>Pedido #{view?.id?.slice(0, 6)}</DialogTitle></DialogHeader>
           {view && (
             <Tabs defaultValue="separacao">
-              <TabsList className="grid grid-cols-3 w-full">
+              <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="separacao">Separação</TabsTrigger>
                 <TabsTrigger value="resumo">Resumo</TabsTrigger>
+                <TabsTrigger value="reembolso">Reembolso</TabsTrigger>
                 <TabsTrigger value="historico">Histórico</TabsTrigger>
               </TabsList>
 
