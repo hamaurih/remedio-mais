@@ -14,6 +14,7 @@ export default function OrderReturn({ status }: { status: Status }) {
   const params = new URLSearchParams(loc.search);
   const orderId = params.get("order");
   const [order, setOrder] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
