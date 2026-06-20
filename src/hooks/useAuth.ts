@@ -18,6 +18,7 @@ export function useAuth() {
         if (!mounted) return;
         setUser(null);
         setIsAdmin(false);
+        setIsSeller(false);
         setLoading(false);
         return;
       }
@@ -26,18 +27,19 @@ export function useAuth() {
       if (error || !data?.user) {
         setUser(null);
         setIsAdmin(false);
+        setIsSeller(false);
         setLoading(false);
         return;
       }
       setUser(data.user);
-      const { data: role } = await supabase
+      const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", data.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", data.user.id);
       if (!mounted) return;
-      setIsAdmin(!!role);
+      const rs = (roles || []).map((r: any) => r.role);
+      setIsAdmin(rs.includes("admin"));
+      setIsSeller(rs.includes("seller"));
       setLoading(false);
     }
 
