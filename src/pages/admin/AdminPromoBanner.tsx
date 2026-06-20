@@ -223,7 +223,128 @@ export default function AdminPromoBanner() {
                 )}
               </div>
 
+              {/* TEMA VISUAL */}
+              <div className="mb-4 p-3 rounded-lg border border-dashed border-sky-200 bg-sky-50/40">
+                <div className="flex items-center gap-2 mb-3">
+                  <Palette className="h-4 w-4 text-sky-700" />
+                  <span className="text-sm font-bold text-sky-900">Tema visual e fundo</span>
+                </div>
+                <div className="grid md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label>Tema visual</Label>
+                    <Select
+                      value={b.theme_key ?? "default"}
+                      onValueChange={(v) => update(b.id, { theme_key: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-[320px]">
+                        {PROMO_THEME_OPTIONS.map((v) => (
+                          <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      Aplica fundo, badge, CTA e decoração automaticamente.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Intensidade do fundo (imagem)</Label>
+                    <Select
+                      value={b.background_intensity ?? "soft"}
+                      onValueChange={(v) => update(b.id, { background_intensity: v as any })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {INTENSITY_OPTIONS.map((v) => (
+                          <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-6">
+                    <Switch
+                      checked={b.decoration_enabled ?? true}
+                      onCheckedChange={(v) => update(b.id, { decoration_enabled: v })}
+                    />
+                    <Label className="cursor-pointer">
+                      Decoração do tema ({PROMO_THEMES[(b.theme_key as any) ?? "default"]?.decoration ?? "none"})
+                    </Label>
+                  </div>
+
+                  <div className="space-y-1 md:col-span-3">
+                    <Label>Imagem de fundo opcional</Label>
+                    <div className="flex items-center gap-3">
+                      {b.background_image_url && (
+                        <img src={b.background_image_url} alt="" className="h-12 w-16 object-cover bg-muted rounded" />
+                      )}
+                      <Input
+                        value={b.background_image_url ?? ""}
+                        onChange={(e) => update(b.id, { background_image_url: e.target.value || null })}
+                        placeholder="https://... (opcional)"
+                      />
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            const ext = f.name.split(".").pop();
+                            const path = `promo-banner/bg-${b.id}-${Date.now()}.${ext}`;
+                            const { error } = await supabase.storage.from("banners").upload(path, f, { upsert: true });
+                            if (error) return toast.error(error.message);
+                            const { data } = supabase.storage.from("banners").getPublicUrl(path);
+                            update(b.id, { background_image_url: data.publicUrl });
+                            toast.success("Fundo enviado — clique em Salvar bloco");
+                          }}
+                        />
+                        <span className="inline-flex items-center gap-1 text-sm border rounded-md px-3 py-2 hover:bg-accent">
+                          <Upload className="h-4 w-4" /> Upload
+                        </span>
+                      </label>
+                      {b.background_image_url && (
+                        <Button variant="ghost" size="sm" onClick={() => update(b.id, { background_image_url: null })}>
+                          Remover
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Opcional. Aplicado por trás do tema, com overlay automático para manter leitura.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Fundo personalizado (override)</Label>
+                    <Input
+                      value={b.custom_background_color ?? ""}
+                      onChange={(e) => update(b.id, { custom_background_color: e.target.value || null })}
+                      placeholder="#fff ou linear-gradient(...)"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>CTA personalizado (override)</Label>
+                    <Input
+                      value={b.custom_cta_color ?? ""}
+                      onChange={(e) => update(b.id, { custom_cta_color: e.target.value || null })}
+                      placeholder="#dc2626"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Badge personalizado (override)</Label>
+                    <Input
+                      value={b.custom_badge_color ?? ""}
+                      onChange={(e) => update(b.id, { custom_badge_color: e.target.value || null })}
+                      placeholder="#facc15"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid md:grid-cols-3 gap-3">
+
                 <div className="space-y-1">
                   <Label>Tipo de bloco</Label>
                   <Select
