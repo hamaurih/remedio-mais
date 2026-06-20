@@ -90,6 +90,7 @@ const App = () => (
             <Route path="estoque" element={<AdminStock />} />
             <Route path="clientes" element={<AdminCustomers />} />
             <Route path="categorias" element={<AdminCategories />} />
+            <Route path="taxonomia" element={<AdminTaxonomy />} />
             <Route path="banners" element={<AdminBanners />} />
             <Route path="banners/gerador" element={<AdminBannerGenerator />} />
             <Route path="promo-banner" element={<AdminPromoBanner />} />
