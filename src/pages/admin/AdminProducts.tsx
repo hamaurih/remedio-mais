@@ -15,6 +15,7 @@ import { formatBRL } from "@/lib/store";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
+import { CommercialClassificationTab } from "@/components/admin/CommercialClassificationTab";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
