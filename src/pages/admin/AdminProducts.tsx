@@ -40,6 +40,9 @@ const empty: any = {
   product_badge: "", seo_title: "", seo_description: "", seo_keywords: "",
   active: true, shelves: [] as string[],
   bestseller_rank: null, is_generic: false, generic_equivalent_id: null,
+  price_base: null, site_price: null, whatsapp_price: null,
+  site_promo_price: null, whatsapp_promo_price: null,
+  use_channel_pricing: false, channel_price_notes: "",
 };
 
 const slugify = (s: string) =>
