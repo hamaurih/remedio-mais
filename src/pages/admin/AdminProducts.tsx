@@ -147,6 +147,7 @@ export default function AdminProducts() {
       const promoNum = editing.promo_price ? Number(editing.promo_price) : null;
       const autoOnSale = hasOffersShelf && promoNum != null && promoNum < Number(editing.price);
 
+      const toNumOrNull = (v: any) => (v === "" || v == null ? null : Number(v));
       const payload: any = {
         ...editing, slug, image_url, gallery_images,
         category_id: editing.category_id || null,
@@ -161,6 +162,13 @@ export default function AdminProducts() {
         product_badge: editing.product_badge || null,
         pix_discount_percentage: editing.pix_discount_percentage ? Number(editing.pix_discount_percentage) : null,
         cart_quantity_limit: editing.cart_quantity_limit ? Number(editing.cart_quantity_limit) : null,
+        price_base: toNumOrNull(editing.price_base),
+        site_price: toNumOrNull(editing.site_price),
+        whatsapp_price: toNumOrNull(editing.whatsapp_price),
+        site_promo_price: toNumOrNull(editing.site_promo_price),
+        whatsapp_promo_price: toNumOrNull(editing.whatsapp_promo_price),
+        use_channel_pricing: !!editing.use_channel_pricing,
+        channel_price_notes: editing.channel_price_notes || null,
       };
       delete payload.categories;
       delete payload.discount_percentage; // generated column
