@@ -40,6 +40,9 @@ const empty: any = {
   product_badge: "", seo_title: "", seo_description: "", seo_keywords: "",
   active: true, shelves: [] as string[],
   bestseller_rank: null, is_generic: false, generic_equivalent_id: null,
+  price_base: null, site_price: null, whatsapp_price: null,
+  site_promo_price: null, whatsapp_promo_price: null,
+  use_channel_pricing: false, channel_price_notes: "",
 };
 
 const slugify = (s: string) =>
@@ -144,6 +147,7 @@ export default function AdminProducts() {
       const promoNum = editing.promo_price ? Number(editing.promo_price) : null;
       const autoOnSale = hasOffersShelf && promoNum != null && promoNum < Number(editing.price);
 
+      const toNumOrNull = (v: any) => (v === "" || v == null ? null : Number(v));
       const payload: any = {
         ...editing, slug, image_url, gallery_images,
         category_id: editing.category_id || null,
@@ -158,6 +162,13 @@ export default function AdminProducts() {
         product_badge: editing.product_badge || null,
         pix_discount_percentage: editing.pix_discount_percentage ? Number(editing.pix_discount_percentage) : null,
         cart_quantity_limit: editing.cart_quantity_limit ? Number(editing.cart_quantity_limit) : null,
+        price_base: toNumOrNull(editing.price_base),
+        site_price: toNumOrNull(editing.site_price),
+        whatsapp_price: toNumOrNull(editing.whatsapp_price),
+        site_promo_price: toNumOrNull(editing.site_promo_price),
+        whatsapp_promo_price: toNumOrNull(editing.whatsapp_promo_price),
+        use_channel_pricing: !!editing.use_channel_pricing,
+        channel_price_notes: editing.channel_price_notes || null,
       };
       delete payload.categories;
       delete payload.discount_percentage; // generated column
@@ -396,6 +407,42 @@ export default function AdminProducts() {
                 <div className="space-y-1"><Label>Fim da promoção</Label><Input type="datetime-local" value={editing.promotion_end?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_end: e.target.value || null })} /></div>
                 <div className="space-y-1"><Label>Desconto Pix do produto (%)</Label><Input type="number" step="0.01" min="0" max="100" value={editing.pix_discount_percentage ?? ""} onChange={(e) => setEditing({ ...editing, pix_discount_percentage: e.target.value || null })} placeholder="usa o global se vazio" /></div>
                 <div className="space-y-1"><Label>Limite por carrinho</Label><Input type="number" min="1" value={editing.cart_quantity_limit ?? ""} onChange={(e) => setEditing({ ...editing, cart_quantity_limit: e.target.value || null })} placeholder="sem limite" /></div>
+              </div>
+
+              <div className="border-t pt-4 mt-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="font-bold">Preços por canal</Label>
+                    <p className="text-xs text-muted-foreground">Defina preço específico para o site e para o WhatsApp/loja. Em branco = usa o preço normal acima.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={!!editing.use_channel_pricing} onCheckedChange={(v) => setEditing({ ...editing, use_channel_pricing: v })} />
+                    <Label className="text-xs">Usar preço por canal</Label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1"><Label>Preço base (Trier) R$</Label><Input type="number" step="0.01" value={editing.price_base ?? ""} onChange={(e) => setEditing({ ...editing, price_base: e.target.value || null })} placeholder="ex: vindo da Trier" /></div>
+                  <div className="space-y-1"><Label>Preço do site R$</Label><Input type="number" step="0.01" value={editing.site_price ?? ""} onChange={(e) => setEditing({ ...editing, site_price: e.target.value || null })} /></div>
+                  <div className="space-y-1"><Label>Preço promo do site R$</Label><Input type="number" step="0.01" value={editing.site_promo_price ?? ""} onChange={(e) => setEditing({ ...editing, site_promo_price: e.target.value || null })} /></div>
+                  <div className="space-y-1"><Label>Preço WhatsApp/loja R$</Label><Input type="number" step="0.01" value={editing.whatsapp_price ?? ""} onChange={(e) => setEditing({ ...editing, whatsapp_price: e.target.value || null })} /></div>
+                  <div className="space-y-1"><Label>Preço promo WhatsApp R$</Label><Input type="number" step="0.01" value={editing.whatsapp_promo_price ?? ""} onChange={(e) => setEditing({ ...editing, whatsapp_promo_price: e.target.value || null })} /></div>
+                  <div className="col-span-2 space-y-1"><Label>Observação interna de preço</Label><Input value={editing.channel_price_notes || ""} onChange={(e) => setEditing({ ...editing, channel_price_notes: e.target.value })} placeholder="visível apenas no admin" /></div>
+                </div>
+                {(() => {
+                  const num = (v: any) => { const n = Number(v); return isFinite(n) && n > 0 ? n : null; };
+                  const base = num(editing.price_base) ?? num(editing.price);
+                  const effSite = num(editing.site_promo_price) ?? num(editing.site_price) ?? num(editing.promo_price) ?? base;
+                  const effWa = num(editing.whatsapp_promo_price) ?? num(editing.whatsapp_price) ?? num(editing.site_promo_price) ?? num(editing.site_price) ?? num(editing.promo_price) ?? base;
+                  const fmt = (n: number | null) => n == null ? "—" : `R$ ${n.toFixed(2).replace(".", ",")}`;
+                  const differ = effSite != null && effWa != null && effSite !== effWa;
+                  return (
+                    <div className="text-xs bg-secondary/40 border rounded p-2 space-y-1">
+                      <div>Preço usado no <strong>site</strong>: <span className="font-semibold">{fmt(effSite)}</span></div>
+                      <div>Preço usado no <strong>WhatsApp/loja</strong>: <span className="font-semibold">{fmt(effWa)}</span></div>
+                      {differ && <div className="text-primary font-semibold">⚠ Este produto possui preço diferente para WhatsApp/loja.</div>}
+                    </div>
+                  );
+                })()}
               </div>
             </TabsContent>
 
