@@ -26,6 +26,7 @@ const items: Item[] = [
   { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"] },
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug, roles: ["admin"] },
+  { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Plug, roles: ["admin"] },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity, roles: ["admin"] },
   { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
