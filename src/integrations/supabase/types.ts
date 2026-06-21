@@ -973,6 +973,7 @@ export type Database = {
           payment_gateway: string | null
           payment_method: string | null
           payment_status: string
+          sales_channel: string
           status: string
           subtotal: number
           total: number
@@ -1020,6 +1021,7 @@ export type Database = {
           payment_gateway?: string | null
           payment_method?: string | null
           payment_status?: string
+          sales_channel?: string
           status?: string
           subtotal?: number
           total?: number
@@ -1067,6 +1069,7 @@ export type Database = {
           payment_gateway?: string | null
           payment_method?: string | null
           payment_status?: string
+          sales_channel?: string
           status?: string
           subtotal?: number
           total?: number
@@ -1474,6 +1477,7 @@ export type Database = {
           category_external_id: string | null
           category_id: string | null
           category_name: string | null
+          channel_price_notes: string | null
           commercial_tags: string[]
           controlled: boolean
           created_at: string
@@ -1523,6 +1527,7 @@ export type Database = {
           on_sale: boolean
           pix_discount_percentage: number | null
           price: number
+          price_base: number | null
           price_origin: string
           product_badge: string | null
           promo_price: number | null
@@ -1537,6 +1542,8 @@ export type Database = {
           short_description: string | null
           show_in_filters: boolean
           show_in_menu: boolean
+          site_price: number | null
+          site_promo_price: number | null
           sku: string | null
           slug: string
           source: string | null
@@ -1551,7 +1558,10 @@ export type Database = {
           trier_product_id: string | null
           trier_stock_quantity: number | null
           updated_at: string
+          use_channel_pricing: boolean
           variation_type: string | null
+          whatsapp_price: number | null
+          whatsapp_promo_price: number | null
         }
         Insert: {
           active?: boolean
@@ -1563,6 +1573,7 @@ export type Database = {
           category_external_id?: string | null
           category_id?: string | null
           category_name?: string | null
+          channel_price_notes?: string | null
           commercial_tags?: string[]
           controlled?: boolean
           created_at?: string
@@ -1612,6 +1623,7 @@ export type Database = {
           on_sale?: boolean
           pix_discount_percentage?: number | null
           price?: number
+          price_base?: number | null
           price_origin?: string
           product_badge?: string | null
           promo_price?: number | null
@@ -1626,6 +1638,8 @@ export type Database = {
           short_description?: string | null
           show_in_filters?: boolean
           show_in_menu?: boolean
+          site_price?: number | null
+          site_promo_price?: number | null
           sku?: string | null
           slug: string
           source?: string | null
@@ -1640,7 +1654,10 @@ export type Database = {
           trier_product_id?: string | null
           trier_stock_quantity?: number | null
           updated_at?: string
+          use_channel_pricing?: boolean
           variation_type?: string | null
+          whatsapp_price?: number | null
+          whatsapp_promo_price?: number | null
         }
         Update: {
           active?: boolean
@@ -1652,6 +1669,7 @@ export type Database = {
           category_external_id?: string | null
           category_id?: string | null
           category_name?: string | null
+          channel_price_notes?: string | null
           commercial_tags?: string[]
           controlled?: boolean
           created_at?: string
@@ -1701,6 +1719,7 @@ export type Database = {
           on_sale?: boolean
           pix_discount_percentage?: number | null
           price?: number
+          price_base?: number | null
           price_origin?: string
           product_badge?: string | null
           promo_price?: number | null
@@ -1715,6 +1734,8 @@ export type Database = {
           short_description?: string | null
           show_in_filters?: boolean
           show_in_menu?: boolean
+          site_price?: number | null
+          site_promo_price?: number | null
           sku?: string | null
           slug?: string
           source?: string | null
@@ -1729,7 +1750,10 @@ export type Database = {
           trier_product_id?: string | null
           trier_stock_quantity?: number | null
           updated_at?: string
+          use_channel_pricing?: boolean
           variation_type?: string | null
+          whatsapp_price?: number | null
+          whatsapp_promo_price?: number | null
         }
         Relationships: [
           {
@@ -2404,6 +2428,8 @@ export type Database = {
       }
       trier_settings: {
         Row: {
+          allow_overwrite_site_price: boolean
+          allow_overwrite_whatsapp_price: boolean
           auto_sync_paused: boolean
           base_url: string
           branch_code: string | null
@@ -2436,6 +2462,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_overwrite_site_price?: boolean
+          allow_overwrite_whatsapp_price?: boolean
           auto_sync_paused?: boolean
           base_url?: string
           branch_code?: string | null
@@ -2468,6 +2496,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_overwrite_site_price?: boolean
+          allow_overwrite_whatsapp_price?: boolean
           auto_sync_paused?: boolean
           base_url?: string
           branch_code?: string | null
