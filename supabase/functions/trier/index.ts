@@ -618,6 +618,12 @@ function fieldsForMode(mode: SyncMode): Set<string> {
     case "create_only":
       // sem updates em produtos existentes
       break;
+    case "existing_stock_only":
+      // Produtos já existentes no site só recebem atualização de estoque.
+      // Produtos novos são criados com todos os dados (tratado no INSERT).
+      FIELDS_STOCK.forEach((f) => base.add(f));
+      base.add("trier_active");
+      break;
   }
   return base;
 }
