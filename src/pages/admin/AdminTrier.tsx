@@ -441,7 +441,8 @@ export default function AdminTrier() {
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="safe_operational">Segura: estoque + preço + cód. barras (recomendado)</SelectItem>
+                    <SelectItem value="existing_stock_only">Proteger existentes: só atualiza estoque · cria novos completos (recomendado)</SelectItem>
+                    <SelectItem value="safe_operational">Segura: estoque + preço + cód. barras</SelectItem>
                     <SelectItem value="stock_only">Apenas estoque</SelectItem>
                     <SelectItem value="price_only">Apenas preços</SelectItem>
                     <SelectItem value="barcode_only">Apenas códigos de barras</SelectItem>
@@ -1306,6 +1307,7 @@ function SafeSyncPanel({ call, busy, settings }: { call: (a: string, b?: any, l?
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="existing_stock_only">Proteger existentes (só estoque) · cria novos completos</SelectItem>
                 <SelectItem value="safe_operational">Segura (recomendada)</SelectItem>
                 <SelectItem value="stock_only">Apenas estoque</SelectItem>
                 <SelectItem value="price_only">Apenas preços</SelectItem>

@@ -18,7 +18,8 @@ type SyncMode =
   | "price_only"
   | "barcode_only"
   | "safe_operational"
-  | "catalog_protected";
+  | "catalog_protected"
+  | "existing_stock_only";
 
 type Settings = {
   environment: string;
@@ -616,6 +617,12 @@ function fieldsForMode(mode: SyncMode): Set<string> {
       break;
     case "create_only":
       // sem updates em produtos existentes
+      break;
+    case "existing_stock_only":
+      // Produtos já existentes no site só recebem atualização de estoque.
+      // Produtos novos são criados com todos os dados (tratado no INSERT).
+      FIELDS_STOCK.forEach((f) => base.add(f));
+      base.add("trier_active");
       break;
   }
   return base;
@@ -1845,7 +1852,7 @@ async function actionToggleAutoSync(paused: boolean) {
 }
 
 async function actionSetSyncMode(mode: SyncMode) {
-  const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected"];
+  const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected", "existing_stock_only"];
   if (!valid.includes(mode)) throw new Error("Modo de sincronização inválido");
   await supabase.from("trier_settings").update({ sync_mode: mode }).eq("id", 1);
   await log("settings", "info", `Modo de sincronização alterado para: ${mode}.`, { sync_mode: mode });
