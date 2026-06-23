@@ -1852,7 +1852,7 @@ async function actionToggleAutoSync(paused: boolean) {
 }
 
 async function actionSetSyncMode(mode: SyncMode) {
-  const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected"];
+  const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected", "existing_stock_only"];
   if (!valid.includes(mode)) throw new Error("Modo de sincronização inválido");
   await supabase.from("trier_settings").update({ sync_mode: mode }).eq("id", 1);
   await log("settings", "info", `Modo de sincronização alterado para: ${mode}.`, { sync_mode: mode });
