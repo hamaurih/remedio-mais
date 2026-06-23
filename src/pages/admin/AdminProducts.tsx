@@ -48,6 +48,12 @@ const empty: any = {
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+const loadAdminProductDetail = async (id: string) => {
+  const { data, error } = await (supabase as any).rpc("admin_product_detail", { _id: id });
+  if (error) throw error;
+  return data;
+};
+
 export default function AdminProducts() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -68,20 +74,16 @@ export default function AdminProducts() {
   const { data: productsResp } = useQuery({
     queryKey: ["admin_products", { search, catFilter, manuFilter, statusFilter, page, pageSize }],
     queryFn: async () => {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      let q = supabase
-        .from("products")
-        .select("*, categories(name)", { count: "exact" })
-        .order("name", { ascending: true });
-      if (search) q = q.ilike("name", `%${search}%`);
-      if (catFilter !== "all") q = q.eq("category_id", catFilter);
-      if (manuFilter !== "all") q = q.eq("manufacturer", manuFilter);
-      if (statusFilter === "active") q = q.eq("active", true);
-      if (statusFilter === "inactive") q = q.eq("active", false);
-      if (statusFilter === "sale") q = q.not("promo_price", "is", null);
-      const { data, count } = await q.range(from, to);
-      return { rows: data || [], count: count || 0 };
+      const { data, error } = await (supabase as any).rpc("admin_products_list", {
+        _search: search || null,
+        _category_id: catFilter === "all" ? null : catFilter,
+        _manufacturer: manuFilter === "all" ? null : manuFilter,
+        _status: statusFilter,
+        _page: page,
+        _page_size: pageSize,
+      });
+      if (error) throw error;
+      return { rows: data?.rows || [], count: data?.count || 0 };
     },
   });
   const products = productsResp?.rows || [];
@@ -175,12 +177,14 @@ export default function AdminProducts() {
 
       let saved;
       if (editing.id) {
-        const { data, error } = await supabase.from("products").update(payload).eq("id", editing.id).select().single();
-        if (error) throw error; saved = data;
+        const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
+        if (error) throw error;
+        saved = await loadAdminProductDetail(editing.id);
       } else {
         delete payload.id;
-        const { data, error } = await supabase.from("products").insert(payload).select().single();
-        if (error) throw error; saved = data;
+        const { data, error } = await supabase.from("products").insert(payload).select("id").single();
+        if (error) throw error;
+        saved = await loadAdminProductDetail(data.id);
       }
       toast.success("Produto salvo");
       qc.invalidateQueries({ queryKey: ["admin_products"] });
