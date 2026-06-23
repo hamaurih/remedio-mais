@@ -18,7 +18,8 @@ type SyncMode =
   | "price_only"
   | "barcode_only"
   | "safe_operational"
-  | "catalog_protected";
+  | "catalog_protected"
+  | "existing_stock_only";
 
 type Settings = {
   environment: string;
