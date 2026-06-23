@@ -2764,6 +2764,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_product_detail: { Args: { _id: string }; Returns: Json }
+      admin_products_list: {
+        Args: {
+          _category_id?: string
+          _manufacturer?: string
+          _page?: number
+          _page_size?: number
+          _search?: string
+          _status?: string
+        }
+        Returns: Json
+      }
       admin_revoke_seller: { Args: { _user_id: string }; Returns: undefined }
       has_role: {
         Args: {
