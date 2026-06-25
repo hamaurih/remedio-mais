@@ -114,7 +114,9 @@ const App = () => (
             <Route path="qualidade-dados" element={<AdminDataQuality />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
+            <Route path="trier/vendas-ecommerce" element={<AdminTrierEcommerceSales />} />
             <Route path="integrations/whatsapp-agent" element={<AdminWhatsAppAgent />} />
+
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
