@@ -32,6 +32,8 @@ import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
 import AdminOffers from "./pages/admin/AdminOffers.tsx";
 import AdminTrier from "./pages/admin/AdminTrier.tsx";
+import AdminTrierEcommerceSales from "./pages/admin/AdminTrierEcommerceSales.tsx";
+
 import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
 import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
