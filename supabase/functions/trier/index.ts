@@ -1979,7 +1979,16 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const trigger = body.trigger || url.searchParams.get("trigger") || "manual";
 
-    if (action !== "scheduled") {
+    if (action === "scheduled") {
+      // Scheduled invocations must present the CRON_SECRET header (set on the cron job)
+      // OR a valid admin JWT (for manual trigger from admin UI).
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      const provided = req.headers.get("x-cron-secret");
+      const hasValidCron = !!cronSecret && !!provided && provided === cronSecret;
+      if (!hasValidCron) {
+        await requireAdmin(req);
+      }
+    } else {
       await requireAdmin(req);
     }
 
