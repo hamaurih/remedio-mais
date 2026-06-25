@@ -13,6 +13,7 @@ import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVar
 import { useRelatedProducts } from "@/hooks/useRelatedProducts";
 import { ProductShelf } from "@/components/ProductShelf";
 import { openGenericCheck } from "@/lib/genericSuggestion";
+import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
@@ -20,7 +21,7 @@ export default function Product() {
   const { data: p, isLoading } = useQuery({
     queryKey: ["product", slug],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("*").eq("slug", slug!).eq("active", true).maybeSingle();
+      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", slug!).eq("active", true).maybeSingle();
       return data;
     },
     enabled: !!slug,

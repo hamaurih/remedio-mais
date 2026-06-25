@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Product } from "@/components/ProductCard";
+import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 
 const LIMIT = 10;
 
@@ -19,9 +20,9 @@ export function useRelatedProducts(product: any | null | undefined) {
         .order("position", { ascending: true });
       const ids = (manualLinks || []).map((l: any) => l.related_product_id);
       if (ids.length > 0) {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from("products")
-          .select("*")
+          .select(PUBLIC_PRODUCT_SELECT)
           .in("id", ids)
           .eq("active", true);
         const byId = new Map((data || []).map((p: any) => [p.id, p]));
@@ -39,9 +40,9 @@ export function useRelatedProducts(product: any | null | undefined) {
       };
 
       if (product.active_ingredient) {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from("products")
-          .select("*")
+          .select(PUBLIC_PRODUCT_SELECT)
           .eq("active", true)
           .gt("stock", 0)
           .ilike("active_ingredient", product.active_ingredient.trim())
@@ -51,9 +52,9 @@ export function useRelatedProducts(product: any | null | undefined) {
       }
 
       if (collected.size < LIMIT && product.category_id && product.manufacturer) {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from("products")
-          .select("*")
+          .select(PUBLIC_PRODUCT_SELECT)
           .eq("active", true)
           .gt("stock", 0)
           .eq("category_id", product.category_id)
@@ -64,9 +65,9 @@ export function useRelatedProducts(product: any | null | undefined) {
       }
 
       if (collected.size < LIMIT && product.category_id) {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from("products")
-          .select("*")
+          .select(PUBLIC_PRODUCT_SELECT)
           .eq("active", true)
           .gt("stock", 0)
           .eq("category_id", product.category_id)

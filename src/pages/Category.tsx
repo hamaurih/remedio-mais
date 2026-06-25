@@ -18,6 +18,7 @@ import {
   sortQuery,
   SORT_OPTIONS,
 } from "@/components/ProductFilters";
+import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 
 const sb = supabase as any;
 
@@ -78,7 +79,7 @@ export default function Category() {
   const { data: products } = useQuery({
     queryKey: ["cat_products", slug, sub, sort, filters, siblingIds, subProductIds],
     queryFn: async () => {
-      let q: any = supabase.from("products").select("*").eq("active", true);
+      let q: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true);
       if (slug === "ofertas") q = q.eq("on_sale", true);
       else if (cat) {
         if (isHub && siblingIds && siblingIds.length > 0) {

@@ -11,6 +11,7 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
 import { calculatePixPrice, resolvePixPercentage } from "@/lib/pix";
 import { onQuickView } from "@/lib/quickview";
+import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { ProductCard, type Product } from "./ProductCard";
 import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "./VariantSelector";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ export function ProductQuickView() {
     queryKey: ["quickview-product", product?.slug],
     queryFn: async () => {
       if (!product) return null;
-      const { data } = await supabase.from("products").select("*").eq("slug", product.slug).maybeSingle();
+      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", product.slug).maybeSingle();
       return data as any;
     },
     enabled: !!product?.slug && open,
@@ -61,28 +62,28 @@ export function ProductQuickView() {
       // 1. Same category
       if (p.category_id) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
+          .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("category_id", p.category_id).limit(8);
         push(data);
       }
       // 2. Same Trier group_code
       if (collected.length < 8 && p.group_code) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
+          .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("group_code", p.group_code).limit(8);
         push(data);
       }
       // 3. Same laboratory
       if (collected.length < 8 && p.laboratory) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
+          .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("laboratory", p.laboratory).limit(8);
         push(data);
       }
       // 4. On sale fallback
       if (collected.length < 4) {
         const { data } = await supabase
-          .from("products").select("*").eq("active", true).gt("stock", 0).neq("id", p.id)
+          .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("on_sale", true).limit(8);
         push(data);
       }
