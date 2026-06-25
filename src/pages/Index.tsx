@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useEffect, useRef, useState } from "react";
 import type { Product as ProductType } from "@/components/ProductCard";
+import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 
 function Reveal({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -40,7 +41,7 @@ export default function Index() {
   });
 
   const fetchShelf = (mod: (q: any) => any) => async () => {
-    let q = supabase.from("products").select("*").eq("active", true).gt("stock", 0).limit(12);
+    let q = supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).limit(12);
     q = mod(q);
     const { data } = await q;
     return (data || []) as Product[];
@@ -48,7 +49,7 @@ export default function Index() {
 
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
-    const { data: tagged } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
+    const { data: tagged } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
     if (tagged && tagged.length > 0) return tagged as Product[];
     return null;
   };
@@ -60,7 +61,7 @@ export default function Index() {
       // 1) shelf tag
       const tagged = await supabase
         .from("products")
-        .select("*")
+        .select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .contains("shelves", ["ofertas-da-semana"])
         .limit(12);
@@ -68,7 +69,7 @@ export default function Index() {
       // 2) on_sale
       const onSale = await supabase
         .from("products")
-        .select("*")
+        .select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .eq("on_sale", true)
         .or(`promotion_start.is.null,promotion_start.lte.${nowIso}`)
@@ -78,7 +79,7 @@ export default function Index() {
       // 3) promo_price < price
       const promo = await supabase
         .from("products")
-        .select("*")
+        .select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .not("promo_price", "is", null)
         .limit(24);
@@ -87,7 +88,7 @@ export default function Index() {
       // 4) fallback: recém atualizados
       const recent = await supabase
         .from("products")
-        .select("*")
+        .select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
@@ -100,7 +101,7 @@ export default function Index() {
       // 1) Ordem manual definida no admin (bestseller_rank)
       const ranked = await supabase
         .from("products")
-        .select("*")
+        .select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .not("bestseller_rank", "is", null)
         .order("bestseller_rank", { ascending: true })
@@ -115,7 +116,7 @@ export default function Index() {
       // 4) último fallback: recém atualizados
       const { data } = await supabase
         .from("products")
-        .select("*")
+        .select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
@@ -129,7 +130,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "medicamentos").maybeSingle();
       if (!cat) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -140,7 +141,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
       if (!cat) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -151,7 +152,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "mamaes-e-bebes").maybeSingle();
       if (!cat) return [];
-      const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -163,7 +164,7 @@ export default function Index() {
         if (t) return t;
         const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
         if (!cat) return [];
-        const { data } = await supabase.from("products").select("*").eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+        const { data } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
         return (data || []) as Product[];
       },
     });
