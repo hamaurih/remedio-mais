@@ -874,6 +874,8 @@ export type Database = {
           status_updated_at: string | null
           status_updated_by: string | null
           total: number | null
+          trier_item_sent: boolean
+          trier_product_id: string | null
           unit_price: number
           variant_id: string | null
           variant_label: string | null
@@ -892,6 +894,8 @@ export type Database = {
           status_updated_at?: string | null
           status_updated_by?: string | null
           total?: number | null
+          trier_item_sent?: boolean
+          trier_product_id?: string | null
           unit_price: number
           variant_id?: string | null
           variant_label?: string | null
@@ -910,6 +914,8 @@ export type Database = {
           status_updated_at?: string | null
           status_updated_by?: string | null
           total?: number | null
+          trier_item_sent?: boolean
+          trier_product_id?: string | null
           unit_price?: number
           variant_id?: string | null
           variant_label?: string | null
@@ -977,9 +983,14 @@ export type Database = {
           status: string
           subtotal: number
           total: number
+          trier_attempts: number
           trier_error_message: string | null
+          trier_last_error: string | null
           trier_last_status_check_at: string | null
           trier_numero_nota: string | null
+          trier_order_id: string | null
+          trier_payload_hash: string | null
+          trier_sale_id: string | null
           trier_sent: boolean
           trier_sent_at: string | null
           trier_status: string | null
@@ -1025,9 +1036,14 @@ export type Database = {
           status?: string
           subtotal?: number
           total?: number
+          trier_attempts?: number
           trier_error_message?: string | null
+          trier_last_error?: string | null
           trier_last_status_check_at?: string | null
           trier_numero_nota?: string | null
+          trier_order_id?: string | null
+          trier_payload_hash?: string | null
+          trier_sale_id?: string | null
           trier_sent?: boolean
           trier_sent_at?: string | null
           trier_status?: string | null
@@ -1073,9 +1089,14 @@ export type Database = {
           status?: string
           subtotal?: number
           total?: number
+          trier_attempts?: number
           trier_error_message?: string | null
+          trier_last_error?: string | null
           trier_last_status_check_at?: string | null
           trier_numero_nota?: string | null
+          trier_order_id?: string | null
+          trier_payload_hash?: string | null
+          trier_sale_id?: string | null
           trier_sent?: boolean
           trier_sent_at?: string | null
           trier_status?: string | null
@@ -2382,6 +2403,56 @@ export type Database = {
         }
         Relationships: []
       }
+      trier_order_logs: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          endpoint: string | null
+          error_message: string | null
+          http_status: number | null
+          id: string
+          order_id: string | null
+          request_payload_masked: Json | null
+          response_payload_masked: Json | null
+          status: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          endpoint?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          request_payload_masked?: Json | null
+          response_payload_masked?: Json | null
+          status?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          endpoint?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          request_payload_masked?: Json | null
+          response_payload_masked?: Json | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trier_order_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trier_product_mappings: {
         Row: {
           created_at: string
@@ -2430,11 +2501,15 @@ export type Database = {
         Row: {
           allow_overwrite_site_price: boolean
           allow_overwrite_whatsapp_price: boolean
+          auto_send_orders_enabled: boolean
           auto_sync_paused: boolean
           base_url: string
           branch_code: string | null
+          card_payment_code: number | null
           check_order_status_enabled: boolean
           created_at: string
+          delivery_fee_product_code: string | null
+          delivery_fee_product_name: string | null
           ecommerce_filter: string
           ecommerce_filter_enabled: boolean
           environment: string
@@ -2447,10 +2522,13 @@ export type Database = {
           last_sync_products_at: string | null
           last_sync_stock_at: string | null
           page_size: number
+          pix_payment_code: number | null
           schedule_discounts_minutes: number
           schedule_prices_minutes: number
           schedule_products_minutes: number
           schedule_stock_minutes: number
+          seller_code: number | null
+          seller_name: string | null
           send_orders_enabled: boolean
           stock_source: string
           sync_categories_enabled: boolean
@@ -2464,11 +2542,15 @@ export type Database = {
         Insert: {
           allow_overwrite_site_price?: boolean
           allow_overwrite_whatsapp_price?: boolean
+          auto_send_orders_enabled?: boolean
           auto_sync_paused?: boolean
           base_url?: string
           branch_code?: string | null
+          card_payment_code?: number | null
           check_order_status_enabled?: boolean
           created_at?: string
+          delivery_fee_product_code?: string | null
+          delivery_fee_product_name?: string | null
           ecommerce_filter?: string
           ecommerce_filter_enabled?: boolean
           environment?: string
@@ -2481,10 +2563,13 @@ export type Database = {
           last_sync_products_at?: string | null
           last_sync_stock_at?: string | null
           page_size?: number
+          pix_payment_code?: number | null
           schedule_discounts_minutes?: number
           schedule_prices_minutes?: number
           schedule_products_minutes?: number
           schedule_stock_minutes?: number
+          seller_code?: number | null
+          seller_name?: string | null
           send_orders_enabled?: boolean
           stock_source?: string
           sync_categories_enabled?: boolean
@@ -2498,11 +2583,15 @@ export type Database = {
         Update: {
           allow_overwrite_site_price?: boolean
           allow_overwrite_whatsapp_price?: boolean
+          auto_send_orders_enabled?: boolean
           auto_sync_paused?: boolean
           base_url?: string
           branch_code?: string | null
+          card_payment_code?: number | null
           check_order_status_enabled?: boolean
           created_at?: string
+          delivery_fee_product_code?: string | null
+          delivery_fee_product_name?: string | null
           ecommerce_filter?: string
           ecommerce_filter_enabled?: boolean
           environment?: string
@@ -2515,10 +2604,13 @@ export type Database = {
           last_sync_products_at?: string | null
           last_sync_stock_at?: string | null
           page_size?: number
+          pix_payment_code?: number | null
           schedule_discounts_minutes?: number
           schedule_prices_minutes?: number
           schedule_products_minutes?: number
           schedule_stock_minutes?: number
+          seller_code?: number | null
+          seller_name?: string | null
           send_orders_enabled?: boolean
           stock_source?: string
           sync_categories_enabled?: boolean

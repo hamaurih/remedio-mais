@@ -148,7 +148,29 @@ Deno.serve(async (req) => {
         message: `Pedido #${String(order.id).slice(0, 6)} pago com sucesso. Cliente: ${order.customer_name}. Total: R$ ${Number(order.total).toFixed(2)}.`,
         order_id: order.id,
       });
+
+      // Disparo automático ao Trier (gated por trier_settings.auto_send_orders_enabled).
+      // Falha aqui NÃO derruba o webhook — pedido fica trier_sent=false para reenvio manual.
+      try {
+        const { data: tset } = await admin.from("trier_settings")
+          .select("auto_send_orders_enabled").eq("id", 1).maybeSingle();
+        if (tset?.auto_send_orders_enabled && order.sales_channel === "site") {
+          const fnUrl = `${SUPABASE_URL}/functions/v1/send-order-to-trier`;
+          fetch(fnUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${SERVICE}`,
+              "x-internal-source": "mercado-pago-webhook",
+            },
+            body: JSON.stringify({ order_id: order.id }),
+          }).catch((e) => safeError("[mp-webhook] trier dispatch failed", { message: (e as Error)?.message }));
+        }
+      } catch (e) {
+        safeError("[mp-webhook] trier flag check failed", { message: (e as Error)?.message });
+      }
     }
+
     return ok();
   } catch (e) {
     safeError("[mp-webhook] unexpected error", { message: (e as Error)?.message });

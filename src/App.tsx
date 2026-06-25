@@ -32,6 +32,8 @@ import AdminPrescriptions from "./pages/admin/AdminPrescriptions.tsx";
 import AdminSettings from "./pages/admin/AdminSettings.tsx";
 import AdminOffers from "./pages/admin/AdminOffers.tsx";
 import AdminTrier from "./pages/admin/AdminTrier.tsx";
+import AdminTrierEcommerceSales from "./pages/admin/AdminTrierEcommerceSales.tsx";
+
 import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
 import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
@@ -114,7 +116,9 @@ const App = () => (
             <Route path="qualidade-dados" element={<AdminDataQuality />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
+            <Route path="trier/vendas-ecommerce" element={<AdminTrierEcommerceSales />} />
             <Route path="integrations/whatsapp-agent" element={<AdminWhatsAppAgent />} />
+
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
