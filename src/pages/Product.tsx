@@ -21,7 +21,7 @@ export default function Product() {
   const { data: p, isLoading } = useQuery({
     queryKey: ["product", slug],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", slug!).eq("active", true).maybeSingle();
+      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", slug!).eq("active", true).maybeSingle();
       return data;
     },
     enabled: !!slug,

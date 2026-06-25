@@ -50,7 +50,7 @@ export default function Search() {
         .filter(Boolean)
         .join(",");
 
-      let qb: any = supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or(orFilter);
+      let qb: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or(orFilter);
       qb = buildQuery(qb, filters);
       if (filters.categorySlugs.length) {
         const { data: cs } = await supabase

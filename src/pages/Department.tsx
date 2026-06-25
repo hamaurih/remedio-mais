@@ -64,7 +64,7 @@ export default function Department() {
   const { data: products } = useQuery({
     queryKey: ["dept_products", dept?.id, productIds, categoryIds, sort, filters],
     queryFn: async () => {
-      let q: any = supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true);
+      let q: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true);
       // Prefer commercial classification via product_taxonomy; fall back to legacy category_id link
       if (productIds && productIds.length > 0) {
         q = q.in("id", productIds);

@@ -32,7 +32,7 @@ export function ProductQuickView() {
     queryKey: ["quickview-product", product?.slug],
     queryFn: async () => {
       if (!product) return null;
-      const { data } = await supabase.from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", product.slug).maybeSingle();
+      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", product.slug).maybeSingle();
       return data as any;
     },
     enabled: !!product?.slug && open,
