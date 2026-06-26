@@ -23,7 +23,7 @@ type Props = {
   disabled?: boolean;
 };
 
-function extractComponents(comps: google.maps.GeocoderAddressComponent[] = []) {
+function extractComponents(comps: any[] = []) {
   const get = (type: string) => comps.find((c) => c.types.includes(type));
   return {
     street: get("route")?.long_name,
@@ -99,7 +99,7 @@ export function AddressAutocomplete({ onSelect, placeholder, defaultValue, disab
         long_name: c.longText,
         short_name: c.shortText,
         types: c.types,
-      })) as google.maps.GeocoderAddressComponent[];
+      })) as any[];
       const parts = extractComponents(comps);
       const addr: SelectedAddress = {
         formatted: place.formattedAddress || sug.placePrediction.text?.text || "",

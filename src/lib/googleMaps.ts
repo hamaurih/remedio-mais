@@ -1,15 +1,15 @@
 // Carrega o Google Maps JavaScript API de forma idempotente.
 // Usa loading=async + callback global, conforme regras do conector.
-let loadPromise: Promise<typeof google> | null = null;
+let loadPromise: Promise<any> | null = null;
 
 declare global {
   interface Window {
     __lovableMapsInit?: () => void;
-    google: typeof google;
+    google: any;
   }
 }
 
-export function loadGoogleMaps(): Promise<typeof google> {
+export function loadGoogleMaps(): Promise<any> {
   if (typeof window === "undefined") return Promise.reject(new Error("ssr"));
   if (window.google?.maps) return Promise.resolve(window.google);
   if (loadPromise) return loadPromise;
@@ -18,7 +18,7 @@ export function loadGoogleMaps(): Promise<typeof google> {
   const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined;
   if (!key) return Promise.reject(new Error("Google Maps key não configurada"));
 
-  loadPromise = new Promise<typeof google>((resolve, reject) => {
+  loadPromise = new Promise<any>((resolve, reject) => {
     window.__lovableMapsInit = () => resolve(window.google);
     const s = document.createElement("script");
     const params = new URLSearchParams({
