@@ -19,6 +19,7 @@ type CheckoutBody = {
   delivery?: {
     cep?: string; street?: string; number?: string; complement?: string;
     neighborhood?: string; city?: string; state?: string; reference?: string;
+    lat?: number; lng?: number; place_id?: string;
   };
   return_origin: string;
 };
@@ -310,9 +311,59 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 5) Frete + total recalculado no backend
-  const { data: settings } = await admin.from("store_settings").select("delivery_fee").eq("id", 1).maybeSingle();
-  const deliveryFee = body.delivery_type === "delivery" ? Number(settings?.delivery_fee ?? 0) : 0;
+  // 5) Frete + total recalculado no backend (modo distância OU taxa fixa)
+  const { data: settings } = await admin
+    .from("store_settings")
+    .select("delivery_fee, delivery_mode, delivery_max_km, delivery_fee_zones, store_lat, store_lng")
+    .eq("id", 1)
+    .maybeSingle();
+
+  let deliveryFee = 0;
+  if (body.delivery_type === "delivery") {
+    const mode = (settings as any)?.delivery_mode || "flat";
+    if (mode === "distance" && (settings as any)?.store_lat != null && (settings as any)?.store_lng != null) {
+      const cLat = body.delivery?.lat;
+      const cLng = body.delivery?.lng;
+      if (typeof cLat !== "number" || typeof cLng !== "number") {
+        return fail({
+          http: 400, stage: "delivery_quote", error_code: "DELIVERY_COORDS_REQUIRED",
+          message: "Endereço sem coordenadas. Selecione novamente o endereço de entrega.",
+          adminClient: admin, user_id: userId, user_email: userEmail,
+          payload_summary: { subtotal, items: orderItems.length },
+        });
+      }
+      const R = 6371;
+      const toRad = (x: number) => (x * Math.PI) / 180;
+      const sLat = Number((settings as any).store_lat);
+      const sLng = Number((settings as any).store_lng);
+      const dLat = toRad(cLat - sLat);
+      const dLng = toRad(cLng - sLng);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(sLat)) * Math.cos(toRad(cLat)) * Math.sin(dLng / 2) ** 2;
+      const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const maxKm = Number((settings as any).delivery_max_km || 0);
+      if (maxKm > 0 && dist > maxKm) {
+        return fail({
+          http: 400, stage: "delivery_quote", error_code: "OUT_OF_DELIVERY_RANGE",
+          message: `Endereço a ${dist.toFixed(1)} km — fora da área de entrega (máx. ${maxKm} km).`,
+          adminClient: admin, user_id: userId, user_email: userEmail,
+          payload_summary: { subtotal, distance_km: dist },
+        });
+      }
+      const zones = ((settings as any).delivery_fee_zones || []) as Array<{ min_km: number; max_km: number; fee: number }>;
+      const zone = zones.find((z) => dist >= Number(z.min_km) && dist <= Number(z.max_km));
+      if (!zone) {
+        return fail({
+          http: 400, stage: "delivery_quote", error_code: "DELIVERY_ZONE_NOT_FOUND",
+          message: `Nenhuma faixa de frete cobre ${dist.toFixed(1)} km.`,
+          adminClient: admin, user_id: userId, user_email: userEmail,
+          payload_summary: { subtotal, distance_km: dist },
+        });
+      }
+      deliveryFee = Number(zone.fee);
+    } else {
+      deliveryFee = Number((settings as any)?.delivery_fee ?? 0);
+    }
+  }
   const total = subtotal + deliveryFee;
 
   if (!Number.isFinite(total) || total <= 0) {
