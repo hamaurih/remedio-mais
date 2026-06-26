@@ -315,7 +315,7 @@ export default function Checkout() {
             <Field label="Nome completo"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label="Telefone / WhatsApp"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(83) 99999-9999" /></Field>
-            <Field label="CPF (opcional)"><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="Necessário para Pix" /></Field>
+            <Field label={paymentMethod === "pix" ? "CPF (obrigatório para Pix)" : "CPF (opcional)"}><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" /></Field>
             <NextBtn disabled={!name || !email || phone.length < 8} onClick={() => setStep(2)} />
           </Section>
         )}
