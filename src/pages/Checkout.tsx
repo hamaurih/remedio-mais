@@ -12,7 +12,8 @@ import { cartTotal, clearCart, formatBRL } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, CreditCard, QrCode } from "lucide-react";
+import { Loader2, CreditCard, QrCode, AlertTriangle } from "lucide-react";
+import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -45,15 +46,30 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
   const [saveAddress, setSaveAddress] = useState(true);
 
+  // geolocalização + frete por distância
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [placeId, setPlaceId] = useState<string | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<{
+    allowed: boolean;
+    fee: number | null;
+    distance_km: number | null;
+    zone_label?: string;
+    message?: string;
+  } | null>(null);
+  const [quoting, setQuoting] = useState(false);
+
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
 
   const subtotal = cartTotal(items);
-  const deliveryFee = useMemo(
-    () => (deliveryType === "delivery" ? Number((settings as any)?.delivery_fee ?? 0) : 0),
-    [deliveryType, settings],
-  );
+  const deliveryFee = useMemo(() => {
+    if (deliveryType !== "delivery") return 0;
+    if (deliveryQuote?.allowed && deliveryQuote.fee != null) return deliveryQuote.fee;
+    return Number((settings as any)?.delivery_fee ?? 0);
+  }, [deliveryType, deliveryQuote, settings]);
   const total = subtotal + deliveryFee;
+  const deliveryBlocked = deliveryType === "delivery" && deliveryQuote != null && !deliveryQuote.allowed;
 
   // Carrega profile + endereços salvos
   useEffect(() => {
@@ -92,19 +108,54 @@ export default function Checkout() {
     setCity(a.city || "");
     setState(a.state || "");
     setReference(a.reference || "");
+    setLat(a.lat ?? null);
+    setLng(a.lng ?? null);
+    setPlaceId(a.place_id ?? null);
   };
 
   const pickSavedAddress = (id: string) => {
     setSelectedAddressId(id);
+    setDeliveryQuote(null);
     if (id === "new") {
       setCep(""); setStreet(""); setNumber(""); setComplement("");
       setNeighborhood(""); setCity(""); setState(""); setReference("");
+      setLat(null); setLng(null); setPlaceId(null);
       setSaveAddress(true);
     } else {
       const a = savedAddresses.find((x) => x.id === id);
       if (a) { applyAddress(a); setSaveAddress(false); }
     }
   };
+
+  // Cota o frete sempre que houver lat/lng (ou só endereço estruturado) na entrega
+  useEffect(() => {
+    if (deliveryType !== "delivery") { setDeliveryQuote(null); return; }
+    const hasCoords = typeof lat === "number" && typeof lng === "number";
+    const hasAddr = !!(street && number && city && state);
+    if (!hasCoords && !hasAddr) { setDeliveryQuote(null); return; }
+    let cancelled = false;
+    setQuoting(true);
+    const fullAddress = hasCoords ? undefined : `${street}, ${number}, ${neighborhood}, ${city}-${state}, ${cep}`;
+    supabase.functions.invoke("calculate-delivery-fee", {
+      body: hasCoords ? { lat, lng } : { address: fullAddress },
+    }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data?.ok) {
+        setDeliveryQuote({ allowed: false, fee: null, distance_km: null, message: (data as any)?.error || error?.message || "Não foi possível calcular o frete." });
+      } else {
+        setDeliveryQuote({
+          allowed: !!data.allowed,
+          fee: data.fee ?? null,
+          distance_km: data.distance_km ?? null,
+          zone_label: data.zone_label,
+          message: data.message,
+        });
+      }
+    }).finally(() => { if (!cancelled) setQuoting(false); });
+    return () => { cancelled = true; };
+  }, [deliveryType, lat, lng, street, number, neighborhood, city, state, cep]);
+
+
 
 
   // Login obrigatório
@@ -149,8 +200,11 @@ export default function Checkout() {
       await supabase.from("customer_addresses").insert({
         customer_id: user.id,
         cep, street, number, complement, neighborhood, city, state, reference,
+        lat: lat ?? null,
+        lng: lng ?? null,
+        place_id: placeId ?? null,
         is_default: savedAddresses.length === 0,
-      });
+      } as any);
     }
   };
 
@@ -170,7 +224,7 @@ export default function Checkout() {
           delivery_type: deliveryType,
           customer: { name, email, phone, cpf: cpf || undefined },
           delivery: deliveryType === "delivery"
-            ? { cep, street, number, complement, neighborhood, city, state, reference }
+            ? { cep, street, number, complement, neighborhood, city, state, reference, lat: lat ?? undefined, lng: lng ?? undefined, place_id: placeId ?? undefined }
             : undefined,
           return_origin: window.location.origin,
         },
@@ -262,28 +316,69 @@ export default function Checkout() {
             )}
 
             {deliveryType === "delivery" && selectedAddressId === "new" && (
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <Field label="CEP" className="col-span-2 sm:col-span-1">
-                  <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
+              <div className="mt-4 space-y-3">
+                <Field label="Buscar endereço (Google)" className="col-span-2">
+                  <AddressAutocomplete
+                    onSelect={(a) => {
+                      applyAddress({
+                        cep: a.cep || "",
+                        street: a.street || "",
+                        number: a.number || "",
+                        neighborhood: a.neighborhood || "",
+                        city: a.city || "",
+                        state: a.state || "",
+                        lat: a.lat,
+                        lng: a.lng,
+                        place_id: a.place_id,
+                      });
+                    }}
+                  />
                 </Field>
-                <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => setStreet(e.target.value)} /></Field>
-                <Field label="Número"><Input value={number} onChange={(e) => setNumber(e.target.value)} /></Field>
-                <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
-                <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></Field>
-                <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
-                <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
-                <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
-                <label className="col-span-2 flex items-center gap-2 text-xs">
-                  <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
-                  Salvar este endereço para próximos pedidos
-                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="CEP" className="col-span-2 sm:col-span-1">
+                    <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
+                  </Field>
+                  <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => setStreet(e.target.value)} /></Field>
+                  <Field label="Número"><Input value={number} onChange={(e) => setNumber(e.target.value)} /></Field>
+                  <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
+                  <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></Field>
+                  <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+                  <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
+                  <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
+                  <label className="col-span-2 flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                    Salvar este endereço para próximos pedidos
+                  </label>
+                </div>
               </div>
             )}
+
+            {deliveryType === "delivery" && (quoting || deliveryQuote) && (
+              <div className={`mt-4 rounded-lg border p-3 text-sm ${deliveryBlocked ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-primary/20 bg-primary/5"}`}>
+                {quoting ? (
+                  <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando frete pela distância…</span>
+                ) : deliveryBlocked ? (
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5" />
+                    <div>{deliveryQuote?.message || "Endereço fora da área de entrega."}</div>
+                  </div>
+                ) : (
+                  <div>
+                    Frete: <strong>{formatBRL(Number(deliveryQuote?.fee ?? 0))}</strong>
+                    {deliveryQuote?.distance_km != null && <span className="text-muted-foreground"> · {deliveryQuote.distance_km} km {deliveryQuote.zone_label ? `(${deliveryQuote.zone_label})` : ""}</span>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
               <Button
                 onClick={() => setStep(3)}
-                disabled={deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)}
+                disabled={
+                  (deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)) ||
+                  deliveryBlocked || quoting
+                }
               >Continuar</Button>
             </div>
           </Section>
@@ -337,7 +432,7 @@ export default function Checkout() {
             </p>
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(3)} disabled={submitting}>Voltar</Button>
-              <Button onClick={goPay} disabled={submitting} className="bg-primary hover:bg-primary-dark">
+              <Button onClick={goPay} disabled={submitting || deliveryBlocked} className="bg-primary hover:bg-primary-dark">
                 {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecionando...</> : "Pagar agora"}
               </Button>
             </div>
