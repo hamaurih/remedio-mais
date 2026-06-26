@@ -312,6 +312,10 @@ export default function AdminTrierEcommerceSales() {
                       <Button size="sm" variant="ghost" disabled={busyId === o.id} onClick={() => consultOrder(o.id)}>
                         <Search className="h-3 w-3 mr-1" />Consultar
                       </Button>
+                      <Button size="sm" variant="secondary" onClick={() => runAllPresets(o.id)}>
+                        <FlaskConical className="h-3 w-3 mr-1" />Testar pagamento
+                      </Button>
+
                     </td>
                   </tr>
                 ))}
