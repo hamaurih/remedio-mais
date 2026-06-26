@@ -316,28 +316,69 @@ export default function Checkout() {
             )}
 
             {deliveryType === "delivery" && selectedAddressId === "new" && (
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <Field label="CEP" className="col-span-2 sm:col-span-1">
-                  <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
+              <div className="mt-4 space-y-3">
+                <Field label="Buscar endereço (Google)" className="col-span-2">
+                  <AddressAutocomplete
+                    onSelect={(a) => {
+                      applyAddress({
+                        cep: a.cep || "",
+                        street: a.street || "",
+                        number: a.number || "",
+                        neighborhood: a.neighborhood || "",
+                        city: a.city || "",
+                        state: a.state || "",
+                        lat: a.lat,
+                        lng: a.lng,
+                        place_id: a.place_id,
+                      });
+                    }}
+                  />
                 </Field>
-                <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => setStreet(e.target.value)} /></Field>
-                <Field label="Número"><Input value={number} onChange={(e) => setNumber(e.target.value)} /></Field>
-                <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
-                <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></Field>
-                <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
-                <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
-                <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
-                <label className="col-span-2 flex items-center gap-2 text-xs">
-                  <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
-                  Salvar este endereço para próximos pedidos
-                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="CEP" className="col-span-2 sm:col-span-1">
+                    <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
+                  </Field>
+                  <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => setStreet(e.target.value)} /></Field>
+                  <Field label="Número"><Input value={number} onChange={(e) => setNumber(e.target.value)} /></Field>
+                  <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
+                  <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></Field>
+                  <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+                  <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
+                  <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
+                  <label className="col-span-2 flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+                    Salvar este endereço para próximos pedidos
+                  </label>
+                </div>
               </div>
             )}
+
+            {deliveryType === "delivery" && (quoting || deliveryQuote) && (
+              <div className={`mt-4 rounded-lg border p-3 text-sm ${deliveryBlocked ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-primary/20 bg-primary/5"}`}>
+                {quoting ? (
+                  <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando frete pela distância…</span>
+                ) : deliveryBlocked ? (
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5" />
+                    <div>{deliveryQuote?.message || "Endereço fora da área de entrega."}</div>
+                  </div>
+                ) : (
+                  <div>
+                    Frete: <strong>{formatBRL(Number(deliveryQuote?.fee ?? 0))}</strong>
+                    {deliveryQuote?.distance_km != null && <span className="text-muted-foreground"> · {deliveryQuote.distance_km} km {deliveryQuote.zone_label ? `(${deliveryQuote.zone_label})` : ""}</span>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
               <Button
                 onClick={() => setStep(3)}
-                disabled={deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)}
+                disabled={
+                  (deliveryType === "delivery" && (!cep || !street || !number || !neighborhood || !city || !state)) ||
+                  deliveryBlocked || quoting
+                }
               >Continuar</Button>
             </div>
           </Section>
