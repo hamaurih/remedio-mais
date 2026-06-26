@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+
+type Zone = { min_km: number; max_km: number; fee: number; label?: string };
 
 export default function AdminSettings() {
   const [s, setS] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [geocoding, setGeocoding] = useState(false);
 
   useEffect(() => {
     supabase.from("store_settings").select("*").eq("id", 1).maybeSingle().then(({ data }) => {
@@ -22,6 +26,9 @@ export default function AdminSettings() {
       ...s,
       id: 1,
       delivery_fee: Number(s.delivery_fee || 0),
+      delivery_max_km: Number(s.delivery_max_km || 0),
+      delivery_mode: s.delivery_mode || "distance",
+      delivery_fee_zones: Array.isArray(s.delivery_fee_zones) ? s.delivery_fee_zones : [],
       pix_discount_enabled: !!s.pix_discount_enabled,
       pix_discount_percentage: Number(s.pix_discount_percentage || 0),
     };
@@ -30,6 +37,35 @@ export default function AdminSettings() {
   };
 
   const set = (k: string) => (e: any) => setS({ ...s, [k]: e.target.value });
+
+  const zones: Zone[] = Array.isArray(s.delivery_fee_zones) ? s.delivery_fee_zones : [];
+  const updateZones = (next: Zone[]) => setS({ ...s, delivery_fee_zones: next });
+  const setZone = (i: number, patch: Partial<Zone>) => {
+    const next = zones.map((z, idx) => (idx === i ? { ...z, ...patch } : z));
+    updateZones(next);
+  };
+  const addZone = () => {
+    const last = zones[zones.length - 1];
+    const start = last ? Number(last.max_km) : 0;
+    updateZones([...zones, { min_km: start, max_km: start + 3, fee: 0, label: `${start} a ${start + 3} km` }]);
+  };
+  const removeZone = (i: number) => updateZones(zones.filter((_, idx) => idx !== i));
+
+  const geocodeNow = async () => {
+    setGeocoding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("geocode-store-address", {
+        body: { address: s.address || "" },
+      });
+      if (error || (data as any)?.error) throw new Error((data as any)?.message || (data as any)?.error || error?.message || "Falha");
+      setS({ ...s, store_lat: (data as any).lat, store_lng: (data as any).lng, store_geocoded_at: new Date().toISOString() });
+      toast.success(`Loja localizada: ${(data as any).lat.toFixed(6)}, ${(data as any).lng.toFixed(6)}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Falha ao geocodificar");
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   if (loading) return <div className="p-6">Carregando...</div>;
   return (
