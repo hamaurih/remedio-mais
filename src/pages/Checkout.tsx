@@ -150,6 +150,18 @@ export default function Checkout() {
           zone_label: data.zone_label,
           message: data.message,
         });
+        // Se o backend geocodificou, capturar coordenadas
+        if (!hasCoords && typeof data.lat === "number" && typeof data.lng === "number") {
+          setLat(data.lat);
+          setLng(data.lng);
+          // Persistir no endereço salvo, se aplicável
+          if (user && selectedAddressId && selectedAddressId !== "new") {
+            supabase.from("customer_addresses")
+              .update({ lat: data.lat, lng: data.lng })
+              .eq("id", selectedAddressId)
+              .then(() => {});
+          }
+        }
       }
     }).finally(() => { if (!cancelled) setQuoting(false); });
     return () => { cancelled = true; };
