@@ -47,9 +47,14 @@ function onlyDigits(s?: string | null) {
   return (s || "").replace(/\D/g, "");
 }
 
-function isoDateTime(s?: string | null) {
+// Formato "YYYY-MM-DDTHH:mm:ss-0300" exigido pelo Trier.
+function isoDateTimeBR(s?: string | null) {
   const d = s ? new Date(s) : new Date();
-  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  const base = Number.isNaN(d.getTime()) ? new Date() : d;
+  const brMs = base.getTime() - 3 * 60 * 60 * 1000;
+  const br = new Date(brMs);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${br.getUTCFullYear()}-${pad(br.getUTCMonth() + 1)}-${pad(br.getUTCDate())}T${pad(br.getUTCHours())}:${pad(br.getUTCMinutes())}:${pad(br.getUTCSeconds())}-0300`;
 }
 
 function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
@@ -58,9 +63,57 @@ function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<stri
   );
 }
 
+// numeroPedido curto e numérico (até 10 dígitos)
+function shortNumericOrderId(uuid: string): string {
+  const digits = uuid.replace(/\D/g, "");
+  if (digits.length >= 7) return digits.slice(0, 10);
+  let h = 0;
+  for (const c of uuid) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
+  return String(Math.abs(h)).slice(0, 10);
+}
+
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+type PaymentMode = "pix_native" | "site_pix_card" | "site_debit_card" | "site_credit_card";
+
+function buildPagamentoMultiplo(
+  mode: PaymentMode,
+  codigo: number,
+  valor: number,
+  numeroAutorizacao: string,
+): Record<string, unknown> {
+  if (mode === "pix_native") {
+    return {
+      pix: {
+        pagamentoRealizado: true,
+        codigo,
+        valor,
+        numeroAutorizacao,
+        idTransacaoPIX: numeroAutorizacao.slice(0, 100),
+      },
+    };
+  }
+  return {
+    cartao: [
+      {
+        codigo,
+        valor,
+        numeroAutorizacao,
+      },
+    ],
+  };
+}
+
+function resolveModeCode(settings: any, mode: PaymentMode): number | null {
+  switch (mode) {
+    case "pix_native": return settings.trier_pix_native_code ?? settings.pix_payment_code ?? null;
+    case "site_pix_card": return settings.trier_site_pix_card_code ?? null;
+    case "site_debit_card": return settings.trier_site_debit_card_code ?? null;
+    case "site_credit_card": return settings.trier_site_credit_card_code ?? settings.card_payment_code ?? null;
+  }
 }
 
 Deno.serve(async (req) => {
