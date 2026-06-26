@@ -81,6 +81,7 @@ const App = () => (
           <Route path="/campanha/:slug" element={<Campaign />} />
           <Route path="/carrinho" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/pedido/pix/:orderId" element={<PixPayment />} />
           <Route path="/pedido/sucesso" element={<OrderReturn status="success" />} />
           <Route path="/pedido/pendente" element={<OrderReturn status="pending" />} />
           <Route path="/pedido/falha" element={<OrderReturn status="failure" />} />
