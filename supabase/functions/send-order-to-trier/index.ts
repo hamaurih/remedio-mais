@@ -317,10 +317,12 @@ Deno.serve(async (req) => {
     // 7) Envia
     const url = `${settings.base_url.replace(/\/$/, "")}${SEND_PATH}`;
     const startedAt = Date.now();
-    await admin.from("orders").update({
-      trier_attempts: (order.trier_attempts || 0) + 1,
-      trier_payload_hash: payloadHash,
-    }).eq("id", orderId);
+    if (!isTest) {
+      await admin.from("orders").update({
+        trier_attempts: (order.trier_attempts || 0) + 1,
+        trier_payload_hash: payloadHash,
+      }).eq("id", orderId);
+    }
 
     let httpStatus = 0;
     let responseBody: any = null;
@@ -343,16 +345,17 @@ Deno.serve(async (req) => {
     }
 
     const elapsed = Date.now() - startedAt;
-    safeLog("[send-order-to-trier] response", { orderId, httpStatus, elapsed });
+    safeLog("[send-order-to-trier] response", { orderId, action, mode, httpStatus, elapsed });
 
     const success = httpStatus >= 200 && httpStatus < 300 && !errorMessage;
     const trierOrderId = responseBody?.numeroPedido || responseBody?.numeroVenda || responseBody?.numero || null;
     const trierSaleId = responseBody?.idVenda || responseBody?.id || null;
     const trierNumeroNota = responseBody?.numeroNota || null;
 
+    const logAction = isTest ? `test_payment_preset:${mode}` : "send_order";
     await writeLog({
       order_id: orderId,
-      action: "send_order",
+      action: logAction,
       endpoint: SEND_PATH,
       http_status: httpStatus,
       status: success ? "ok" : "error",
@@ -361,6 +364,18 @@ Deno.serve(async (req) => {
       error_message: errorMessage,
       created_by: actorId,
     });
+
+    if (isTest) {
+      return json({
+        ok: success,
+        mode,
+        http_status: httpStatus,
+        error: errorMessage,
+        response: responseBody,
+        request_masked: maskSensitiveData(payload),
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     if (success) {
       await admin.from("orders").update({
@@ -396,6 +411,7 @@ Deno.serve(async (req) => {
       });
       return json({ ok: false, http_status: httpStatus, error: errorMessage, response: responseBody }, 502);
     }
+
   } catch (e) {
     safeError("[send-order-to-trier] unexpected", { message: (e as Error)?.message });
     return json({ error: (e as Error)?.message }, 500);
