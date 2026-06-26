@@ -42,6 +42,23 @@ type Log = {
   created_at: string;
 };
 
+const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_credit_card"; label: string }[] = [
+  { id: "pix_native", label: "Pix nativo" },
+  { id: "site_pix_card", label: "Pix site via cartão" },
+  { id: "site_debit_card", label: "Cartão débito site" },
+  { id: "site_credit_card", label: "Cartão crédito site" },
+];
+
+type PresetResult = {
+  preset: string;
+  ok: boolean;
+  http_status?: number;
+  error?: string | null;
+  response?: any;
+  request_masked?: any;
+  timestamp?: string;
+};
+
 export default function AdminTrierEcommerceSales() {
   const [settings, setSettings] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -49,6 +66,10 @@ export default function AdminTrierEcommerceSales() {
   const [filter, setFilter] = useState<"not_sent" | "sent" | "error" | "all">("not_sent");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [testOrderId, setTestOrderId] = useState<string | null>(null);
+  const [testBusy, setTestBusy] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, PresetResult>>({});
+
 
   const loadAll = async () => {
     setLoading(true);
