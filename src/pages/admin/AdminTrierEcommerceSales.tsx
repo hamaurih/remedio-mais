@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Send, RefreshCw, Search } from "lucide-react";
+import { Loader2, Send, RefreshCw, Search, FlaskConical } from "lucide-react";
+
 
 type Order = {
   id: string;
@@ -40,6 +42,23 @@ type Log = {
   created_at: string;
 };
 
+const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_credit_card"; label: string }[] = [
+  { id: "pix_native", label: "Pix nativo" },
+  { id: "site_pix_card", label: "Pix site via cartão" },
+  { id: "site_debit_card", label: "Cartão débito site" },
+  { id: "site_credit_card", label: "Cartão crédito site" },
+];
+
+type PresetResult = {
+  preset: string;
+  ok: boolean;
+  http_status?: number;
+  error?: string | null;
+  response?: any;
+  request_masked?: any;
+  timestamp?: string;
+};
+
 export default function AdminTrierEcommerceSales() {
   const [settings, setSettings] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -47,6 +66,10 @@ export default function AdminTrierEcommerceSales() {
   const [filter, setFilter] = useState<"not_sent" | "sent" | "error" | "all">("not_sent");
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [testOrderId, setTestOrderId] = useState<string | null>(null);
+  const [testBusy, setTestBusy] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, PresetResult>>({});
+
 
   const loadAll = async () => {
     setLoading(true);
@@ -83,11 +106,17 @@ export default function AdminTrierEcommerceSales() {
       seller_name: settings.seller_name || null,
       delivery_fee_product_code: settings.delivery_fee_product_code || null,
       delivery_fee_product_name: settings.delivery_fee_product_name || null,
+      trier_payment_mode: settings.trier_payment_mode || "pix_native",
+      trier_pix_native_code: settings.trier_pix_native_code ? Number(settings.trier_pix_native_code) : null,
+      trier_site_pix_card_code: settings.trier_site_pix_card_code ? Number(settings.trier_site_pix_card_code) : null,
+      trier_site_debit_card_code: settings.trier_site_debit_card_code ? Number(settings.trier_site_debit_card_code) : null,
+      trier_site_credit_card_code: settings.trier_site_credit_card_code ? Number(settings.trier_site_credit_card_code) : null,
     };
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
     else toast.success("Configuração salva");
   };
+
 
   const sendOrder = async (orderId: string, force = false) => {
     setBusyId(orderId);
@@ -112,6 +141,29 @@ export default function AdminTrierEcommerceSales() {
     else toast.success(`Consulta concluída: HTTP ${(data as any)?.http_status}`);
     await loadAll();
   };
+
+  const runPreset = async (orderId: string, preset: string) => {
+    setTestBusy(preset);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: { order_id: orderId, action: "test_payment_preset", preset },
+    });
+    setTestBusy(null);
+    const result: PresetResult = error
+      ? { preset, ok: false, error: error.message }
+      : { preset, ...(data as any) };
+    setTestResults((prev) => ({ ...prev, [preset]: result }));
+    if (result.ok) toast.success(`${preset}: HTTP ${result.http_status} OK`);
+    else toast.error(`${preset}: ${result.error || "falhou"}`);
+  };
+
+  const runAllPresets = async (orderId: string) => {
+    setTestOrderId(orderId);
+    setTestResults({});
+    for (const p of PRESETS) {
+      await runPreset(orderId, p.id);
+    }
+  };
+
 
   const filtered = useMemo(() => {
     if (filter === "all") return orders;
@@ -167,9 +219,35 @@ export default function AdminTrierEcommerceSales() {
             <Input type="number" value={settings?.seller_code ?? ""} onChange={(e) => setSettings({ ...settings, seller_code: e.target.value })} /></div>
           <div className="space-y-1"><Label>Nome vendedor padrão</Label>
             <Input value={settings?.seller_name ?? ""} onChange={(e) => setSettings({ ...settings, seller_name: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Código pagamento Pix</Label>
+
+          <div className="space-y-1 md:col-span-2">
+            <Label>Modo de pagamento Trier (usado no envio real)</Label>
+            <Select
+              value={settings?.trier_payment_mode || "pix_native"}
+              onValueChange={(v) => setSettings({ ...settings, trier_payment_mode: v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PRESETS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-muted-foreground">
+              Define em qual objeto o código entra: <code>pagamentoMultiplo.pix</code> (Pix nativo) ou <code>pagamentoMultiplo.cartao[]</code> (demais).
+            </div>
+          </div>
+
+          <div className="space-y-1"><Label>Código Pix nativo (Trier)</Label>
+            <Input type="number" value={settings?.trier_pix_native_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_pix_native_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código Pix site via cartão</Label>
+            <Input type="number" value={settings?.trier_site_pix_card_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_site_pix_card_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código cartão débito site</Label>
+            <Input type="number" value={settings?.trier_site_debit_card_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_site_debit_card_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código cartão crédito site</Label>
+            <Input type="number" value={settings?.trier_site_credit_card_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_site_credit_card_code: e.target.value })} /></div>
+
+          <div className="space-y-1"><Label>Código pagamento Pix (legado)</Label>
             <Input type="number" value={settings?.pix_payment_code ?? ""} onChange={(e) => setSettings({ ...settings, pix_payment_code: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Código pagamento Cartão</Label>
+          <div className="space-y-1"><Label>Código pagamento Cartão (legado)</Label>
             <Input type="number" value={settings?.card_payment_code ?? ""} onChange={(e) => setSettings({ ...settings, card_payment_code: e.target.value })} /></div>
           <div className="space-y-1"><Label>Código produto Taxa de Entrega</Label>
             <Input value={settings?.delivery_fee_product_code ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_code: e.target.value })} /></div>
@@ -178,6 +256,7 @@ export default function AdminTrierEcommerceSales() {
         </div>
         <Button className="mt-3" onClick={saveSettings}>Salvar configuração</Button>
       </Card>
+
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
         <TabsList>
@@ -233,6 +312,10 @@ export default function AdminTrierEcommerceSales() {
                       <Button size="sm" variant="ghost" disabled={busyId === o.id} onClick={() => consultOrder(o.id)}>
                         <Search className="h-3 w-3 mr-1" />Consultar
                       </Button>
+                      <Button size="sm" variant="secondary" onClick={() => runAllPresets(o.id)}>
+                        <FlaskConical className="h-3 w-3 mr-1" />Testar pagamento
+                      </Button>
+
                     </td>
                   </tr>
                 ))}
@@ -242,8 +325,71 @@ export default function AdminTrierEcommerceSales() {
         </TabsContent>
       </Tabs>
 
+      {testOrderId && (
+        <Card className="p-4 border-primary/40">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-semibold flex items-center gap-2">
+                <FlaskConical className="h-4 w-4" />
+                Testar pagamento no Trier · pedido #{testOrderId.slice(0, 6)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Executa cada preset isoladamente. Não atualiza o pedido nem marca como enviado.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => runAllPresets(testOrderId)}>
+                Rodar todos
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setTestOrderId(null); setTestResults({}); }}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {PRESETS.map((p) => {
+              const r = testResults[p.id];
+              return (
+                <div key={p.id} className="border rounded p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-sm">{p.label}</div>
+                    <Button size="sm" variant="outline" disabled={testBusy === p.id}
+                      onClick={() => runPreset(testOrderId, p.id)}>
+                      {testBusy === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Testar"}
+                    </Button>
+                  </div>
+                  {r ? (
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={r.ok ? "default" : "destructive"}>
+                          {r.ok ? "OK" : "FALHOU"}
+                        </Badge>
+                        <span>HTTP {r.http_status ?? "—"}</span>
+                        {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
+                      </div>
+                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
+                        <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>
+                      </details>
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">Resposta Trier</summary>
+                        <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.response, null, 2)}</pre>
+                      </details>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Aguardando teste.</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4">
         <div className="font-semibold mb-3">Últimas requisições ao Trier (mascaradas)</div>
+
         <div className="space-y-2 max-h-[500px] overflow-y-auto">
           {logs.length === 0 && <div className="text-sm text-muted-foreground">Sem logs.</div>}
           {logs.map((l) => (

@@ -47,9 +47,14 @@ function onlyDigits(s?: string | null) {
   return (s || "").replace(/\D/g, "");
 }
 
-function isoDateTime(s?: string | null) {
+// Formato "YYYY-MM-DDTHH:mm:ss-0300" exigido pelo Trier.
+function isoDateTimeBR(s?: string | null) {
   const d = s ? new Date(s) : new Date();
-  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  const base = Number.isNaN(d.getTime()) ? new Date() : d;
+  const brMs = base.getTime() - 3 * 60 * 60 * 1000;
+  const br = new Date(brMs);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${br.getUTCFullYear()}-${pad(br.getUTCMonth() + 1)}-${pad(br.getUTCDate())}T${pad(br.getUTCHours())}:${pad(br.getUTCMinutes())}:${pad(br.getUTCSeconds())}-0300`;
 }
 
 function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
@@ -58,9 +63,57 @@ function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<stri
   );
 }
 
+// numeroPedido curto e numérico (até 10 dígitos)
+function shortNumericOrderId(uuid: string): string {
+  const digits = uuid.replace(/\D/g, "");
+  if (digits.length >= 7) return digits.slice(0, 10);
+  let h = 0;
+  for (const c of uuid) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
+  return String(Math.abs(h)).slice(0, 10);
+}
+
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+type PaymentMode = "pix_native" | "site_pix_card" | "site_debit_card" | "site_credit_card";
+
+function buildPagamentoMultiplo(
+  mode: PaymentMode,
+  codigo: number,
+  valor: number,
+  numeroAutorizacao: string,
+): Record<string, unknown> {
+  if (mode === "pix_native") {
+    return {
+      pix: {
+        pagamentoRealizado: true,
+        codigo,
+        valor,
+        numeroAutorizacao,
+        idTransacaoPIX: numeroAutorizacao.slice(0, 100),
+      },
+    };
+  }
+  return {
+    cartao: [
+      {
+        codigo,
+        valor,
+        numeroAutorizacao,
+      },
+    ],
+  };
+}
+
+function resolveModeCode(settings: any, mode: PaymentMode): number | null {
+  switch (mode) {
+    case "pix_native": return settings.trier_pix_native_code ?? settings.pix_payment_code ?? null;
+    case "site_pix_card": return settings.trier_site_pix_card_code ?? null;
+    case "site_debit_card": return settings.trier_site_debit_card_code ?? null;
+    case "site_credit_card": return settings.trier_site_credit_card_code ?? settings.card_payment_code ?? null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -95,8 +148,10 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
+    const action = String(body?.action || "send_order");
     const orderId = String(body?.order_id || "");
     const force = !!body?.force;
+    const presetParam = String(body?.preset || "") as PaymentMode | "";
     if (!orderId) return json({ error: "order_id obrigatório" }, 400);
 
     // 1) Carrega config
@@ -104,13 +159,12 @@ Deno.serve(async (req) => {
       .from("trier_settings").select("*").eq("id", 1).maybeSingle();
     if (setErr || !settings) return json({ error: "trier_settings ausente" }, 500);
 
-    // Para envio automático, exige flag ligada. Manual ignora a flag.
-    if (isInternal && !settings.auto_send_orders_enabled) {
+    if (action === "send_order" && isInternal && !settings.auto_send_orders_enabled) {
       return json({ skipped: true, reason: "auto_send_disabled" }, 200);
     }
 
     if (!TRIER_TOKEN) {
-      await writeLog({ order_id: orderId, action: "send_order", status: "error",
+      await writeLog({ order_id: orderId, action, status: "error",
         error_message: "TRIER_API_TOKEN ausente" });
       return json({ error: "TRIER_API_TOKEN ausente" }, 500);
     }
@@ -120,34 +174,51 @@ Deno.serve(async (req) => {
       .from("orders").select("*").eq("id", orderId).maybeSingle();
     if (orderErr || !order) return json({ error: "Pedido não encontrado" }, 404);
 
-    if (order.payment_status !== "approved") {
-      return json({ error: "Pedido não está aprovado", payment_status: order.payment_status }, 400);
-    }
-    if (order.trier_sent && !force) {
-      return json({ skipped: true, reason: "already_sent", trier_order_id: order.trier_order_id }, 200);
+    const isTest = action === "test_payment_preset";
+
+    if (!isTest) {
+      if (order.payment_status !== "approved") {
+        return json({ error: "Pedido não está aprovado", payment_status: order.payment_status }, 400);
+      }
+      if (order.trier_sent && !force) {
+        return json({ skipped: true, reason: "already_sent", trier_order_id: order.trier_order_id }, 200);
+      }
     }
 
     const { data: items, error: itemsErr } = await admin
       .from("order_items").select("*, products(trier_product_id)").eq("order_id", orderId);
     if (itemsErr || !items?.length) return json({ error: "Itens do pedido não encontrados" }, 400);
 
-    // 3) Validações de configuração
+    // 3) Validações de configuração mínimas
     const missingConfig: string[] = [];
     if (!settings.seller_code) missingConfig.push("seller_code");
     if (!settings.seller_name) missingConfig.push("seller_name");
-    const isPix = (order.payment_method || "").toLowerCase().includes("pix");
-    if (isPix && !settings.pix_payment_code) missingConfig.push("pix_payment_code");
-    if (!isPix && !settings.card_payment_code) missingConfig.push("card_payment_code");
+
+    // Determina modo de pagamento e código
+    let mode: PaymentMode;
+    if (isTest) {
+      const allowed: PaymentMode[] = ["pix_native","site_pix_card","site_debit_card","site_credit_card"];
+      if (!allowed.includes(presetParam as PaymentMode)) {
+        return json({ error: "preset inválido. Use: " + allowed.join(", ") }, 400);
+      }
+      mode = presetParam as PaymentMode;
+    } else {
+      mode = (settings.trier_payment_mode as PaymentMode) || "pix_native";
+    }
+    const codigoPagamento = resolveModeCode(settings, mode);
+    if (codigoPagamento == null) missingConfig.push(`código do modo ${mode}`);
+
     const isDelivery = order.delivery_type === "delivery" || order.delivery_method === "delivery";
     const deliveryFee = Number(order.delivery_fee || 0);
-    if (isDelivery && deliveryFee > 0 && !settings.delivery_fee_product_code) {
+    if (!isTest && isDelivery && deliveryFee > 0 && !settings.delivery_fee_product_code) {
       missingConfig.push("delivery_fee_product_code");
     }
     if (missingConfig.length) {
       const msg = `Configuração Trier incompleta: ${missingConfig.join(", ")}`;
-      await writeLog({ order_id: orderId, action: "send_order", status: "error", error_message: msg,
-        created_by: actorId });
-      await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId);
+      await writeLog({ order_id: orderId, action, status: "error", error_message: msg, created_by: actorId });
+      if (!isTest) {
+        await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId);
+      }
       return json({ error: msg }, 400);
     }
 
@@ -170,14 +241,15 @@ Deno.serve(async (req) => {
     }
     if (itemsWithoutTrierId.length) {
       const msg = `Itens sem trier_product_id: ${itemsWithoutTrierId.join("; ")}`;
-      await writeLog({ order_id: orderId, action: "send_order", status: "error", error_message: msg,
-        created_by: actorId });
-      await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId);
+      await writeLog({ order_id: orderId, action, status: "error", error_message: msg, created_by: actorId });
+      if (!isTest) {
+        await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId);
+      }
       return json({ error: msg }, 400);
     }
 
-    // Item de taxa de entrega
-    if (isDelivery && deliveryFee > 0 && settings.delivery_fee_product_code) {
+    // Item de taxa de entrega (apenas no envio real)
+    if (!isTest && isDelivery && deliveryFee > 0 && settings.delivery_fee_product_code) {
       produtos.push({
         codigoProduto: Number(settings.delivery_fee_product_code) || settings.delivery_fee_product_code,
         nomeProduto: settings.delivery_fee_product_name || "Taxa de Entrega",
@@ -189,87 +261,68 @@ Deno.serve(async (req) => {
 
     // 5) Pagamento
     const valorPago = Number(order.total);
-    // Trier espera numeroAutorizacao/idTransacaoPIX como Integer (Int32, máx 2_147_483_647).
-    // IDs do Mercado Pago têm 12+ dígitos e estouram o tipo; truncamos com mod para caber.
-    const fitInt32 = (v: string | number | null | undefined): number | null => {
-      if (v == null) return null;
-      const digits = String(v).replace(/\D/g, "");
-      if (!digits) return null;
-      // BigInt para evitar perda em números > 2^53; mod por 2_000_000_000 garante Int32 positivo.
-      return Number(BigInt(digits) % 2000000000n);
+    const numeroAutorizacao = onlyDigits(order.mercado_pago_payment_id) || String(Date.now());
+    const pagamentoMultiplo = buildPagamentoMultiplo(mode, Number(codigoPagamento), valorPago, numeroAutorizacao);
+
+    const dataPedido = isoDateTimeBR(order.paid_at || order.created_at);
+    const numeroPedido = shortNumericOrderId(String(order.id));
+
+    // cliente: nunca enviar null/string vazia, codigo sempre 0 para novo
+    const clienteBase: Record<string, unknown> = {
+      codigo: 0,
+      nome: order.customer_name,
+      numeroCpfCnpj: onlyDigits(order.customer_cpf),
+      celular: onlyDigits(order.customer_phone),
+      fone: onlyDigits(order.customer_phone),
+      email: order.customer_email,
     };
-    const autorizacaoInt = fitInt32(order.mercado_pago_payment_id) ?? fitInt32(Date.now());
-    const pixTransactionId = onlyDigits(order.mercado_pago_payment_id) || String(autorizacaoInt);
-    const pagamentoMultiplo: any = {};
-    if (isPix) {
-      pagamentoMultiplo.pix = {
-        pagamentoRealizado: true,
-        codigo: Number(settings.pix_payment_code),
-        valor: valorPago,
-        numeroAutorizacao: autorizacaoInt,
-        // Manual Trier: idTransacaoPIX é String(100); número grande do Mercado Pago pode ir completo aqui.
-        idTransacaoPIX: pixTransactionId.slice(0, 100),
-      };
-    } else {
-      // Manual Trier: cartao é lista de objetos.
-      pagamentoMultiplo.cartao = [{
-        pagamentoRealizado: true,
-        codigo: Number(settings.card_payment_code),
-        valor: valorPago,
-        qtdParcela: 1,
-        numeroAutorizacao: autorizacaoInt,
-      }];
-    }
+    const cliente = omitBlankFields(clienteBase);
 
-    const dataPedido = isoDateTime(order.paid_at || order.created_at);
-    const numeroPedido = String(order.id).replace(/-/g, "").slice(0, 20);
-
-    const payload = {
+    const payload: Record<string, unknown> = {
       numeroPedido,
       dataPedido,
       valorTotalVenda: Number(order.total),
       valorFrete: deliveryFee,
-      entrega: isDelivery,
-      cliente: omitBlankFields({
-        nome: order.customer_name,
-        numeroCpfCnpj: onlyDigits(order.customer_cpf) || null,
-        celular: onlyDigits(order.customer_phone) || null,
-        fone: onlyDigits(order.customer_phone) || null,
-        email: order.customer_email || null,
-      }),
+      entrega: !!isDelivery,
+      cliente,
       vendedor: {
         codigo: Number(settings.seller_code),
         nome: settings.seller_name,
       },
-      ...(isDelivery ? {
-        enderecoEntrega: omitBlankFields({
-          logradouro: order.delivery_street || null,
-          numero: order.delivery_number || null,
-          complemento: order.delivery_complement || null,
-          referencia: order.delivery_reference || null,
-          bairro: order.delivery_neighborhood || null,
-          cidade: order.delivery_city || null,
-          estado: order.delivery_state || null,
-          cep: onlyDigits(order.delivery_cep) || null,
-        }),
-      } : {}),
       produtos,
       pagamentoMultiplo,
     };
 
-    // 6) Idempotência por hash
+    if (isDelivery) {
+      const end = omitBlankFields({
+        logradouro: order.delivery_street,
+        numero: order.delivery_number,
+        complemento: order.delivery_complement,
+        referencia: order.delivery_reference,
+        bairro: order.delivery_neighborhood,
+        cidade: order.delivery_city,
+        estado: order.delivery_state,
+        cep: onlyDigits(order.delivery_cep),
+      });
+      if (Object.keys(end).length) payload.enderecoEntrega = end;
+    }
+
+    // 6) Idempotência por hash (somente envio real)
     const payloadHash = await sha256Hex(JSON.stringify(payload));
-    if (order.trier_payload_hash === payloadHash && order.trier_sent && !force) {
+    if (!isTest && order.trier_payload_hash === payloadHash && order.trier_sent && !force) {
       return json({ skipped: true, reason: "same_hash_already_sent" }, 200);
     }
+
 
     // 7) Envia
     const url = `${settings.base_url.replace(/\/$/, "")}${SEND_PATH}`;
     const startedAt = Date.now();
-    await admin.from("orders").update({
-      trier_attempts: (order.trier_attempts || 0) + 1,
-      trier_payload_hash: payloadHash,
-    }).eq("id", orderId);
+    if (!isTest) {
+      await admin.from("orders").update({
+        trier_attempts: (order.trier_attempts || 0) + 1,
+        trier_payload_hash: payloadHash,
+      }).eq("id", orderId);
+    }
 
     let httpStatus = 0;
     let responseBody: any = null;
@@ -292,16 +345,17 @@ Deno.serve(async (req) => {
     }
 
     const elapsed = Date.now() - startedAt;
-    safeLog("[send-order-to-trier] response", { orderId, httpStatus, elapsed });
+    safeLog("[send-order-to-trier] response", { orderId, action, mode, httpStatus, elapsed });
 
     const success = httpStatus >= 200 && httpStatus < 300 && !errorMessage;
     const trierOrderId = responseBody?.numeroPedido || responseBody?.numeroVenda || responseBody?.numero || null;
     const trierSaleId = responseBody?.idVenda || responseBody?.id || null;
     const trierNumeroNota = responseBody?.numeroNota || null;
 
+    const logAction = isTest ? `test_payment_preset:${mode}` : "send_order";
     await writeLog({
       order_id: orderId,
-      action: "send_order",
+      action: logAction,
       endpoint: SEND_PATH,
       http_status: httpStatus,
       status: success ? "ok" : "error",
@@ -310,6 +364,18 @@ Deno.serve(async (req) => {
       error_message: errorMessage,
       created_by: actorId,
     });
+
+    if (isTest) {
+      return json({
+        ok: success,
+        mode,
+        http_status: httpStatus,
+        error: errorMessage,
+        response: responseBody,
+        request_masked: maskSensitiveData(payload),
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     if (success) {
       await admin.from("orders").update({
@@ -345,6 +411,7 @@ Deno.serve(async (req) => {
       });
       return json({ ok: false, http_status: httpStatus, error: errorMessage, response: responseBody }, 502);
     }
+
   } catch (e) {
     safeError("[send-order-to-trier] unexpected", { message: (e as Error)?.message });
     return json({ error: (e as Error)?.message }, 500);
