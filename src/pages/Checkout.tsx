@@ -432,7 +432,7 @@ export default function Checkout() {
             </p>
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(3)} disabled={submitting}>Voltar</Button>
-              <Button onClick={goPay} disabled={submitting} className="bg-primary hover:bg-primary-dark">
+              <Button onClick={goPay} disabled={submitting || deliveryBlocked} className="bg-primary hover:bg-primary-dark">
                 {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecionando...</> : "Pagar agora"}
               </Button>
             </div>
