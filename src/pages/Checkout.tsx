@@ -220,49 +220,76 @@ export default function Checkout() {
     }
   };
 
+  const parseInvokeError = async (error: any, data: any) => {
+    if (error) {
+      let parsed: any = null;
+      try {
+        const resp: Response | undefined = (error as any)?.context;
+        if (resp && typeof resp.text === "function") {
+          const text = await resp.text();
+          try { parsed = JSON.parse(text); } catch { parsed = { error: text }; }
+        }
+      } catch { /* ignore */ }
+      const msg = parsed?.error || parsed?.message || (error as any)?.message || "Falha ao iniciar pagamento";
+      const code = parsed?.error_code ? ` [${parsed.error_code}]` : "";
+      throw new Error(`${msg}${code}`);
+    }
+    if (data && data.success === false) {
+      const code = data.error_code ? ` [${data.error_code}]` : "";
+      throw new Error(`${data.error || "Falha ao iniciar pagamento"}${code}`);
+    }
+  };
+
   const goPay = async () => {
     if (!user) return;
+    // Pix exige CPF
+    if (paymentMethod === "pix") {
+      const onlyDigits = cpf.replace(/\D/g, "");
+      if (onlyDigits.length !== 11) {
+        toast.error("CPF é obrigatório para pagamento via Pix. Volte para a etapa 'Seus dados' e preencha.", { duration: 8000 });
+        setStep(1);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       await persistCustomerData();
+      const commonBody = {
+        items: items.map((i) => ({
+          id: i.product_id || i.id,
+          variant_id: i.variant_id || null,
+          quantity: i.quantity,
+        })),
+        delivery_type: deliveryType,
+        customer: { name, email, phone, cpf: cpf || undefined },
+        delivery: deliveryType === "delivery"
+          ? { cep, street, number, complement, neighborhood, city, state, reference, lat: lat ?? undefined, lng: lng ?? undefined, place_id: placeId ?? undefined }
+          : undefined,
+      };
+
+      if (paymentMethod === "pix") {
+        // Pix nativo: gera QR Code e navega para a tela interna
+        const { data, error } = await supabase.functions.invoke("create-pix-payment", { body: commonBody });
+        await parseInvokeError(error, data);
+        if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
+        sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({
+          qr_code: data.qr_code,
+          qr_code_base64: data.qr_code_base64,
+          ticket_url: data.ticket_url,
+          expires_at: data.expires_at,
+          total: data.total,
+        }));
+        clearCart();
+        nav(`/pedido/pix/${data.order_id}`, { replace: true });
+        return;
+      }
+
+      // Cartão: continua via Checkout Pro do Mercado Pago
       const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
-        body: {
-          items: items.map((i) => ({
-            id: i.product_id || i.id,
-            variant_id: i.variant_id || null,
-            quantity: i.quantity,
-          })),
-          payment_method: paymentMethod,
-          delivery_type: deliveryType,
-          customer: { name, email, phone, cpf: cpf || undefined },
-          delivery: deliveryType === "delivery"
-            ? { cep, street, number, complement, neighborhood, city, state, reference, lat: lat ?? undefined, lng: lng ?? undefined, place_id: placeId ?? undefined }
-            : undefined,
-          return_origin: window.location.origin,
-        },
+        body: { ...commonBody, payment_method: paymentMethod, return_origin: window.location.origin },
       });
-
-      // Extrair o erro real do body da Edge Function (mesmo em respostas não-2xx)
-      if (error) {
-        let parsed: any = null;
-        try {
-          const resp: Response | undefined = (error as any)?.context;
-          if (resp && typeof resp.text === "function") {
-            const text = await resp.text();
-            try { parsed = JSON.parse(text); } catch { parsed = { error: text }; }
-          }
-        } catch { /* ignore */ }
-        const msg = parsed?.error || parsed?.message || (error as any)?.message || "Falha ao iniciar pagamento";
-        const code = parsed?.error_code ? ` [${parsed.error_code}]` : "";
-        throw new Error(`${msg}${code}`);
-      }
-
-      if (data && data.success === false) {
-        const code = data.error_code ? ` [${data.error_code}]` : "";
-        throw new Error(`${data.error || "Falha ao iniciar pagamento"}${code}`);
-      }
+      await parseInvokeError(error, data);
       if (!data?.checkout_url) throw new Error("URL de checkout não recebida");
-
       clearCart();
       window.location.href = data.checkout_url;
     } catch (e: any) {
@@ -288,7 +315,7 @@ export default function Checkout() {
             <Field label="Nome completo"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label="Telefone / WhatsApp"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(83) 99999-9999" /></Field>
-            <Field label="CPF (opcional)"><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="Necessário para Pix" /></Field>
+            <Field label={paymentMethod === "pix" ? "CPF (obrigatório para Pix)" : "CPF (opcional)"}><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" /></Field>
             <NextBtn disabled={!name || !email || phone.length < 8} onClick={() => setStep(2)} />
           </Section>
         )}
@@ -427,7 +454,7 @@ export default function Checkout() {
                 <QrCode className="h-6 w-6" />
                 <div>
                   <div className="font-bold">Pix</div>
-                  <div className="text-xs text-muted-foreground">Aprovação imediata</div>
+                  <div className="text-xs text-muted-foreground">QR Code aqui mesmo · aprovação imediata</div>
                 </div>
               </label>
               <label className={`border rounded-lg p-4 cursor-pointer flex items-center gap-3 ${paymentMethod === "credit_card" ? "border-primary bg-primary/5" : ""}`}>
@@ -440,12 +467,16 @@ export default function Checkout() {
               </label>
             </RadioGroup>
             <p className="text-xs text-muted-foreground mt-4">
-              Você será redirecionado ao ambiente seguro do Mercado Pago para concluir o pagamento.
+              {paymentMethod === "pix"
+                ? "Você verá o QR Code e o Pix Copia e Cola na próxima tela, sem sair do site."
+                : "Você será redirecionado ao ambiente seguro do Mercado Pago para concluir o pagamento."}
             </p>
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(3)} disabled={submitting}>Voltar</Button>
               <Button onClick={goPay} disabled={submitting || deliveryBlocked} className="bg-primary hover:bg-primary-dark">
-                {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecionando...</> : "Pagar agora"}
+                {submitting
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {paymentMethod === "pix" ? "Gerando Pix..." : "Redirecionando..."}</>
+                  : (paymentMethod === "pix" ? "Gerar QR Code Pix" : "Pagar agora")}
               </Button>
             </div>
           </Section>
