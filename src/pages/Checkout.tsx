@@ -454,7 +454,7 @@ export default function Checkout() {
                 <QrCode className="h-6 w-6" />
                 <div>
                   <div className="font-bold">Pix</div>
-                  <div className="text-xs text-muted-foreground">Aprovação imediata</div>
+                  <div className="text-xs text-muted-foreground">QR Code aqui mesmo · aprovação imediata</div>
                 </div>
               </label>
               <label className={`border rounded-lg p-4 cursor-pointer flex items-center gap-3 ${paymentMethod === "credit_card" ? "border-primary bg-primary/5" : ""}`}>
@@ -467,12 +467,16 @@ export default function Checkout() {
               </label>
             </RadioGroup>
             <p className="text-xs text-muted-foreground mt-4">
-              Você será redirecionado ao ambiente seguro do Mercado Pago para concluir o pagamento.
+              {paymentMethod === "pix"
+                ? "Você verá o QR Code e o Pix Copia e Cola na próxima tela, sem sair do site."
+                : "Você será redirecionado ao ambiente seguro do Mercado Pago para concluir o pagamento."}
             </p>
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(3)} disabled={submitting}>Voltar</Button>
               <Button onClick={goPay} disabled={submitting || deliveryBlocked} className="bg-primary hover:bg-primary-dark">
-                {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecionando...</> : "Pagar agora"}
+                {submitting
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {paymentMethod === "pix" ? "Gerando Pix..." : "Redirecionando..."}</>
+                  : (paymentMethod === "pix" ? "Gerar QR Code Pix" : "Pagar agora")}
               </Button>
             </div>
           </Section>
