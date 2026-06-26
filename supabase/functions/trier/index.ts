@@ -432,6 +432,12 @@ function pickPriceNum(t: any): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+function pickPromoPriceNum(t: any): number | null {
+  const v = firstNonEmpty(t.valorPromocao, t.precoPromocao, t.valor_promo, t.preco_promo, t.promo_price);
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 function pickStockNum(t: any): number | null {
   const v = firstNonEmpty(t.quantidadeEstoqueEcommerce, t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
   if (v == null) return null;
@@ -466,7 +472,10 @@ function mapProduct(t: any, stockSource: StockSource = "loja") {
   const ecomPrice = ecomPriceRaw != null && ecomPriceRaw !== "" && Number.isFinite(Number(ecomPriceRaw)) ? Number(ecomPriceRaw) : null;
   const basePrice = pickPriceNum(t);
   const finalPrice = ecomPrice ?? basePrice ?? 0;
-  const promo = ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null;
+  const promoPrice = pickPromoPriceNum(t);
+  const promo = promoPrice != null && basePrice != null && promoPrice < basePrice
+    ? promoPrice
+    : (ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null);
 
   // ----- Estoque -----
   // Regra: a farmácia vende usando o estoque REAL da loja (quantidadeEstoque).
@@ -1649,7 +1658,10 @@ async function actionSyncPrices(trigger = "manual") {
   const job = await startJob("prices", trigger);
   let updated = 0, ignored = 0, failed = 0;
   try {
-    const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/precificacao/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
+    // O endpoint de precificação pode voltar vazio conforme a configuração da farmácia.
+    // Para manter o site atualizado, usamos o endpoint de melhor desconto, que traz
+    // valorVenda + valorPromocao vigentes por produto.
+    const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}`);
     for (const t of list) {
       const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source });
       if (r.updated) updated++;
@@ -1657,6 +1669,7 @@ async function actionSyncPrices(trigger = "manual") {
       else ignored++;
     }
     await supabase.from("trier_settings").update({ last_sync_prices_at: new Date().toISOString() }).eq("id", 1);
+    await log("prices", failed > 0 ? "error" : "success", `Preços sincronizados: ${list.length} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, { updated, ignored, failed });
     await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
     return { ok: true, total: list.length, updated, failed, ignored };
   } catch (e: any) {
