@@ -428,8 +428,11 @@ export type Database = {
           id: string
           is_default: boolean
           label: string | null
+          lat: number | null
+          lng: number | null
           neighborhood: string | null
           number: string | null
+          place_id: string | null
           reference: string | null
           state: string
           street: string
@@ -444,8 +447,11 @@ export type Database = {
           id?: string
           is_default?: boolean
           label?: string | null
+          lat?: number | null
+          lng?: number | null
           neighborhood?: string | null
           number?: string | null
+          place_id?: string | null
           reference?: string | null
           state: string
           street: string
@@ -460,8 +466,11 @@ export type Database = {
           id?: string
           is_default?: boolean
           label?: string | null
+          lat?: number | null
+          lng?: number | null
           neighborhood?: string | null
           number?: string | null
+          place_id?: string | null
           reference?: string | null
           state?: string
           street?: string
@@ -2130,6 +2139,9 @@ export type Database = {
           contact_email: string | null
           crf: string | null
           delivery_fee: number | null
+          delivery_fee_zones: Json
+          delivery_max_km: number
+          delivery_mode: string
           facebook: string | null
           footer_text: string | null
           hero_subtitle: string | null
@@ -2145,6 +2157,9 @@ export type Database = {
           sanitary_notice: string | null
           served_neighborhoods: string | null
           state_registration: string | null
+          store_geocoded_at: string | null
+          store_lat: number | null
+          store_lng: number | null
           store_name: string | null
           tiktok: string | null
           updated_at: string
@@ -2157,6 +2172,9 @@ export type Database = {
           contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          delivery_fee_zones?: Json
+          delivery_max_km?: number
+          delivery_mode?: string
           facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
@@ -2172,6 +2190,9 @@ export type Database = {
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
           state_registration?: string | null
+          store_geocoded_at?: string | null
+          store_lat?: number | null
+          store_lng?: number | null
           store_name?: string | null
           tiktok?: string | null
           updated_at?: string
@@ -2184,6 +2205,9 @@ export type Database = {
           contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          delivery_fee_zones?: Json
+          delivery_max_km?: number
+          delivery_mode?: string
           facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
@@ -2199,6 +2223,9 @@ export type Database = {
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
           state_registration?: string | null
+          store_geocoded_at?: string | null
+          store_lat?: number | null
+          store_lng?: number | null
           store_name?: string | null
           tiktok?: string | null
           updated_at?: string
