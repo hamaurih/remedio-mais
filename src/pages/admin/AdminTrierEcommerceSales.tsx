@@ -83,11 +83,17 @@ export default function AdminTrierEcommerceSales() {
       seller_name: settings.seller_name || null,
       delivery_fee_product_code: settings.delivery_fee_product_code || null,
       delivery_fee_product_name: settings.delivery_fee_product_name || null,
+      trier_payment_mode: settings.trier_payment_mode || "pix_native",
+      trier_pix_native_code: settings.trier_pix_native_code ? Number(settings.trier_pix_native_code) : null,
+      trier_site_pix_card_code: settings.trier_site_pix_card_code ? Number(settings.trier_site_pix_card_code) : null,
+      trier_site_debit_card_code: settings.trier_site_debit_card_code ? Number(settings.trier_site_debit_card_code) : null,
+      trier_site_credit_card_code: settings.trier_site_credit_card_code ? Number(settings.trier_site_credit_card_code) : null,
     };
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
     else toast.success("Configuração salva");
   };
+
 
   const sendOrder = async (orderId: string, force = false) => {
     setBusyId(orderId);
