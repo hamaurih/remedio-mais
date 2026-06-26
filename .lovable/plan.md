@@ -1,74 +1,79 @@
-# Plano: Ranking manual, relacionados e sugestão de genérico
 
-## 1. Mais vendidos — ordem manual
+# Frete por distância — Campina Grande
 
-**Banco:** novo campo `bestseller_rank int` em `products` (null = não aparece na vitrine; quanto menor, mais à frente).
+Origem fixa: **Av. Mal. Floriano Peixoto, 4050 – Campina Grande/PB**
+Raio máximo: **28 km** (acima disso o checkout bloqueia a entrega)
+Cálculo: **Haversine** (linha reta, sem custo de API por pedido)
 
-**Admin (`AdminProducts.tsx`):**
-- Nova coluna "Vitrine #" com input numérico inline (salva ao sair do campo).
-- Novo botão "Organizar Mais Vendidos" que abre um modal com a lista atual ordenada, com drag-and-drop (`@dnd-kit`) — salvar reescreve os `bestseller_rank` em sequência (10, 20, 30…).
+## Tabela de faixas inicial (editável no admin)
 
-**Site (`Index.tsx` shelf "Mais Vendidos"):**
-- Passa a buscar `products` com `bestseller_rank not null` ordenado asc (limit 12).
-- Fallback antigo (featured/recentes) só usado se ninguém estiver rankeado.
+| Distância         | Valor    |
+|-------------------|----------|
+| 0 – 3 km          | R$ 5,00  |
+| 3 – 6 km          | R$ 8,00  |
+| 6 – 10 km         | R$ 12,00 |
+| 10 – 16 km        | R$ 18,00 |
+| 16 – 22 km        | R$ 25,00 |
+| 22 – 28 km        | R$ 32,00 |
+| acima de 28 km    | bloqueia |
 
-## 2. Produtos relacionados
+Você ajusta valores, número de faixas e raio máximo direto no admin, sem novo deploy.
 
-**Banco:**
-- Nova tabela `product_related (product_id, related_product_id, position int)` — PK composta, FKs com cascade.
-- Coluna `active_ingredient text` em `products` (também usada pelo item 3).
+## 1. Banco (migration)
 
-**Admin (editor do produto em `AdminProducts.tsx`):**
-- Nova seção "Produtos Relacionados" com `EntityPicker` permitindo escolher manualmente vários produtos + ordem (drag).
+- `store_settings`: novas colunas
+  - `store_lat numeric`, `store_lng numeric`, `store_geocoded_at timestamptz`
+  - `delivery_max_km numeric` (default 28)
+  - `delivery_fee_zones jsonb` (default com a tabela acima)
+  - `delivery_mode text` (default `'distance'`; alterna entre `'flat'` antigo e `'distance'` novo — permite voltar atrás)
+- `customer_addresses`: novas colunas `lat numeric`, `lng numeric`, `place_id text`
 
-**Site (`Product.tsx`):** novo bloco "Produtos relacionados" abaixo da descrição.
+## 2. Conectar Google Maps Platform
 
-Lógica de seleção (hook `useRelatedProducts`):
-1. Se existirem manuais em `product_related` → usa eles na ordem definida.
-2. Senão, busca automaticamente até 8 produtos ativos com estoque, priorizando nesta ordem: mesmo `active_ingredient` → mesma `category_id` + mesmo `manufacturer` → mesma `category_id`. Exclui o próprio produto e variantes.
+Necessário para geocodificar a origem 1x e para o autocomplete no checkout. Uso o conector gerenciado da Lovable (chave própria só fica obrigatória quando publicar no domínio customizado — aviso no momento).
 
-## 3. Aviso de genérico/similar
+## 3. Edge functions
 
-**Banco em `products`:**
-- `is_generic boolean default false` — marca produtos que SÃO genéricos.
-- `generic_equivalent_id uuid` — link manual: produto de marca → produto genérico equivalente.
-- Reaproveita `active_ingredient` do item 2 para fallback automático.
+- `geocode-store-address` — chamada pelo admin quando o endereço da loja muda. Geocoda via Google e grava `store_lat/lng`.
+- `calculate-delivery-fee` — recebe `{ lat, lng }` do cliente; calcula Haversine; retorna `{ distance_km, fee, allowed, zone_label, reason? }`. Sem segredos no frontend.
 
-**Admin:** no editor de produto, dois campos novos:
-- Checkbox "Este produto é genérico".
-- Selector "Genérico equivalente" (só aparece se não for genérico) — busca produtos com `is_generic = true`.
+## 4. Admin — Configurações > Entrega
 
-**Lógica de sugestão (`useGenericSuggestion(product)`):**
-1. Se produto já é genérico ou controlado → não sugere nada.
-2. Se tem `generic_equivalent_id` → usa ele (manual).
-3. Senão, busca automaticamente: produto ativo com estoque, `is_generic = true`, mesmo `active_ingredient`, preço final menor que o atual, ordenado por preço asc → pega o mais barato.
-4. Só retorna se a economia for ≥ 5%.
+Mantém o layout atual da página, só amplio a aba "Entrega":
+- Endereço da loja (preenchido) + botão "Recalcular coordenadas"
+- Mostra lat/lng atuais e data do último geocode
+- Raio máximo (km), default 28
+- Editor de faixas (linha por faixa: km inicial, km final, valor, label) com validação de sobreposição
+- Switch `delivery_mode`: `Distância (novo)` / `Taxa fixa (antigo)` — fallback de segurança
 
-**UI:**
-- **Modal ao clicar "Adicionar ao carrinho"** em `ProductCard` e `Product.tsx`: se houver sugestão, abre modal "Existe um genérico equivalente: [nome] por R$X — economia de Y%" com botões "Trocar pelo genérico" / "Continuar com o original".
-- **Aviso no carrinho (`Cart.tsx`):** para cada item que tem sugestão, mostra linha discreta "💊 Existe genérico mais barato: R$X (economize Y%)" com botão "Trocar".
+## 5. Checkout (sem mexer no visual)
+
+- Substituo apenas o input de endereço por **Places Autocomplete** (`PlaceAutocompleteElement`, restrito a Brasil/PB). Mesmo estilo, mesmo lugar.
+- Ao escolher endereço:
+  - preenche os campos estruturados (rua, número, bairro, cidade, CEP)
+  - guarda `lat/lng` no estado
+  - chama `calculate-delivery-fee`
+  - exibe `Frete: R$ X,XX (X,X km)` na linha de frete existente
+  - se `allowed=false`, desabilita o botão "Finalizar" com mensagem: "Fora da área de entrega (máx. 28 km da loja)"
+- Se o cliente digitar manual sem usar autocomplete, fallback para geocodificar o endereço no backend antes de calcular.
+
+## 6. O que NÃO muda
+
+- Layout, banners, produtos, campanhas, checkout visual: intocados
+- Mercado Pago: frete continua entrando em `total` como hoje
+- Trier: frete continua sendo enviado como item "Taxa de Entrega" (já implementado)
+- Pedidos antigos e canal WhatsApp/balcão: continuam usando `delivery_fee` flat
+
+## 7. Validações de segurança
+
+- `calculate-delivery-fee` é a única fonte de verdade do valor; o checkout nunca confia em valor enviado pelo cliente
+- Webhook do MP já valida `total`; mantemos
+- Origem e tabela só editáveis por admin (RLS já cobre `store_settings`)
 
 ## Detalhes técnicos
 
-**Migrações (uma só):**
-- `ALTER TABLE products ADD COLUMN bestseller_rank int, active_ingredient text, is_generic boolean default false, generic_equivalent_id uuid REFERENCES products(id) ON DELETE SET NULL;`
-- `CREATE INDEX` em `bestseller_rank`, `active_ingredient`, `is_generic`.
-- `CREATE TABLE product_related (...)` + GRANT (`SELECT` para anon/authenticated; `ALL` para service_role; admin gerencia via `has_role`) + RLS + policies.
-
-**Arquivos novos:**
-- `src/hooks/useRelatedProducts.ts`
-- `src/hooks/useGenericSuggestion.ts`
-- `src/components/GenericSuggestionDialog.tsx`
-- `src/components/admin/BestsellersReorderDialog.tsx`
-- `src/components/admin/RelatedProductsPicker.tsx`
-
-**Arquivos editados:**
-- `src/pages/admin/AdminProducts.tsx` — coluna rank, botão organizar, campos genérico, picker relacionados
-- `src/pages/Index.tsx` — query "Mais Vendidos" usa `bestseller_rank`
-- `src/pages/Product.tsx` — bloco relacionados + integração modal genérico
-- `src/components/ProductCard.tsx` — interceptar "Adicionar" para checar sugestão
-- `src/pages/Cart.tsx` — aviso por item com botão trocar
-
-**Dependência:** `@dnd-kit/core` + `@dnd-kit/sortable` (drag-and-drop dos mais vendidos e relacionados).
-
-Posso prosseguir?
+- Haversine direto em JS na edge function — sem dependência externa
+- Google Places via `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY` no client; geocode da loja via gateway (server-side) com `Authorization` + `X-Connection-Api-Key`
+- Carregamento do Maps JS com `loading=async` + callback
+- `delivery_fee_zones` formato: `[{ "min_km": 0, "max_km": 3, "fee": 5.0, "label": "Até 3 km" }, ...]`
+- Migration inclui GRANTs e RLS preservados; nenhuma policy nova precisa mudar
