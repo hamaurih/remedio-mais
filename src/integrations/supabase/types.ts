@@ -2564,6 +2564,11 @@ export type Database = {
           sync_prices_enabled: boolean
           sync_products_enabled: boolean
           sync_stock_enabled: boolean
+          trier_payment_mode: string
+          trier_pix_native_code: number | null
+          trier_site_credit_card_code: number | null
+          trier_site_debit_card_code: number | null
+          trier_site_pix_card_code: number | null
           updated_at: string
         }
         Insert: {
@@ -2605,6 +2610,11 @@ export type Database = {
           sync_prices_enabled?: boolean
           sync_products_enabled?: boolean
           sync_stock_enabled?: boolean
+          trier_payment_mode?: string
+          trier_pix_native_code?: number | null
+          trier_site_credit_card_code?: number | null
+          trier_site_debit_card_code?: number | null
+          trier_site_pix_card_code?: number | null
           updated_at?: string
         }
         Update: {
@@ -2646,6 +2656,11 @@ export type Database = {
           sync_prices_enabled?: boolean
           sync_products_enabled?: boolean
           sync_stock_enabled?: boolean
+          trier_payment_mode?: string
+          trier_pix_native_code?: number | null
+          trier_site_credit_card_code?: number | null
+          trier_site_debit_card_code?: number | null
+          trier_site_pix_card_code?: number | null
           updated_at?: string
         }
         Relationships: []
