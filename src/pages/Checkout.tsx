@@ -224,7 +224,7 @@ export default function Checkout() {
           delivery_type: deliveryType,
           customer: { name, email, phone, cpf: cpf || undefined },
           delivery: deliveryType === "delivery"
-            ? { cep, street, number, complement, neighborhood, city, state, reference }
+            ? { cep, street, number, complement, neighborhood, city, state, reference, lat: lat ?? undefined, lng: lng ?? undefined, place_id: placeId ?? undefined }
             : undefined,
           return_origin: window.location.origin,
         },
