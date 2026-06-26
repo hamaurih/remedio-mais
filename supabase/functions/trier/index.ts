@@ -1655,23 +1655,77 @@ async function actionSyncStock(trigger = "manual") {
 
 async function actionSyncPrices(trigger = "manual") {
   const s = await getSettings();
-  const job = await startJob("prices", trigger);
-  let updated = 0, ignored = 0, failed = 0;
+  const { job, resumed } = await getOrCreateResumableJob("prices", trigger);
+  const start = Date.now();
+  const prev = (job.details as any) || {};
+  let offset: number = Number(prev.next_offset) || 0;
+  let pages: number = Number(prev.pages_consulted) || 0;
+  let checked: number = Number(job.records_checked) || 0;
+  let updated: number = Number(job.records_updated) || 0;
+  let ignored: number = Number(job.records_ignored) || 0;
+  let failed: number = Number(job.records_failed) || 0;
+  const pageSize = PAGE_SIZE;
   try {
-    // O endpoint de precificação pode voltar vazio conforme a configuração da farmácia.
-    // Para manter o site atualizado, usamos o endpoint de melhor desconto, que traz
-    // valorVenda + valorPromocao vigentes por produto.
-    const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}`);
-    for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source });
-      if (r.updated) updated++;
-      else if (r.failed) failed++;
-      else ignored++;
+    if (resumed) {
+      await log("prices", "info", `Retomando sincronização de preços (offset ${offset})`, { job_id: job.id });
+    } else {
+      await log("prices", "info", "Iniciando sincronização de preços", { endpoint: "/rest/integracao/produto/desconto/melhor/obter-todos-v1", pageSize });
     }
+
+    while (true) {
+      if (Date.now() - start > MAX_RUN_MS) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+          details: { ...prev, next_offset: offset, pages_consulted: pages },
+        });
+        await log("prices", "info", `Pausado (deadline ${MAX_RUN_MS}ms). Próximo offset ${offset}.`, { job_id: job.id });
+        return { ok: true, paused: true, job_id: job.id, next_offset: offset, checked, updated, ignored, failed };
+      }
+
+      // O endpoint de precificação pode voltar vazio conforme a configuração da farmácia.
+      // Para manter o site atualizado, usamos melhor desconto, que traz valorVenda + valorPromocao vigentes.
+      const path = `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${offset}&quantidadeRegistros=${pageSize}`;
+      let list: any[] = [];
+      try {
+        const json = await trierGet(s, path, { page: pages });
+        list = extractList(json);
+      } catch (e: any) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+          details: { ...prev, next_offset: offset, pages_consulted: pages, last_error: String(e?.message || e).slice(0, 300) },
+        });
+        await log("prices", "error", `Erro consultando página de preços (offset ${offset}). Job pausado para retomada.`, { error: String(e?.message || e), job_id: job.id });
+        return { ok: false, paused: true, job_id: job.id, error: String(e?.message || e) };
+      }
+
+      for (const t of list) {
+        const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source, syncType: "prices" });
+        if (r.updated) updated++;
+        else if (r.failed) failed++;
+        else ignored++;
+      }
+      checked += list.length;
+      pages += 1;
+      const advanced = offset + pageSize;
+      await updateJobProgress(job.id, {
+        records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+        details: { ...prev, next_offset: advanced, pages_consulted: pages },
+      });
+
+      if (list.length < pageSize) break;
+      offset = advanced;
+      if (offset > 75000) break;
+      await sleep(PAUSE_BETWEEN_PAGES_MS);
+    }
+
     await supabase.from("trier_settings").update({ last_sync_prices_at: new Date().toISOString() }).eq("id", 1);
-    await log("prices", failed > 0 ? "error" : "success", `Preços sincronizados: ${list.length} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, { updated, ignored, failed });
-    await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
-    return { ok: true, total: list.length, updated, failed, ignored };
+    await log("prices", failed > 0 ? "error" : "success", `Preços sincronizados: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, { updated, ignored, failed, pages_consulted: pages });
+    await finishJob(job.id, {
+      status: failed > 0 ? "error" : "success",
+      records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+      details: { ...prev, next_offset: 0, pages_consulted: pages, completed: true },
+    });
+    return { ok: true, total: checked, updated, failed, ignored };
   } catch (e: any) {
     await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
