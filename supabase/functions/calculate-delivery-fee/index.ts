@@ -152,6 +152,8 @@ Deno.serve(async (req) => {
         distance_km: distanceRounded,
         fee: Number(zone.fee),
         zone_label: zone.label || `${zone.min_km}–${zone.max_km} km`,
+        lat,
+        lng,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
