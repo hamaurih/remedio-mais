@@ -175,21 +175,31 @@ Deno.serve(async (req) => {
 
     // 5) Pagamento
     const valorPago = Number(order.total);
+    // Trier espera numeroAutorizacao/idTransacaoPIX como Integer (Int32, máx 2_147_483_647).
+    // IDs do Mercado Pago têm 12+ dígitos e estouram o tipo; truncamos com mod para caber.
+    const fitInt32 = (v: string | number | null | undefined): number | null => {
+      if (v == null) return null;
+      const digits = String(v).replace(/\D/g, "");
+      if (!digits) return null;
+      // BigInt para evitar perda em números > 2^53; mod por 2_000_000_000 garante Int32 positivo.
+      return Number(BigInt(digits) % 2000000000n);
+    };
+    const autorizacaoInt = fitInt32(order.mercado_pago_payment_id) ?? fitInt32(Date.now());
     const pagamentoMultiplo: any = {};
     if (isPix) {
       pagamentoMultiplo.pix = {
         pagamentoRealizado: true,
         codigo: Number(settings.pix_payment_code),
         valor: valorPago,
-        numeroAutorizacao: order.mercado_pago_payment_id || String(order.id),
-        idTransacaoPIX: order.mercado_pago_payment_id || null,
+        numeroAutorizacao: autorizacaoInt,
+        idTransacaoPIX: autorizacaoInt,
       };
     } else {
       pagamentoMultiplo.cartao = {
         pagamentoRealizado: true,
         codigo: Number(settings.card_payment_code),
         valor: valorPago,
-        numeroAutorizacao: order.mercado_pago_payment_id || String(order.id),
+        numeroAutorizacao: autorizacaoInt,
       };
     }
 
