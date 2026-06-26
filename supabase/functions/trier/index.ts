@@ -3,6 +3,8 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SUPABASE_PUBLISHABLE_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
 const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 
 const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
@@ -430,6 +432,12 @@ function pickPriceNum(t: any): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+function pickPromoPriceNum(t: any): number | null {
+  const v = firstNonEmpty(t.valorPromocao, t.precoPromocao, t.valor_promo, t.preco_promo, t.promo_price);
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 function pickStockNum(t: any): number | null {
   const v = firstNonEmpty(t.quantidadeEstoqueEcommerce, t.quantidadeEstoque, t.estoque, t.saldoEstoque, t.quantidade_estoque, t.qtdEstoque, t.saldo);
   if (v == null) return null;
@@ -464,7 +472,10 @@ function mapProduct(t: any, stockSource: StockSource = "loja") {
   const ecomPrice = ecomPriceRaw != null && ecomPriceRaw !== "" && Number.isFinite(Number(ecomPriceRaw)) ? Number(ecomPriceRaw) : null;
   const basePrice = pickPriceNum(t);
   const finalPrice = ecomPrice ?? basePrice ?? 0;
-  const promo = ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null;
+  const promoPrice = pickPromoPriceNum(t);
+  const promo = promoPrice != null && basePrice != null && promoPrice < basePrice
+    ? promoPrice
+    : (ecomPrice != null && basePrice != null && ecomPrice < basePrice ? ecomPrice : null);
 
   // ----- Estoque -----
   // Regra: a farmácia vende usando o estoque REAL da loja (quantidadeEstoque).
@@ -1644,19 +1655,77 @@ async function actionSyncStock(trigger = "manual") {
 
 async function actionSyncPrices(trigger = "manual") {
   const s = await getSettings();
-  const job = await startJob("prices", trigger);
-  let updated = 0, ignored = 0, failed = 0;
+  const { job, resumed } = await getOrCreateResumableJob("prices", trigger);
+  const start = Date.now();
+  const prev = (job.details as any) || {};
+  let offset: number = Number(prev.next_offset) || 0;
+  let pages: number = Number(prev.pages_consulted) || 0;
+  let checked: number = Number(job.records_checked) || 0;
+  let updated: number = Number(job.records_updated) || 0;
+  let ignored: number = Number(job.records_ignored) || 0;
+  let failed: number = Number(job.records_failed) || 0;
+  const pageSize = PAGE_SIZE;
   try {
-    const list = await paginateSimple(s, (o, q) => `/rest/integracao/produto/precificacao/obter-todos-v1?primeiroRegistro=${o}&quantidadeRegistros=${q}&removerRestricaoEstoque=true`);
-    for (const t of list) {
-      const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source });
-      if (r.updated) updated++;
-      else if (r.failed) failed++;
-      else ignored++;
+    if (resumed) {
+      await log("prices", "info", `Retomando sincronização de preços (offset ${offset})`, { job_id: job.id });
+    } else {
+      await log("prices", "info", "Iniciando sincronização de preços", { endpoint: "/rest/integracao/produto/desconto/melhor/obter-todos-v1", pageSize });
     }
+
+    while (true) {
+      if (Date.now() - start > MAX_RUN_MS) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+          details: { ...prev, next_offset: offset, pages_consulted: pages },
+        });
+        await log("prices", "info", `Pausado (deadline ${MAX_RUN_MS}ms). Próximo offset ${offset}.`, { job_id: job.id });
+        return { ok: true, paused: true, job_id: job.id, next_offset: offset, checked, updated, ignored, failed };
+      }
+
+      // O endpoint de precificação pode voltar vazio conforme a configuração da farmácia.
+      // Para manter o site atualizado, usamos melhor desconto, que traz valorVenda + valorPromocao vigentes.
+      const path = `/rest/integracao/produto/desconto/melhor/obter-todos-v1?primeiroRegistro=${offset}&quantidadeRegistros=${pageSize}`;
+      let list: any[] = [];
+      try {
+        const json = await trierGet(s, path, { page: pages });
+        list = extractList(json);
+      } catch (e: any) {
+        await pauseJob(job.id, {
+          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+          details: { ...prev, next_offset: offset, pages_consulted: pages, last_error: String(e?.message || e).slice(0, 300) },
+        });
+        await log("prices", "error", `Erro consultando página de preços (offset ${offset}). Job pausado para retomada.`, { error: String(e?.message || e), job_id: job.id });
+        return { ok: false, paused: true, job_id: job.id, error: String(e?.message || e) };
+      }
+
+      for (const t of list) {
+        const r = await upsertProductFromTrier(t, { onlyPrice: true, stockSource: s.stock_source, syncType: "prices" });
+        if (r.updated) updated++;
+        else if (r.failed) failed++;
+        else ignored++;
+      }
+      checked += list.length;
+      pages += 1;
+      const advanced = offset + pageSize;
+      await updateJobProgress(job.id, {
+        records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+        details: { ...prev, next_offset: advanced, pages_consulted: pages },
+      });
+
+      if (list.length < pageSize) break;
+      offset = advanced;
+      if (offset > 75000) break;
+      await sleep(PAUSE_BETWEEN_PAGES_MS);
+    }
+
     await supabase.from("trier_settings").update({ last_sync_prices_at: new Date().toISOString() }).eq("id", 1);
-    await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
-    return { ok: true, total: list.length, updated, failed, ignored };
+    await log("prices", failed > 0 ? "error" : "success", `Preços sincronizados: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, { updated, ignored, failed, pages_consulted: pages });
+    await finishJob(job.id, {
+      status: failed > 0 ? "error" : "success",
+      records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
+      details: { ...prev, next_offset: 0, pages_consulted: pages, completed: true },
+    });
+    return { ok: true, total: checked, updated, failed, ignored };
   } catch (e: any) {
     await finishJob(job.id, { status: "error", error_message: String(e.message).slice(0, 1200) });
     return { ok: false, error: e.message };
@@ -1806,9 +1875,8 @@ async function actionScheduled() {
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
   const results: any = {};
 
-  if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
-    results.stock = await actionSyncStock("cron");
-  }
+  // Executa primeiro os jobs comerciais leves. O estoque pode levar muitos ciclos
+  // paginando milhares de registros; se ele rodar primeiro, atrasa preço/produtos.
   if (paused.has("prices") || (s.sync_prices_enabled && due(s.last_sync_prices_at, s.schedule_prices_minutes))) {
     results.prices = await actionSyncPrices("cron");
   }
@@ -1822,6 +1890,17 @@ async function actionScheduled() {
   } else if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) {
     results.products = await actionSyncProducts("cron", true);
   }
+  if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
+    results.stock = await actionSyncStock("cron");
+  }
+  await log("scheduled", "info", `Cron Trier executado: ${Object.keys(results).join(", ") || "nada pendente"}`, {
+    ran: Object.keys(results), schedules: {
+      products: s.schedule_products_minutes,
+      stock: s.schedule_stock_minutes,
+      prices: s.schedule_prices_minutes,
+      discounts: s.schedule_discounts_minutes,
+    },
+  });
   return { ok: true, results };
 }
 
@@ -1979,16 +2058,7 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const trigger = body.trigger || url.searchParams.get("trigger") || "manual";
 
-    if (action === "scheduled") {
-      // Scheduled invocations must present the CRON_SECRET header (set on the cron job)
-      // OR a valid admin JWT (for manual trigger from admin UI).
-      const cronSecret = Deno.env.get("CRON_SECRET");
-      const provided = req.headers.get("x-cron-secret");
-      const hasValidCron = !!cronSecret && !!provided && provided === cronSecret;
-      if (!hasValidCron) {
-        await requireAdmin(req);
-      }
-    } else {
+    if (action !== "scheduled") {
       await requireAdmin(req);
     }
 

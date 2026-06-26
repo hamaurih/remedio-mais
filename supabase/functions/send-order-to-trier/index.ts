@@ -47,6 +47,11 @@ function onlyDigits(s?: string | null) {
   return (s || "").replace(/\D/g, "");
 }
 
+function isoDateTime(s?: string | null) {
+  const d = s ? new Date(s) : new Date();
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
 function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(obj).filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -69,6 +74,9 @@ Deno.serve(async (req) => {
     let isInternal = false;
 
     if (internalSource === "mercado-pago-webhook" && authHeader.includes(SERVICE_KEY)) {
+      isInternal = true;
+    } else if (authHeader.includes(SERVICE_KEY)) {
+      // Permite chamadas internas/admin feitas com a chave de serviço pela própria plataforma.
       isInternal = true;
     } else {
       // valida JWT do admin
@@ -191,6 +199,7 @@ Deno.serve(async (req) => {
       return Number(BigInt(digits) % 2000000000n);
     };
     const autorizacaoInt = fitInt32(order.mercado_pago_payment_id) ?? fitInt32(Date.now());
+    const pixTransactionId = onlyDigits(order.mercado_pago_payment_id) || String(autorizacaoInt);
     const pagamentoMultiplo: any = {};
     if (isPix) {
       pagamentoMultiplo.pix = {
@@ -198,18 +207,21 @@ Deno.serve(async (req) => {
         codigo: Number(settings.pix_payment_code),
         valor: valorPago,
         numeroAutorizacao: autorizacaoInt,
-        idTransacaoPIX: autorizacaoInt,
+        // Manual Trier: idTransacaoPIX é String(100); número grande do Mercado Pago pode ir completo aqui.
+        idTransacaoPIX: pixTransactionId.slice(0, 100),
       };
     } else {
-      pagamentoMultiplo.cartao = {
+      // Manual Trier: cartao é lista de objetos.
+      pagamentoMultiplo.cartao = [{
         pagamentoRealizado: true,
         codigo: Number(settings.card_payment_code),
         valor: valorPago,
+        qtdParcela: 1,
         numeroAutorizacao: autorizacaoInt,
-      };
+      }];
     }
 
-    const dataPedido = (order.paid_at || order.created_at || new Date().toISOString()).slice(0, 10);
+    const dataPedido = isoDateTime(order.paid_at || order.created_at);
     const numeroPedido = String(order.id).replace(/-/g, "").slice(0, 20);
 
     const payload = {
