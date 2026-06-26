@@ -219,9 +219,35 @@ export default function AdminTrierEcommerceSales() {
             <Input type="number" value={settings?.seller_code ?? ""} onChange={(e) => setSettings({ ...settings, seller_code: e.target.value })} /></div>
           <div className="space-y-1"><Label>Nome vendedor padrão</Label>
             <Input value={settings?.seller_name ?? ""} onChange={(e) => setSettings({ ...settings, seller_name: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Código pagamento Pix</Label>
+
+          <div className="space-y-1 md:col-span-2">
+            <Label>Modo de pagamento Trier (usado no envio real)</Label>
+            <Select
+              value={settings?.trier_payment_mode || "pix_native"}
+              onValueChange={(v) => setSettings({ ...settings, trier_payment_mode: v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PRESETS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-muted-foreground">
+              Define em qual objeto o código entra: <code>pagamentoMultiplo.pix</code> (Pix nativo) ou <code>pagamentoMultiplo.cartao[]</code> (demais).
+            </div>
+          </div>
+
+          <div className="space-y-1"><Label>Código Pix nativo (Trier)</Label>
+            <Input type="number" value={settings?.trier_pix_native_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_pix_native_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código Pix site via cartão</Label>
+            <Input type="number" value={settings?.trier_site_pix_card_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_site_pix_card_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código cartão débito site</Label>
+            <Input type="number" value={settings?.trier_site_debit_card_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_site_debit_card_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código cartão crédito site</Label>
+            <Input type="number" value={settings?.trier_site_credit_card_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_site_credit_card_code: e.target.value })} /></div>
+
+          <div className="space-y-1"><Label>Código pagamento Pix (legado)</Label>
             <Input type="number" value={settings?.pix_payment_code ?? ""} onChange={(e) => setSettings({ ...settings, pix_payment_code: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Código pagamento Cartão</Label>
+          <div className="space-y-1"><Label>Código pagamento Cartão (legado)</Label>
             <Input type="number" value={settings?.card_payment_code ?? ""} onChange={(e) => setSettings({ ...settings, card_payment_code: e.target.value })} /></div>
           <div className="space-y-1"><Label>Código produto Taxa de Entrega</Label>
             <Input value={settings?.delivery_fee_product_code ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_code: e.target.value })} /></div>
@@ -230,6 +256,7 @@ export default function AdminTrierEcommerceSales() {
         </div>
         <Button className="mt-3" onClick={saveSettings}>Salvar configuração</Button>
       </Card>
+
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
         <TabsList>
