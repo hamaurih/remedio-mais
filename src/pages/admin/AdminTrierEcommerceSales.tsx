@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Send, RefreshCw, Search } from "lucide-react";
+import { Loader2, Send, RefreshCw, Search, FlaskConical } from "lucide-react";
+
 
 type Order = {
   id: string;
