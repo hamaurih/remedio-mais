@@ -39,11 +39,18 @@ export default function PixPayment() {
     }
   }, [orderId, nav]);
 
-  // Polling do status do pedido
+  // Polling do status do pedido (consulta DB + força sync com Mercado Pago)
   useEffect(() => {
     if (!orderId) return;
     let active = true;
+    let tick = 0;
     const check = async () => {
+      tick++;
+      // A cada 2 ciclos (~8s) força uma checagem ativa no Mercado Pago,
+      // assim não dependemos só do webhook para atualizar o pedido.
+      if (tick % 2 === 0) {
+        try { await supabase.functions.invoke("check-mercado-pago-status", { body: { order_id: orderId } }); } catch { /* ignore */ }
+      }
       const { data } = await supabase
         .from("orders")
         .select("payment_status, status")
