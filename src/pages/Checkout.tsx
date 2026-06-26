@@ -12,7 +12,8 @@ import { cartTotal, clearCart, formatBRL } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, CreditCard, QrCode } from "lucide-react";
+import { Loader2, CreditCard, QrCode, AlertTriangle } from "lucide-react";
+import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -45,15 +46,30 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
   const [saveAddress, setSaveAddress] = useState(true);
 
+  // geolocalização + frete por distância
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [placeId, setPlaceId] = useState<string | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<{
+    allowed: boolean;
+    fee: number | null;
+    distance_km: number | null;
+    zone_label?: string;
+    message?: string;
+  } | null>(null);
+  const [quoting, setQuoting] = useState(false);
+
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
 
   const subtotal = cartTotal(items);
-  const deliveryFee = useMemo(
-    () => (deliveryType === "delivery" ? Number((settings as any)?.delivery_fee ?? 0) : 0),
-    [deliveryType, settings],
-  );
+  const deliveryFee = useMemo(() => {
+    if (deliveryType !== "delivery") return 0;
+    if (deliveryQuote?.allowed && deliveryQuote.fee != null) return deliveryQuote.fee;
+    return Number((settings as any)?.delivery_fee ?? 0);
+  }, [deliveryType, deliveryQuote, settings]);
   const total = subtotal + deliveryFee;
+  const deliveryBlocked = deliveryType === "delivery" && deliveryQuote != null && !deliveryQuote.allowed;
 
   // Carrega profile + endereços salvos
   useEffect(() => {
