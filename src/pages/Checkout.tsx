@@ -279,8 +279,9 @@ export default function Checkout() {
           expires_at: data.expires_at,
           total: data.total,
         }));
-        clearCart();
+        // Navega ANTES de limpar o carrinho — senão o useEffect de "carrinho vazio" redireciona para /carrinho
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
+        setTimeout(() => clearCart(), 100);
         return;
       }
 
