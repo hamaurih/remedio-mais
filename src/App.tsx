@@ -42,6 +42,7 @@ import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import Campaign from "./pages/Campaign.tsx";
 import Checkout from "./pages/Checkout.tsx";
+import PixPayment from "./pages/PixPayment.tsx";
 import OrderReturn from "./pages/OrderReturn.tsx";
 import AdminPayments from "./pages/admin/AdminPayments.tsx";
 import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
