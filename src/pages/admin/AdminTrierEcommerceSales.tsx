@@ -142,6 +142,29 @@ export default function AdminTrierEcommerceSales() {
     await loadAll();
   };
 
+  const runPreset = async (orderId: string, preset: string) => {
+    setTestBusy(preset);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: { order_id: orderId, action: "test_payment_preset", preset },
+    });
+    setTestBusy(null);
+    const result: PresetResult = error
+      ? { preset, ok: false, error: error.message }
+      : { preset, ...(data as any) };
+    setTestResults((prev) => ({ ...prev, [preset]: result }));
+    if (result.ok) toast.success(`${preset}: HTTP ${result.http_status} OK`);
+    else toast.error(`${preset}: ${result.error || "falhou"}`);
+  };
+
+  const runAllPresets = async (orderId: string) => {
+    setTestOrderId(orderId);
+    setTestResults({});
+    for (const p of PRESETS) {
+      await runPreset(orderId, p.id);
+    }
+  };
+
+
   const filtered = useMemo(() => {
     if (filter === "all") return orders;
     if (filter === "not_sent") return orders.filter((o) => !o.trier_sent && o.trier_status !== "error");
