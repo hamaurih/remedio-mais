@@ -47,6 +47,12 @@ function onlyDigits(s?: string | null) {
   return (s || "").replace(/\D/g, "");
 }
 
+function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== null && value !== undefined && value !== "")
+  );
+}
+
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -212,31 +218,29 @@ Deno.serve(async (req) => {
       valorTotalVenda: Number(order.total),
       valorFrete: deliveryFee,
       entrega: isDelivery,
-      cliente: {
-        codigo: "",
+      cliente: omitBlankFields({
         nome: order.customer_name,
         numeroCpfCnpj: onlyDigits(order.customer_cpf) || null,
-        numeroRGIE: null,
-        dataNascimento: null,
-        sexo: null,
         celular: onlyDigits(order.customer_phone) || null,
         fone: onlyDigits(order.customer_phone) || null,
         email: order.customer_email || null,
-      },
+      }),
       vendedor: {
         codigo: Number(settings.seller_code),
         nome: settings.seller_name,
       },
-      enderecoEntrega: isDelivery ? {
-        logradouro: order.delivery_street || "",
-        numero: order.delivery_number || "",
-        complemento: order.delivery_complement || "",
-        referencia: order.delivery_reference || null,
-        bairro: order.delivery_neighborhood || "",
-        cidade: order.delivery_city || "",
-        estado: order.delivery_state || "",
-        cep: onlyDigits(order.delivery_cep) || "",
-      } : null,
+      ...(isDelivery ? {
+        enderecoEntrega: omitBlankFields({
+          logradouro: order.delivery_street || null,
+          numero: order.delivery_number || null,
+          complemento: order.delivery_complement || null,
+          referencia: order.delivery_reference || null,
+          bairro: order.delivery_neighborhood || null,
+          cidade: order.delivery_city || null,
+          estado: order.delivery_state || null,
+          cep: onlyDigits(order.delivery_cep) || null,
+        }),
+      } : {}),
       produtos,
       pagamentoMultiplo,
     };
