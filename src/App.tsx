@@ -13,6 +13,8 @@ import Search from "./pages/Search.tsx";
 import Departamentos from "./pages/Departamentos.tsx";
 import Department from "./pages/Department.tsx";
 import Auth from "./pages/Auth.tsx";
+import Account from "./pages/Account.tsx";
+
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Terms from "./pages/Terms.tsx";
 import Returns from "./pages/Returns.tsx";
@@ -85,6 +87,8 @@ const App = () => (
           <Route path="/buscar" element={<Search />} />
           <Route path="/departamentos" element={<Departamentos />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/minha-conta" element={<Account />} />
+
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<Terms />} />
           <Route path="/trocas-e-devolucoes" element={<Returns />} />

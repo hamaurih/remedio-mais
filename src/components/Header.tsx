@@ -11,7 +11,9 @@ import logoRed from "@/assets/logo-red.png";
 export function Header() {
   const cart = useCart();
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
-  const { user, isAdmin } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
+  const firstName = (profile?.full_name || user?.user_metadata?.full_name || user?.email || "").toString().trim().split(/\s+/)[0] || "";
+
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
@@ -40,7 +42,7 @@ export function Header() {
           <div className="flex items-center gap-2 ml-auto">
             {/* Login / conta */}
             <Link
-              to={user ? (isAdmin ? "/admin" : "/") : "/auth"}
+              to={user ? (isAdmin ? "/admin" : "/minha-conta") : "/auth"}
               className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
             >
               <span className="rounded-full bg-accent text-primary p-2">
@@ -49,7 +51,9 @@ export function Header() {
               <span className="leading-tight text-left">
                 {user ? (
                   <>
-                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Bem-vindo</span>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">
+                      {isAdmin ? "Bem-vindo" : `Olá, ${firstName || "cliente"}`}
+                    </span>
                     <span className="block text-sm font-bold text-foreground">{isAdmin ? "Admin" : "Minha conta"}</span>
                   </>
                 ) : (
@@ -61,10 +65,12 @@ export function Header() {
               </span>
             </Link>
 
+
             {/* Mobile login icon */}
             <Button asChild size="icon" variant="ghost" className="md:hidden" aria-label="Entrar">
-              <Link to={user ? "/" : "/auth"}><User className="h-5 w-5" /></Link>
+              <Link to={user ? "/minha-conta" : "/auth"}><User className="h-5 w-5" /></Link>
             </Button>
+
 
             {/* Carrinho */}
             <Button asChild variant="ghost" size="sm" className="relative">
