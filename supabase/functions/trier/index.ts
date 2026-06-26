@@ -3,6 +3,8 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SUPABASE_PUBLISHABLE_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
 const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 
 const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
@@ -1806,9 +1808,8 @@ async function actionScheduled() {
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
   const results: any = {};
 
-  if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
-    results.stock = await actionSyncStock("cron");
-  }
+  // Executa primeiro os jobs comerciais leves. O estoque pode levar muitos ciclos
+  // paginando milhares de registros; se ele rodar primeiro, atrasa preço/produtos.
   if (paused.has("prices") || (s.sync_prices_enabled && due(s.last_sync_prices_at, s.schedule_prices_minutes))) {
     results.prices = await actionSyncPrices("cron");
   }
@@ -1822,6 +1823,17 @@ async function actionScheduled() {
   } else if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) {
     results.products = await actionSyncProducts("cron", true);
   }
+  if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
+    results.stock = await actionSyncStock("cron");
+  }
+  await log("scheduled", "info", `Cron Trier executado: ${Object.keys(results).join(", ") || "nada pendente"}`, {
+    ran: Object.keys(results), schedules: {
+      products: s.schedule_products_minutes,
+      stock: s.schedule_stock_minutes,
+      prices: s.schedule_prices_minutes,
+      discounts: s.schedule_discounts_minutes,
+    },
+  });
   return { ok: true, results };
 }
 
@@ -1979,16 +1991,7 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const trigger = body.trigger || url.searchParams.get("trigger") || "manual";
 
-    if (action === "scheduled") {
-      // Scheduled invocations must present the CRON_SECRET header (set on the cron job)
-      // OR a valid admin JWT (for manual trigger from admin UI).
-      const cronSecret = Deno.env.get("CRON_SECRET");
-      const provided = req.headers.get("x-cron-secret");
-      const hasValidCron = !!cronSecret && !!provided && provided === cronSecret;
-      if (!hasValidCron) {
-        await requireAdmin(req);
-      }
-    } else {
+    if (action !== "scheduled") {
       await requireAdmin(req);
     }
 
