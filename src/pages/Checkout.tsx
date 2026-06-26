@@ -108,19 +108,54 @@ export default function Checkout() {
     setCity(a.city || "");
     setState(a.state || "");
     setReference(a.reference || "");
+    setLat(a.lat ?? null);
+    setLng(a.lng ?? null);
+    setPlaceId(a.place_id ?? null);
   };
 
   const pickSavedAddress = (id: string) => {
     setSelectedAddressId(id);
+    setDeliveryQuote(null);
     if (id === "new") {
       setCep(""); setStreet(""); setNumber(""); setComplement("");
       setNeighborhood(""); setCity(""); setState(""); setReference("");
+      setLat(null); setLng(null); setPlaceId(null);
       setSaveAddress(true);
     } else {
       const a = savedAddresses.find((x) => x.id === id);
       if (a) { applyAddress(a); setSaveAddress(false); }
     }
   };
+
+  // Cota o frete sempre que houver lat/lng (ou só endereço estruturado) na entrega
+  useEffect(() => {
+    if (deliveryType !== "delivery") { setDeliveryQuote(null); return; }
+    const hasCoords = typeof lat === "number" && typeof lng === "number";
+    const hasAddr = !!(street && number && city && state);
+    if (!hasCoords && !hasAddr) { setDeliveryQuote(null); return; }
+    let cancelled = false;
+    setQuoting(true);
+    const fullAddress = hasCoords ? undefined : `${street}, ${number}, ${neighborhood}, ${city}-${state}, ${cep}`;
+    supabase.functions.invoke("calculate-delivery-fee", {
+      body: hasCoords ? { lat, lng } : { address: fullAddress },
+    }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data?.ok) {
+        setDeliveryQuote({ allowed: false, fee: null, distance_km: null, message: (data as any)?.error || error?.message || "Não foi possível calcular o frete." });
+      } else {
+        setDeliveryQuote({
+          allowed: !!data.allowed,
+          fee: data.fee ?? null,
+          distance_km: data.distance_km ?? null,
+          zone_label: data.zone_label,
+          message: data.message,
+        });
+      }
+    }).finally(() => { if (!cancelled) setQuoting(false); });
+    return () => { cancelled = true; };
+  }, [deliveryType, lat, lng, street, number, neighborhood, city, state, cep]);
+
+
 
 
   // Login obrigatório
@@ -165,8 +200,11 @@ export default function Checkout() {
       await supabase.from("customer_addresses").insert({
         customer_id: user.id,
         cep, street, number, complement, neighborhood, city, state, reference,
+        lat: lat ?? null,
+        lng: lng ?? null,
+        place_id: placeId ?? null,
         is_default: savedAddresses.length === 0,
-      });
+      } as any);
     }
   };
 
