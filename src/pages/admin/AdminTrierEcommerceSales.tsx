@@ -140,7 +140,10 @@ export default function AdminTrierEcommerceSales() {
       trier_site_pix_card_code: settings.trier_site_pix_card_code ? Number(settings.trier_site_pix_card_code) : null,
       trier_site_debit_card_code: settings.trier_site_debit_card_code ? Number(settings.trier_site_debit_card_code) : null,
       trier_site_credit_card_code: settings.trier_site_credit_card_code ? Number(settings.trier_site_credit_card_code) : null,
+      trier_sales_base_mode: settings.trier_sales_base_mode || "gateway",
+      trier_sales_base_url: settings.trier_sales_base_url || null,
     };
+
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
     else toast.success("Configuração salva");
