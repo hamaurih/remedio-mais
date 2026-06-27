@@ -49,6 +49,15 @@ const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_
   { id: "site_credit_card", label: "Cartão crédito site" },
 ];
 
+const getNumeroAutorizacaoType = (result?: PresetResult) => {
+  if (!result) return "—";
+  if (result.numero_autorizacao_type) return result.numero_autorizacao_type;
+  const pixValue = result.request_masked?.pagamentoMultiplo?.pix?.numeroAutorizacao;
+  const cardValue = result.request_masked?.pagamentoMultiplo?.cartao?.[0]?.numeroAutorizacao;
+  const value = pixValue ?? cardValue;
+  return value === undefined ? "—" : typeof value;
+};
+
 type PresetResult = {
   preset: string;
   ok: boolean;
@@ -56,6 +65,7 @@ type PresetResult = {
   error?: string | null;
   response?: any;
   request_masked?: any;
+  numero_autorizacao_type?: string;
   timestamp?: string;
 };
 
@@ -99,7 +109,7 @@ export default function AdminTrierEcommerceSales() {
   const saveSettings = async () => {
     const payload = {
       id: 1,
-      auto_send_orders_enabled: !!settings.auto_send_orders_enabled,
+      auto_send_orders_enabled: false,
       pix_payment_code: settings.pix_payment_code ? Number(settings.pix_payment_code) : null,
       card_payment_code: settings.card_payment_code ? Number(settings.card_payment_code) : null,
       seller_code: settings.seller_code ? Number(settings.seller_code) : null,
@@ -200,11 +210,12 @@ export default function AdminTrierEcommerceSales() {
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={!!settings?.auto_send_orders_enabled}
-              onChange={(e) => setSettings({ ...settings, auto_send_orders_enabled: e.target.checked })}
+              checked={false}
+              disabled
+              onChange={() => setSettings({ ...settings, auto_send_orders_enabled: false })}
               className="h-4 w-4"
             />
-            <span className="text-sm">{settings?.auto_send_orders_enabled ? "Ativo" : "Desligado"}</span>
+            <span className="text-sm">Desligado</span>
           </label>
         </div>
 
@@ -365,6 +376,7 @@ export default function AdminTrierEcommerceSales() {
                           {r.ok ? "OK" : "FALHOU"}
                         </Badge>
                         <span>HTTP {r.http_status ?? "—"}</span>
+                        <span className="text-muted-foreground">numeroAutorizacao type = {getNumeroAutorizacaoType(r)}</span>
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
                       {r.error && <div className="text-destructive break-all">{r.error}</div>}
