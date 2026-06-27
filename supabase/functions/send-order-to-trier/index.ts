@@ -100,13 +100,16 @@ function buildPagamentoMultiplo(
   return {
     cartao: [
       {
+        pagamentoRealizado: true,
         codigo: Number(codigo),
         valor: Number(valor),
+        qtdParcela: 1,
         numeroAutorizacao: Number(numeroAutorizacao),
       },
     ],
   };
 }
+
 
 function resolveModeCode(settings: any, mode: PaymentMode): number | null {
   switch (mode) {
