@@ -347,6 +347,17 @@ export default function AdminTrierEcommerceSales() {
             <Input value={settings?.delivery_fee_product_code ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_code: e.target.value })} /></div>
           <div className="space-y-1"><Label>Nome produto Taxa de Entrega</Label>
             <Input value={settings?.delivery_fee_product_name ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_name: e.target.value })} /></div>
+
+          <div className="md:col-span-2 mt-2 pt-3 border-t">
+            <div className="text-sm font-semibold">Diagnóstico cliente/vendedor</div>
+            <div className="text-xs text-muted-foreground">Usado pelos presets de diagnóstico para isolar o NullPointerException.</div>
+          </div>
+          <div className="space-y-1"><Label>Código cliente cadastrado (teste)</Label>
+            <Input type="number" placeholder="ex: 12345" value={settings?.trier_test_customer_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_customer_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código vendedor alternativo (teste)</Label>
+            <Input type="number" placeholder="ex: 1" value={settings?.trier_test_seller_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_seller_code: e.target.value })} /></div>
+          <div className="space-y-1 md:col-span-2"><Label>Nome vendedor alternativo (teste)</Label>
+            <Input placeholder="ex: ADMINISTRADOR" value={settings?.trier_test_seller_name ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_seller_name: e.target.value })} /></div>
         </div>
 
         <div className="mt-4 pt-4 border-t space-y-3">
