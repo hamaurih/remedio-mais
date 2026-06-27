@@ -149,6 +149,25 @@ export default function AdminTrierEcommerceSales() {
     else toast.success("Configuração salva");
   };
 
+  const testConnection = async () => {
+    setConnBusy(true);
+    setConnTest(null);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: { action: "test_connection" },
+    });
+    setConnBusy(false);
+    if (error) {
+      setConnTest({ ok: false, error: error.message });
+      toast.error(error.message);
+    } else {
+      setConnTest(data as ConnTest);
+      if ((data as any)?.reachable) toast.success(`Conexão OK · HTTP ${(data as any).http_status}`);
+      else toast.error((data as any)?.error || "Sem resposta");
+    }
+  };
+
+
+
 
   const sendOrder = async (orderId: string, force = false) => {
     setBusyId(orderId);
