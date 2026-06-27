@@ -425,6 +425,9 @@ Deno.serve(async (req) => {
       return json({
         ok: success,
         mode,
+        url,
+        method: "POST",
+        base_mode: baseMode,
         http_status: httpStatus,
         error: errorMessage,
         response: responseBody,
@@ -433,6 +436,7 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
     }
+
 
     if (success) {
       await admin.from("orders").update({
