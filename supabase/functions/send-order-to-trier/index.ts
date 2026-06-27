@@ -371,7 +371,7 @@ Deno.serve(async (req) => {
 
 
     // 7) Envia
-    const url = `${settings.base_url.replace(/\/$/, "")}${SEND_PATH}`;
+    const url = `${salesBaseUrl}${SEND_PATH}`;
     const startedAt = Date.now();
     if (!isTest) {
       await admin.from("orders").update({
