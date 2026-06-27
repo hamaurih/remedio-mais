@@ -78,6 +78,19 @@ async function sha256Hex(s: string): Promise<string> {
 }
 
 type PaymentMode = "pix_native" | "site_pix_card" | "site_debit_card" | "site_credit_card";
+type DiagnosticPreset =
+  | "customer_code_zero"
+  | "customer_no_code"
+  | "customer_real_code"
+  | "no_customer_object"
+  | "seller_real";
+const DIAGNOSTIC_PRESETS: DiagnosticPreset[] = [
+  "customer_code_zero",
+  "customer_no_code",
+  "customer_real_code",
+  "no_customer_object",
+  "seller_real",
+];
 
 function buildPagamentoMultiplo(
   mode: PaymentMode,
