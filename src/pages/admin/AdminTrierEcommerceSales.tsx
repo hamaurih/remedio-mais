@@ -162,6 +162,7 @@ export default function AdminTrierEcommerceSales() {
       trier_test_customer_code: settings.trier_test_customer_code ? Number(settings.trier_test_customer_code) : null,
       trier_test_seller_code: settings.trier_test_seller_code ? Number(settings.trier_test_seller_code) : null,
       trier_test_seller_name: settings.trier_test_seller_name || null,
+      trier_customer_mode: settings.trier_customer_mode || "no_code",
     };
 
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
