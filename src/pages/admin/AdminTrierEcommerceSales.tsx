@@ -482,6 +482,9 @@ export default function AdminTrierEcommerceSales() {
                       <Button size="sm" variant="secondary" onClick={() => runAllPresets(o.id)}>
                         <FlaskConical className="h-3 w-3 mr-1" />Testar pagamento
                       </Button>
+                      <Button size="sm" variant="secondary" onClick={() => runAllDiagnostics(o.id)}>
+                        <FlaskConical className="h-3 w-3 mr-1" />Diagnóstico cliente/vendedor
+                      </Button>
 
                     </td>
                   </tr>
