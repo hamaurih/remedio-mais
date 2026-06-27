@@ -159,6 +159,9 @@ export default function AdminTrierEcommerceSales() {
       trier_site_credit_card_code: settings.trier_site_credit_card_code ? Number(settings.trier_site_credit_card_code) : null,
       trier_sales_base_mode: settings.trier_sales_base_mode || "gateway",
       trier_sales_base_url: settings.trier_sales_base_url || null,
+      trier_test_customer_code: settings.trier_test_customer_code ? Number(settings.trier_test_customer_code) : null,
+      trier_test_seller_code: settings.trier_test_seller_code ? Number(settings.trier_test_seller_code) : null,
+      trier_test_seller_name: settings.trier_test_seller_name || null,
     };
 
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
