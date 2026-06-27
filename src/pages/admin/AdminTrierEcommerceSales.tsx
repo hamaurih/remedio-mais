@@ -480,6 +480,8 @@ export default function AdminTrierEcommerceSales() {
                         </Badge>
                         <span>HTTP {r.http_status ?? "—"}</span>
                         <span className="text-muted-foreground">numeroAutorizacao type = {getNumeroAutorizacaoType(r)}</span>
+                        {r.base_mode && <span className="text-muted-foreground">· {r.base_mode}</span>}
+
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
                       {r.error && <div className="text-destructive break-all">{r.error}</div>}
