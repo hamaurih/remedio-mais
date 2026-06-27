@@ -83,25 +83,26 @@ function buildPagamentoMultiplo(
   mode: PaymentMode,
   codigo: number,
   valor: number,
-  numeroAutorizacao: string,
+  numeroAutorizacao: number,
+  idTransacaoPIX?: string,
 ): Record<string, unknown> {
   if (mode === "pix_native") {
     return {
       pix: {
         pagamentoRealizado: true,
-        codigo,
-        valor,
-        numeroAutorizacao,
-        idTransacaoPIX: numeroAutorizacao.slice(0, 100),
+        codigo: Number(codigo),
+        valor: Number(valor),
+        numeroAutorizacao: Number(numeroAutorizacao),
+        idTransacaoPIX: String(idTransacaoPIX || ""),
       },
     };
   }
   return {
     cartao: [
       {
-        codigo,
-        valor,
-        numeroAutorizacao,
+        codigo: Number(codigo),
+        valor: Number(valor),
+        numeroAutorizacao: Number(numeroAutorizacao),
       },
     ],
   };
@@ -261,8 +262,9 @@ Deno.serve(async (req) => {
 
     // 5) Pagamento
     const valorPago = Number(order.total);
-    const numeroAutorizacao = onlyDigits(order.mercado_pago_payment_id) || String(Date.now());
-    const pagamentoMultiplo = buildPagamentoMultiplo(mode, Number(codigoPagamento), valorPago, numeroAutorizacao);
+    const mpPaymentId = onlyDigits(order.mercado_pago_payment_id) || String(Date.now());
+    const numeroAutorizacao = 1;
+    const pagamentoMultiplo = buildPagamentoMultiplo(mode, Number(codigoPagamento), valorPago, numeroAutorizacao, mpPaymentId);
 
     const dataPedido = isoDateTimeBR(order.paid_at || order.created_at);
     const numeroPedido = shortNumericOrderId(String(order.id));
