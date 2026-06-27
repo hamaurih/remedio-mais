@@ -306,7 +306,69 @@ export default function AdminTrierEcommerceSales() {
           <div className="space-y-1"><Label>Nome produto Taxa de Entrega</Label>
             <Input value={settings?.delivery_fee_product_name ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_name: e.target.value })} /></div>
         </div>
+
+        <div className="mt-4 pt-4 border-t space-y-3">
+          <div>
+            <div className="font-semibold text-sm">URL de envio da venda (backend)</div>
+            <div className="text-xs text-muted-foreground">
+              Esta URL é usada apenas pela Edge Function. O token Trier nunca é exposto no navegador.
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label>Base de envio</Label>
+              <Select
+                value={settings?.trier_sales_base_mode || "gateway"}
+                onValueChange={(v) => setSettings({ ...settings, trier_sales_base_mode: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gateway">Gateway Trier</SelectItem>
+                  <SelectItem value="local">Webservice local (SGF)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label>URL base de envio de venda</Label>
+              <Input
+                placeholder="https://api-sgf-gateway.triersistemas.com.br/sgfpod1  ou  http://IP_DA_FARMACIA:4647/sgfpod1"
+                value={settings?.trier_sales_base_url ?? ""}
+                onChange={(e) => setSettings({ ...settings, trier_sales_base_url: e.target.value })}
+              />
+              <div className="text-xs text-muted-foreground">
+                Não inclua <code>/rest/integracao/...</code> — a função adiciona o caminho automaticamente.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={testConnection} disabled={connBusy}>
+              {connBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FlaskConical className="h-4 w-4 mr-2" />}
+              Testar conexão venda e-commerce
+            </Button>
+            {connTest && (
+              <div className="text-xs">
+                <Badge variant={connTest.reachable ? "default" : "destructive"}>
+                  {connTest.reachable ? `HTTP ${connTest.http_status}` : "sem resposta"}
+                </Badge>
+                <span className="ml-2 text-muted-foreground">{connTest.base_mode} · {connTest.elapsed_ms ?? "—"} ms</span>
+              </div>
+            )}
+          </div>
+          {connTest && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">Diagnóstico da conexão</summary>
+              <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(connTest, null, 2)}</pre>
+            </details>
+          )}
+
+          <div className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 rounded p-2">
+            <strong>Antes de testar:</strong> confirme que a venda manual no SGF finaliza usando o mesmo produto, vendedor e cartão de pagamento que serão usados aqui.
+          </div>
+        </div>
+
         <Button className="mt-3" onClick={saveSettings}>Salvar configuração</Button>
+
       </Card>
 
 
