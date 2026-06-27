@@ -235,6 +235,28 @@ export default function AdminTrierEcommerceSales() {
     }
   };
 
+  const runDiagnosticPreset = async (orderId: string, preset: DiagnosticPresetId) => {
+    setDiagBusy(preset);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: { order_id: orderId, action: "test_diagnostic_preset", preset },
+    });
+    setDiagBusy(null);
+    const result: PresetResult = error
+      ? { preset, ok: false, error: error.message }
+      : { preset, ...(data as any) };
+    setDiagResults((prev) => ({ ...prev, [preset]: result }));
+    if (result.ok) toast.success(`${preset}: HTTP ${result.http_status} OK`);
+    else toast.error(`${preset}: ${result.error || "falhou"}`);
+  };
+
+  const runAllDiagnostics = async (orderId: string) => {
+    setTestOrderId(orderId);
+    setDiagResults({});
+    for (const p of DIAGNOSTIC_PRESETS) {
+      await runDiagnosticPreset(orderId, p.id);
+    }
+  };
+
 
   const filtered = useMemo(() => {
     if (filter === "all") return orders;
