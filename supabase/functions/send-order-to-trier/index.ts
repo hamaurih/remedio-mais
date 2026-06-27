@@ -83,25 +83,26 @@ function buildPagamentoMultiplo(
   mode: PaymentMode,
   codigo: number,
   valor: number,
-  numeroAutorizacao: string,
+  numeroAutorizacao: number,
+  idTransacaoPIX?: string,
 ): Record<string, unknown> {
   if (mode === "pix_native") {
     return {
       pix: {
         pagamentoRealizado: true,
-        codigo,
-        valor,
-        numeroAutorizacao,
-        idTransacaoPIX: numeroAutorizacao.slice(0, 100),
+        codigo: Number(codigo),
+        valor: Number(valor),
+        numeroAutorizacao: Number(numeroAutorizacao),
+        idTransacaoPIX: String(idTransacaoPIX || ""),
       },
     };
   }
   return {
     cartao: [
       {
-        codigo,
-        valor,
-        numeroAutorizacao,
+        codigo: Number(codigo),
+        valor: Number(valor),
+        numeroAutorizacao: Number(numeroAutorizacao),
       },
     ],
   };
