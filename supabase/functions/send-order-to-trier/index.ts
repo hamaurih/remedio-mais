@@ -347,16 +347,25 @@ Deno.serve(async (req) => {
     const dataPedido = isoDateTimeBR(order.paid_at || order.created_at);
     const numeroPedido = shortNumericOrderId(String(order.id));
 
-    // cliente: nunca enviar null/string vazia, codigo sempre 0 para novo
+    // cliente: modo configurável (no_code padrão de homologação, real_code usa trier_test_customer_code, no_customer remove objeto)
+    const customerMode: string = settings.trier_customer_mode || "no_code";
     const clienteBase: Record<string, unknown> = {
-      codigo: 0,
       nome: order.customer_name,
       numeroCpfCnpj: onlyDigits(order.customer_cpf),
       celular: onlyDigits(order.customer_phone),
       fone: onlyDigits(order.customer_phone),
       email: order.customer_email,
     };
-    const cliente = omitBlankFields(clienteBase);
+    let cliente: Record<string, unknown> | null = omitBlankFields(clienteBase);
+    if (customerMode === "real_code") {
+      const code = settings.trier_test_customer_code;
+      if (code != null && code !== "") {
+        cliente = { codigo: Number(code), ...cliente };
+      }
+    } else if (customerMode === "no_customer") {
+      cliente = null;
+    }
+    // "no_code" => envia cliente sem campo codigo (default)
 
     const payload: Record<string, unknown> = {
       numeroPedido,
