@@ -100,13 +100,16 @@ function buildPagamentoMultiplo(
   return {
     cartao: [
       {
+        pagamentoRealizado: true,
         codigo: Number(codigo),
         valor: Number(valor),
+        qtdParcela: 1,
         numeroAutorizacao: Number(numeroAutorizacao),
       },
     ],
   };
 }
+
 
 function resolveModeCode(settings: any, mode: PaymentMode): number | null {
   switch (mode) {
@@ -153,7 +156,52 @@ Deno.serve(async (req) => {
     const orderId = String(body?.order_id || "");
     const force = !!body?.force;
     const presetParam = String(body?.preset || "") as PaymentMode | "";
+
+    // Resolve sales base URL (gateway or local webservice)
+    const { data: settingsForBase } = await admin
+      .from("trier_settings").select("*").eq("id", 1).maybeSingle();
+    const salesBaseUrl: string = (settingsForBase?.trier_sales_base_url
+      || settingsForBase?.base_url
+      || "https://api-sgf-gateway.triersistemas.com.br/sgfpod1").replace(/\/$/, "");
+    const baseMode: string = settingsForBase?.trier_sales_base_mode || "gateway";
+
+    // Quick connectivity test: do not require order_id, do not POST a sale
+    if (action === "test_connection") {
+      const startedAt = Date.now();
+      const testUrl = `${salesBaseUrl}${SEND_PATH}`;
+      let httpStatus = 0;
+      let errorMessage: string | null = null;
+      let respBody: any = null;
+      try {
+        const res = await fetch(testUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${TRIER_TOKEN || ""}`,
+          },
+          body: JSON.stringify({ ping: true }),
+        });
+        httpStatus = res.status;
+        const text = await res.text();
+        try { respBody = text ? JSON.parse(text) : null; } catch { respBody = { raw: (text || "").slice(0, 500) }; }
+      } catch (e) {
+        errorMessage = `Erro de rede: ${(e as Error).message}`;
+      }
+      return json({
+        ok: httpStatus > 0,
+        reachable: httpStatus > 0,
+        url: testUrl,
+        base_mode: baseMode,
+        http_status: httpStatus,
+        error: errorMessage,
+        response: respBody,
+        elapsed_ms: Date.now() - startedAt,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     if (!orderId) return json({ error: "order_id obrigatório" }, 400);
+
 
     // 1) Carrega config
     const { data: settings, error: setErr } = await admin
@@ -323,7 +371,7 @@ Deno.serve(async (req) => {
 
 
     // 7) Envia
-    const url = `${settings.base_url.replace(/\/$/, "")}${SEND_PATH}`;
+    const url = `${salesBaseUrl}${SEND_PATH}`;
     const startedAt = Date.now();
     if (!isTest) {
       await admin.from("orders").update({
@@ -377,6 +425,9 @@ Deno.serve(async (req) => {
       return json({
         ok: success,
         mode,
+        url,
+        method: "POST",
+        base_mode: baseMode,
         http_status: httpStatus,
         error: errorMessage,
         response: responseBody,
@@ -385,6 +436,7 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
     }
+
 
     if (success) {
       await admin.from("orders").update({

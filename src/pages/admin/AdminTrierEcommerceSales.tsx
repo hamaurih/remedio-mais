@@ -66,8 +66,24 @@ type PresetResult = {
   response?: any;
   request_masked?: any;
   numero_autorizacao_type?: string;
+  url?: string;
+  method?: string;
+  base_mode?: string;
   timestamp?: string;
 };
+
+type ConnTest = {
+  ok: boolean;
+  reachable?: boolean;
+  url?: string;
+  base_mode?: string;
+  http_status?: number;
+  error?: string | null;
+  response?: any;
+  elapsed_ms?: number;
+  timestamp?: string;
+};
+
 
 export default function AdminTrierEcommerceSales() {
   const [settings, setSettings] = useState<any>(null);
@@ -79,6 +95,9 @@ export default function AdminTrierEcommerceSales() {
   const [testOrderId, setTestOrderId] = useState<string | null>(null);
   const [testBusy, setTestBusy] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, PresetResult>>({});
+  const [connTest, setConnTest] = useState<ConnTest | null>(null);
+  const [connBusy, setConnBusy] = useState(false);
+
 
 
   const loadAll = async () => {
@@ -121,11 +140,33 @@ export default function AdminTrierEcommerceSales() {
       trier_site_pix_card_code: settings.trier_site_pix_card_code ? Number(settings.trier_site_pix_card_code) : null,
       trier_site_debit_card_code: settings.trier_site_debit_card_code ? Number(settings.trier_site_debit_card_code) : null,
       trier_site_credit_card_code: settings.trier_site_credit_card_code ? Number(settings.trier_site_credit_card_code) : null,
+      trier_sales_base_mode: settings.trier_sales_base_mode || "gateway",
+      trier_sales_base_url: settings.trier_sales_base_url || null,
     };
+
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
     if (error) toast.error(error.message);
     else toast.success("Configuração salva");
   };
+
+  const testConnection = async () => {
+    setConnBusy(true);
+    setConnTest(null);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: { action: "test_connection" },
+    });
+    setConnBusy(false);
+    if (error) {
+      setConnTest({ ok: false, error: error.message });
+      toast.error(error.message);
+    } else {
+      setConnTest(data as ConnTest);
+      if ((data as any)?.reachable) toast.success(`Conexão OK · HTTP ${(data as any).http_status}`);
+      else toast.error((data as any)?.error || "Sem resposta");
+    }
+  };
+
+
 
 
   const sendOrder = async (orderId: string, force = false) => {
@@ -265,7 +306,69 @@ export default function AdminTrierEcommerceSales() {
           <div className="space-y-1"><Label>Nome produto Taxa de Entrega</Label>
             <Input value={settings?.delivery_fee_product_name ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_name: e.target.value })} /></div>
         </div>
+
+        <div className="mt-4 pt-4 border-t space-y-3">
+          <div>
+            <div className="font-semibold text-sm">URL de envio da venda (backend)</div>
+            <div className="text-xs text-muted-foreground">
+              Esta URL é usada apenas pela Edge Function. O token Trier nunca é exposto no navegador.
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label>Base de envio</Label>
+              <Select
+                value={settings?.trier_sales_base_mode || "gateway"}
+                onValueChange={(v) => setSettings({ ...settings, trier_sales_base_mode: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gateway">Gateway Trier</SelectItem>
+                  <SelectItem value="local">Webservice local (SGF)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label>URL base de envio de venda</Label>
+              <Input
+                placeholder="https://api-sgf-gateway.triersistemas.com.br/sgfpod1  ou  http://IP_DA_FARMACIA:4647/sgfpod1"
+                value={settings?.trier_sales_base_url ?? ""}
+                onChange={(e) => setSettings({ ...settings, trier_sales_base_url: e.target.value })}
+              />
+              <div className="text-xs text-muted-foreground">
+                Não inclua <code>/rest/integracao/...</code> — a função adiciona o caminho automaticamente.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={testConnection} disabled={connBusy}>
+              {connBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FlaskConical className="h-4 w-4 mr-2" />}
+              Testar conexão venda e-commerce
+            </Button>
+            {connTest && (
+              <div className="text-xs">
+                <Badge variant={connTest.reachable ? "default" : "destructive"}>
+                  {connTest.reachable ? `HTTP ${connTest.http_status}` : "sem resposta"}
+                </Badge>
+                <span className="ml-2 text-muted-foreground">{connTest.base_mode} · {connTest.elapsed_ms ?? "—"} ms</span>
+              </div>
+            )}
+          </div>
+          {connTest && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">Diagnóstico da conexão</summary>
+              <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(connTest, null, 2)}</pre>
+            </details>
+          )}
+
+          <div className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 rounded p-2">
+            <strong>Antes de testar:</strong> confirme que a venda manual no SGF finaliza usando o mesmo produto, vendedor e cartão de pagamento que serão usados aqui.
+          </div>
+        </div>
+
         <Button className="mt-3" onClick={saveSettings}>Salvar configuração</Button>
+
       </Card>
 
 
@@ -377,9 +480,17 @@ export default function AdminTrierEcommerceSales() {
                         </Badge>
                         <span>HTTP {r.http_status ?? "—"}</span>
                         <span className="text-muted-foreground">numeroAutorizacao type = {getNumeroAutorizacaoType(r)}</span>
+                        {r.base_mode && <span className="text-muted-foreground">· {r.base_mode}</span>}
+
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
                       {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      {r.url && (
+                        <div className="text-muted-foreground break-all">
+                          <span className="font-mono">{r.method || "POST"}</span> {r.url}
+                        </div>
+                      )}
+
                       <details>
                         <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
                         <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>
