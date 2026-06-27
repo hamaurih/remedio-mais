@@ -566,6 +566,69 @@ export default function AdminTrierEcommerceSales() {
         </Card>
       )}
 
+      {testOrderId && (
+        <Card className="p-4 border-amber-500/40">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-semibold flex items-center gap-2">
+                <FlaskConical className="h-4 w-4" />
+                Diagnóstico cliente/vendedor · pedido #{testOrderId.slice(0, 6)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Pagamento fixo: <code>cartao[0] codigo=18, valor do pedido, qtdParcela=1, numeroAutorizacao=1</code>.
+                Cada preset varia somente cliente ou vendedor para isolar o NullPointerException.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => runAllDiagnostics(testOrderId)}>
+                Rodar todos diagnósticos
+              </Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {DIAGNOSTIC_PRESETS.map((p) => {
+              const r = diagResults[p.id];
+              return (
+                <div key={p.id} className="border rounded p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sm">{p.label}</div>
+                      <div className="text-xs text-muted-foreground">{p.help}</div>
+                    </div>
+                    <Button size="sm" variant="outline" disabled={diagBusy === p.id}
+                      onClick={() => runDiagnosticPreset(testOrderId, p.id)}>
+                      {diagBusy === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Testar"}
+                    </Button>
+                  </div>
+                  {r ? (
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={r.ok ? "default" : "destructive"}>
+                          {r.ok ? "OK" : "FALHOU"}
+                        </Badge>
+                        <span>HTTP {r.http_status ?? "—"}</span>
+                        {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
+                      </div>
+                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
+                        <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>
+                      </details>
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">Resposta Trier</summary>
+                        <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.response, null, 2)}</pre>
+                      </details>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Aguardando teste.</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4">
         <div className="font-semibold mb-3">Últimas requisições ao Trier (mascaradas)</div>
 
