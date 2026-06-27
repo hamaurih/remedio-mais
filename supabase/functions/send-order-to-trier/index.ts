@@ -262,8 +262,9 @@ Deno.serve(async (req) => {
 
     // 5) Pagamento
     const valorPago = Number(order.total);
-    const numeroAutorizacao = onlyDigits(order.mercado_pago_payment_id) || String(Date.now());
-    const pagamentoMultiplo = buildPagamentoMultiplo(mode, Number(codigoPagamento), valorPago, numeroAutorizacao);
+    const mpPaymentId = onlyDigits(order.mercado_pago_payment_id) || String(Date.now());
+    const numeroAutorizacao = 1;
+    const pagamentoMultiplo = buildPagamentoMultiplo(mode, Number(codigoPagamento), valorPago, numeroAutorizacao, mpPaymentId);
 
     const dataPedido = isoDateTimeBR(order.paid_at || order.created_at);
     const numeroPedido = shortNumericOrderId(String(order.id));
