@@ -49,6 +49,21 @@ const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_
   { id: "site_credit_card", label: "Cartão crédito site" },
 ];
 
+type DiagnosticPresetId =
+  | "customer_code_zero"
+  | "customer_no_code"
+  | "customer_real_code"
+  | "no_customer_object"
+  | "seller_real";
+
+const DIAGNOSTIC_PRESETS: { id: DiagnosticPresetId; label: string; help: string }[] = [
+  { id: "customer_code_zero", label: "Cliente código 0", help: "cliente.codigo = 0, dados Amauri." },
+  { id: "customer_no_code", label: "Cliente sem código", help: "cliente sem campo codigo." },
+  { id: "customer_real_code", label: "Cliente cadastrado real", help: "usa trier_test_customer_code." },
+  { id: "no_customer_object", label: "Sem objeto cliente", help: "remove cliente do payload." },
+  { id: "seller_real", label: "Vendedor real", help: "usa trier_test_seller_code / name." },
+];
+
 const getNumeroAutorizacaoType = (result?: PresetResult) => {
   if (!result) return "—";
   if (result.numero_autorizacao_type) return result.numero_autorizacao_type;
