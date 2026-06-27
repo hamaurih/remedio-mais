@@ -236,7 +236,12 @@ Deno.serve(async (req) => {
       .from("orders").select("*").eq("id", orderId).maybeSingle();
     if (orderErr || !order) return json({ error: "Pedido não encontrado" }, 404);
 
-    const isTest = action === "test_payment_preset";
+    const isPaymentTest = action === "test_payment_preset";
+    const isDiagnosticTest = action === "test_diagnostic_preset";
+    const isTest = isPaymentTest || isDiagnosticTest;
+    const diagnosticPreset: DiagnosticPreset | null = isDiagnosticTest
+      ? (presetParam as unknown as DiagnosticPreset)
+      : null;
 
     if (!isTest) {
       if (order.payment_status !== "approved") {
@@ -258,12 +263,18 @@ Deno.serve(async (req) => {
 
     // Determina modo de pagamento e código
     let mode: PaymentMode;
-    if (isTest) {
+    if (isPaymentTest) {
       const allowed: PaymentMode[] = ["pix_native","site_pix_card","site_debit_card","site_credit_card"];
       if (!allowed.includes(presetParam as PaymentMode)) {
         return json({ error: "preset inválido. Use: " + allowed.join(", ") }, 400);
       }
       mode = presetParam as PaymentMode;
+    } else if (isDiagnosticTest) {
+      if (!DIAGNOSTIC_PRESETS.includes(diagnosticPreset as DiagnosticPreset)) {
+        return json({ error: "preset diagnóstico inválido. Use: " + DIAGNOSTIC_PRESETS.join(", ") }, 400);
+      }
+      // diagnóstico fixa pagamento via cartão codigo 18 (site_pix_card)
+      mode = "site_pix_card";
     } else {
       mode = (settings.trier_payment_mode as PaymentMode) || "pix_native";
     }
