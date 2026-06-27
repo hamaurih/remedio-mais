@@ -373,7 +373,6 @@ Deno.serve(async (req) => {
       valorTotalVenda: Number(order.total),
       valorFrete: deliveryFee,
       entrega: !!isDelivery,
-      cliente,
       vendedor: {
         codigo: Number(settings.seller_code),
         nome: settings.seller_name,
@@ -381,6 +380,7 @@ Deno.serve(async (req) => {
       produtos,
       pagamentoMultiplo,
     };
+    if (cliente) payload.cliente = cliente;
 
     // Diagnostic preset overrides for cliente/vendedor
     if (isDiagnosticTest && diagnosticPreset) {
