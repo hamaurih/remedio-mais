@@ -49,6 +49,15 @@ const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_
   { id: "site_credit_card", label: "Cartão crédito site" },
 ];
 
+const getNumeroAutorizacaoType = (result?: PresetResult) => {
+  if (!result) return "—";
+  if (result.numero_autorizacao_type) return result.numero_autorizacao_type;
+  const pixValue = result.request_masked?.pagamentoMultiplo?.pix?.numeroAutorizacao;
+  const cardValue = result.request_masked?.pagamentoMultiplo?.cartao?.[0]?.numeroAutorizacao;
+  const value = pixValue ?? cardValue;
+  return value === undefined ? "—" : typeof value;
+};
+
 type PresetResult = {
   preset: string;
   ok: boolean;
@@ -367,7 +376,7 @@ export default function AdminTrierEcommerceSales() {
                           {r.ok ? "OK" : "FALHOU"}
                         </Badge>
                         <span>HTTP {r.http_status ?? "—"}</span>
-                        <span className="text-muted-foreground">numeroAutorizacao type = {r.numero_autorizacao_type || "number"}</span>
+                        <span className="text-muted-foreground">numeroAutorizacao type = {getNumeroAutorizacaoType(r)}</span>
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
                       {r.error && <div className="text-destructive break-all">{r.error}</div>}
