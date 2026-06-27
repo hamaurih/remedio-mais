@@ -49,6 +49,21 @@ const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_
   { id: "site_credit_card", label: "Cartão crédito site" },
 ];
 
+type DiagnosticPresetId =
+  | "customer_code_zero"
+  | "customer_no_code"
+  | "customer_real_code"
+  | "no_customer_object"
+  | "seller_real";
+
+const DIAGNOSTIC_PRESETS: { id: DiagnosticPresetId; label: string; help: string }[] = [
+  { id: "customer_code_zero", label: "Cliente código 0", help: "cliente.codigo = 0, dados Amauri." },
+  { id: "customer_no_code", label: "Cliente sem código", help: "cliente sem campo codigo." },
+  { id: "customer_real_code", label: "Cliente cadastrado real", help: "usa trier_test_customer_code." },
+  { id: "no_customer_object", label: "Sem objeto cliente", help: "remove cliente do payload." },
+  { id: "seller_real", label: "Vendedor real", help: "usa trier_test_seller_code / name." },
+];
+
 const getNumeroAutorizacaoType = (result?: PresetResult) => {
   if (!result) return "—";
   if (result.numero_autorizacao_type) return result.numero_autorizacao_type;
@@ -97,6 +112,8 @@ export default function AdminTrierEcommerceSales() {
   const [testResults, setTestResults] = useState<Record<string, PresetResult>>({});
   const [connTest, setConnTest] = useState<ConnTest | null>(null);
   const [connBusy, setConnBusy] = useState(false);
+  const [diagBusy, setDiagBusy] = useState<string | null>(null);
+  const [diagResults, setDiagResults] = useState<Record<string, PresetResult>>({});
 
 
 
@@ -142,6 +159,9 @@ export default function AdminTrierEcommerceSales() {
       trier_site_credit_card_code: settings.trier_site_credit_card_code ? Number(settings.trier_site_credit_card_code) : null,
       trier_sales_base_mode: settings.trier_sales_base_mode || "gateway",
       trier_sales_base_url: settings.trier_sales_base_url || null,
+      trier_test_customer_code: settings.trier_test_customer_code ? Number(settings.trier_test_customer_code) : null,
+      trier_test_seller_code: settings.trier_test_seller_code ? Number(settings.trier_test_seller_code) : null,
+      trier_test_seller_name: settings.trier_test_seller_name || null,
     };
 
     const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
@@ -212,6 +232,28 @@ export default function AdminTrierEcommerceSales() {
     setTestResults({});
     for (const p of PRESETS) {
       await runPreset(orderId, p.id);
+    }
+  };
+
+  const runDiagnosticPreset = async (orderId: string, preset: DiagnosticPresetId) => {
+    setDiagBusy(preset);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: { order_id: orderId, action: "test_diagnostic_preset", preset },
+    });
+    setDiagBusy(null);
+    const result: PresetResult = error
+      ? { preset, ok: false, error: error.message }
+      : { preset, ...(data as any) };
+    setDiagResults((prev) => ({ ...prev, [preset]: result }));
+    if (result.ok) toast.success(`${preset}: HTTP ${result.http_status} OK`);
+    else toast.error(`${preset}: ${result.error || "falhou"}`);
+  };
+
+  const runAllDiagnostics = async (orderId: string) => {
+    setTestOrderId(orderId);
+    setDiagResults({});
+    for (const p of DIAGNOSTIC_PRESETS) {
+      await runDiagnosticPreset(orderId, p.id);
     }
   };
 
@@ -305,6 +347,17 @@ export default function AdminTrierEcommerceSales() {
             <Input value={settings?.delivery_fee_product_code ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_code: e.target.value })} /></div>
           <div className="space-y-1"><Label>Nome produto Taxa de Entrega</Label>
             <Input value={settings?.delivery_fee_product_name ?? ""} onChange={(e) => setSettings({ ...settings, delivery_fee_product_name: e.target.value })} /></div>
+
+          <div className="md:col-span-2 mt-2 pt-3 border-t">
+            <div className="text-sm font-semibold">Diagnóstico cliente/vendedor</div>
+            <div className="text-xs text-muted-foreground">Usado pelos presets de diagnóstico para isolar o NullPointerException.</div>
+          </div>
+          <div className="space-y-1"><Label>Código cliente cadastrado (teste)</Label>
+            <Input type="number" placeholder="ex: 12345" value={settings?.trier_test_customer_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_customer_code: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Código vendedor alternativo (teste)</Label>
+            <Input type="number" placeholder="ex: 1" value={settings?.trier_test_seller_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_seller_code: e.target.value })} /></div>
+          <div className="space-y-1 md:col-span-2"><Label>Nome vendedor alternativo (teste)</Label>
+            <Input placeholder="ex: ADMINISTRADOR" value={settings?.trier_test_seller_name ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_seller_name: e.target.value })} /></div>
         </div>
 
         <div className="mt-4 pt-4 border-t space-y-3">
@@ -429,6 +482,9 @@ export default function AdminTrierEcommerceSales() {
                       <Button size="sm" variant="secondary" onClick={() => runAllPresets(o.id)}>
                         <FlaskConical className="h-3 w-3 mr-1" />Testar pagamento
                       </Button>
+                      <Button size="sm" variant="secondary" onClick={() => runAllDiagnostics(o.id)}>
+                        <FlaskConical className="h-3 w-3 mr-1" />Diagnóstico cliente/vendedor
+                      </Button>
 
                     </td>
                   </tr>
@@ -491,6 +547,69 @@ export default function AdminTrierEcommerceSales() {
                         </div>
                       )}
 
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
+                        <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>
+                      </details>
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground">Resposta Trier</summary>
+                        <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.response, null, 2)}</pre>
+                      </details>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Aguardando teste.</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {testOrderId && (
+        <Card className="p-4 border-amber-500/40">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-semibold flex items-center gap-2">
+                <FlaskConical className="h-4 w-4" />
+                Diagnóstico cliente/vendedor · pedido #{testOrderId.slice(0, 6)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Pagamento fixo: <code>cartao[0] codigo=18, valor do pedido, qtdParcela=1, numeroAutorizacao=1</code>.
+                Cada preset varia somente cliente ou vendedor para isolar o NullPointerException.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => runAllDiagnostics(testOrderId)}>
+                Rodar todos diagnósticos
+              </Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {DIAGNOSTIC_PRESETS.map((p) => {
+              const r = diagResults[p.id];
+              return (
+                <div key={p.id} className="border rounded p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sm">{p.label}</div>
+                      <div className="text-xs text-muted-foreground">{p.help}</div>
+                    </div>
+                    <Button size="sm" variant="outline" disabled={diagBusy === p.id}
+                      onClick={() => runDiagnosticPreset(testOrderId, p.id)}>
+                      {diagBusy === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Testar"}
+                    </Button>
+                  </div>
+                  {r ? (
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={r.ok ? "default" : "destructive"}>
+                          {r.ok ? "OK" : "FALHOU"}
+                        </Badge>
+                        <span>HTTP {r.http_status ?? "—"}</span>
+                        {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
+                      </div>
+                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
                       <details>
                         <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
                         <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>

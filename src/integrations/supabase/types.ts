@@ -2571,6 +2571,9 @@ export type Database = {
           trier_site_credit_card_code: number | null
           trier_site_debit_card_code: number | null
           trier_site_pix_card_code: number | null
+          trier_test_customer_code: number | null
+          trier_test_seller_code: number | null
+          trier_test_seller_name: string | null
           updated_at: string
         }
         Insert: {
@@ -2619,6 +2622,9 @@ export type Database = {
           trier_site_credit_card_code?: number | null
           trier_site_debit_card_code?: number | null
           trier_site_pix_card_code?: number | null
+          trier_test_customer_code?: number | null
+          trier_test_seller_code?: number | null
+          trier_test_seller_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -2667,6 +2673,9 @@ export type Database = {
           trier_site_credit_card_code?: number | null
           trier_site_debit_card_code?: number | null
           trier_site_pix_card_code?: number | null
+          trier_test_customer_code?: number | null
+          trier_test_seller_code?: number | null
+          trier_test_seller_name?: string | null
           updated_at?: string
         }
         Relationships: []

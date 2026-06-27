@@ -78,6 +78,19 @@ async function sha256Hex(s: string): Promise<string> {
 }
 
 type PaymentMode = "pix_native" | "site_pix_card" | "site_debit_card" | "site_credit_card";
+type DiagnosticPreset =
+  | "customer_code_zero"
+  | "customer_no_code"
+  | "customer_real_code"
+  | "no_customer_object"
+  | "seller_real";
+const DIAGNOSTIC_PRESETS: DiagnosticPreset[] = [
+  "customer_code_zero",
+  "customer_no_code",
+  "customer_real_code",
+  "no_customer_object",
+  "seller_real",
+];
 
 function buildPagamentoMultiplo(
   mode: PaymentMode,
@@ -223,7 +236,12 @@ Deno.serve(async (req) => {
       .from("orders").select("*").eq("id", orderId).maybeSingle();
     if (orderErr || !order) return json({ error: "Pedido não encontrado" }, 404);
 
-    const isTest = action === "test_payment_preset";
+    const isPaymentTest = action === "test_payment_preset";
+    const isDiagnosticTest = action === "test_diagnostic_preset";
+    const isTest = isPaymentTest || isDiagnosticTest;
+    const diagnosticPreset: DiagnosticPreset | null = isDiagnosticTest
+      ? (presetParam as unknown as DiagnosticPreset)
+      : null;
 
     if (!isTest) {
       if (order.payment_status !== "approved") {
@@ -245,12 +263,18 @@ Deno.serve(async (req) => {
 
     // Determina modo de pagamento e código
     let mode: PaymentMode;
-    if (isTest) {
+    if (isPaymentTest) {
       const allowed: PaymentMode[] = ["pix_native","site_pix_card","site_debit_card","site_credit_card"];
       if (!allowed.includes(presetParam as PaymentMode)) {
         return json({ error: "preset inválido. Use: " + allowed.join(", ") }, 400);
       }
       mode = presetParam as PaymentMode;
+    } else if (isDiagnosticTest) {
+      if (!DIAGNOSTIC_PRESETS.includes(diagnosticPreset as DiagnosticPreset)) {
+        return json({ error: "preset diagnóstico inválido. Use: " + DIAGNOSTIC_PRESETS.join(", ") }, 400);
+      }
+      // diagnóstico fixa pagamento via cartão codigo 18 (site_pix_card)
+      mode = "site_pix_card";
     } else {
       mode = (settings.trier_payment_mode as PaymentMode) || "pix_native";
     }
@@ -349,6 +373,47 @@ Deno.serve(async (req) => {
       pagamentoMultiplo,
     };
 
+    // Diagnostic preset overrides for cliente/vendedor
+    if (isDiagnosticTest && diagnosticPreset) {
+      const diagCliente = {
+        nome: "Amauri Rodrigues",
+        numeroCpfCnpj: "04500000060",
+        celular: "83999999955",
+        fone: "83999999955",
+        email: "hamaurih@gmail.com",
+      };
+      switch (diagnosticPreset) {
+        case "customer_code_zero":
+          payload.cliente = { codigo: 0, ...diagCliente };
+          break;
+        case "customer_no_code":
+          payload.cliente = { ...diagCliente };
+          break;
+        case "customer_real_code": {
+          const code = settings.trier_test_customer_code;
+          if (code == null || code === "") {
+            return json({ error: "trier_test_customer_code não configurado" }, 400);
+          }
+          payload.cliente = { codigo: Number(code), ...diagCliente };
+          break;
+        }
+        case "no_customer_object":
+          delete (payload as any).cliente;
+          break;
+        case "seller_real": {
+          const sCode = settings.trier_test_seller_code;
+          const sName = settings.trier_test_seller_name;
+          if (sCode == null || sCode === "" || !sName) {
+            return json({ error: "trier_test_seller_code/trier_test_seller_name não configurados" }, 400);
+          }
+          payload.cliente = { codigo: 0, ...diagCliente };
+          payload.vendedor = { codigo: Number(sCode), nome: String(sName) };
+          break;
+        }
+      }
+    }
+
+
     if (isDelivery) {
       const end = omitBlankFields({
         logradouro: order.delivery_street,
@@ -408,7 +473,11 @@ Deno.serve(async (req) => {
     const trierSaleId = responseBody?.idVenda || responseBody?.id || null;
     const trierNumeroNota = responseBody?.numeroNota || null;
 
-    const logAction = isTest ? `test_payment_preset:${mode}` : "send_order";
+    const logAction = isDiagnosticTest
+      ? `test_diagnostic_preset:${diagnosticPreset}`
+      : isPaymentTest
+        ? `test_payment_preset:${mode}`
+        : "send_order";
     await writeLog({
       order_id: orderId,
       action: logAction,
@@ -425,6 +494,7 @@ Deno.serve(async (req) => {
       return json({
         ok: success,
         mode,
+        diagnostic_preset: diagnosticPreset,
         url,
         method: "POST",
         base_mode: baseMode,
