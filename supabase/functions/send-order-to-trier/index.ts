@@ -473,7 +473,11 @@ Deno.serve(async (req) => {
     const trierSaleId = responseBody?.idVenda || responseBody?.id || null;
     const trierNumeroNota = responseBody?.numeroNota || null;
 
-    const logAction = isTest ? `test_payment_preset:${mode}` : "send_order";
+    const logAction = isDiagnosticTest
+      ? `test_diagnostic_preset:${diagnosticPreset}`
+      : isPaymentTest
+        ? `test_payment_preset:${mode}`
+        : "send_order";
     await writeLog({
       order_id: orderId,
       action: logAction,
@@ -490,6 +494,7 @@ Deno.serve(async (req) => {
       return json({
         ok: success,
         mode,
+        diagnostic_preset: diagnosticPreset,
         url,
         method: "POST",
         base_mode: baseMode,
