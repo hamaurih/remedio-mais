@@ -95,6 +95,9 @@ export default function AdminTrierEcommerceSales() {
   const [testOrderId, setTestOrderId] = useState<string | null>(null);
   const [testBusy, setTestBusy] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, PresetResult>>({});
+  const [connTest, setConnTest] = useState<ConnTest | null>(null);
+  const [connBusy, setConnBusy] = useState(false);
+
 
 
   const loadAll = async () => {
