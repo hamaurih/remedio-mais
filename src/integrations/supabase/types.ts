@@ -2564,6 +2564,7 @@ export type Database = {
           sync_prices_enabled: boolean
           sync_products_enabled: boolean
           sync_stock_enabled: boolean
+          trier_customer_mode: string
           trier_payment_mode: string
           trier_pix_native_code: number | null
           trier_sales_base_mode: string | null
@@ -2615,6 +2616,7 @@ export type Database = {
           sync_prices_enabled?: boolean
           sync_products_enabled?: boolean
           sync_stock_enabled?: boolean
+          trier_customer_mode?: string
           trier_payment_mode?: string
           trier_pix_native_code?: number | null
           trier_sales_base_mode?: string | null
@@ -2666,6 +2668,7 @@ export type Database = {
           sync_prices_enabled?: boolean
           sync_products_enabled?: boolean
           sync_stock_enabled?: boolean
+          trier_customer_mode?: string
           trier_payment_mode?: string
           trier_pix_native_code?: number | null
           trier_sales_base_mode?: string | null
