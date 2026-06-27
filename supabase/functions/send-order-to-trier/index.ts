@@ -373,6 +373,47 @@ Deno.serve(async (req) => {
       pagamentoMultiplo,
     };
 
+    // Diagnostic preset overrides for cliente/vendedor
+    if (isDiagnosticTest && diagnosticPreset) {
+      const diagCliente = {
+        nome: "Amauri Rodrigues",
+        numeroCpfCnpj: "04500000060",
+        celular: "83999999955",
+        fone: "83999999955",
+        email: "hamaurih@gmail.com",
+      };
+      switch (diagnosticPreset) {
+        case "customer_code_zero":
+          payload.cliente = { codigo: 0, ...diagCliente };
+          break;
+        case "customer_no_code":
+          payload.cliente = { ...diagCliente };
+          break;
+        case "customer_real_code": {
+          const code = settings.trier_test_customer_code;
+          if (code == null || code === "") {
+            return json({ error: "trier_test_customer_code não configurado" }, 400);
+          }
+          payload.cliente = { codigo: Number(code), ...diagCliente };
+          break;
+        }
+        case "no_customer_object":
+          delete (payload as any).cliente;
+          break;
+        case "seller_real": {
+          const sCode = settings.trier_test_seller_code;
+          const sName = settings.trier_test_seller_name;
+          if (sCode == null || sCode === "" || !sName) {
+            return json({ error: "trier_test_seller_code/trier_test_seller_name não configurados" }, 400);
+          }
+          payload.cliente = { codigo: 0, ...diagCliente };
+          payload.vendedor = { codigo: Number(sCode), nome: String(sName) };
+          break;
+        }
+      }
+    }
+
+
     if (isDelivery) {
       const end = omitBlankFields({
         logradouro: order.delivery_street,
