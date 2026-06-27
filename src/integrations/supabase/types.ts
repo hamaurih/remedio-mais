@@ -2566,6 +2566,8 @@ export type Database = {
           sync_stock_enabled: boolean
           trier_payment_mode: string
           trier_pix_native_code: number | null
+          trier_sales_base_mode: string | null
+          trier_sales_base_url: string | null
           trier_site_credit_card_code: number | null
           trier_site_debit_card_code: number | null
           trier_site_pix_card_code: number | null
@@ -2612,6 +2614,8 @@ export type Database = {
           sync_stock_enabled?: boolean
           trier_payment_mode?: string
           trier_pix_native_code?: number | null
+          trier_sales_base_mode?: string | null
+          trier_sales_base_url?: string | null
           trier_site_credit_card_code?: number | null
           trier_site_debit_card_code?: number | null
           trier_site_pix_card_code?: number | null
@@ -2658,6 +2662,8 @@ export type Database = {
           sync_stock_enabled?: boolean
           trier_payment_mode?: string
           trier_pix_native_code?: number | null
+          trier_sales_base_mode?: string | null
+          trier_sales_base_url?: string | null
           trier_site_credit_card_code?: number | null
           trier_site_debit_card_code?: number | null
           trier_site_pix_card_code?: number | null
