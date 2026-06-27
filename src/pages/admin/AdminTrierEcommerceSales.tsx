@@ -66,8 +66,24 @@ type PresetResult = {
   response?: any;
   request_masked?: any;
   numero_autorizacao_type?: string;
+  url?: string;
+  method?: string;
+  base_mode?: string;
   timestamp?: string;
 };
+
+type ConnTest = {
+  ok: boolean;
+  reachable?: boolean;
+  url?: string;
+  base_mode?: string;
+  http_status?: number;
+  error?: string | null;
+  response?: any;
+  elapsed_ms?: number;
+  timestamp?: string;
+};
+
 
 export default function AdminTrierEcommerceSales() {
   const [settings, setSettings] = useState<any>(null);
