@@ -171,6 +171,8 @@ export default function AdminProducts() {
         whatsapp_promo_price: toNumOrNull(editing.whatsapp_promo_price),
         use_channel_pricing: !!editing.use_channel_pricing,
         channel_price_notes: editing.channel_price_notes || null,
+        // Trava preço manual: sincronização do Trier não vai sobrescrever depois.
+        lock_manual_price: true,
       };
       delete payload.categories;
       delete payload.discount_percentage; // generated column
