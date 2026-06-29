@@ -66,6 +66,7 @@ export default function AdminOffers() {
         <div>
           <h1 className="text-2xl font-extrabold">Ofertas da Semana</h1>
           <p className="text-sm text-muted-foreground">Produtos exibidos na prateleira "Ofertas da Semana" da home.</p>
+          <p className="text-xs text-primary mt-1">🔒 Ao salvar, o produto é travado contra a sincronização automática de preços do Trier (que rodava a cada 15 min e zerava as ofertas).</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar produto</Button>
