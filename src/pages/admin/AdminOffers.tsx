@@ -40,7 +40,7 @@ export default function AdminOffers() {
   const removeFromOffer = async (p: any) => {
     if (!confirm(`Remover "${p.name}" das ofertas?`)) return;
     const shelves = (p.shelves || []).filter((s: string) => s !== "ofertas-da-semana");
-    await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves }).eq("id", p.id);
+    await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves, lock_manual_price: false }).eq("id", p.id);
     qc.invalidateQueries({ queryKey: ["admin_offers"] });
     toast.success("Removido das ofertas");
   };
@@ -54,9 +54,10 @@ export default function AdminOffers() {
       product_badge: editing.product_badge || null,
       on_sale: true,
       shelves,
+      lock_manual_price: true,
     }).eq("id", editing.id);
     if (error) toast.error(error.message);
-    else { toast.success("Salvo"); qc.invalidateQueries({ queryKey: ["admin_offers"] }); setEditing(null); }
+    else { toast.success("Salvo (protegido contra sobrescrita do Trier)"); qc.invalidateQueries({ queryKey: ["admin_offers"] }); setEditing(null); }
   };
 
   return (
@@ -65,6 +66,7 @@ export default function AdminOffers() {
         <div>
           <h1 className="text-2xl font-extrabold">Ofertas da Semana</h1>
           <p className="text-sm text-muted-foreground">Produtos exibidos na prateleira "Ofertas da Semana" da home.</p>
+          <p className="text-xs text-primary mt-1">🔒 Ao salvar, o produto é travado contra a sincronização automática de preços do Trier (que rodava a cada 15 min e zerava as ofertas).</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar produto</Button>
@@ -150,7 +152,7 @@ export default function AdminOffers() {
               if (!p) { toast.error("Produto não encontrado"); return; }
               const shelves = [...new Set([...(p.shelves || []), "ofertas-da-semana"])];
               const on_sale = p.promo_price != null && Number(p.promo_price) < Number(p.price);
-              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale }).eq("id", p.id);
+              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale, lock_manual_price: true }).eq("id", p.id);
               qc.invalidateQueries({ queryKey: ["admin_offers"] });
               toast.success("Produto adicionado às ofertas");
               setAddOpen(false);
