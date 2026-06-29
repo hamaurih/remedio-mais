@@ -588,6 +588,8 @@ const PROTECTED_ALWAYS = new Set<string>([
   "featured",
   "shelves",
   "tags",
+  // Promoções são do site, Trier nunca deve mexer:
+  "promo_price", "on_sale", "promotion_start", "promotion_end",
 ]);
 
 // Campos operacionais que a Trier pode atualizar.
