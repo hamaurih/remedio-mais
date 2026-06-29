@@ -54,9 +54,10 @@ export default function AdminOffers() {
       product_badge: editing.product_badge || null,
       on_sale: true,
       shelves,
+      lock_manual_price: true,
     }).eq("id", editing.id);
     if (error) toast.error(error.message);
-    else { toast.success("Salvo"); qc.invalidateQueries({ queryKey: ["admin_offers"] }); setEditing(null); }
+    else { toast.success("Salvo (protegido contra sobrescrita do Trier)"); qc.invalidateQueries({ queryKey: ["admin_offers"] }); setEditing(null); }
   };
 
   return (
