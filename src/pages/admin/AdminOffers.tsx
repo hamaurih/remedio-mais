@@ -40,7 +40,7 @@ export default function AdminOffers() {
   const removeFromOffer = async (p: any) => {
     if (!confirm(`Remover "${p.name}" das ofertas?`)) return;
     const shelves = (p.shelves || []).filter((s: string) => s !== "ofertas-da-semana");
-    await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves }).eq("id", p.id);
+    await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves, lock_manual_price: false }).eq("id", p.id);
     qc.invalidateQueries({ queryKey: ["admin_offers"] });
     toast.success("Removido das ofertas");
   };
