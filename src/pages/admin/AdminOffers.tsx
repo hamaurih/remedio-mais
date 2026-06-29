@@ -151,7 +151,7 @@ export default function AdminOffers() {
               if (!p) { toast.error("Produto não encontrado"); return; }
               const shelves = [...new Set([...(p.shelves || []), "ofertas-da-semana"])];
               const on_sale = p.promo_price != null && Number(p.promo_price) < Number(p.price);
-              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale }).eq("id", p.id);
+              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale, lock_manual_price: true }).eq("id", p.id);
               qc.invalidateQueries({ queryKey: ["admin_offers"] });
               toast.success("Produto adicionado às ofertas");
               setAddOpen(false);
