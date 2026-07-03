@@ -680,3 +680,67 @@ function GenericEquivalentPicker({ currentId, selfId, onPick }: { currentId: str
     </div>
   );
 }
+
+function TrierStockSyncButton({
+  productId,
+  barcode,
+  onUpdated,
+}: {
+  productId: string;
+  barcode: string;
+  onUpdated: (newStock: number) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const run = async () => {
+    if (!productId) {
+      toast.error("Salve o produto antes de sincronizar.");
+      return;
+    }
+    if (!barcode) {
+      toast.error("Cadastre o código de barras antes de sincronizar com o Trier.");
+      return;
+    }
+    setLoading(true);
+    setInfo(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("trier", {
+        body: { action: "sync-stock-single", product_id: productId },
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        toast.error(data?.error || "Falha ao sincronizar estoque");
+        setInfo(data?.error || "Falha");
+        return;
+      }
+      onUpdated(Number(data.stock_after ?? 0));
+      toast.success(`Estoque atualizado: ${data.stock_before ?? "?"} → ${data.stock_after ?? 0}`);
+      setInfo(
+        `Trier código ${data.trier_id || "?"} · estoque loja ${data.trier_stock_quantity ?? "—"} · site ${data.stock_after}`,
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao chamar Trier");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-lg p-3 bg-secondary/40 space-y-2">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-sm">
+          <div className="font-semibold">Atualizar estoque pelo Trier</div>
+          <div className="text-xs text-muted-foreground">
+            Consulta o Trier pelo código de barras ({barcode || "sem EAN"}) e grava o estoque agora, sem esperar a sincronização automática.
+          </div>
+        </div>
+        <Button type="button" size="sm" onClick={run} disabled={loading || !productId || !barcode}>
+          {loading ? "Consultando Trier..." : "Atualizar estoque do Trier agora"}
+        </Button>
+      </div>
+      {info && <div className="text-xs text-muted-foreground">{info}</div>}
+    </div>
+  );
+}
+
