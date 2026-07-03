@@ -1072,6 +1072,86 @@ async function applyStockPage(items: any[]) {
   return { checked: items.length, updated: updatedCount, ignored, failed: failedCount, ignored_reasons };
 }
 
+// Sincronização de estoque de UM produto específico via barcode (EAN).
+// Usada pelo botão "Atualizar estoque do Trier agora" na tela Admin > Produtos.
+async function actionSyncStockSingle(productId: string) {
+  if (!productId) return { ok: false, error: "product_id ausente" };
+  const s = await getSettings();
+
+  const { data: prod, error: prodErr } = await supabase
+    .from("products")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active")
+    .eq("id", productId)
+    .maybeSingle();
+  if (prodErr) return { ok: false, error: `Erro ao ler produto: ${prodErr.message}` };
+  if (!prod) return { ok: false, error: "Produto não encontrado" };
+
+  const barcode = (prod.barcode || prod.trier_barcode || "").toString().trim();
+  if (!barcode) return { ok: false, error: "Produto sem código de barras. Cadastre o EAN antes de sincronizar." };
+
+  // Consulta a Trier por EAN. O endpoint aceita o filtro codigoBarras.
+  const qs = buildProductsQuery(s, 0, 50, { codigoBarras: barcode }, { ativo: "" });
+  const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+  let list: any[] = [];
+  let httpStatus: number | undefined;
+  try {
+    const resp = await requestTrier(s, path, { method: "GET" });
+    httpStatus = resp.status;
+    if (!resp.ok) return { ok: false, error: `Trier respondeu HTTP ${resp.status}`, http_status: resp.status };
+    list = extractList(resp.json ?? []);
+  } catch (e: any) {
+    return { ok: false, error: `Falha ao consultar Trier: ${String(e?.message || e)}` };
+  }
+
+  // Filtro local exato pelo EAN (o endpoint pode retornar aproximações).
+  const match = list.find((t: any) => {
+    const b = pickBarcode(t);
+    return b && String(b) === String(barcode);
+  }) || list[0];
+
+  if (!match) {
+    return { ok: false, error: "Nenhum produto correspondente encontrado no Trier", http_status: httpStatus, results_count: list.length };
+  }
+
+  const trierId = pickCode(match);
+  const stockReal = pickStoreStockOnly(match);
+  const stockSite = stockReal ?? 0;
+  const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+  const now = new Date().toISOString();
+
+  // Manual: sobrescreve lock_manual_stock — o admin pediu atualização explícita.
+  const patch: any = {
+    stock: stockSite,
+    stock_quantity: stockSite,
+    trier_stock_quantity: stockReal,
+    active: nextActive,
+    last_stock_sync_at: now,
+    last_trier_sync_at: now,
+    source: "trier",
+  };
+  if (trierId && !prod.trier_product_id) patch.trier_product_id = trierId;
+
+  const { error: updErr } = await supabase.from("products").update(patch).eq("id", prod.id);
+  if (updErr) return { ok: false, error: `Falha ao gravar estoque: ${updErr.message}` };
+
+  await log("stock", "success", `Estoque sincronizado (individual): ${prod.name}`, {
+    product_id: prod.id, barcode, trier_id: trierId, stock_before: prod.stock, stock_after: stockSite,
+  });
+
+  return {
+    ok: true,
+    product_id: prod.id,
+    name: prod.name,
+    barcode,
+    trier_id: trierId,
+    stock_before: prod.stock,
+    stock_after: stockSite,
+    trier_stock_quantity: stockReal,
+    active: nextActive,
+    http_status: httpStatus,
+  };
+}
+
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
   const sync_type = changed ? "products_changed" : "products";
@@ -2112,6 +2192,7 @@ Deno.serve(async (req) => {
       case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
       case "sync-categories": result = runAsync("categories", () => actionSyncCategories(trigger)); break;
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
+      case "sync-stock-single": result = await actionSyncStockSingle(String(body.product_id || "")); break;
       case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;
       case "sync-discounts": result = runAsync("discounts", () => actionSyncDiscounts(trigger)); break;
       case "sync-all": result = runAsync("all", () => actionSyncAll(trigger)); break;
