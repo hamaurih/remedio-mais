@@ -48,6 +48,7 @@ import AdminPayments from "./pages/admin/AdminPayments.tsx";
 import AdminHomeDiagnostics from "./pages/admin/AdminHomeDiagnostics.tsx";
 import AdminMenus from "./pages/admin/AdminMenus.tsx";
 import AdminDataQuality from "./pages/admin/AdminDataQuality.tsx";
+import AdminAudit from "./pages/admin/AdminAudit.tsx";
 import AdminTaxonomy from "./pages/admin/AdminTaxonomy.tsx";
 import AdminSellers from "./pages/admin/AdminSellers.tsx";
 import AdminWhatsAppAgent from "./pages/admin/AdminWhatsAppAgent.tsx";
@@ -120,6 +121,7 @@ const App = () => (
             <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
             <Route path="menus" element={<AdminMenus />} />
             <Route path="qualidade-dados" element={<AdminDataQuality />} />
+            <Route path="auditoria" element={<AdminAudit />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
             <Route path="trier/vendas-ecommerce" element={<AdminTrierEcommerceSales />} />
