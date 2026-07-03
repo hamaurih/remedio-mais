@@ -1,79 +1,95 @@
+# Auditoria e Controle de Qualidade — Atacadão dos Medicamentos
 
-# Frete por distância — Campina Grande
+Objetivo: mapear tudo que existe hoje, classificar por status (funciona / quebrado / sem uso / precisa melhorar) e sair com um checklist claro para o site entrar em operação real.
 
-Origem fixa: **Av. Mal. Floriano Peixoto, 4050 – Campina Grande/PB**
-Raio máximo: **28 km** (acima disso o checkout bloqueia a entrega)
-Cálculo: **Haversine** (linha reta, sem custo de API por pedido)
+Fiz uma varredura inicial no banco e no código. Números-chave que já mudam a estratégia:
 
-## Tabela de faixas inicial (editável no admin)
+- **23.474 produtos no total**, mas só **3.904 ativos** e **3.926 com estoque** — o resto é lixo do Trier ocupando o banco.
+- **21.080 produtos sem imagem** (~90%), **2.076 sem EAN**, **723 sem categoria**.
+- **7 pedidos** no total (todos nos últimos 30 dias) — plataforma ainda não está em uso real.
+- **0 tiles no mosaico da home**, **0 prescrições enviadas**, **1 campanha**, **3 banners**, **45 variantes**, **2 clientes**.
 
-| Distância         | Valor    |
-|-------------------|----------|
-| 0 – 3 km          | R$ 5,00  |
-| 3 – 6 km          | R$ 8,00  |
-| 6 – 10 km         | R$ 12,00 |
-| 10 – 16 km        | R$ 18,00 |
-| 16 – 22 km        | R$ 25,00 |
-| 22 – 28 km        | R$ 32,00 |
-| acima de 28 km    | bloqueia |
+Isto é uma auditoria — o entregável é um **relatório** que vou gerar no admin, não uma refatoração cega. Depois você decide o que atacar.
 
-Você ajusta valores, número de faixas e raio máximo direto no admin, sem novo deploy.
+---
 
-## 1. Banco (migration)
+## Fase 1 — Diagnóstico automático (o que vou construir agora)
 
-- `store_settings`: novas colunas
-  - `store_lat numeric`, `store_lng numeric`, `store_geocoded_at timestamptz`
-  - `delivery_max_km numeric` (default 28)
-  - `delivery_fee_zones jsonb` (default com a tabela acima)
-  - `delivery_mode text` (default `'distance'`; alterna entre `'flat'` antigo e `'distance'` novo — permite voltar atrás)
-- `customer_addresses`: novas colunas `lat numeric`, `lng numeric`, `place_id text`
+Criar **`/admin/auditoria`**, uma página única de controle de qualidade que consolida:
 
-## 2. Conectar Google Maps Platform
+### 1.1 Saúde do catálogo
+- Ativos vs inativos vs sem estoque (do jeito que já mostra no Data Quality, mas somando tudo).
+- Produtos "zumbis": inativos + sem estoque + sem venda nunca → candidatos a arquivar.
+- Duplicados por EAN e por nome.
+- Produtos com preço promocional inválido (promo ≥ preço, promo negativo).
+- Fotos quebradas (image_url apontando para URL que retorna 404) — verificação por amostragem.
 
-Necessário para geocodificar a origem 1x e para o autocomplete no checkout. Uso o conector gerenciado da Lovable (chave própria só fica obrigatória quando publicar no domínio customizado — aviso no momento).
+### 1.2 Saúde das páginas públicas
+Checklist automático rodando contra cada rota (`/`, `/departamentos`, `/categoria/*`, `/produto/*`, `/carrinho`, `/checkout`, `/enviar-receita`, `/minha-conta`, `/auth`):
+- Renderiza sem erro de console?
+- Requests para `products` retornam dados?
+- SEO mínimo (title, description, H1)?
 
-## 3. Edge functions
+### 1.3 Saúde do admin
+Lista das 26 páginas admin com:
+- Última vez que foi acessada (via logs).
+- Se ainda faz sentido existir (ex.: `AdminBannerGenerator`, `AdminHomeDiagnostics`, `AdminProductsReconcile` — provavelmente sobras de setup).
+- Se depende de dado que não existe (ex.: `AdminPrescriptions` com 0 prescrições, `AdminMosaic` com 0 tiles).
 
-- `geocode-store-address` — chamada pelo admin quando o endereço da loja muda. Geocoda via Google e grava `store_lat/lng`.
-- `calculate-delivery-fee` — recebe `{ lat, lng }` do cliente; calcula Haversine; retorna `{ distance_km, fee, allowed, zone_label, reason? }`. Sem segredos no frontend.
+### 1.4 Saúde das integrações
+- **Trier**: última sincronização, taxa de erro nos últimos 7 dias, produtos bloqueados por `lock_manual_price`/`lock_manual_stock`.
+- **Mercado Pago**: pedidos com `payment_status` travado, webhooks recebidos vs esperados.
+- **WhatsApp Agent**: se está sendo chamado.
+- **Google Maps**: se as chaves estão ativas.
 
-## 4. Admin — Configurações > Entrega
+### 1.5 Edge Functions
+Para cada uma das 13 functions: última invocação, taxa de erro, tempo médio. Marca como "sem uso há 30d" as candidatas a remover.
 
-Mantém o layout atual da página, só amplio a aba "Entrega":
-- Endereço da loja (preenchido) + botão "Recalcular coordenadas"
-- Mostra lat/lng atuais e data do último geocode
-- Raio máximo (km), default 28
-- Editor de faixas (linha por faixa: km inicial, km final, valor, label) com validação de sobreposição
-- Switch `delivery_mode`: `Distância (novo)` / `Taxa fixa (antigo)` — fallback de segurança
+### 1.6 Segurança e RLS
+Rodar o linter do banco e listar tabelas sem policy adequada, GRANTs faltando (foi o problema de ontem com `products`), e políticas permissivas demais.
 
-## 5. Checkout (sem mexer no visual)
+---
 
-- Substituo apenas o input de endereço por **Places Autocomplete** (`PlaceAutocompleteElement`, restrito a Brasil/PB). Mesmo estilo, mesmo lugar.
-- Ao escolher endereço:
-  - preenche os campos estruturados (rua, número, bairro, cidade, CEP)
-  - guarda `lat/lng` no estado
-  - chama `calculate-delivery-fee`
-  - exibe `Frete: R$ X,XX (X,X km)` na linha de frete existente
-  - se `allowed=false`, desabilita o botão "Finalizar" com mensagem: "Fora da área de entrega (máx. 28 km da loja)"
-- Se o cliente digitar manual sem usar autocomplete, fallback para geocodificar o endereço no backend antes de calcular.
+## Fase 2 — Relatório enxuto (o que você vai ler)
 
-## 6. O que NÃO muda
+Depois que a página rodar, gero um resumo em 1 tela dividido em 4 blocos:
 
-- Layout, banners, produtos, campanhas, checkout visual: intocados
-- Mercado Pago: frete continua entrando em `total` como hoje
-- Trier: frete continua sendo enviado como item "Taxa de Entrega" (já implementado)
-- Pedidos antigos e canal WhatsApp/balcão: continuam usando `delivery_fee` flat
+| Bloco | O que mostra |
+|---|---|
+| ✅ **Funcionando** | Módulos com dados, sem erro, com uso recente |
+| ⚠️ **Precisa melhorar** | Funciona mas com problema de qualidade (ex.: 90% sem foto) |
+| ❌ **Quebrado** | Erro em produção, integração falhando, dado inconsistente |
+| 🗑️ **Ocupando espaço** | Páginas/tabelas/functions sem uso — candidatas a remover |
 
-## 7. Validações de segurança
+Cada item vira uma linha acionável com botão "corrigir" ou "arquivar".
 
-- `calculate-delivery-fee` é a única fonte de verdade do valor; o checkout nunca confia em valor enviado pelo cliente
-- Webhook do MP já valida `total`; mantemos
-- Origem e tabela só editáveis por admin (RLS já cobre `store_settings`)
+---
+
+## Fase 3 — Limpeza guiada (só depois de você aprovar item por item)
+
+Nada será deletado sem sua confirmação. Ações típicas que vão aparecer:
+
+- **Arquivar em massa** os ~19.500 produtos sem estoque e sem venda (mover para `archived=true`, não deletar).
+- **Remover páginas admin não usadas** (ex.: geradores/diagnósticos de setup).
+- **Desligar edge functions órfãs**.
+- **Consertar SEO faltando** (title/description por página).
+- **Fechar buracos de RLS/GRANT** que o linter apontar.
+
+---
 
 ## Detalhes técnicos
 
-- Haversine direto em JS na edge function — sem dependência externa
-- Google Places via `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY` no client; geocode da loja via gateway (server-side) com `Authorization` + `X-Connection-Api-Key`
-- Carregamento do Maps JS com `loading=async` + callback
-- `delivery_fee_zones` formato: `[{ "min_km": 0, "max_km": 3, "fee": 5.0, "label": "Até 3 km" }, ...]`
-- Migration inclui GRANTs e RLS preservados; nenhuma policy nova precisa mudar
+- Nova página: `src/pages/admin/AdminAudit.tsx` + rota em `AdminLayout`.
+- Nova edge function `audit-report` (SECURITY DEFINER) que roda todas as queries pesadas server-side e devolve JSON agregado — assim o admin não bate 20 queries do browser.
+- Reaproveita o que já existe em `AdminDataQuality`, `AdminHomeDiagnostics`, `AdminStock` — não duplica lógica, só consolida.
+- Não mexe em nada de storefront nesta fase.
+
+---
+
+## Fora do escopo desta primeira entrega
+
+- Refatoração de código (só diagnostica).
+- Remoção efetiva de qualquer arquivo/tabela (só lista candidatos).
+- Redesign visual.
+
+Se aprovar, começo pela Fase 1 e te entrego a página `/admin/auditoria` já populada com dados reais. Depois vamos item por item nas Fases 2 e 3.
