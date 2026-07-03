@@ -529,6 +529,7 @@ function mapProduct(t: any, stockSource: StockSource = "loja") {
     _stock_real: stockReal,
     _stock_ecom: stockEcom,
     trier_product_id: code,
+    sku: code, // usa o código Trier como SKU quando o produto não tem SKU próprio (evita SKU nulo)
     name: name || "Sem nome",
     ecommerce_name: t.nomeEcommerce ?? null,
     slug: slugify((name || "produto") + "-" + code),
