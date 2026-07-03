@@ -461,7 +461,13 @@ export default function AdminProducts() {
               {Number(editing.stock) <= Number(editing.minimum_stock || 0) && (
                 <div className="bg-primary/10 text-primary text-sm p-2 rounded flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Estoque baixo!</div>
               )}
+              <TrierStockSyncButton
+                productId={editing.id}
+                barcode={editing.barcode}
+                onUpdated={(newStock) => setEditing((prev: any) => ({ ...prev, stock: newStock }))}
+              />
             </TabsContent>
+
 
             <TabsContent value="variants" className="pt-3">
               {editing.id ? (
