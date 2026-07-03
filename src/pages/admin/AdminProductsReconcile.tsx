@@ -12,8 +12,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertTriangle, ArrowLeft, Loader2, RefreshCw, Wand2, CheckCircle2,
+  AlertTriangle, ArrowLeft, Loader2, RefreshCw, Wand2, CheckCircle2, Save,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 type Issue =
@@ -412,7 +413,214 @@ export default function AdminProductsReconcile() {
           )}
         </CardContent>
       </Card>
+
+      <ActiveMissingDataCard />
     </div>
+  );
+}
+
+// -----------------------------------------------------------
+// Ativos com dados faltando — edição inline (EAN, SKU, categoria, laboratório)
+// -----------------------------------------------------------
+type MissingField = "barcode" | "sku" | "category_id" | "laboratory";
+
+const MISSING_LABEL: Record<MissingField, string> = {
+  barcode: "Sem EAN",
+  sku: "Sem SKU",
+  category_id: "Sem categoria",
+  laboratory: "Sem laboratório",
+};
+
+function ActiveMissingDataCard() {
+  const [field, setField] = useState<MissingField>("barcode");
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [edits, setEdits] = useState<Record<string, any>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("categories").select("id,name").order("name");
+      setCategories(data || []);
+    })();
+  }, []);
+
+  useEffect(() => { load(); }, [field]);
+
+  async function load() {
+    setLoading(true);
+    setEdits({});
+    try {
+      let q: any = (supabase as any)
+        .from("products")
+        .select("id,name,sku,barcode,laboratory,category_id,category_name,trier_product_id")
+        .eq("active", true)
+        .order("name")
+        .limit(300);
+      if (field === "category_id") q = q.is("category_id", null);
+      else q = q.or(`${field}.is.null,${field}.eq.`);
+      if (search.trim()) q = q.ilike("name", `%${search.trim()}%`);
+      const { data, error } = await q;
+      if (error) throw error;
+      setRows(data || []);
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setEdit(id: string, key: string, value: any) {
+    setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [key]: value } }));
+  }
+
+  async function saveRow(row: any) {
+    const patch = edits[row.id];
+    if (!patch || Object.keys(patch).length === 0) return;
+    setSavingId(row.id);
+    try {
+      const update: any = { ...patch, updated_at: new Date().toISOString() };
+      // se editou categoria, também popula category_name a partir do select
+      if (patch.category_id) {
+        const cat = categories.find((c) => c.id === patch.category_id);
+        if (cat) update.category_name = cat.name;
+      }
+      const { error } = await (supabase as any).from("products").update(update).eq("id", row.id);
+      if (error) throw error;
+      toast.success("Salvo");
+      setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+    } catch (e: any) {
+      toast.error("Erro ao salvar: " + e.message);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+        <div>
+          <CardTitle className="text-base">Ativos com dados faltando — corrigir manualmente</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Só mostra produtos <b>ativos no site</b>. Edite o campo e clique em Salvar. Não desativa nada.
+          </p>
+        </div>
+        <div className="flex gap-2 items-center">
+          <Input
+            placeholder="Buscar por nome..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && load()}
+            className="w-52"
+          />
+          <Select value={field} onValueChange={(v) => setField(v as MissingField)}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.keys(MISSING_LABEL) as MissingField[]).map((k) => (
+                <SelectItem key={k} value={k}>{MISSING_LABEL[k]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="overflow-auto max-h-[600px]">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" /> Nenhum produto ativo com este problema.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>Trier</TableHead>
+                <TableHead>EAN</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Laboratório</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => {
+                const e = edits[r.id] || {};
+                const dirty = Object.keys(e).length > 0;
+                return (
+                  <TableRow key={r.id}>
+                    <TableCell className="max-w-[260px] truncate" title={r.name}>{r.name}</TableCell>
+                    <TableCell className="text-xs">{r.trier_product_id || "—"}</TableCell>
+                    <TableCell>
+                      <Input
+                        className="h-8 w-36"
+                        defaultValue={r.barcode || ""}
+                        placeholder="EAN"
+                        onChange={(ev) => setEdit(r.id, "barcode", ev.target.value.trim() || null)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        className="h-8 w-28"
+                        defaultValue={r.sku || ""}
+                        placeholder="SKU"
+                        onChange={(ev) => setEdit(r.id, "sku", ev.target.value.trim() || null)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        defaultValue={r.category_id || ""}
+                        onValueChange={(v) => setEdit(r.id, "category_id", v || null)}
+                      >
+                        <SelectTrigger className="h-8 w-44"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        className="h-8 w-36"
+                        defaultValue={r.laboratory || ""}
+                        placeholder="Laboratório"
+                        onChange={(ev) => setEdit(r.id, "laboratory", ev.target.value.trim() || null)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        disabled={!dirty || savingId === r.id}
+                        onClick={() => saveRow(r)}
+                      >
+                        {savingId === r.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Save className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+        {rows.length === 300 && (
+          <div className="text-xs text-muted-foreground mt-2">
+            Mostrando 300. Use a busca para filtrar mais.
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
