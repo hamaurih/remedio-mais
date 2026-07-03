@@ -12,8 +12,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertTriangle, ArrowLeft, Loader2, RefreshCw, Wand2, CheckCircle2,
+  AlertTriangle, ArrowLeft, Loader2, RefreshCw, Wand2, CheckCircle2, Save,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 type Issue =
