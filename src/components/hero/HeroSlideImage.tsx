@@ -61,7 +61,7 @@ export function HeroSlideImage({ s, eager }: Props) {
           alt={alt}
           className={cn("absolute inset-0 w-full h-full", fit, focus)}
           loading={eager ? "eager" : "lazy"}
-          {...(eager ? { fetchPriority: "high" as any } : {})}
+          {...(eager ? ({ fetchpriority: "high" } as any) : {})}
           decoding="async"
         />
       </picture>
