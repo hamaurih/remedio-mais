@@ -4,13 +4,13 @@ import { Layout } from "@/components/Layout";
 import { Product } from "@/components/ProductCard";
 import { ProductShelf } from "@/components/ProductShelf";
 import { HeroPromoCarousel } from "@/components/HeroPromoCarousel";
+import { PromoBanner as PromoMiniBannerRow } from "@/components/PromoBanner";
 import { PromoMosaic } from "@/components/PromoMosaic";
 import { BenefitCards } from "@/components/BenefitCards";
 import { CampaignShelf } from "@/components/CampaignShelf";
 import { DepartmentCarousel } from "@/components/DepartmentCarousel";
 import { PrescriptionCTA } from "@/components/PrescriptionCTA";
 import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
-import { PromoTicker } from "@/components/PromoTicker";
 import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -232,6 +232,7 @@ export default function Index() {
   const SECTIONS: Record<string, React.ReactNode> = {
     promo_ticker: null, // TopBar agora é global no Layout
     hero_carousel: <HeroPromoCarousel slides={banners as any} />,
+    promo_mini_banner_row: <PromoMiniBannerRow />,
     promo_mosaic: <PromoMosaic />,
     campaign_shelf: <Reveal><CampaignShelf /></Reveal>,
     benefit_cards: <Reveal><BenefitCards /></Reveal>,
@@ -244,6 +245,7 @@ export default function Index() {
 
   const defaultOrder = [
     "hero_carousel",
+    "promo_mini_banner_row",
     "promo_mosaic",
     "benefit_cards",
     "campaign_shelf",
@@ -253,7 +255,10 @@ export default function Index() {
     "google_rating",
     "location",
   ];
-  const order = layout && layout.length > 0 ? layout.map((r) => r.section_key) : defaultOrder;
+  const remainingOrder = layout && layout.length > 0
+    ? layout.map((r) => r.section_key).filter((key) => key !== "promo_ticker" && key !== "hero_carousel" && key !== "promo_mini_banner_row")
+    : defaultOrder.filter((key) => key !== "hero_carousel" && key !== "promo_mini_banner_row");
+  const order = ["hero_carousel", "promo_mini_banner_row", ...remainingOrder];
 
   return (
     <Layout>

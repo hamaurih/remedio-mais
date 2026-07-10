@@ -94,7 +94,7 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
   );
 
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: "start", containScroll: "trimSnaps", duration: isFade ? 0 : 28 },
+    { loop: filtered.length > 1, align: "start", containScroll: false, duration: isFade ? 0 : 28 },
     prefersReducedMotion ? [] : [autoplay.current],
   );
 
@@ -173,23 +173,23 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     >
       <div
         className={cn(
-          "relative overflow-hidden group",
+          "relative w-full min-w-0 overflow-hidden group",
           size.container ? "rounded-2xl shadow-card" : "",
         )}
         tabIndex={0}
         role="region"
       >
         <div
-          className="w-full overflow-hidden"
+          className="w-full min-w-0 overflow-hidden"
           style={viewportStyle}
           ref={emblaRef}
         >
-          <div className={cn("flex h-full", isFade && "relative")}>
+          <div className={cn("flex h-full w-full", isFade && "relative")}>
             {filtered.map((b, idx) => (
               <div
                 key={b.id || idx}
                 className={cn(
-                  "shrink-0 grow-0 basis-full h-full min-w-0",
+                  "h-full min-w-0 shrink-0 grow-0 basis-full overflow-hidden",
                   isFade &&
                     "absolute inset-0 transition-opacity duration-700 " +
                       (idx === selected ? "opacity-100 z-10" : "opacity-0 z-0"),
