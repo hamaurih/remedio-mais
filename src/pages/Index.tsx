@@ -10,6 +10,7 @@ import { CampaignShelf } from "@/components/CampaignShelf";
 import { DepartmentCarousel } from "@/components/DepartmentCarousel";
 import { PrescriptionCTA } from "@/components/PrescriptionCTA";
 import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
+import { PromoTicker } from "@/components/PromoTicker";
 import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,8 @@ export default function Index() {
     <Layout>
       {/* Hero carrossel promocional */}
       <HeroPromoCarousel slides={banners as any} />
+
+      <PromoTicker />
 
       {/* Promo mosaic */}
       <PromoMosaic />
