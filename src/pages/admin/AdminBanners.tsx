@@ -12,7 +12,10 @@ import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSlide as HeroSlidePreview, type HeroSlide as HeroSlideType } from "@/components/HeroSlider";
+import { HeroSlideImage } from "@/components/hero/HeroSlideImage";
 import { EntityPicker, type PickedEntity, type PickerKind } from "@/components/admin/EntityPicker";
+import { HERO_SIZE_OPTIONS, HERO_SIZES, type HeroSizeVariant } from "@/lib/heroSizes";
+import { HERO_VISUAL_MODEL_OPTIONS } from "@/lib/heroVisualModels";
 
 const PLACEMENTS = [
   { v: "hero", l: "Hero principal" },
