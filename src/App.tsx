@@ -113,6 +113,7 @@ const App = () => (
             <Route path="banners/gerador" element={<AdminBannerGenerator />} />
             <Route path="promo-banner" element={<AdminPromoBanner />} />
             <Route path="mosaico" element={<AdminMosaic />} />
+            <Route path="layout-home" element={<AdminHomeLayout />} />
             <Route path="campanhas" element={<AdminCampaigns />} />
             <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
