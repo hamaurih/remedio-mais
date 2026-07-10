@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Product } from "@/components/ProductCard";
 import { ProductShelf } from "@/components/ProductShelf";
-import { HeroSlider } from "@/components/HeroSlider";
+import { HeroPromoCarousel } from "@/components/HeroPromoCarousel";
 import { PromoMosaic } from "@/components/PromoMosaic";
 import { BenefitCards } from "@/components/BenefitCards";
 import { CampaignShelf } from "@/components/CampaignShelf";
@@ -173,8 +173,8 @@ export default function Index() {
 
   return (
     <Layout>
-      {/* Hero slider */}
-      <HeroSlider slides={banners as any} />
+      {/* Hero carrossel promocional */}
+      <HeroPromoCarousel slides={banners as any} />
 
       {/* Promo mosaic */}
       <PromoMosaic />
