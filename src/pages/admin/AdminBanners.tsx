@@ -527,28 +527,72 @@ export default function AdminBanners() {
 
               {editing.banner_type === "image" && (
                 <>
-                  <div className="space-y-1">
-                    <Label>Imagem desktop</Label>
-                    {editing.image_url && <img src={editing.image_url} className="w-full h-24 object-cover rounded mb-1" />}
-                    <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Imagem mobile</Label>
-                    {editing.mobile_image_url && <img src={editing.mobile_image_url} className="w-32 h-24 object-cover rounded mb-1" />}
-                    <Input type="file" accept="image/*" onChange={(e) => setMobileFile(e.target.files?.[0] || null)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label>Ajuste da imagem</Label>
-                      <Select value={editing.image_fit} onValueChange={(v) => setEditing({ ...editing, image_fit: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cover">Cobrir (cover)</SelectItem>
-                          <SelectItem value="contain">Conter (contain)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Banner por imagem pronta
                     </div>
-                    <div className="flex items-end gap-2"><Switch checked={!!editing.show_text_over_image} onCheckedChange={(v) => setEditing({ ...editing, show_text_over_image: v })} /><Label>Texto sobre imagem</Label></div>
+                    <div className="space-y-1">
+                      <Label>Imagem desktop <span className="text-xs text-muted-foreground">(recomendado: 1920×600 · até 1.5MB · WEBP/PNG/JPG)</span></Label>
+                      {editing.image_url && <img src={editing.image_url} className="w-full h-24 object-cover rounded mb-1" />}
+                      <Input type="file" accept="image/*" onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setFile(f);
+                        if (f && f.size > 1.5 * 1024 * 1024) toast.warning("Imagem desktop pesada (>1.5MB). Pode deixar o site lento.");
+                      }} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Imagem tablet (opcional) <span className="text-xs text-muted-foreground">(1200×800)</span></Label>
+                      {editing.tablet_image_url && <img src={editing.tablet_image_url} className="w-40 h-24 object-cover rounded mb-1" />}
+                      <Input type="file" accept="image/*" onChange={(e) => setTabletFile(e.target.files?.[0] || null)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Imagem mobile (opcional) <span className="text-xs text-muted-foreground">(1080×1350 ou 1080×1080 · até 800KB)</span></Label>
+                      {editing.mobile_image_url && <img src={editing.mobile_image_url} className="w-32 h-32 object-cover rounded mb-1" />}
+                      <Input type="file" accept="image/*" onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setMobileFile(f);
+                        if (f && f.size > 800 * 1024) toast.warning("Imagem mobile pesada (>800KB). Pode deixar o site lento.");
+                      }} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Texto alternativo da imagem (acessibilidade)</Label>
+                      <Input value={editing.image_alt || ""} onChange={(e) => setEditing({ ...editing, image_alt: e.target.value })} placeholder="Ex: Ofertas da semana com até 50% de desconto" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label>Encaixe da imagem</Label>
+                        <Select value={editing.image_fit || "cover"} onValueChange={(v) => setEditing({ ...editing, image_fit: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cover">Cobrir área</SelectItem>
+                            <SelectItem value="contain">Conter imagem inteira</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Foco da imagem</Label>
+                        <Select value={editing.image_focus || "center"} onValueChange={(v) => setEditing({ ...editing, image_focus: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="center">Centro</SelectItem>
+                            <SelectItem value="left">Esquerda</SelectItem>
+                            <SelectItem value="right">Direita</SelectItem>
+                            <SelectItem value="top">Topo</SelectItem>
+                            <SelectItem value="bottom">Base</SelectItem>
+                            <SelectItem value="product-right">Produto à direita</SelectItem>
+                            <SelectItem value="text-left">Texto à esquerda</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={!!editing.show_text_over_image} onCheckedChange={(v) => setEditing({ ...editing, show_text_over_image: v })} />
+                      <Label>Texto sobre imagem (para artes que já não têm texto embutido)</Label>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Link de destino</Label>
+                      <Input value={editing.link || ""} onChange={(e) => setEditing({ ...editing, link: e.target.value })} placeholder="/categoria/ofertas" />
+                    </div>
                   </div>
                 </>
               )}
