@@ -174,13 +174,14 @@ export default function Index() {
 
   return (
     <Layout>
+      {/* Promo mosaic (4 cards) */}
+      <PromoMosaic />
+
       {/* Hero carrossel promocional */}
       <HeroPromoCarousel slides={banners as any} />
 
-      {/* Promo mosaic */}
-      <PromoMosaic />
-
       <PromoTicker />
+
 
 
       {/* Active campaign (if any) */}
