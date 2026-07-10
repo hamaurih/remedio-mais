@@ -172,34 +172,26 @@ export default function Index() {
   const vitamins = buildShelf("vitaminas", "vitaminas-e-suplementos");
   const firstaid = buildShelf("primeiros-socorros", "primeiros-socorros");
 
-  return (
-    <Layout>
-      {/* Promo mosaic (4 cards) */}
-      <PromoMosaic />
+  const { data: layout } = useQuery({
+    queryKey: ["home_layout"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("home_layout")
+        .select("section_key,enabled,position")
+        .eq("enabled", true)
+        .order("position");
+      return (data || []) as { section_key: string; enabled: boolean; position: number }[];
+    },
+  });
 
-      {/* Hero carrossel promocional */}
-      <HeroPromoCarousel slides={banners as any} />
-
-      <PromoTicker />
-
-
-
-      {/* Active campaign (if any) */}
-      <Reveal><CampaignShelf /></Reveal>
-
-      <Reveal><BenefitCards /></Reveal>
-      <Reveal><DepartmentCarousel /></Reveal>
-
-      {/* Shelves & sections in requested order */}
+  const shelvesBlock = (
+    <>
       <Reveal>
         <ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/categoria/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay />
       </Reveal>
       <Reveal>
         <ProductShelf title="Mais Vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" />
       </Reveal>
-
-      <Reveal><PrescriptionCTA /></Reveal>
-
       <Reveal>
         <ProductShelf title="Medicamentos Populares" viewAllLink="/categoria/medicamentos" products={meds.data} loading={meds.isLoading} backgroundVariant="white" />
       </Reveal>
@@ -215,26 +207,60 @@ export default function Index() {
       <Reveal>
         <ProductShelf title="Primeiros Socorros" viewAllLink="/categoria/primeiros-socorros" products={firstaid.data} loading={firstaid.isLoading} backgroundVariant="white" />
       </Reveal>
+    </>
+  );
 
-      <Reveal><GoogleRatingBlock /></Reveal>
-
-      {/* Location */}
-      <Reveal>
-        <section className="container py-4">
-          <div className="bg-card border rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow">
-            <div className="flex items-start gap-3">
-              <MapPin className="h-6 w-6 text-primary shrink-0" />
-              <div>
-                <div className="font-semibold">{settings?.address}</div>
-                <div className="text-sm text-muted-foreground mt-1">{settings?.hours}</div>
-                <Button asChild variant="link" className="px-0 mt-2">
-                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings?.address || "")}`} target="_blank" rel="noopener">Como chegar →</a>
-                </Button>
-              </div>
+  const locationBlock = (
+    <Reveal>
+      <section className="container py-4">
+        <div className="bg-card border rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-6 w-6 text-primary shrink-0" />
+            <div>
+              <div className="font-semibold">{settings?.address}</div>
+              <div className="text-sm text-muted-foreground mt-1">{settings?.hours}</div>
+              <Button asChild variant="link" className="px-0 mt-2">
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings?.address || "")}`} target="_blank" rel="noopener">Como chegar →</a>
+              </Button>
             </div>
           </div>
-        </section>
-      </Reveal>
+        </div>
+      </section>
+    </Reveal>
+  );
+
+  const SECTIONS: Record<string, React.ReactNode> = {
+    promo_ticker: <PromoTicker />,
+    promo_mosaic: <PromoMosaic />,
+    hero_carousel: <HeroPromoCarousel slides={banners as any} />,
+    campaign_shelf: <Reveal><CampaignShelf /></Reveal>,
+    benefit_cards: <Reveal><BenefitCards /></Reveal>,
+    department_carousel: <Reveal><DepartmentCarousel /></Reveal>,
+    product_shelves: shelvesBlock,
+    prescription_cta: <Reveal><PrescriptionCTA /></Reveal>,
+    google_rating: <Reveal><GoogleRatingBlock /></Reveal>,
+    location: locationBlock,
+  };
+
+  const defaultOrder = [
+    "promo_mosaic",
+    "hero_carousel",
+    "promo_ticker",
+    "campaign_shelf",
+    "benefit_cards",
+    "department_carousel",
+    "product_shelves",
+    "prescription_cta",
+    "google_rating",
+    "location",
+  ];
+  const order = layout && layout.length > 0 ? layout.map((r) => r.section_key) : defaultOrder;
+
+  return (
+    <Layout>
+      {order.map((key) => (
+        <div key={key}>{SECTIONS[key] ?? null}</div>
+      ))}
 
       <p className="container text-[11px] text-muted-foreground pb-6 text-center">
         As informações dos produtos são meramente informativas. Consulte o farmacêutico.
@@ -242,3 +268,4 @@ export default function Index() {
     </Layout>
   );
 }
+
