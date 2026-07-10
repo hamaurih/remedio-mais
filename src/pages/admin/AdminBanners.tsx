@@ -110,9 +110,11 @@ export default function AdminBanners() {
   const [editing, setEditing] = useState<any>(empty);
   const [file, setFile] = useState<File | null>(null);
   const [mobileFile, setMobileFile] = useState<File | null>(null);
+  const [tabletFile, setTabletFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
   const [bgFile, setBgFile] = useState<File | null>(null);
   const [picked, setPicked] = useState<PickedEntity | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const { data } = useQuery({
     queryKey: ["admin_banners"],
@@ -130,17 +132,25 @@ export default function AdminBanners() {
     try {
       let image_url = editing.image_url;
       let mobile_image_url = editing.mobile_image_url;
+      let tablet_image_url = editing.tablet_image_url;
       let product_image_url = editing.product_image_url;
       let background_image_url = editing.background_image_url;
       if (file) image_url = await upload(file);
       if (mobileFile) mobile_image_url = await upload(mobileFile);
+      if (tabletFile) tablet_image_url = await upload(tabletFile);
       if (productFile) product_image_url = await upload(productFile);
       if (bgFile) background_image_url = await upload(bgFile);
 
       const payload: any = {
         ...editing,
-        image_url, mobile_image_url, product_image_url, background_image_url,
+        image_url,
+        mobile_image_url,
+        tablet_image_url,
+        product_image_url,
+        background_image_url,
+        desktop_image_url: editing.desktop_image_url || image_url || null,
         position: Number(editing.position) || 0,
+        autoplay_delay: Math.max(2000, Number(editing.autoplay_delay) || 4000),
         discount_percent: editing.discount_percent === "" || editing.discount_percent == null ? null : Number(editing.discount_percent),
         start_date: editing.start_date || null,
         end_date: editing.end_date || null,
