@@ -543,6 +543,24 @@ export default function AdminBanners() {
                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Banner por imagem pronta
                     </div>
+                    {!file && !editing.image_url && !editing.desktop_image_url && (
+                      <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold">Falta a imagem desktop.</div>
+                          Sem ela, no desktop o banner aparece com grandes barras laterais vazias, porque a imagem mobile é retrato (vertical) e o hero é horizontal. Envie uma imagem horizontal (recomendado <strong>1920×600</strong>).
+                        </div>
+                      </div>
+                    )}
+                    {!mobileFile && !editing.mobile_image_url && (file || editing.image_url || editing.desktop_image_url) && (
+                      <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold">Sem imagem mobile dedicada.</div>
+                          O celular vai usar a imagem desktop cortada, o que pode esconder texto importante. Envie uma versão vertical (recomendado <strong>1080×1350</strong>).
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <Label>Imagem desktop <span className="text-xs text-muted-foreground">(recomendado: 1920×600 · até 1.5MB · WEBP/PNG/JPG)</span></Label>
                       {editing.image_url && <img src={editing.image_url} className="w-full h-24 object-cover rounded mb-1" />}
