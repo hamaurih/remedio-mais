@@ -39,6 +39,7 @@ import AdminTrierEcommerceSales from "./pages/admin/AdminTrierEcommerceSales.tsx
 import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
 import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
+import AdminHomeLayout from "./pages/admin/AdminHomeLayout.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import Campaign from "./pages/Campaign.tsx";
 import Checkout from "./pages/Checkout.tsx";
