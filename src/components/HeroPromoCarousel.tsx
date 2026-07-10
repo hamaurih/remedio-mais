@@ -143,19 +143,29 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
         )}
         tabIndex={0}
         role="region"
+        style={
+          {
+            // usa CSS vars para trocar aspect/min-height entre mobile e desktop
+            ["--hero-aspect" as any]: size.desktopAspect,
+            ["--hero-min-h" as any]: `${size.minHeight}px`,
+            ["--hero-max-h" as any]: `${size.maxHeight}px`,
+            ["--hero-m-aspect" as any]: size.mobileAspect,
+            ["--hero-m-min-h" as any]: `${size.mobileMinHeight}px`,
+          } as React.CSSProperties
+        }
       >
-        {/* Aspect ratio wrapper — evita layout shift */}
         <div
-          className="w-full hidden md:block"
-          style={wrapperStyle}
+          className="w-full"
+          style={{
+            aspectRatio: "var(--hero-m-aspect)",
+            minHeight: "var(--hero-m-min-h)",
+          }}
         >
-          <div className="h-full w-full overflow-hidden" ref={emblaRef}>
-            <div
-              className={cn(
-                "flex h-full",
-                isFade && "relative",
-              )}
-            >
+          <div
+            className="h-full w-full overflow-hidden md:[aspect-ratio:var(--hero-aspect)] md:[min-height:var(--hero-min-h)] md:[max-height:var(--hero-max-h)]"
+            ref={emblaRef}
+          >
+            <div className={cn("flex h-full", isFade && "relative")}>
               {filtered.map((b, idx) => (
                 <div
                   key={b.id || idx}
@@ -179,25 +189,6 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
             </div>
           </div>
         </div>
-
-        {/* Mobile viewport */}
-        <div className="w-full md:hidden" style={mobileStyle}>
-          <div className="h-full w-full overflow-hidden" ref={emblaRef}>
-            <div className="flex h-full">
-              {filtered.map((b, idx) => (
-                <div
-                  key={(b.id || idx) + "-m"}
-                  className="shrink-0 grow-0 basis-full h-full min-w-0"
-                >
-                  {isImageMode(b) ? (
-                    <HeroSlideImage s={b as any} eager={idx === 0} />
-                  ) : (
-                    <HeroSlideAuto s={b} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Arrows */}
