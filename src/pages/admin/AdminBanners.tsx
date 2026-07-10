@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSlide as HeroSlidePreview, type HeroSlide as HeroSlideType } from "@/components/HeroSlider";
