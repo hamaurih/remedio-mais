@@ -7,6 +7,7 @@ import { HeroSlide as HeroSlideAuto, type HeroSlide as HeroSlideType } from "./H
 import { HeroSlideImage } from "./hero/HeroSlideImage";
 import { getHeroSize, type HeroSizeVariant } from "@/lib/heroSizes";
 import { applyVisualModel } from "@/lib/heroVisualModels";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface HeroBannerRow extends HeroSlideType {
   visual_model?: string | null;
