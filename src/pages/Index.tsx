@@ -230,9 +230,9 @@ export default function Index() {
   );
 
   const SECTIONS: Record<string, React.ReactNode> = {
-    promo_ticker: <PromoTicker />,
-    promo_mosaic: <PromoMosaic />,
+    promo_ticker: null, // TopBar agora é global no Layout
     hero_carousel: <HeroPromoCarousel slides={banners as any} />,
+    promo_mosaic: <PromoMosaic />,
     campaign_shelf: <Reveal><CampaignShelf /></Reveal>,
     benefit_cards: <Reveal><BenefitCards /></Reveal>,
     department_carousel: <Reveal><DepartmentCarousel /></Reveal>,
@@ -243,11 +243,10 @@ export default function Index() {
   };
 
   const defaultOrder = [
-    "promo_mosaic",
     "hero_carousel",
-    "promo_ticker",
-    "campaign_shelf",
+    "promo_mosaic",
     "benefit_cards",
+    "campaign_shelf",
     "department_carousel",
     "product_shelves",
     "prescription_cta",

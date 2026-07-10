@@ -1,0 +1,10 @@
+UPDATE public.home_layout SET enabled = false, position = 1 WHERE section_key = 'promo_ticker';
+UPDATE public.home_layout SET position = 10 WHERE section_key = 'hero_carousel';
+UPDATE public.home_layout SET position = 20 WHERE section_key = 'promo_mosaic';
+UPDATE public.home_layout SET position = 30 WHERE section_key = 'benefit_cards';
+UPDATE public.home_layout SET position = 40 WHERE section_key = 'campaign_shelf';
+UPDATE public.home_layout SET position = 50 WHERE section_key = 'department_carousel';
+UPDATE public.home_layout SET position = 60 WHERE section_key = 'product_shelves';
+UPDATE public.home_layout SET position = 70 WHERE section_key = 'prescription_cta';
+UPDATE public.home_layout SET position = 80 WHERE section_key = 'google_rating';
+UPDATE public.home_layout SET position = 90 WHERE section_key = 'location';
