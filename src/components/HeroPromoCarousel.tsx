@@ -43,6 +43,7 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     [slides],
   );
 
+  const isMobile = useIsMobile();
   const first = filtered[0];
   const sizeVariant: HeroSizeVariant = (first?.size_variant as HeroSizeVariant) || "hero-grande";
   const size = getHeroSize(sizeVariant);
