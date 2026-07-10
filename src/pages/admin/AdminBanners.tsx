@@ -213,10 +213,19 @@ export default function AdminBanners() {
       id: editing.id || "preview",
       ...editing,
       image_url: localImg(file) || editing.image_url,
+      desktop_image_url: localImg(file) || editing.desktop_image_url || editing.image_url,
+      tablet_image_url: localImg(tabletFile) || editing.tablet_image_url,
+      mobile_image_url: localImg(mobileFile) || editing.mobile_image_url,
       product_image_url: localImg(productFile) || editing.product_image_url,
       background_image_url: localImg(bgFile) || editing.background_image_url,
     } as HeroSlideType;
-  }, [editing, file, productFile, bgFile]);
+  }, [editing, file, mobileFile, tabletFile, productFile, bgFile]);
+
+  const size = HERO_SIZES[(editing.size_variant as HeroSizeVariant) || "hero-grande"];
+  const deviceWidth = previewDevice === "mobile" ? 380 : previewDevice === "tablet" ? 768 : 1200;
+  const isMobileDevice = previewDevice === "mobile";
+  const previewAspect = isMobileDevice ? size.mobileAspect : size.desktopAspect;
+  const previewMinH = isMobileDevice ? size.mobileMinHeight : size.minHeight;
 
   const showCampaignFields = editing.banner_type === "campaign_pro" || editing.banner_type === "auto_product";
   const pickerKind: PickerKind | null =
@@ -265,15 +274,88 @@ export default function AdminBanners() {
         <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing.id ? "Editar" : "Novo"} banner</DialogTitle></DialogHeader>
 
-          {/* Live preview — same component & sizing as public */}
-          <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="relative w-full h-[440px] md:h-[clamp(300px,32vw,360px)] md:rounded-2xl overflow-hidden">
-              <HeroSlidePreview s={preview} />
+          {/* Device toggle */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Pré-visualizar em:</span>
+            {(["desktop", "tablet", "mobile"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setPreviewDevice(d)}
+                className={`px-3 py-1 rounded-full border ${previewDevice === d ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+              >
+                {d === "desktop" ? "Desktop" : d === "tablet" ? "Tablet" : "Mobile"}
+              </button>
+            ))}
+            <span className="ml-2 text-muted-foreground">
+              Tamanho: {size.label} · {size.desktopAspect}
+            </span>
+          </div>
+
+          {/* Live preview — aspect ratio real do size_variant escolhido */}
+          <div className="rounded-xl border overflow-hidden bg-white flex justify-center py-3">
+            <div
+              className="relative overflow-hidden bg-white rounded-lg shadow"
+              style={{
+                width: `${deviceWidth}px`,
+                maxWidth: "100%",
+                aspectRatio: previewAspect,
+                minHeight: `${previewMinH}px`,
+              }}
+            >
+              {editing.banner_type === "image"
+                ? <HeroSlideImage s={preview as any} eager />
+                : <HeroSlidePreview s={preview} />}
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4 mt-4">
             <div className="space-y-3">
+              {/* --- Configurações do carrossel / hero --- */}
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border bg-muted/30">
+                <div className="space-y-1 col-span-2">
+                  <Label>Modelo visual pronto</Label>
+                  <Select value={editing.visual_model || "auto"} onValueChange={(v) => setEditing({ ...editing, visual_model: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {HERO_VISUAL_MODEL_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          <span className="inline-flex items-center gap-2">
+                            <span className="inline-block h-3 w-3 rounded-full border" style={{ backgroundColor: o.swatch }} />
+                            {o.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label>Tamanho do banner</Label>
+                  <Select value={editing.size_variant || "hero-grande"} onValueChange={(v) => setEditing({ ...editing, size_variant: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {HERO_SIZE_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label} — {o.description}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Autoplay (ms)</Label>
+                  <Input type="number" min={2000} step={500} value={editing.autoplay_delay ?? 4000} onChange={(e) => setEditing({ ...editing, autoplay_delay: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Transição</Label>
+                  <Select value={editing.transition_type || "slide"} onValueChange={(v) => setEditing({ ...editing, transition_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="slide">Slide</SelectItem>
+                      <SelectItem value="fade">Fade</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <Label>Tipo de banner</Label>
                 <Select value={editing.banner_type} onValueChange={(v) => setEditing({ ...editing, banner_type: v })}>
