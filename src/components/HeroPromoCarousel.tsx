@@ -59,15 +59,12 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
   const autoplay = useRef(
-    Autoplay(
-      {
-        delay,
-        stopOnInteraction: false,
-        stopOnMouseEnter: true,
-        stopOnFocusIn: true,
-      },
-      (root) => root.parentElement,
-    ),
+    Autoplay({
+      delay,
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
+      stopOnFocusIn: true,
+    }),
   );
 
   const [emblaRef, emblaApi] = useEmblaCarousel(
