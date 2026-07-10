@@ -256,7 +256,7 @@ export default function Index() {
     "location",
   ];
   const remainingOrder = layout && layout.length > 0
-    ? layout.map((r) => r.section_key).filter((key) => key !== "promo_ticker" && key !== "hero_carousel")
+    ? layout.map((r) => r.section_key).filter((key) => key !== "promo_ticker" && key !== "hero_carousel" && key !== "promo_mini_banner_row")
     : defaultOrder.filter((key) => key !== "hero_carousel" && key !== "promo_mini_banner_row");
   const order = ["hero_carousel", "promo_mini_banner_row", ...remainingOrder];
 
