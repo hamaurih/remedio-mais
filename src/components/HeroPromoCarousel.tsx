@@ -7,6 +7,7 @@ import { HeroSlide as HeroSlideAuto, type HeroSlide as HeroSlideType } from "./H
 import { HeroSlideImage } from "./hero/HeroSlideImage";
 import { getHeroSize, type HeroSizeVariant } from "@/lib/heroSizes";
 import { applyVisualModel } from "@/lib/heroVisualModels";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface HeroBannerRow extends HeroSlideType {
   visual_model?: string | null;
@@ -42,6 +43,7 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     [slides],
   );
 
+  const isMobile = useIsMobile();
   const first = filtered[0];
   const sizeVariant: HeroSizeVariant = (first?.size_variant as HeroSizeVariant) || "hero-grande";
   const size = getHeroSize(sizeVariant);
@@ -116,15 +118,16 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
 
   if (!filtered.length) return null;
 
-  const wrapperStyle: React.CSSProperties = {
-    aspectRatio: size.desktopAspect,
-    minHeight: `${size.minHeight}px`,
-    maxHeight: `${size.maxHeight}px`,
-  };
-  const mobileStyle: React.CSSProperties = {
-    aspectRatio: size.mobileAspect,
-    minHeight: `${size.mobileMinHeight}px`,
-  };
+  const viewportStyle: React.CSSProperties = isMobile
+    ? {
+        aspectRatio: size.mobileAspect,
+        minHeight: `${size.mobileMinHeight}px`,
+      }
+    : {
+        aspectRatio: size.desktopAspect,
+        minHeight: `${size.minHeight}px`,
+        maxHeight: `${size.maxHeight}px`,
+      };
 
   const outerWrap = size.container
     ? "container py-4 md:py-6"
@@ -143,52 +146,36 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
         )}
         tabIndex={0}
         role="region"
-        style={
-          {
-            // usa CSS vars para trocar aspect/min-height entre mobile e desktop
-            ["--hero-aspect" as any]: size.desktopAspect,
-            ["--hero-min-h" as any]: `${size.minHeight}px`,
-            ["--hero-max-h" as any]: `${size.maxHeight}px`,
-            ["--hero-m-aspect" as any]: size.mobileAspect,
-            ["--hero-m-min-h" as any]: `${size.mobileMinHeight}px`,
-          } as React.CSSProperties
-        }
       >
         <div
-          className="w-full"
-          style={{
-            aspectRatio: "var(--hero-m-aspect)",
-            minHeight: "var(--hero-m-min-h)",
-          }}
+          className="w-full overflow-hidden"
+          style={viewportStyle}
+          ref={emblaRef}
         >
-          <div
-            className="h-full w-full overflow-hidden md:[aspect-ratio:var(--hero-aspect)] md:[min-height:var(--hero-min-h)] md:[max-height:var(--hero-max-h)]"
-            ref={emblaRef}
-          >
-            <div className={cn("flex h-full", isFade && "relative")}>
-              {filtered.map((b, idx) => (
-                <div
-                  key={b.id || idx}
-                  className={cn(
-                    "shrink-0 grow-0 basis-full h-full min-w-0",
-                    isFade &&
-                      "absolute inset-0 transition-opacity duration-700 " +
-                        (idx === selected ? "opacity-100 z-10" : "opacity-0 z-0"),
-                  )}
-                  role="group"
-                  aria-roledescription="slide"
-                  aria-label={`Slide ${idx + 1} de ${filtered.length}`}
-                >
-                  {isImageMode(b) ? (
-                    <HeroSlideImage s={b as any} eager={idx === 0} />
-                  ) : (
-                    <HeroSlideAuto s={b} />
-                  )}
-                </div>
-              ))}
-            </div>
+          <div className={cn("flex h-full", isFade && "relative")}>
+            {filtered.map((b, idx) => (
+              <div
+                key={b.id || idx}
+                className={cn(
+                  "shrink-0 grow-0 basis-full h-full min-w-0",
+                  isFade &&
+                    "absolute inset-0 transition-opacity duration-700 " +
+                      (idx === selected ? "opacity-100 z-10" : "opacity-0 z-0"),
+                )}
+                role="group"
+                aria-roledescription="slide"
+                aria-label={`Slide ${idx + 1} de ${filtered.length}`}
+              >
+                {isImageMode(b) ? (
+                  <HeroSlideImage s={b as any} eager={idx === 0} />
+                ) : (
+                  <HeroSlideAuto s={b} />
+                )}
+              </div>
+            ))}
           </div>
         </div>
+
 
 
 
