@@ -177,10 +177,11 @@ export default function Index() {
       {/* Hero carrossel promocional */}
       <HeroPromoCarousel slides={banners as any} />
 
-      <PromoTicker />
-
       {/* Promo mosaic */}
       <PromoMosaic />
+
+      <PromoTicker />
+
 
       {/* Active campaign (if any) */}
       <Reveal><CampaignShelf /></Reveal>
