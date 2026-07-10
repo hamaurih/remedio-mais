@@ -37,11 +37,33 @@ function isActive(b: HeroBannerRow): boolean {
   return true;
 }
 
+const FALLBACK_SLIDES: HeroBannerRow[] = [
+  {
+    id: "fallback-1",
+    banner_type: "campaign_pro",
+    title: "Abasteça sua farmacinha",
+    support_text: "Cuidado completo para sua saúde",
+    legal_text: "Promoção válida enquanto durarem os estoques.",
+    discount_prefix: "com até",
+    discount_percent: 50,
+    discount_suffix: "de desconto",
+    cta_text: "confira",
+    link: "/categoria/ofertas",
+    visual_style: "red-soft",
+    text_position: "left",
+    product_position: "center",
+    animation_type: "float",
+    product_size: "large",
+    show_side_shapes: true,
+  } as HeroBannerRow,
+];
+
 export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
-  const filtered = useMemo(
+  const activeSlides = useMemo(
     () => (slides || []).filter(isActive).map((b) => applyVisualModel(b)),
     [slides],
   );
+  const filtered = activeSlides.length > 0 ? activeSlides : FALLBACK_SLIDES;
 
   const isMobile = useIsMobile();
   const first = filtered[0];
@@ -50,7 +72,9 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
 
   const delay = Math.max(
     2000,
-    Math.min(...filtered.map((b) => b.autoplay_delay || defaultDelay), defaultDelay),
+    filtered.length > 0
+      ? Math.min(...filtered.map((b) => b.autoplay_delay || defaultDelay))
+      : defaultDelay,
   );
 
   const transition = first?.transition_type || "slide";
@@ -73,6 +97,14 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     { loop: true, align: "start", containScroll: "trimSnaps", duration: isFade ? 0 : 28 },
     prefersReducedMotion ? [] : [autoplay.current],
   );
+
+  // Keep autoplay delay in sync with computed delay after banner data loads.
+  useEffect(() => {
+    const ap = autoplay.current as any;
+    if (!ap) return;
+    if (ap.options) ap.options.delay = delay;
+    if (emblaApi && !prefersReducedMotion) ap.reset?.();
+  }, [delay, emblaApi, prefersReducedMotion]);
 
   const [selected, setSelected] = useState(0);
   const [paused, setPaused] = useState(false);
