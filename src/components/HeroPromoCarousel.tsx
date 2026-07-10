@@ -148,7 +148,7 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     }
   };
 
-  if (!filtered.length) return null;
+  // filtered always contains at least the FALLBACK slide
 
   const viewportStyle: React.CSSProperties = isMobile
     ? {
