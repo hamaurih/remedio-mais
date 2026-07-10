@@ -258,6 +258,18 @@ export default function AdminBanners() {
             <div className="font-bold">{b.title}</div>
             <div className="text-xs text-muted-foreground">{b.subtitle}</div>
             <div className="text-xs mt-1">Ordem: {b.position} · {b.active ? "Ativo" : "Inativo"}{b.published === false ? " · Rascunho" : ""}</div>
+            {(b.banner_type || "image") === "image" && !b.desktop_image_url && !b.image_url && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Sem imagem desktop. No desktop vai aparecer com barras laterais vazias. Envie uma imagem horizontal (ex.: 1920×600).</span>
+              </div>
+            )}
+            {(b.banner_type || "image") === "image" && !b.mobile_image_url && (b.desktop_image_url || b.image_url) && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Sem imagem mobile dedicada. Vai usar a versão desktop cortada no celular.</span>
+              </div>
+            )}
             <div className="flex gap-1 mt-3 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => { setEditing({ ...empty, ...b }); setPicked(null); setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
                 <Edit className="h-3 w-3 mr-1" /> Editar
