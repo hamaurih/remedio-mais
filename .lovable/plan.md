@@ -1,95 +1,113 @@
-# Auditoria e Controle de Qualidade — Atacadão dos Medicamentos
+## Refatoração do Banner Principal da Home
 
-Objetivo: mapear tudo que existe hoje, classificar por status (funciona / quebrado / sem uso / precisa melhorar) e sair com um checklist claro para o site entrar em operação real.
+Escopo isolado: apenas componente do hero, admin de banners e schema da tabela `banners`. Nada de checkout, Mercado Pago, Trier, produtos, estoque, pedidos ou menus.
 
-Fiz uma varredura inicial no banco e no código. Números-chave que já mudam a estratégia:
+### 1. Migration segura (aditiva) — tabela `banners`
 
-- **23.474 produtos no total**, mas só **3.904 ativos** e **3.926 com estoque** — o resto é lixo do Trier ocupando o banco.
-- **21.080 produtos sem imagem** (~90%), **2.076 sem EAN**, **723 sem categoria**.
-- **7 pedidos** no total (todos nos últimos 30 dias) — plataforma ainda não está em uso real.
-- **0 tiles no mosaico da home**, **0 prescrições enviadas**, **1 campanha**, **3 banners**, **45 variantes**, **2 clientes**.
+Adicionar colunas novas sem remover nenhuma existente (banners atuais continuam funcionando). Defaults preenchidos para linhas antigas.
 
-Isto é uma auditoria — o entregável é um **relatório** que vou gerar no admin, não uma refatoração cega. Depois você decide o que atacar.
+Novas colunas:
+- `visual_model` text default `'auto'` — modelos: `oferta-semana`, `genericos`, `mundo-infantil`, `mundo-dermo`, `vitaminas`, `higiene-beleza`, `conveniencia`, `primeiros-socorros`, `campanha-vermelha`, `campanha-azul`, `campanha-verde`, `campanha-rosa`, `campanha-escura`
+- `size_variant` text default `'hero-grande'` — `hero-grande`, `hero-medio`, `hero-compacto`, `full-width`, `container`, `banner-categoria`, `mobile-otimizado`
+- `desktop_image_url` text (migra de `image_url`/`background_image_url` para nome canônico; mantém os antigos como fallback)
+- `tablet_image_url` text
+- `image_focus` text default `'center'` — `center`, `left`, `right`, `top`, `bottom`, `product-right`, `text-left`
+- `image_alt` text
+- `badge` text
+- `highlight_price` numeric
+- `secondary_image_url` text
+- `autoplay_delay` int default 4000
+- `transition_type` text default `'slide'` — `slide` | `fade`
+- `linked_product_id` uuid (fk products, on delete set null)
+- `linked_campaign_id` uuid (fk campaigns, on delete set null)
+- `linked_category_id` uuid (fk categories, on delete set null)
+- Renomeações lógicas via views/aliases no código: `sort_order` = `position` existente, `starts_at` = `start_date`, `ends_at` = `end_date`, `cta_url` = `link`
 
----
+`banner_type` passa a aceitar: `auto` (produto/campanha montado no frontend), `image` (imagem pronta), `category`, `institutional`, `offer-price`, `offer-percent`.
 
-## Fase 1 — Diagnóstico automático (o que vou construir agora)
+RLS existente preservada. GRANTs revalidados.
 
-Criar **`/admin/auditoria`**, uma página única de controle de qualidade que consolida:
+### 2. Novo componente `HeroPromoCarousel`
 
-### 1.1 Saúde do catálogo
-- Ativos vs inativos vs sem estoque (do jeito que já mostra no Data Quality, mas somando tudo).
-- Produtos "zumbis": inativos + sem estoque + sem venda nunca → candidatos a arquivar.
-- Duplicados por EAN e por nome.
-- Produtos com preço promocional inválido (promo ≥ preço, promo negativo).
-- Fotos quebradas (image_url apontando para URL que retorna 404) — verificação por amostragem.
+Arquivo: `src/components/HeroPromoCarousel.tsx` (substitui uso de `HeroSlider` só em `Index.tsx`; `HeroSlider` fica no repositório mas sem consumidores).
 
-### 1.2 Saúde das páginas públicas
-Checklist automático rodando contra cada rota (`/`, `/departamentos`, `/categoria/*`, `/produto/*`, `/carrinho`, `/checkout`, `/enviar-receita`, `/minha-conta`, `/auth`):
-- Renderiza sem erro de console?
-- Requests para `products` retornam dados?
-- SEO mínimo (title, description, H1)?
+Base técnica:
+- `embla-carousel-react` + `embla-carousel-autoplay` (já disponíveis via shadcn carousel; instalar autoplay se faltar)
+- Autoplay 4000ms (configurável por banner, usa menor delay entre slides como fallback global)
+- Loop infinito, swipe mobile, setas + dots
+- Pausa em hover, foco de teclado e enquanto o usuário interage com controles
+- Transição slide ou fade (className condicional)
+- `aria-label` em setas, dots, "Pausar/Retomar" toggle
+- Primeira slide com `loading="eager"` + `fetchpriority="high"`, demais com `loading="lazy"`
+- `aspect-ratio` no wrapper conforme `size_variant` para evitar layout shift
 
-### 1.3 Saúde do admin
-Lista das 26 páginas admin com:
-- Última vez que foi acessada (via logs).
-- Se ainda faz sentido existir (ex.: `AdminBannerGenerator`, `AdminHomeDiagnostics`, `AdminProductsReconcile` — provavelmente sobras de setup).
-- Se depende de dado que não existe (ex.: `AdminPrescriptions` com 0 prescrições, `AdminMosaic` com 0 tiles).
+Cada slide delega a um sub-renderer:
+- `<HeroSlideAuto />` — layout profissional com título, subtítulo, badge, preço/desconto, CTA, imagem do produto/campanha, aplicando `visual_model` (paleta + tipografia + composição) e `text_position` / `product_position`
+- `<HeroSlideImage />` — apenas imagem pronta com `object-fit` conforme `image_fit` e `object-position` conforme `image_focus`; usa `mobile_image_url` no mobile, `tablet_image_url` no tablet, `desktop_image_url` no desktop
+- `<HeroSlideCategory />` / `<HeroSlideOffer />` — variantes do auto com composições fixas
 
-### 1.4 Saúde das integrações
-- **Trier**: última sincronização, taxa de erro nos últimos 7 dias, produtos bloqueados por `lock_manual_price`/`lock_manual_stock`.
-- **Mercado Pago**: pedidos com `payment_status` travado, webhooks recebidos vs esperados.
-- **WhatsApp Agent**: se está sendo chamado.
-- **Google Maps**: se as chaves estão ativas.
+Responsividade: composições separadas para mobile (produto centralizado, título reduzido, CTA cheio de largura) e desktop; nunca só reduzir escala.
 
-### 1.5 Edge Functions
-Para cada uma das 13 functions: última invocação, taxa de erro, tempo médio. Marca como "sem uso há 30d" as candidatas a remover.
+### 3. Modelos visuais (`src/lib/heroVisualModels.ts`)
 
-### 1.6 Segurança e RLS
-Rodar o linter do banco e listar tabelas sem policy adequada, GRANTs faltando (foi o problema de ontem com `products`), e políticas permissivas demais.
+Tabela declarativa mapeando `visual_model` → tokens: `background`, `accent`, `titleClass`, `subtitleClass`, `buttonClass`, `decor` (shapes SVG discretos). Todos usam design tokens do `index.css` — sem cores hardcoded.
 
----
+13 modelos listados no pedido, cada um com paleta pronta (vermelho campanha, azul saúde, verde natural, rosa infantil, dark fitness, etc.).
 
-## Fase 2 — Relatório enxuto (o que você vai ler)
+### 4. Tamanhos (`src/lib/heroSizes.ts`)
 
-Depois que a página rodar, gero um resumo em 1 tela dividido em 4 blocos:
+Mapeia `size_variant` → `{ desktopAspect, minH, maxH, mobileAspect, container }`. Aplicado via classes Tailwind e style inline para `aspect-ratio`.
 
-| Bloco | O que mostra |
-|---|---|
-| ✅ **Funcionando** | Módulos com dados, sem erro, com uso recente |
-| ⚠️ **Precisa melhorar** | Funciona mas com problema de qualidade (ex.: 90% sem foto) |
-| ❌ **Quebrado** | Erro em produção, integração falhando, dado inconsistente |
-| 🗑️ **Ocupando espaço** | Páginas/tabelas/functions sem uso — candidatas a remover |
+### 5. Admin — `AdminBanners.tsx`
 
-Cada item vira uma linha acionável com botão "corrigir" ou "arquivar".
+Reformar o formulário existente adicionando:
+- Select "Tipo de banner" (6 opções)
+- Select "Modelo visual" (13 opções, com swatch de cor)
+- Select "Tamanho do banner" (7 opções, com preview de proporção)
+- Upload separado desktop / tablet / mobile (bucket `banners` já existe), com aviso de peso do arquivo (>1.5MB desktop, >800KB mobile)
+- Recomendação de dimensões visível ao lado de cada upload
+- Select "Encaixe da imagem" e "Foco da imagem"
+- Campos de autoplay (delay, transição) por banner
+- Datas início/fim, ordem, ativo, publicado (já existem — reorganizar)
+- Campos condicionais: modo `image` esconde título/preço/CTA construído; modo `auto` esconde encaixe/foco
 
----
+Novo `<HeroBannerPreview />`:
+- Toggle Desktop / Tablet / Mobile
+- Renderiza o mesmo `HeroSlideAuto` / `HeroSlideImage` do frontend com os valores do form em tempo real
+- Mostra proporção real do `size_variant` escolhido
 
-## Fase 3 — Limpeza guiada (só depois de você aprovar item por item)
+### 6. Acessibilidade & performance
 
-Nada será deletado sem sua confirmação. Ações típicas que vão aparecer:
+- `alt` obrigatório para modo imagem (input `image_alt`)
+- Navegação por teclado (setas ←/→, Espaço pausa)
+- Botão "Pausar autoplay" visível em foco
+- `prefers-reduced-motion` desativa autoplay
+- Primeira imagem preload; resto lazy
+- Aspect-ratio fixo por `size_variant` evita CLS
 
-- **Arquivar em massa** os ~19.500 produtos sem estoque e sem venda (mover para `archived=true`, não deletar).
-- **Remover páginas admin não usadas** (ex.: geradores/diagnósticos de setup).
-- **Desligar edge functions órfãs**.
-- **Consertar SEO faltando** (title/description por página).
-- **Fechar buracos de RLS/GRANT** que o linter apontar.
+### 7. Arquivos afetados
 
----
+**Criados:**
+- `src/components/HeroPromoCarousel.tsx`
+- `src/components/hero/HeroSlideAuto.tsx`
+- `src/components/hero/HeroSlideImage.tsx`
+- `src/components/hero/HeroBannerPreview.tsx`
+- `src/lib/heroVisualModels.ts`
+- `src/lib/heroSizes.ts`
+- `supabase/migrations/<timestamp>_banner_pro_refactor.sql`
 
-## Detalhes técnicos
+**Editados:**
+- `src/pages/Index.tsx` (troca `HeroSlider` por `HeroPromoCarousel`)
+- `src/pages/admin/AdminBanners.tsx` (novo form + preview)
 
-- Nova página: `src/pages/admin/AdminAudit.tsx` + rota em `AdminLayout`.
-- Nova edge function `audit-report` (SECURITY DEFINER) que roda todas as queries pesadas server-side e devolve JSON agregado — assim o admin não bate 20 queries do browser.
-- Reaproveita o que já existe em `AdminDataQuality`, `AdminHomeDiagnostics`, `AdminStock` — não duplica lógica, só consolida.
-- Não mexe em nada de storefront nesta fase.
+**Intocados:** checkout, MP, Trier, produtos, estoque, pedidos, menus, header, footer.
 
----
+### 8. Compatibilidade
 
-## Fora do escopo desta primeira entrega
+Banners existentes carregam com `visual_model='auto'` e `size_variant='hero-grande'` por default; `desktop_image_url` recebe fallback de `image_url`/`background_image_url` via COALESCE no SELECT do componente. Nenhum banner atual quebra.
 
-- Refatoração de código (só diagnostica).
-- Remoção efetiva de qualquer arquivo/tabela (só lista candidatos).
-- Redesign visual.
+### Perguntas antes de executar
 
-Se aprovar, começo pela Fase 1 e te entrego a página `/admin/auditoria` já populada com dados reais. Depois vamos item por item nas Fases 2 e 3.
+1. Instalo `embla-carousel-autoplay` (pequena dep, ~2KB) ou implemento autoplay manual com `setInterval` sobre o carousel do shadcn já presente?
+2. Aplico defaults nas linhas existentes (todos viram `hero-grande` + `auto`) ou deixo `NULL` e trato no frontend?
+3. Mantenho `HeroSlider.tsx` no repo como legado, ou removo já que ninguém mais usa?

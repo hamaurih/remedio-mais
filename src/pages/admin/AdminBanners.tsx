@@ -12,7 +12,10 @@ import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSlide as HeroSlidePreview, type HeroSlide as HeroSlideType } from "@/components/HeroSlider";
+import { HeroSlideImage } from "@/components/hero/HeroSlideImage";
 import { EntityPicker, type PickedEntity, type PickerKind } from "@/components/admin/EntityPicker";
+import { HERO_SIZE_OPTIONS, HERO_SIZES, type HeroSizeVariant } from "@/lib/heroSizes";
+import { HERO_VISUAL_MODEL_OPTIONS } from "@/lib/heroVisualModels";
 
 const PLACEMENTS = [
   { v: "hero", l: "Hero principal" },
@@ -88,15 +91,17 @@ const LINK_KINDS = [
 
 const empty: any = {
   id: "", title: "", subtitle: "", cta_text: "confira", image_url: "", mobile_image_url: "",
+  tablet_image_url: "", desktop_image_url: "", image_alt: "",
   link: "", position: 0, placement: "hero", active: true, start_date: null, end_date: null,
   banner_type: "image", published: true, support_text: "", legal_text: "",
   discount_percent: null, discount_prefix: "com até", discount_suffix: "de desconto",
   product_image_url: "", background_image_url: "", background_color: "", accent_color: "", button_color: "",
   product_position: "center", text_position: "left", visual_style: "red-soft",
   linked_entity_type: "manual", linked_entity_id: null, linked_entity_slug: "",
-  animation_type: "float", show_text_over_image: false, image_fit: "cover",
+  animation_type: "float", show_text_over_image: false, image_fit: "cover", image_focus: "center",
   product_size: "large", show_side_shapes: true, side_shapes_color: "", side_shapes_size: "medium", background_intensity: "xsoft",
   title_font: "default", title_size: "lg", title_color: "", support_color: "", legal_color: "",
+  visual_model: "auto", size_variant: "hero-grande", autoplay_delay: 4000, transition_type: "slide",
 };
 
 export default function AdminBanners() {
@@ -105,9 +110,11 @@ export default function AdminBanners() {
   const [editing, setEditing] = useState<any>(empty);
   const [file, setFile] = useState<File | null>(null);
   const [mobileFile, setMobileFile] = useState<File | null>(null);
+  const [tabletFile, setTabletFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
   const [bgFile, setBgFile] = useState<File | null>(null);
   const [picked, setPicked] = useState<PickedEntity | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const { data } = useQuery({
     queryKey: ["admin_banners"],
@@ -125,17 +132,25 @@ export default function AdminBanners() {
     try {
       let image_url = editing.image_url;
       let mobile_image_url = editing.mobile_image_url;
+      let tablet_image_url = editing.tablet_image_url;
       let product_image_url = editing.product_image_url;
       let background_image_url = editing.background_image_url;
       if (file) image_url = await upload(file);
       if (mobileFile) mobile_image_url = await upload(mobileFile);
+      if (tabletFile) tablet_image_url = await upload(tabletFile);
       if (productFile) product_image_url = await upload(productFile);
       if (bgFile) background_image_url = await upload(bgFile);
 
       const payload: any = {
         ...editing,
-        image_url, mobile_image_url, product_image_url, background_image_url,
+        image_url,
+        mobile_image_url,
+        tablet_image_url,
+        product_image_url,
+        background_image_url,
+        desktop_image_url: editing.desktop_image_url || image_url || null,
         position: Number(editing.position) || 0,
+        autoplay_delay: Math.max(2000, Number(editing.autoplay_delay) || 4000),
         discount_percent: editing.discount_percent === "" || editing.discount_percent == null ? null : Number(editing.discount_percent),
         start_date: editing.start_date || null,
         end_date: editing.end_date || null,
@@ -155,7 +170,7 @@ export default function AdminBanners() {
       toast.success("Salvo");
       qc.invalidateQueries({ queryKey: ["admin_banners"] });
       setOpen(false);
-      setFile(null); setMobileFile(null); setProductFile(null); setBgFile(null);
+      setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -198,10 +213,19 @@ export default function AdminBanners() {
       id: editing.id || "preview",
       ...editing,
       image_url: localImg(file) || editing.image_url,
+      desktop_image_url: localImg(file) || editing.desktop_image_url || editing.image_url,
+      tablet_image_url: localImg(tabletFile) || editing.tablet_image_url,
+      mobile_image_url: localImg(mobileFile) || editing.mobile_image_url,
       product_image_url: localImg(productFile) || editing.product_image_url,
       background_image_url: localImg(bgFile) || editing.background_image_url,
     } as HeroSlideType;
-  }, [editing, file, productFile, bgFile]);
+  }, [editing, file, mobileFile, tabletFile, productFile, bgFile]);
+
+  const size = HERO_SIZES[(editing.size_variant as HeroSizeVariant) || "hero-grande"];
+  const deviceWidth = previewDevice === "mobile" ? 380 : previewDevice === "tablet" ? 768 : 1200;
+  const isMobileDevice = previewDevice === "mobile";
+  const previewAspect = isMobileDevice ? size.mobileAspect : size.desktopAspect;
+  const previewMinH = isMobileDevice ? size.mobileMinHeight : size.minHeight;
 
   const showCampaignFields = editing.banner_type === "campaign_pro" || editing.banner_type === "auto_product";
   const pickerKind: PickerKind | null =
@@ -217,7 +241,7 @@ export default function AdminBanners() {
           <Button variant="outline" asChild>
             <Link to="/admin/banners/gerador"><Wand2 className="h-4 w-4 mr-2" /> Gerador de Banner</Link>
           </Button>
-          <Button onClick={() => { setEditing(empty); setPicked(null); setFile(null); setMobileFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
+          <Button onClick={() => { setEditing(empty); setPicked(null); setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Novo
           </Button>
         </div>
@@ -235,7 +259,7 @@ export default function AdminBanners() {
             <div className="text-xs text-muted-foreground">{b.subtitle}</div>
             <div className="text-xs mt-1">Ordem: {b.position} · {b.active ? "Ativo" : "Inativo"}{b.published === false ? " · Rascunho" : ""}</div>
             <div className="flex gap-1 mt-3 flex-wrap">
-              <Button size="sm" variant="outline" onClick={() => { setEditing({ ...empty, ...b }); setPicked(null); setFile(null); setMobileFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
+              <Button size="sm" variant="outline" onClick={() => { setEditing({ ...empty, ...b }); setPicked(null); setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
                 <Edit className="h-3 w-3 mr-1" /> Editar
               </Button>
               <Button size="icon" variant="ghost" onClick={() => reorder(b, -1)}><ArrowUp className="h-3 w-3" /></Button>
@@ -250,15 +274,88 @@ export default function AdminBanners() {
         <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing.id ? "Editar" : "Novo"} banner</DialogTitle></DialogHeader>
 
-          {/* Live preview — same component & sizing as public */}
-          <div className="rounded-xl border overflow-hidden bg-white">
-            <div className="relative w-full h-[440px] md:h-[clamp(300px,32vw,360px)] md:rounded-2xl overflow-hidden">
-              <HeroSlidePreview s={preview} />
+          {/* Device toggle */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Pré-visualizar em:</span>
+            {(["desktop", "tablet", "mobile"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setPreviewDevice(d)}
+                className={`px-3 py-1 rounded-full border ${previewDevice === d ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+              >
+                {d === "desktop" ? "Desktop" : d === "tablet" ? "Tablet" : "Mobile"}
+              </button>
+            ))}
+            <span className="ml-2 text-muted-foreground">
+              Tamanho: {size.label} · {size.desktopAspect}
+            </span>
+          </div>
+
+          {/* Live preview — aspect ratio real do size_variant escolhido */}
+          <div className="rounded-xl border overflow-hidden bg-white flex justify-center py-3">
+            <div
+              className="relative overflow-hidden bg-white rounded-lg shadow"
+              style={{
+                width: `${deviceWidth}px`,
+                maxWidth: "100%",
+                aspectRatio: previewAspect,
+                minHeight: `${previewMinH}px`,
+              }}
+            >
+              {editing.banner_type === "image"
+                ? <HeroSlideImage s={preview as any} eager />
+                : <HeroSlidePreview s={preview} />}
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4 mt-4">
             <div className="space-y-3">
+              {/* --- Configurações do carrossel / hero --- */}
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border bg-muted/30">
+                <div className="space-y-1 col-span-2">
+                  <Label>Modelo visual pronto</Label>
+                  <Select value={editing.visual_model || "auto"} onValueChange={(v) => setEditing({ ...editing, visual_model: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {HERO_VISUAL_MODEL_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          <span className="inline-flex items-center gap-2">
+                            <span className="inline-block h-3 w-3 rounded-full border" style={{ backgroundColor: o.swatch }} />
+                            {o.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label>Tamanho do banner</Label>
+                  <Select value={editing.size_variant || "hero-grande"} onValueChange={(v) => setEditing({ ...editing, size_variant: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {HERO_SIZE_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label} — {o.description}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Autoplay (ms)</Label>
+                  <Input type="number" min={2000} step={500} value={editing.autoplay_delay ?? 4000} onChange={(e) => setEditing({ ...editing, autoplay_delay: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Transição</Label>
+                  <Select value={editing.transition_type || "slide"} onValueChange={(v) => setEditing({ ...editing, transition_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="slide">Slide</SelectItem>
+                      <SelectItem value="fade">Fade</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <Label>Tipo de banner</Label>
                 <Select value={editing.banner_type} onValueChange={(v) => setEditing({ ...editing, banner_type: v })}>
@@ -430,28 +527,72 @@ export default function AdminBanners() {
 
               {editing.banner_type === "image" && (
                 <>
-                  <div className="space-y-1">
-                    <Label>Imagem desktop</Label>
-                    {editing.image_url && <img src={editing.image_url} className="w-full h-24 object-cover rounded mb-1" />}
-                    <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Imagem mobile</Label>
-                    {editing.mobile_image_url && <img src={editing.mobile_image_url} className="w-32 h-24 object-cover rounded mb-1" />}
-                    <Input type="file" accept="image/*" onChange={(e) => setMobileFile(e.target.files?.[0] || null)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label>Ajuste da imagem</Label>
-                      <Select value={editing.image_fit} onValueChange={(v) => setEditing({ ...editing, image_fit: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cover">Cobrir (cover)</SelectItem>
-                          <SelectItem value="contain">Conter (contain)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Banner por imagem pronta
                     </div>
-                    <div className="flex items-end gap-2"><Switch checked={!!editing.show_text_over_image} onCheckedChange={(v) => setEditing({ ...editing, show_text_over_image: v })} /><Label>Texto sobre imagem</Label></div>
+                    <div className="space-y-1">
+                      <Label>Imagem desktop <span className="text-xs text-muted-foreground">(recomendado: 1920×600 · até 1.5MB · WEBP/PNG/JPG)</span></Label>
+                      {editing.image_url && <img src={editing.image_url} className="w-full h-24 object-cover rounded mb-1" />}
+                      <Input type="file" accept="image/*" onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setFile(f);
+                        if (f && f.size > 1.5 * 1024 * 1024) toast.warning("Imagem desktop pesada (>1.5MB). Pode deixar o site lento.");
+                      }} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Imagem tablet (opcional) <span className="text-xs text-muted-foreground">(1200×800)</span></Label>
+                      {editing.tablet_image_url && <img src={editing.tablet_image_url} className="w-40 h-24 object-cover rounded mb-1" />}
+                      <Input type="file" accept="image/*" onChange={(e) => setTabletFile(e.target.files?.[0] || null)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Imagem mobile (opcional) <span className="text-xs text-muted-foreground">(1080×1350 ou 1080×1080 · até 800KB)</span></Label>
+                      {editing.mobile_image_url && <img src={editing.mobile_image_url} className="w-32 h-32 object-cover rounded mb-1" />}
+                      <Input type="file" accept="image/*" onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setMobileFile(f);
+                        if (f && f.size > 800 * 1024) toast.warning("Imagem mobile pesada (>800KB). Pode deixar o site lento.");
+                      }} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Texto alternativo da imagem (acessibilidade)</Label>
+                      <Input value={editing.image_alt || ""} onChange={(e) => setEditing({ ...editing, image_alt: e.target.value })} placeholder="Ex: Ofertas da semana com até 50% de desconto" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label>Encaixe da imagem</Label>
+                        <Select value={editing.image_fit || "cover"} onValueChange={(v) => setEditing({ ...editing, image_fit: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cover">Cobrir área</SelectItem>
+                            <SelectItem value="contain">Conter imagem inteira</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Foco da imagem</Label>
+                        <Select value={editing.image_focus || "center"} onValueChange={(v) => setEditing({ ...editing, image_focus: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="center">Centro</SelectItem>
+                            <SelectItem value="left">Esquerda</SelectItem>
+                            <SelectItem value="right">Direita</SelectItem>
+                            <SelectItem value="top">Topo</SelectItem>
+                            <SelectItem value="bottom">Base</SelectItem>
+                            <SelectItem value="product-right">Produto à direita</SelectItem>
+                            <SelectItem value="text-left">Texto à esquerda</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={!!editing.show_text_over_image} onCheckedChange={(v) => setEditing({ ...editing, show_text_over_image: v })} />
+                      <Label>Texto sobre imagem (para artes que já não têm texto embutido)</Label>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Link de destino</Label>
+                      <Input value={editing.link || ""} onChange={(e) => setEditing({ ...editing, link: e.target.value })} placeholder="/categoria/ofertas" />
+                    </div>
                   </div>
                 </>
               )}
