@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
+import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSlide as HeroSlidePreview, type HeroSlide as HeroSlideType } from "@/components/HeroSlider";
@@ -258,6 +258,18 @@ export default function AdminBanners() {
             <div className="font-bold">{b.title}</div>
             <div className="text-xs text-muted-foreground">{b.subtitle}</div>
             <div className="text-xs mt-1">Ordem: {b.position} · {b.active ? "Ativo" : "Inativo"}{b.published === false ? " · Rascunho" : ""}</div>
+            {(b.banner_type || "image") === "image" && !b.desktop_image_url && !b.image_url && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Sem imagem desktop. No desktop vai aparecer com barras laterais vazias. Envie uma imagem horizontal (ex.: 1920×600).</span>
+              </div>
+            )}
+            {(b.banner_type || "image") === "image" && !b.mobile_image_url && (b.desktop_image_url || b.image_url) && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Sem imagem mobile dedicada. Vai usar a versão desktop cortada no celular.</span>
+              </div>
+            )}
             <div className="flex gap-1 mt-3 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => { setEditing({ ...empty, ...b }); setPicked(null); setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
                 <Edit className="h-3 w-3 mr-1" /> Editar
@@ -531,6 +543,24 @@ export default function AdminBanners() {
                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Banner por imagem pronta
                     </div>
+                    {!file && !editing.image_url && !editing.desktop_image_url && (
+                      <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold">Falta a imagem desktop.</div>
+                          Sem ela, no desktop o banner aparece com grandes barras laterais vazias, porque a imagem mobile é retrato (vertical) e o hero é horizontal. Envie uma imagem horizontal (recomendado <strong>1920×600</strong>).
+                        </div>
+                      </div>
+                    )}
+                    {!mobileFile && !editing.mobile_image_url && (file || editing.image_url || editing.desktop_image_url) && (
+                      <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold">Sem imagem mobile dedicada.</div>
+                          O celular vai usar a imagem desktop cortada, o que pode esconder texto importante. Envie uma versão vertical (recomendado <strong>1080×1350</strong>).
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <Label>Imagem desktop <span className="text-xs text-muted-foreground">(recomendado: 1920×600 · até 1.5MB · WEBP/PNG/JPG)</span></Label>
                       {editing.image_url && <img src={editing.image_url} className="w-full h-24 object-cover rounded mb-1" />}
