@@ -189,7 +189,8 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
             </div>
           </div>
         </div>
-        </div>
+
+
 
         {/* Arrows */}
         {filtered.length > 1 && (
