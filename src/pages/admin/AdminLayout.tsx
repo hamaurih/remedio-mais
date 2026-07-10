@@ -17,6 +17,7 @@ const items: Item[] = [
   { to: "/admin/menus", label: "Menus", icon: MenuIcon, roles: ["admin"] },
   { to: "/admin/banners", label: "Banners", icon: ImageIcon, roles: ["admin"] },
   { to: "/admin/mosaico", label: "Mosaico Home", icon: LayoutGrid, roles: ["admin"] },
+  { to: "/admin/layout-home", label: "Layout da Home", icon: LayoutGrid, roles: ["admin"] },
   { to: "/admin/promo-banner", label: "Faixa Promo (5 blocos)", icon: Tag, roles: ["admin"] },
   { to: "/admin/campanhas", label: "Campanhas", icon: Megaphone, roles: ["admin"] },
   { to: "/admin/ofertas", label: "Ofertas", icon: Tag, roles: ["admin"] },
