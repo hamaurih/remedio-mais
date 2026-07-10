@@ -1,0 +1,1 @@
+UPDATE public.home_layout SET position = 5, enabled = true WHERE section_key = 'promo_ticker';
