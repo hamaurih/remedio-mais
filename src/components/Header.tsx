@@ -17,7 +17,6 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
-      <PromoTicker />
 
       <div className="container py-3">
         <div className="flex items-center gap-3">
