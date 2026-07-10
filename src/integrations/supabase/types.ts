@@ -598,6 +598,36 @@ export type Database = {
         }
         Relationships: []
       }
+      home_layout: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          position: number
+          section_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          position: number
+          section_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          position?: number
+          section_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       home_mosaic_tiles: {
         Row: {
           active: boolean
