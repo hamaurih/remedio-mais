@@ -103,26 +103,35 @@ export type Database = {
           accent_color: string | null
           active: boolean
           animation_type: string
+          autoplay_delay: number
           background_color: string | null
           background_image_url: string | null
           background_intensity: string | null
+          badge: string | null
           banner_type: string
           button_color: string | null
           created_at: string
           cta_text: string | null
+          desktop_image_url: string | null
           discount_percent: number | null
           discount_prefix: string | null
           discount_suffix: string | null
           end_date: string | null
+          highlight_price: number | null
           id: string
+          image_alt: string | null
           image_fit: string
+          image_focus: string
           image_url: string | null
           legal_color: string | null
           legal_text: string | null
           link: string | null
+          linked_campaign_id: string | null
+          linked_category_id: string | null
           linked_entity_id: string | null
           linked_entity_slug: string | null
           linked_entity_type: string | null
+          linked_product_id: string | null
           mobile_image_url: string | null
           placement: string
           position: number
@@ -130,46 +139,60 @@ export type Database = {
           product_position: string
           product_size: string | null
           published: boolean
+          secondary_image_url: string | null
           show_side_shapes: boolean | null
           show_text_over_image: boolean
           side_shapes_color: string | null
           side_shapes_size: string | null
+          size_variant: string
           start_date: string | null
           subtitle: string | null
           support_color: string | null
           support_text: string | null
+          tablet_image_url: string | null
           text_position: string
           title: string | null
           title_color: string | null
           title_font: string | null
           title_size: string | null
+          transition_type: string
           updated_at: string
+          visual_model: string
           visual_style: string
         }
         Insert: {
           accent_color?: string | null
           active?: boolean
           animation_type?: string
+          autoplay_delay?: number
           background_color?: string | null
           background_image_url?: string | null
           background_intensity?: string | null
+          badge?: string | null
           banner_type?: string
           button_color?: string | null
           created_at?: string
           cta_text?: string | null
+          desktop_image_url?: string | null
           discount_percent?: number | null
           discount_prefix?: string | null
           discount_suffix?: string | null
           end_date?: string | null
+          highlight_price?: number | null
           id?: string
+          image_alt?: string | null
           image_fit?: string
+          image_focus?: string
           image_url?: string | null
           legal_color?: string | null
           legal_text?: string | null
           link?: string | null
+          linked_campaign_id?: string | null
+          linked_category_id?: string | null
           linked_entity_id?: string | null
           linked_entity_slug?: string | null
           linked_entity_type?: string | null
+          linked_product_id?: string | null
           mobile_image_url?: string | null
           placement?: string
           position?: number
@@ -177,46 +200,60 @@ export type Database = {
           product_position?: string
           product_size?: string | null
           published?: boolean
+          secondary_image_url?: string | null
           show_side_shapes?: boolean | null
           show_text_over_image?: boolean
           side_shapes_color?: string | null
           side_shapes_size?: string | null
+          size_variant?: string
           start_date?: string | null
           subtitle?: string | null
           support_color?: string | null
           support_text?: string | null
+          tablet_image_url?: string | null
           text_position?: string
           title?: string | null
           title_color?: string | null
           title_font?: string | null
           title_size?: string | null
+          transition_type?: string
           updated_at?: string
+          visual_model?: string
           visual_style?: string
         }
         Update: {
           accent_color?: string | null
           active?: boolean
           animation_type?: string
+          autoplay_delay?: number
           background_color?: string | null
           background_image_url?: string | null
           background_intensity?: string | null
+          badge?: string | null
           banner_type?: string
           button_color?: string | null
           created_at?: string
           cta_text?: string | null
+          desktop_image_url?: string | null
           discount_percent?: number | null
           discount_prefix?: string | null
           discount_suffix?: string | null
           end_date?: string | null
+          highlight_price?: number | null
           id?: string
+          image_alt?: string | null
           image_fit?: string
+          image_focus?: string
           image_url?: string | null
           legal_color?: string | null
           legal_text?: string | null
           link?: string | null
+          linked_campaign_id?: string | null
+          linked_category_id?: string | null
           linked_entity_id?: string | null
           linked_entity_slug?: string | null
           linked_entity_type?: string | null
+          linked_product_id?: string | null
           mobile_image_url?: string | null
           placement?: string
           position?: number
@@ -224,23 +261,50 @@ export type Database = {
           product_position?: string
           product_size?: string | null
           published?: boolean
+          secondary_image_url?: string | null
           show_side_shapes?: boolean | null
           show_text_over_image?: boolean
           side_shapes_color?: string | null
           side_shapes_size?: string | null
+          size_variant?: string
           start_date?: string | null
           subtitle?: string | null
           support_color?: string | null
           support_text?: string | null
+          tablet_image_url?: string | null
           text_position?: string
           title?: string | null
           title_color?: string | null
           title_font?: string | null
           title_size?: string | null
+          transition_type?: string
           updated_at?: string
+          visual_model?: string
           visual_style?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "banners_linked_campaign_fk"
+            columns: ["linked_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banners_linked_category_fk"
+            columns: ["linked_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banners_linked_product_fk"
+            columns: ["linked_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campaign_products: {
         Row: {
