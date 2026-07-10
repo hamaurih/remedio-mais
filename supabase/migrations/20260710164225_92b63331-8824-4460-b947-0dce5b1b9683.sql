@@ -1,0 +1,1 @@
+UPDATE public.home_layout SET position = 25 WHERE section_key = 'promo_mosaic';
