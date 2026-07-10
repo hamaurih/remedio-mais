@@ -170,7 +170,7 @@ export default function AdminBanners() {
       toast.success("Salvo");
       qc.invalidateQueries({ queryKey: ["admin_banners"] });
       setOpen(false);
-      setFile(null); setMobileFile(null); setProductFile(null); setBgFile(null);
+      setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -232,7 +232,7 @@ export default function AdminBanners() {
           <Button variant="outline" asChild>
             <Link to="/admin/banners/gerador"><Wand2 className="h-4 w-4 mr-2" /> Gerador de Banner</Link>
           </Button>
-          <Button onClick={() => { setEditing(empty); setPicked(null); setFile(null); setMobileFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
+          <Button onClick={() => { setEditing(empty); setPicked(null); setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Novo
           </Button>
         </div>
@@ -250,7 +250,7 @@ export default function AdminBanners() {
             <div className="text-xs text-muted-foreground">{b.subtitle}</div>
             <div className="text-xs mt-1">Ordem: {b.position} · {b.active ? "Ativo" : "Inativo"}{b.published === false ? " · Rascunho" : ""}</div>
             <div className="flex gap-1 mt-3 flex-wrap">
-              <Button size="sm" variant="outline" onClick={() => { setEditing({ ...empty, ...b }); setPicked(null); setFile(null); setMobileFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
+              <Button size="sm" variant="outline" onClick={() => { setEditing({ ...empty, ...b }); setPicked(null); setFile(null); setMobileFile(null); setTabletFile(null); setProductFile(null); setBgFile(null); setOpen(true); }}>
                 <Edit className="h-3 w-3 mr-1" /> Editar
               </Button>
               <Button size="icon" variant="ghost" onClick={() => reorder(b, -1)}><ArrowUp className="h-3 w-3" /></Button>
