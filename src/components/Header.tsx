@@ -3,7 +3,6 @@ import { ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { PromoTicker } from "./PromoTicker";
 import { CategoryNav } from "./CategoryNav";
 import { SearchAutocomplete } from "./SearchAutocomplete";
 import logoRed from "@/assets/logo-red.png";
