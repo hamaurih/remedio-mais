@@ -148,31 +148,37 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Dados legais */}
-      <div className="border-t bg-background/60">
-        <div className="container py-6 grid gap-6 md:grid-cols-12 text-xs text-muted-foreground">
-          <div className="md:col-span-7 space-y-1 leading-relaxed">
-            {s?.legal_name && <div><span className="font-semibold text-foreground">Razão social:</span> {s.legal_name}</div>}
-            {s?.cnpj && <div><span className="font-semibold text-foreground">CNPJ:</span> {s.cnpj}</div>}
-            {s?.state_registration && <div><span className="font-semibold text-foreground">Inscrição Estadual:</span> {s.state_registration}</div>}
-            {(s?.pharmacist_name || s?.crf) && (
-              <div>
-                <span className="font-semibold text-foreground">Farmacêutico responsável:</span>{" "}
-                {s?.pharmacist_name}{s?.crf ? ` — ${s.crf}` : ""}
-              </div>
+      {/* Aviso sanitário — faixa discreta */}
+      <div className="border-t bg-muted/30">
+        <div className="container py-4 text-center text-xs text-muted-foreground max-w-4xl leading-relaxed">
+          Imagens meramente ilustrativas. Preços e promoções sujeitos a alterações e à disponibilidade de estoque.
+          Medicamentos com receita ou controle especial passam por análise farmacêutica antes da liberação.{" "}
+          <strong className="text-foreground">Não se automedique. Consulte um profissional de saúde.</strong>
+        </div>
+      </div>
+
+      {/* Dados legais — grid organizado */}
+      <div className="border-t bg-background">
+        <div className="container py-6">
+          <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 text-xs text-muted-foreground">
+            {s?.legal_name && (
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Razão social</div>{s.legal_name}</div>
             )}
-            {s?.sanitary_license && <div><span className="font-semibold text-foreground">Licença sanitária:</span> {s.sanitary_license}</div>}
-            {s?.afe && <div><span className="font-semibold text-foreground">AFE/ANVISA:</span> {s.afe}</div>}
-          </div>
-          <div className="md:col-span-5 leading-relaxed">
-            <p>
-              As imagens dos produtos são meramente ilustrativas. Preços e promoções podem sofrer alterações sem aviso prévio.
-              Medicamentos sujeitos à disponibilidade de estoque. Produtos com exigência de receita ou controle especial passam por
-              análise farmacêutica antes da liberação da compra. <strong className="text-foreground">Não se automedique. Consulte um profissional de saúde.</strong>
-            </p>
-            <p className="mt-2">
-              A privacidade e a segurança dos clientes são prioridades da Farmácia Atacadão dos Medicamentos.
-            </p>
+            {s?.cnpj && (
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">CNPJ</div>{s.cnpj}</div>
+            )}
+            {s?.state_registration && (
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Inscrição Estadual</div>{s.state_registration}</div>
+            )}
+            {(s?.pharmacist_name || s?.crf) && (
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Farmacêutico responsável</div>{s?.pharmacist_name}{s?.crf ? ` — ${s.crf}` : ""}</div>
+            )}
+            {s?.sanitary_license && (
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Licença sanitária</div>{s.sanitary_license}</div>
+            )}
+            {s?.afe && (
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">AFE / ANVISA</div>{s.afe}</div>
+            )}
           </div>
         </div>
       </div>
