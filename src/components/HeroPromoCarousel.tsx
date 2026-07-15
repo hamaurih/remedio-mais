@@ -37,38 +37,18 @@ function isActive(b: HeroBannerRow): boolean {
   return true;
 }
 
-const FALLBACK_SLIDES: HeroBannerRow[] = [
-  {
-    id: "fallback-1",
-    banner_type: "campaign_pro",
-    title: "Abasteça sua farmacinha",
-    support_text: "Cuidado completo para sua saúde",
-    legal_text: "Promoção válida enquanto durarem os estoques.",
-    discount_prefix: "com até",
-    discount_percent: 50,
-    discount_suffix: "de desconto",
-    cta_text: "confira",
-    link: "/categoria/ofertas",
-    visual_style: "red-soft",
-    text_position: "left",
-    product_position: "center",
-    animation_type: "float",
-    product_size: "large",
-    show_side_shapes: true,
-  } as HeroBannerRow,
-];
-
 export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
   const activeSlides = useMemo(
     () => (slides || []).filter(isActive).map((b) => applyVisualModel(b)),
     [slides],
   );
-  const filtered = activeSlides.length > 0 ? activeSlides : FALLBACK_SLIDES;
 
   const isMobile = useIsMobile();
-  const first = filtered[0];
+  const first = activeSlides[0];
   const sizeVariant: HeroSizeVariant = (first?.size_variant as HeroSizeVariant) || "hero-grande";
   const size = getHeroSize(sizeVariant);
+
+  const filtered = activeSlides;
 
   const delay = Math.max(
     2000,
@@ -164,6 +144,8 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
   const outerWrap = size.container
     ? "container py-4 md:py-6"
     : "w-full py-2";
+
+  if (filtered.length === 0) return null;
 
   return (
     <section

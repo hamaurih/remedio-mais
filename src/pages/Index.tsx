@@ -12,6 +12,7 @@ import { DepartmentCarousel } from "@/components/DepartmentCarousel";
 import { PrescriptionCTA } from "@/components/PrescriptionCTA";
 import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
 import { Link } from "react-router-dom";
+import { PromoTicker } from "@/components/PromoTicker";
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
@@ -230,7 +231,7 @@ export default function Index() {
   );
 
   const SECTIONS: Record<string, React.ReactNode> = {
-    promo_ticker: null, // TopBar agora é global no Layout
+    promo_ticker: <PromoTicker />,
     hero_carousel: <HeroPromoCarousel slides={banners as any} />,
     promo_mini_banner_row: <PromoMiniBannerRow />,
     promo_mosaic: <PromoMosaic />,
@@ -244,6 +245,7 @@ export default function Index() {
   };
 
   const defaultOrder = [
+    "promo_ticker",
     "hero_carousel",
     "promo_mini_banner_row",
     "promo_mosaic",
@@ -255,10 +257,9 @@ export default function Index() {
     "google_rating",
     "location",
   ];
-  const remainingOrder = layout && layout.length > 0
-    ? layout.map((r) => r.section_key).filter((key) => key !== "promo_ticker" && key !== "hero_carousel" && key !== "promo_mini_banner_row")
-    : defaultOrder.filter((key) => key !== "hero_carousel" && key !== "promo_mini_banner_row");
-  const order = ["hero_carousel", "promo_mini_banner_row", ...remainingOrder];
+  const order = layout && layout.length > 0
+    ? layout.map((r) => r.section_key)
+    : defaultOrder;
 
   return (
     <Layout>
