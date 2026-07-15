@@ -12,6 +12,7 @@ import { DepartmentCarousel } from "@/components/DepartmentCarousel";
 import { PrescriptionCTA } from "@/components/PrescriptionCTA";
 import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
 import { Link } from "react-router-dom";
+import { PromoTicker } from "@/components/PromoTicker";
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
