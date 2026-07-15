@@ -145,6 +145,8 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     ? "container py-4 md:py-6"
     : "w-full py-2";
 
+  if (filtered.length === 0) return null;
+
   return (
     <section
       className={outerWrap}
