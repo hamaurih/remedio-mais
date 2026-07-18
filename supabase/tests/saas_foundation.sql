@@ -46,6 +46,39 @@ begin
 
   if exists (
     select 1
+    from (
+      values
+        ('organization_memberships_default_store_same_org_fk'),
+        ('organization_domains_store_same_org_fk'),
+        ('organization_integrations_store_same_org_fk'),
+        ('store_settings_store_same_org_fk'),
+        ('trier_settings_store_same_org_fk'),
+        ('payment_settings_store_same_org_fk')
+    ) as expected(constraint_name)
+    where not exists (
+      select 1
+      from pg_constraint constraint_definition
+      where constraint_definition.conname = expected.constraint_name
+        and constraint_definition.contype = 'f'
+        and constraint_definition.connamespace = 'public'::regnamespace
+    )
+  ) then
+    raise exception 'one or more tenant-safe store constraints are missing';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policy policy
+    where policy.polname = 'organization admins can manage memberships'
+      and policy.polrelid = 'public.organization_memberships'::regclass
+      and pg_get_expr(policy.polqual, policy.polrelid) ilike '%role <>%owner%'
+      and pg_get_expr(policy.polwithcheck, policy.polrelid) ilike '%role <>%owner%'
+  ) then
+    raise exception 'membership policy does not prevent admins from assigning owner';
+  end if;
+
+  if exists (
+    select 1
     from public.user_roles legacy
     where legacy.role::text in ('admin', 'seller')
       and not exists (
