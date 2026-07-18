@@ -1,16 +1,19 @@
 // Central helper for product data quality, publication status and score.
-// Used by the admin quality dashboard and (in the future) by the public catalog.
+// Focused on SELLABLE products (com estoque, ativos). Sem estoque = fora do site
+// e fora da análise principal de qualidade.
 
-export type StrictMode = "off" | "moderate" | "strict";
+export type StrictMode = "off" | "strict";
 
 export type QualitySettings = {
   strict_mode: StrictMode;
-  require_own_image: boolean;
+  default_image_url: string; // fallback exibido no site quando o produto não tem imagem própria
 };
+
+export const DEFAULT_PLACEHOLDER = "/placeholder.svg";
 
 export const DEFAULT_QUALITY_SETTINGS: QualitySettings = {
   strict_mode: "off",
-  require_own_image: false,
+  default_image_url: DEFAULT_PLACEHOLDER,
 };
 
 export type PublicationStatus =
@@ -52,39 +55,64 @@ export type QualityProduct = {
 const nonEmpty = (v: unknown) =>
   v !== null && v !== undefined && String(v).trim().length > 0;
 
+const PLACEHOLDER_RE = /placeholder|no-image|sem-imagem/i;
+
 export function effectiveStock(p: QualityProduct): number {
   const s = p.stock_quantity ?? p.stock ?? 0;
   return Number(s) || 0;
 }
 
+/** Imagem própria do produto (não é o placeholder padrão). */
 export function hasOwnImage(p: QualityProduct): boolean {
   const url = (p.image_url ?? "").trim();
   if (!url) return false;
-  if (/placeholder|no-image|sem-imagem/i.test(url)) return false;
+  if (PLACEHOLDER_RE.test(url)) return false;
   return true;
 }
 
-// Weighted "desirable" fields for the completeness score (0–100)
+/** Imagem exibível no site: própria OU imagem padrão configurada. */
+export function hasDisplayImage(
+  p: QualityProduct,
+  settings: QualitySettings = DEFAULT_QUALITY_SETTINGS,
+): boolean {
+  if (hasOwnImage(p)) return true;
+  // Se o site tem um placeholder configurado, o produto ainda é exibível.
+  return nonEmpty(settings.default_image_url);
+}
+
+export function usesPlaceholderImage(
+  p: QualityProduct,
+  settings: QualitySettings = DEFAULT_QUALITY_SETTINGS,
+): boolean {
+  return !hasOwnImage(p) && hasDisplayImage(p, settings);
+}
+
+/** Produto potencialmente vendável: ativo em todos os canais e com estoque. */
+export function isSellable(p: QualityProduct): boolean {
+  if (p.active === false) return false;
+  if (p.trier_active === false) return false;
+  if (p.manual_disabled === true) return false;
+  return effectiveStock(p) > 0;
+}
+
+// Peso reduzido para imagem própria — não bloqueia, apenas influencia score.
 const SCORE_FIELDS: { key: string; weight: number; check: (p: QualityProduct) => boolean }[] = [
-  { key: "image", weight: 15, check: hasOwnImage },
-  { key: "barcode", weight: 10, check: (p) => nonEmpty(p.barcode) },
+  { key: "own_image", weight: 8, check: hasOwnImage },
+  { key: "barcode", weight: 12, check: (p) => nonEmpty(p.barcode) },
   { key: "short_description", weight: 8, check: (p) => nonEmpty(p.short_description) },
-  { key: "description", weight: 12, check: (p) => (p.description ?? "").trim().length >= 40 },
-  { key: "manufacturer", weight: 6, check: (p) => nonEmpty(p.manufacturer) || nonEmpty(p.laboratory) },
-  { key: "category", weight: 10, check: (p) => nonEmpty(p.category_id) || nonEmpty(p.category_name) },
+  { key: "description", weight: 14, check: (p) => (p.description ?? "").trim().length >= 40 },
+  { key: "manufacturer", weight: 8, check: (p) => nonEmpty(p.manufacturer) || nonEmpty(p.laboratory) },
+  { key: "category", weight: 12, check: (p) => nonEmpty(p.category_id) || nonEmpty(p.category_name) },
   { key: "active_ingredient", weight: 8, check: (p) => nonEmpty(p.active_ingredient) },
   { key: "seo_title", weight: 6, check: (p) => nonEmpty(p.seo_title) },
   { key: "seo_description", weight: 6, check: (p) => nonEmpty(p.seo_description) },
   { key: "tags", weight: 4, check: (p) => nonEmpty(p.tags) },
-  { key: "gallery", weight: 8, check: (p) => Array.isArray(p.gallery_images) && p.gallery_images.length > 0 },
+  { key: "gallery", weight: 6, check: (p) => Array.isArray(p.gallery_images) && p.gallery_images.length > 0 },
   { key: "prescription_flag", weight: 3, check: (p) => p.requires_prescription !== null && p.requires_prescription !== undefined },
-  { key: "controlled_flag", weight: 4, check: (p) => p.controlled !== null && p.controlled !== undefined },
+  { key: "controlled_flag", weight: 5, check: (p) => p.controlled !== null && p.controlled !== undefined },
 ];
 
-export function computeQualityScore(p: QualityProduct): {
-  score: number;
-  missing: string[];
-} {
+export function computeQualityScore(p: QualityProduct): { score: number; missing: string[] } {
   let total = 0;
   let earned = 0;
   const missing: string[] = [];
@@ -97,13 +125,28 @@ export function computeQualityScore(p: QualityProduct): {
   return { score, missing };
 }
 
-// Minimum required fields (never bypassed, even by whitelist)
-export function missingRequired(p: QualityProduct): string[] {
+/** Mínimos absolutos para venda. */
+export function missingRequired(
+  p: QualityProduct,
+  settings: QualitySettings = DEFAULT_QUALITY_SETTINGS,
+): string[] {
   const miss: string[] = [];
   if (!nonEmpty(p.name)) miss.push("name");
   if (!(Number(p.price) > 0)) miss.push("price");
   if (!nonEmpty(p.category_id) && !nonEmpty(p.category_name)) miss.push("category");
+  if (!hasDisplayImage(p, settings)) miss.push("image");
   return miss;
+}
+
+/** Aba mais relevante do editor para corrigir o primeiro problema. */
+export function suggestedEditTab(p: QualityProduct): "basic" | "images" | "seo" | "price" | "stock" {
+  if (!hasOwnImage(p)) return "images";
+  if (!nonEmpty(p.category_id) && !nonEmpty(p.category_name)) return "basic";
+  if (!(Number(p.price) > 0)) return "price";
+  if (effectiveStock(p) <= 0) return "stock";
+  if (!nonEmpty(p.description) || (p.description ?? "").trim().length < 40) return "basic";
+  if (!nonEmpty(p.seo_title) || !nonEmpty(p.seo_description)) return "seo";
+  return "basic";
 }
 
 export function getPublicationStatus(
@@ -114,24 +157,19 @@ export function getPublicationStatus(
   if (p.trier_active === false) return { status: "hidden_inactive", reason: "Inativo no Trier", missing: [] };
   if (p.manual_disabled === true) return { status: "hidden_manual", reason: "Ocultado manualmente", missing: [] };
 
-  const required = missingRequired(p);
+  const required = missingRequired(p, settings);
   if (required.length > 0) {
-    return {
-      status: "hidden_missing_required",
-      reason: `Falta: ${required.join(", ")}`,
-      missing: required,
-    };
+    return { status: "hidden_missing_required", reason: `Falta: ${required.join(", ")}`, missing: required };
   }
 
   if (effectiveStock(p) <= 0) {
-    return { status: "hidden_out_of_stock", reason: "Sem estoque", missing: [] };
+    return { status: "hidden_out_of_stock", reason: "Sem estoque — não aparece no site", missing: [] };
   }
 
   const { score, missing } = computeQualityScore(p);
-  const ownImage = hasOwnImage(p);
   const whitelisted = p.publish_even_incomplete === true;
 
-  // Strict-mode gating (opt-in)
+  // Modo rigoroso opcional (padrão: off).
   if (settings.strict_mode === "strict" && score < 100 && !whitelisted) {
     return {
       status: "hidden_missing_required",
@@ -139,25 +177,13 @@ export function getPublicationStatus(
       missing,
     };
   }
-  if (settings.strict_mode === "moderate" && !whitelisted) {
-    const modMissing: string[] = [];
-    if (!ownImage) modMissing.push("image");
-    if (!nonEmpty(p.barcode)) modMissing.push("barcode");
-    if (modMissing.length > 0) {
-      return {
-        status: "hidden_missing_required",
-        reason: `Modo moderado: falta ${modMissing.join(", ")}`,
-        missing: modMissing,
-      };
-    }
-  }
 
-  // Image warning (only blocks when require_own_image is on)
-  if (!ownImage) {
-    if (settings.require_own_image && !whitelisted) {
-      return { status: "hidden_missing_required", reason: "Sem imagem própria", missing: ["image"] };
-    }
-    return { status: "published_with_warning", reason: "Usa imagem padrão", missing: ["image"] };
+  if (usesPlaceholderImage(p, settings)) {
+    return {
+      status: "published_with_warning",
+      reason: `Usa imagem padrão — ${score}% completo`,
+      missing: ["own_image", ...missing.filter((m) => m !== "own_image")],
+    };
   }
 
   if (missing.length > 0) {

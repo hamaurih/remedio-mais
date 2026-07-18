@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -13,93 +12,90 @@ import {
   Download,
   ExternalLink,
   Loader2,
-  AlertTriangle,
   CheckCircle2,
   EyeOff,
   ShieldAlert,
+  Pencil,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   computeQualityScore,
   getPublicationStatus,
   hasOwnImage,
+  hasDisplayImage,
+  usesPlaceholderImage,
+  isSellable,
   effectiveStock,
+  suggestedEditTab,
   STATUS_META,
   scoreTone,
   DEFAULT_QUALITY_SETTINGS,
+  DEFAULT_PLACEHOLDER,
   type QualitySettings,
   type QualityProduct,
-  type PublicationStatus,
   type StrictMode,
 } from "@/lib/productQuality";
 
 const SELECT_FIELDS =
   "id,slug,name,price,stock,stock_quantity,active,trier_active,manual_disabled,publish_even_incomplete,image_url,gallery_images,barcode,short_description,description,manufacturer,laboratory,category_id,category_name,active_ingredient,seo_title,seo_description,tags,requires_prescription,controlled,updated_at";
 
+type Scope = "sellable" | "out_of_stock" | "inactive";
+
 type FilterKey =
-  | "all"
-  | "published"
-  | "published_warning"
-  | "hidden"
-  | "out_of_stock"
-  | "no_image"
+  | "sellable_all"
+  | "sellable_incomplete"
+  | "sellable_published"
+  | "placeholder_image"
+  | "no_image_at_all"
   | "no_category"
   | "no_description"
   | "no_barcode"
-  | "score_low"
-  | "score_mid"
-  | "score_high"
-  | "critical";
+  | "no_price"
+  | "score_low";
 
 const FILTER_LABEL: Record<FilterKey, string> = {
-  all: "Todos",
-  published: "Publicados",
-  published_warning: "Publicados c/ alerta",
-  hidden: "Ocultos",
-  out_of_stock: "Sem estoque",
-  no_image: "Sem imagem própria",
+  sellable_all: "Todos com estoque",
+  sellable_incomplete: "Com estoque e cadastro incompleto",
+  sellable_published: "Publicados no site",
+  placeholder_image: "Usando imagem padrão",
+  no_image_at_all: "Sem nenhuma imagem",
   no_category: "Sem categoria",
   no_description: "Sem descrição",
   no_barcode: "Sem EAN",
+  no_price: "Sem preço",
   score_low: "Score < 50%",
-  score_mid: "Score 50–80%",
-  score_high: "Score > 80%",
-  critical: "Cadastro crítico",
 };
 
-type SortKey = "score_asc" | "score_desc" | "recent" | "stock_desc" | "stock_asc";
-
+type SortKey = "score_asc" | "score_desc" | "stock_desc" | "stock_asc";
 const SORT_LABEL: Record<SortKey, string> = {
   score_asc: "Menor score primeiro",
   score_desc: "Maior score primeiro",
-  recent: "Mais recentes",
   stock_desc: "Maior estoque",
   stock_asc: "Menor estoque",
 };
 
 export default function AdminDataQuality() {
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [scope, setScope] = useState<Scope>("sellable");
+  const [filter, setFilter] = useState<FilterKey>("sellable_incomplete");
   const [sort, setSort] = useState<SortKey>("score_asc");
   const [search, setSearch] = useState("");
 
-  // ---- Load settings ----
   const settingsQuery = useQuery({
     queryKey: ["quality_settings"],
     queryFn: async (): Promise<QualitySettings> => {
       const { data } = await (supabase as any)
         .from("store_settings")
-        .select("quality_strict_mode,quality_require_own_image")
+        .select("quality_strict_mode")
         .limit(1)
         .maybeSingle();
       return {
         strict_mode: (data?.quality_strict_mode as StrictMode) ?? "off",
-        require_own_image: !!data?.quality_require_own_image,
+        default_image_url: DEFAULT_PLACEHOLDER,
       };
     },
   });
   const settings = settingsQuery.data ?? DEFAULT_QUALITY_SETTINGS;
 
-  // ---- Load products (all, to compute aggregates client-side) ----
   const productsQuery = useQuery({
     queryKey: ["quality_products"],
     queryFn: async () => {
@@ -120,104 +116,102 @@ export default function AdminDataQuality() {
     },
     staleTime: 60_000,
   });
-
   const products = productsQuery.data ?? [];
 
-  // ---- Compute per-product quality state ----
   const enriched = useMemo(() => {
     return products.map((p) => {
+      const sellable = isSellable(p);
       const { score, missing } = computeQualityScore(p);
       const pub = getPublicationStatus(p, settings);
-      return { p, score, missing, ...pub };
+      return { p, score, missing, sellable, ...pub };
     });
   }, [products, settings]);
 
-  // Simulated impact under the currently saved strict mode
-  const simulated = useMemo(() => {
-    const withDefault = enriched.length; // baseline
-    const hiddenByStrict = enriched.filter(
-      (e) => e.status === "hidden_missing_required" &&
-        // it was hidden precisely because of strict/moderate/require_image
-        (settings.strict_mode !== "off" || settings.require_own_image),
-    ).length;
-    return { total: withDefault, hiddenByStrict };
-  }, [enriched, settings]);
+  const sellable = enriched.filter((e) => e.sellable);
+  const outOfStock = enriched.filter(
+    (e) => e.p.active !== false && e.p.trier_active !== false && !e.p.manual_disabled && effectiveStock(e.p) <= 0,
+  );
+  const inactive = enriched.filter(
+    (e) => e.p.active === false || e.p.trier_active === false || e.p.manual_disabled === true,
+  );
 
-  // ---- Aggregate cards ----
   const stats = useMemo(() => {
-    const total = enriched.length;
-    const by = (s: PublicationStatus) => enriched.filter((e) => e.status === s).length;
-    const published = by("published") + by("published_with_warning");
-    const withWarning = by("published_with_warning");
-    const hiddenMissing = by("hidden_missing_required");
-    const hiddenStock = by("hidden_out_of_stock");
-    const hiddenManual = by("hidden_manual") + by("hidden_inactive");
-    const noOwnImage = enriched.filter((e) => !hasOwnImage(e.p)).length;
-    const avgScore = total ? Math.round(enriched.reduce((s, e) => s + e.score, 0) / total) : 0;
-    const critical = enriched.filter((e) => e.score < 40).length;
-    return { total, published, withWarning, hiddenMissing, hiddenStock, hiddenManual, noOwnImage, avgScore, critical };
-  }, [enriched]);
+    const totalSellable = sellable.length;
+    const published = sellable.filter((e) => e.status === "published").length;
+    const publishedWithWarning = sellable.filter((e) => e.status === "published_with_warning").length;
+    const incomplete = sellable.filter((e) => e.status !== "published").length;
+    const placeholderImg = sellable.filter((e) => usesPlaceholderImage(e.p, settings)).length;
+    const noImageAtAll = sellable.filter((e) => !(e.p.image_url ?? "").trim()).length;
+    const noCategory = sellable.filter((e) => !e.p.category_id && !e.p.category_name).length;
+    const noPrice = sellable.filter((e) => !(Number(e.p.price) > 0)).length;
+    const noDesc = sellable.filter((e) => !(e.p.description ?? "").trim()).length;
+    const noBarcode = sellable.filter((e) => !(e.p.barcode ?? "").trim()).length;
+    const avgScore = totalSellable
+      ? Math.round(sellable.reduce((s, e) => s + e.score, 0) / totalSellable)
+      : 0;
+    return {
+      totalSellable,
+      published,
+      publishedWithWarning,
+      incomplete,
+      placeholderImg,
+      noImageAtAll,
+      noCategory,
+      noPrice,
+      noDesc,
+      noBarcode,
+      avgScore,
+      outOfStock: outOfStock.length,
+      inactive: inactive.length,
+    };
+  }, [sellable, outOfStock.length, inactive.length, settings]);
 
-  // ---- Apply filter + sort ----
+  const scoped = scope === "sellable" ? sellable : scope === "out_of_stock" ? outOfStock : inactive;
+
   const list = useMemo(() => {
-    let rows = enriched;
+    let rows = scoped;
     if (search.trim()) {
       const t = search.trim().toLowerCase();
       rows = rows.filter((e) => (e.p.name ?? "").toLowerCase().includes(t));
     }
-    rows = rows.filter((e) => {
-      switch (filter) {
-        case "all": return true;
-        case "published": return e.status === "published" || e.status === "published_with_warning";
-        case "published_warning": return e.status === "published_with_warning";
-        case "hidden": return e.status.startsWith("hidden_");
-        case "out_of_stock": return e.status === "hidden_out_of_stock";
-        case "no_image": return !hasOwnImage(e.p);
-        case "no_category": return !e.p.category_id && !e.p.category_name;
-        case "no_description": return !(e.p.description ?? "").trim();
-        case "no_barcode": return !(e.p.barcode ?? "").trim();
-        case "score_low": return e.score < 50;
-        case "score_mid": return e.score >= 50 && e.score <= 80;
-        case "score_high": return e.score > 80;
-        case "critical": return e.score < 40;
-      }
-    });
+    if (scope === "sellable") {
+      rows = rows.filter((e) => {
+        switch (filter) {
+          case "sellable_all": return true;
+          case "sellable_incomplete": return e.status !== "published";
+          case "sellable_published": return e.status === "published" || e.status === "published_with_warning";
+          case "placeholder_image": return usesPlaceholderImage(e.p, settings);
+          case "no_image_at_all": return !(e.p.image_url ?? "").trim();
+          case "no_category": return !e.p.category_id && !e.p.category_name;
+          case "no_description": return !(e.p.description ?? "").trim();
+          case "no_barcode": return !(e.p.barcode ?? "").trim();
+          case "no_price": return !(Number(e.p.price) > 0);
+          case "score_low": return e.score < 50;
+        }
+      });
+    }
     rows = [...rows].sort((a, b) => {
       switch (sort) {
         case "score_asc": return a.score - b.score;
         case "score_desc": return b.score - a.score;
-        case "recent": return String(b.p as any).localeCompare(String(a.p as any));
         case "stock_desc": return effectiveStock(b.p) - effectiveStock(a.p);
         case "stock_asc": return effectiveStock(a.p) - effectiveStock(b.p);
       }
     });
     return rows.slice(0, 500);
-  }, [enriched, filter, sort, search]);
+  }, [scoped, filter, sort, search, scope, settings]);
 
-  // ---- Actions ----
   const saveSettings = async (patch: Partial<QualitySettings>) => {
     const next = { ...settings, ...patch };
     const { data: existing } = await (supabase as any)
-      .from("store_settings")
-      .select("id")
-      .limit(1)
-      .maybeSingle();
-    const payload: any = {
-      quality_strict_mode: next.strict_mode,
-      quality_require_own_image: next.require_own_image,
-    };
-    let error;
-    if (existing?.id) {
-      ({ error } = await (supabase as any).from("store_settings").update(payload).eq("id", existing.id));
-    } else {
-      ({ error } = await (supabase as any).from("store_settings").insert(payload));
-    }
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Configuração salva" });
-      settingsQuery.refetch();
-    }
+      .from("store_settings").select("id").limit(1).maybeSingle();
+    const payload: any = { quality_strict_mode: next.strict_mode };
+    const q = existing?.id
+      ? (supabase as any).from("store_settings").update(payload).eq("id", existing.id)
+      : (supabase as any).from("store_settings").insert(payload);
+    const { error } = await q;
+    if (error) toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    else { toast({ title: "Configuração salva" }); settingsQuery.refetch(); }
   };
 
   const toggleWhitelist = async (id: string, next: boolean) => {
@@ -233,7 +227,7 @@ export default function AdminDataQuality() {
 
   const exportCsv = () => {
     if (!list.length) return;
-    const header = ["id", "name", "score", "status", "reason", "price", "stock", "barcode", "manufacturer", "has_image", "category"];
+    const header = ["id", "name", "score", "status", "reason", "price", "stock", "barcode", "manufacturer", "has_own_image", "category"];
     const csv = [
       header.join(","),
       ...list.map((e) =>
@@ -255,9 +249,7 @@ export default function AdminDataQuality() {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `qualidade-${filter}.csv`;
-    a.click();
+    a.href = url; a.download = `qualidade-${scope}-${filter}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -270,85 +262,81 @@ export default function AdminDataQuality() {
       <div>
         <h1 className="text-2xl font-extrabold">Qualidade de Dados</h1>
         <p className="text-sm text-muted-foreground">
-          Priorize correções de cadastro sem derrubar vendas. Produtos com dados mínimos continuam publicados; incompletos aparecem com alerta aqui.
+          A análise principal foca apenas em produtos vendáveis (ativos e com estoque). Produtos sem estoque não aparecem no site
+          e são listados separadamente. Imagem padrão é aceitável — só bloqueia se não houver nenhuma imagem exibível.
         </p>
       </div>
 
-      {/* Overview cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
-        <Stat label="Cadastrados" value={stats.total} />
-        <Stat label="Publicados" value={stats.published} tone="text-emerald-700" />
-        <Stat label="Publicados c/ alerta" value={stats.withWarning} tone="text-amber-700" />
-        <Stat label="Ocultos p/ falta de dados" value={stats.hiddenMissing} tone="text-rose-700" />
-        <Stat label="Sem estoque" value={stats.hiddenStock} />
-        <Stat label="Ocultos manualmente / inativos" value={stats.hiddenManual} />
-        <Stat label="Sem imagem própria" value={stats.noOwnImage} />
-        <Stat label="Score médio" value={`${stats.avgScore}%`} tone={stats.avgScore >= 70 ? "text-emerald-700" : "text-amber-700"} />
+      {/* Overview cards — restritos a produtos vendáveis */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label={`Analisando produtos com estoque`} value={stats.totalSellable} tone="text-primary" />
+        <Stat label="Publicados (cadastro bom)" value={stats.published} tone="text-emerald-700" />
+        <Stat label="Publicados c/ alerta" value={stats.publishedWithWarning} tone="text-amber-700" />
+        <Stat label="Vendáveis com cadastro incompleto" value={stats.incomplete} tone="text-rose-700" />
+        <Stat label="Usando imagem padrão" value={stats.placeholderImg} />
+        <Stat label="Sem nenhuma imagem" value={stats.noImageAtAll} tone={stats.noImageAtAll > 0 ? "text-rose-700" : ""} />
+        <Stat label="Sem categoria" value={stats.noCategory} />
+        <Stat label="Sem preço" value={stats.noPrice} tone={stats.noPrice > 0 ? "text-rose-700" : ""} />
+        <Stat label="Sem descrição" value={stats.noDesc} />
+        <Stat label="Sem EAN" value={stats.noBarcode} />
+        <Stat label="Sem estoque (ignorados)" value={stats.outOfStock} tone="text-muted-foreground" />
+        <Stat label="Inativos / desativados" value={stats.inactive} tone="text-muted-foreground" />
       </div>
 
-      {/* Strict mode + simulator */}
+      <div className="text-xs text-muted-foreground">
+        Score médio dos vendáveis: <b className={stats.avgScore >= 70 ? "text-emerald-700" : "text-amber-700"}>{stats.avgScore}%</b>
+      </div>
+
+      {/* Modo rigoroso — sempre desligado por padrão */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4" /> Modo rigoroso de publicação
+            <ShieldAlert className="h-4 w-4" /> Modo rigoroso (opcional)
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+        <CardContent className="space-y-3">
+          <div className="flex items-start gap-3">
+            <Switch
+              checked={settings.strict_mode === "strict"}
+              onCheckedChange={(v) => saveSettings({ strict_mode: v ? "strict" : "off" })}
+            />
             <div>
-              <Label className="text-xs">Modo</Label>
-              <Select
-                value={settings.strict_mode}
-                onValueChange={(v: StrictMode) => saveSettings({ strict_mode: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="off">Desligado — publica com mínimos (recomendado)</SelectItem>
-                  <SelectItem value="moderate">Moderado — exige imagem própria + EAN</SelectItem>
-                  <SelectItem value="strict">Rigoroso — só publica com score 100%</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">
-                O modo escolhido não é aplicado ao catálogo público automaticamente até você validar o impacto abaixo.
+              <Label className="text-sm font-medium">Só publicar produtos com cadastro 100% completo</Label>
+              <p className="text-xs text-muted-foreground">
+                Desligado por padrão. Ligue apenas se preferir esconder tudo que não estiver 100% preenchido — pode derrubar vendas.
               </p>
             </div>
-            <div className="flex items-start gap-3 pt-6">
-              <Switch
-                checked={settings.require_own_image}
-                onCheckedChange={(v) => saveSettings({ require_own_image: v })}
-              />
-              <div>
-                <div className="font-medium text-sm">Exigir imagem própria</div>
-                <p className="text-xs text-muted-foreground">Se ligado, produtos sem imagem própria são ocultados. Caso contrário, aparecem com placeholder e alerta.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-            <div className="font-semibold mb-1 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> Simulação de impacto
-            </div>
-            Com as configurações atuais: <b>{stats.published}</b> aparecem no site e <b>{stats.hiddenMissing + stats.hiddenStock + stats.hiddenManual}</b> ficam ocultos
-            {" "}(dos quais <b>{stats.hiddenMissing}</b> por falta de dados). Ajuste o modo com cuidado — desligar mantém o comportamento antigo.
           </div>
         </CardContent>
       </Card>
 
-      {/* Filters */}
+      {/* Escopo + Filtros */}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="text-base">Produtos ({list.length}{list.length === 500 ? " — limite" : ""})</CardTitle>
+            <div className="flex gap-1">
+              <ScopeBtn active={scope === "sellable"} onClick={() => { setScope("sellable"); setFilter("sellable_incomplete"); }}>
+                Com estoque ({sellable.length})
+              </ScopeBtn>
+              <ScopeBtn active={scope === "out_of_stock"} onClick={() => setScope("out_of_stock")}>
+                Sem estoque ({outOfStock.length})
+              </ScopeBtn>
+              <ScopeBtn active={scope === "inactive"} onClick={() => setScope("inactive")}>
+                Inativos / desativados ({inactive.length})
+              </ScopeBtn>
+            </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Input placeholder="Buscar por nome…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
-              <Select value={filter} onValueChange={(v: FilterKey) => setFilter(v)}>
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(FILTER_LABEL) as FilterKey[]).map((k) => (
-                    <SelectItem key={k} value={k}>{FILTER_LABEL[k]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {scope === "sellable" && (
+                <Select value={filter} onValueChange={(v: FilterKey) => setFilter(v)}>
+                  <SelectTrigger className="w-[260px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(FILTER_LABEL) as FilterKey[]).map((k) => (
+                      <SelectItem key={k} value={k}>{FILTER_LABEL[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={sort} onValueChange={(v: SortKey) => setSort(v)}>
                 <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -388,13 +376,14 @@ export default function AdminDataQuality() {
                 <tbody>
                   {list.map((e) => {
                     const meta = STATUS_META[e.status];
+                    const tab = suggestedEditTab(e.p);
                     return (
                       <tr key={e.p.id} className="border-b hover:bg-muted/30">
                         <td className="py-2 pr-2">
                           {hasOwnImage(e.p) ? (
                             <img src={e.p.image_url!} alt="" className="w-10 h-10 object-contain rounded border" />
                           ) : (
-                            <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center">
+                            <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center" title="Sem imagem própria — usa placeholder">
                               <EyeOff className="h-4 w-4 text-muted-foreground" />
                             </div>
                           )}
@@ -406,25 +395,19 @@ export default function AdminDataQuality() {
                         <td className="py-2 pr-2">
                           <span className={`px-2 py-0.5 rounded border text-xs font-medium ${meta.tone}`}>{meta.label}</span>
                         </td>
-                        <td className="py-2 pr-2 text-xs text-muted-foreground max-w-[220px] truncate" title={e.reason}>{e.reason}</td>
+                        <td className="py-2 pr-2 text-xs text-muted-foreground max-w-[240px] truncate" title={e.reason}>{e.reason}</td>
                         <td className="py-2 pr-2 tabular-nums">{e.p.price ? `R$ ${Number(e.p.price).toFixed(2)}` : <span className="text-destructive">—</span>}</td>
                         <td className="py-2 pr-2 tabular-nums">{effectiveStock(e.p)}</td>
                         <td className="py-2 pr-2">
-                          <Switch
-                            checked={!!e.p.publish_even_incomplete}
-                            onCheckedChange={(v) => toggleWhitelist(e.p.id!, v)}
-                          />
+                          <Switch checked={!!e.p.publish_even_incomplete} onCheckedChange={(v) => toggleWhitelist(e.p.id!, v)} />
                         </td>
                         <td className="py-2 pr-2">
-                          <Switch
-                            checked={!!e.p.manual_disabled}
-                            onCheckedChange={(v) => toggleBlacklist(e.p.id!, v)}
-                          />
+                          <Switch checked={!!e.p.manual_disabled} onCheckedChange={(v) => toggleBlacklist(e.p.id!, v)} />
                         </td>
                         <td className="py-2 pr-2">
                           <div className="flex gap-1">
-                            <Link to={`/admin/produtos?search=${encodeURIComponent(e.p.name ?? "")}`}>
-                              <Button size="sm" variant="ghost">Editar</Button>
+                            <Link to={`/admin/produtos?edit=${e.p.id}&tab=${tab}`}>
+                              <Button size="sm" variant="outline"><Pencil className="h-3.5 w-3.5 mr-1" /> Editar</Button>
                             </Link>
                             {e.p.slug && (
                               <a href={`/produto/${e.p.slug}`} target="_blank" rel="noreferrer">
@@ -446,10 +429,10 @@ export default function AdminDataQuality() {
       <Card>
         <CardHeader><CardTitle className="text-base">Como funciona</CardTitle></CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p><b>Campos obrigatórios</b> (bloqueiam publicação): nome, preço, categoria, estoque &gt; 0, ativo.</p>
-          <p><b>Campos desejáveis</b> (compõem o score): imagem própria, EAN, descrições, SEO, princípio ativo, laboratório, tags, galeria etc.</p>
-          <p><b>Whitelist</b> mantém publicado mesmo incompleto (respeitando os obrigatórios). <b>Ocultar</b> tira do site independentemente do cadastro.</p>
-          <p><b>Modo rigoroso</b> é opcional e desligado por padrão para não derrubar vendas.</p>
+          <p><b>Mínimos para venda:</b> nome, preço &gt; 0, categoria, estoque &gt; 0, ativo e uma imagem exibível (própria ou padrão).</p>
+          <p><b>Imagem padrão</b> é aceitável — o produto continua vendável, apenas aparece com alerta leve no admin.</p>
+          <p><b>Sem estoque</b> não é erro de cadastro — o produto simplesmente não aparece no site e fica no aba "Sem estoque".</p>
+          <p><b>Modo rigoroso</b> é opcional e desligado por padrão.</p>
         </CardContent>
       </Card>
     </div>
@@ -462,5 +445,16 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
       <div className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5rem]">{label}</div>
       <div className={`text-2xl font-bold tabular-nums mt-1 ${tone ?? ""}`}>{typeof value === "number" ? value.toLocaleString("pt-BR") : value}</div>
     </div>
+  );
+}
+
+function ScopeBtn({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
+    >
+      {children}
+    </button>
   );
 }
