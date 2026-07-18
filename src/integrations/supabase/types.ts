@@ -1657,6 +1657,7 @@ export type Database = {
           promo_price: number | null
           promotion_end: string | null
           promotion_start: string | null
+          publish_even_incomplete: boolean
           requires_prescription: boolean
           sale_observation: string | null
           seo_description: string | null
@@ -1753,6 +1754,7 @@ export type Database = {
           promo_price?: number | null
           promotion_end?: string | null
           promotion_start?: string | null
+          publish_even_incomplete?: boolean
           requires_prescription?: boolean
           sale_observation?: string | null
           seo_description?: string | null
@@ -1849,6 +1851,7 @@ export type Database = {
           promo_price?: number | null
           promotion_end?: string | null
           promotion_start?: string | null
+          publish_even_incomplete?: boolean
           requires_prescription?: boolean
           sale_observation?: string | null
           seo_description?: string | null
@@ -2247,6 +2250,8 @@ export type Database = {
           pharmacist_name: string | null
           pix_discount_enabled: boolean
           pix_discount_percentage: number
+          quality_require_own_image: boolean
+          quality_strict_mode: string
           sanitary_license: string | null
           sanitary_notice: string | null
           served_neighborhoods: string | null
@@ -2280,6 +2285,8 @@ export type Database = {
           pharmacist_name?: string | null
           pix_discount_enabled?: boolean
           pix_discount_percentage?: number
+          quality_require_own_image?: boolean
+          quality_strict_mode?: string
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
@@ -2313,6 +2320,8 @@ export type Database = {
           pharmacist_name?: string | null
           pix_discount_enabled?: boolean
           pix_discount_percentage?: number
+          quality_require_own_image?: boolean
+          quality_strict_mode?: string
           sanitary_license?: string | null
           sanitary_notice?: string | null
           served_neighborhoods?: string | null
