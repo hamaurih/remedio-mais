@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,9 +57,11 @@ const loadAdminProductDetail = async (id: string) => {
 
 export default function AdminProducts() {
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
+  const [activeTab, setActiveTab] = useState<string>("basic");
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [search, setSearch] = useState("");
@@ -114,10 +117,35 @@ export default function AdminProducts() {
 
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
-  const openEdit = (p: any) => {
+  const openEdit = (p: any, tab: string = "basic") => {
     setEditing({ ...empty, ...p, category_id: p.category_id || "", shelves: p.shelves || [], gallery_images: p.gallery_images || [] });
-    setMainFile(null); setGalleryFiles([]); setOpen(true);
+    setMainFile(null); setGalleryFiles([]);
+    setActiveTab(tab);
+    setOpen(true);
   };
+
+  // Deep link: /admin/produtos?edit=<id>&tab=<tab>
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    const tab = searchParams.get("tab") || "basic";
+    if (!editId) return;
+    if (editing?.id === editId && open) return;
+    (async () => {
+      try {
+        const data = await loadAdminProductDetail(editId);
+        if (data) openEdit(data, tab);
+        else toast.error("Produto não encontrado");
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao carregar produto");
+      } finally {
+        // limpa a URL após abrir para não reabrir em cada re-render
+        const next = new URLSearchParams(searchParams);
+        next.delete("edit"); next.delete("tab");
+        setSearchParams(next, { replace: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const toggleShelf = (slug: string) => {
     const cur: string[] = editing.shelves || [];
@@ -326,7 +354,7 @@ export default function AdminProducts() {
         <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing.id ? "Editar produto" : "Novo produto"}</DialogTitle></DialogHeader>
 
-          <Tabs defaultValue="basic">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="basic">Básico</TabsTrigger>
               <TabsTrigger value="images">Imagens</TabsTrigger>
