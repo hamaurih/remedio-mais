@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Product } from "@/components/ProductCard";
@@ -6,23 +8,20 @@ import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 const LIMIT = 10;
 
 export function useRelatedProducts(product: any | null | undefined) {
+  const storefront = useStorefrontTenant();
   return useQuery({
-    queryKey: ["related-products", product?.id],
+    queryKey: storefrontQueryKey(storefront, ["related-products", product?.id]),
     enabled: !!product?.id,
     queryFn: async (): Promise<Product[]> => {
       if (!product?.id) return [];
 
       // 1) Manual: product_related
-      const { data: manualLinks } = await supabase
-        .from("product_related")
-        .select("related_product_id, position")
+      const { data: manualLinks } = await selectStorefrontRows("product_related", "related_product_id, position", storefront)
         .eq("product_id", product.id)
         .order("position", { ascending: true });
       const ids = (manualLinks || []).map((l: any) => l.related_product_id);
       if (ids.length > 0) {
-        const { data } = await (supabase as any)
-          .from("products")
-          .select(PUBLIC_PRODUCT_SELECT)
+        const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
           .in("id", ids)
           .eq("active", true);
         const byId = new Map((data || []).map((p: any) => [p.id, p]));
@@ -40,9 +39,7 @@ export function useRelatedProducts(product: any | null | undefined) {
       };
 
       if (product.active_ingredient) {
-        const { data } = await (supabase as any)
-          .from("products")
-          .select(PUBLIC_PRODUCT_SELECT)
+        const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
           .eq("active", true)
           .gt("stock", 0)
           .ilike("active_ingredient", product.active_ingredient.trim())
@@ -52,9 +49,7 @@ export function useRelatedProducts(product: any | null | undefined) {
       }
 
       if (collected.size < LIMIT && product.category_id && product.manufacturer) {
-        const { data } = await (supabase as any)
-          .from("products")
-          .select(PUBLIC_PRODUCT_SELECT)
+        const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
           .eq("active", true)
           .gt("stock", 0)
           .eq("category_id", product.category_id)
@@ -65,9 +60,7 @@ export function useRelatedProducts(product: any | null | undefined) {
       }
 
       if (collected.size < LIMIT && product.category_id) {
-        const { data } = await (supabase as any)
-          .from("products")
-          .select(PUBLIC_PRODUCT_SELECT)
+        const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
           .eq("active", true)
           .gt("stock", 0)
           .eq("category_id", product.category_id)
