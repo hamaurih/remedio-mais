@@ -1,3 +1,5 @@
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -27,12 +29,17 @@ const RANGES = [
 const PALETTE = ["hsl(var(--primary))", "#16a34a", "#f59e0b", "#0ea5e9", "#a855f7", "#ef4444", "#14b8a6", "#f43f5e"];
 
 export default function AdminDashboard() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const [rangeKey, setRangeKey] = useState<(typeof RANGES)[number]["key"]>("30");
   const days = Number(rangeKey);
   const since = useMemo(() => startOfDay(subDays(new Date(), days - 1)).toISOString(), [days]);
 
   const kpis = useQuery({
-    queryKey: ["admin_bi_kpis", days],
+    queryKey: tenantQueryKey(tenantScope, ["admin_bi_kpis", days]),
     queryFn: async () => {
       const headP = <T,>(p: any) => p as Promise<{ count: number | null }>;
       const [
@@ -42,24 +49,24 @@ export default function AdminDashboard() {
         customers, presc, prescPending,
         stockAgg, syncRecent,
       ] = await Promise.all([
-        headP(supabase.from("products").select("id", { count: "exact", head: true })),
-        headP(supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true)),
-        headP(supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true).lte("stock", 5)),
-        headP(supabase.from("products").select("id", { count: "exact", head: true }).or("on_sale.eq.true,promo_price.not.is.null")),
-        headP(supabase.from("products").select("id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.")),
-        headP(supabase.from("products").select("id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.").gt("stock", 0)),
-        headP(supabase.from("orders").select("id", { count: "exact", head: true })),
-        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "approved")),
-        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "pending")),
-        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "cancelled")),
-        headP(supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", since)),
-        supabase.from("orders").select("total"),
-        supabase.from("orders").select("total").eq("payment_status", "approved"),
-        supabase.from("orders").select("total").eq("payment_status", "approved").gte("created_at", since),
+        headP(selectTenantRows("products", tenantScope, "id", { count: "exact", head: true })),
+        headP(selectTenantRows("products", tenantScope, "id", { count: "exact", head: true }).eq("active", true)),
+        headP(selectTenantRows("products", tenantScope, "id", { count: "exact", head: true }).eq("active", true).lte("stock", 5)),
+        headP(selectTenantRows("products", tenantScope, "id", { count: "exact", head: true }).or("on_sale.eq.true,promo_price.not.is.null")),
+        headP(selectTenantRows("products", tenantScope, "id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.")),
+        headP(selectTenantRows("products", tenantScope, "id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.").gt("stock", 0)),
+        headP(selectTenantRows("orders", tenantScope, "id", { count: "exact", head: true })),
+        headP(selectTenantRows("orders", tenantScope, "id", { count: "exact", head: true }).eq("payment_status", "approved")),
+        headP(selectTenantRows("orders", tenantScope, "id", { count: "exact", head: true }).eq("payment_status", "pending")),
+        headP(selectTenantRows("orders", tenantScope, "id", { count: "exact", head: true }).eq("payment_status", "cancelled")),
+        headP(selectTenantRows("orders", tenantScope, "id", { count: "exact", head: true }).gte("created_at", since)),
+        selectTenantRows("orders", tenantScope, "total"),
+        selectTenantRows("orders", tenantScope, "total").eq("payment_status", "approved"),
+        selectTenantRows("orders", tenantScope, "total").eq("payment_status", "approved").gte("created_at", since),
         headP(supabase.from("profiles").select("id", { count: "exact", head: true })),
-        headP(supabase.from("prescriptions").select("id", { count: "exact", head: true })),
-        headP(supabase.from("prescriptions").select("id", { count: "exact", head: true }).in("status", ["recebida", "pendente"])),
-        supabase.from("products").select("stock,price").eq("active", true).gt("stock", 0),
+        headP(selectTenantRows("prescriptions", tenantScope, "id", { count: "exact", head: true })),
+        headP(selectTenantRows("prescriptions", tenantScope, "id", { count: "exact", head: true }).in("status", ["recebida", "pendente"])),
+        selectTenantRows("products", tenantScope, "stock,price").eq("active", true).gt("stock", 0),
         headP(supabase.from("product_sync_logs").select("id", { count: "exact", head: true }).gte("created_at", since)),
       ]);
 
@@ -96,11 +103,9 @@ export default function AdminDashboard() {
   });
 
   const series = useQuery({
-    queryKey: ["admin_bi_series", days],
+    queryKey: tenantQueryKey(tenantScope, ["admin_bi_series", days]),
     queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("created_at,total,payment_status")
+      const { data } = await selectTenantRows("orders", tenantScope, "created_at,total,payment_status")
         .gte("created_at", since)
         .order("created_at");
       const buckets: Record<string, { date: string; receita: number; pedidos: number }> = {};
@@ -119,18 +124,14 @@ export default function AdminDashboard() {
   });
 
   const topProducts = useQuery({
-    queryKey: ["admin_bi_top_products", days],
+    queryKey: tenantQueryKey(tenantScope, ["admin_bi_top_products", days]),
     queryFn: async () => {
-      const { data: oids } = await supabase
-        .from("orders")
-        .select("id")
+      const { data: oids } = await selectTenantRows("orders", tenantScope, "id")
         .gte("created_at", since)
         .in("payment_status", ["approved", "pending"]);
       const ids = (oids || []).map((o: any) => o.id);
       if (!ids.length) return [] as any[];
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("product_name,quantity,total")
+      const { data: items } = await selectTenantRows("order_items", tenantScope, "product_name,quantity,total")
         .in("order_id", ids);
       const map = new Map<string, { name: string; qtd: number; receita: number }>();
       (items || []).forEach((it: any) => {
@@ -145,13 +146,11 @@ export default function AdminDashboard() {
   });
 
   const catalog = useQuery({
-    queryKey: ["admin_bi_catalog"],
+    queryKey: tenantQueryKey(tenantScope, ["admin_bi_catalog"]),
     queryFn: async () => {
-      const { data: prods } = await supabase
-        .from("products")
-        .select("category_id,stock,price,active")
+      const { data: prods } = await selectTenantRows("products", tenantScope, "category_id,stock,price,active")
         .eq("active", true);
-      const { data: cats } = await supabase.from("categories").select("id,name");
+      const { data: cats } = await selectTenantRows("categories", tenantScope, "id,name");
       const map = new Map<string, { name: string; qtd: number; valor: number }>();
       (prods || []).forEach((p: any) => {
         const c = cats?.find((x: any) => x.id === p.category_id);
@@ -166,11 +165,9 @@ export default function AdminDashboard() {
   });
 
   const lowStock = useQuery({
-    queryKey: ["admin_bi_low_stock"],
+    queryKey: tenantQueryKey(tenantScope, ["admin_bi_low_stock"]),
     queryFn: async () => {
-      const { data } = await supabase
-        .from("products")
-        .select("id,name,stock,minimum_stock,price")
+      const { data } = await selectTenantRows("products", tenantScope, "id,name,stock,minimum_stock,price")
         .eq("active", true)
         .lte("stock", 5)
         .order("stock")
@@ -180,11 +177,9 @@ export default function AdminDashboard() {
   });
 
   const recentOrders = useQuery({
-    queryKey: ["admin_bi_recent_orders"],
+    queryKey: tenantQueryKey(tenantScope, ["admin_bi_recent_orders"]),
     queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("id,customer_name,total,payment_status,order_status,created_at")
+      const { data } = await selectTenantRows("orders", tenantScope, "id,customer_name,total,payment_status,order_status,created_at")
         .order("created_at", { ascending: false })
         .limit(6);
       return data || [];
