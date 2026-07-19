@@ -16,6 +16,10 @@ import Auth from "./pages/Auth.tsx";
 import Account from "./pages/Account.tsx";
 import { AuthProvider } from "@/hooks/useAuth";
 import { TenantProvider } from "@/hooks/useTenant";
+import {
+  StorefrontTenantBoundary,
+  StorefrontTenantProvider,
+} from "@/hooks/useStorefrontTenant";
 
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Terms from "./pages/Terms.tsx";
@@ -72,7 +76,9 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
+    <StorefrontTenantProvider>
+      <StorefrontTenantBoundary>
+        <AuthProvider>
       <TenantProvider>
         <TooltipProvider>
       <Toaster />
@@ -139,7 +145,9 @@ const App = () => (
       </BrowserRouter>
         </TooltipProvider>
       </TenantProvider>
-    </AuthProvider>
+        </AuthProvider>
+      </StorefrontTenantBoundary>
+    </StorefrontTenantProvider>
   </QueryClientProvider>
 );
 
