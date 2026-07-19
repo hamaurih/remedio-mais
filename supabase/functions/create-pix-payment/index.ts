@@ -2,6 +2,7 @@
 // Devolve QR Code (base64 + copia e cola) para exibir no próprio site.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { safeLog as maskedLog, safeError } from "../_shared/mask.ts";
+import { resolveRequestTenant, TenantResolutionError, withTenant } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,8 @@ const corsHeaders = {
 
 type CartItem = { id: string; variant_id?: string | null; quantity: number };
 type Body = {
+  organization_id?: string;
+  store_id?: string;
   items: CartItem[];
   delivery_type: "pickup" | "delivery";
   customer: { name: string; email: string; phone: string; cpf: string };
@@ -69,6 +72,14 @@ Deno.serve(async (req) => {
   try { body = (await req.json()) as Body; }
   catch { return json({ success: false, error: "Não foi possível ler os dados." }, 400); }
 
+  let tenant;
+  try {
+    tenant = await resolveRequestTenant(admin, body);
+  } catch (error) {
+    const status = error instanceof TenantResolutionError ? error.status : 500;
+    return json({ success: false, error: error instanceof Error ? error.message : "Loja inválida." }, status);
+  }
+
   if (!Array.isArray(body.items) || body.items.length === 0) {
     return json({ success: false, error: "Carrinho vazio." }, 400);
   }
@@ -96,6 +107,8 @@ Deno.serve(async (req) => {
   const { data: products, error: prodErr } = await admin
     .from("products")
     .select("id,name,slug,price,promo_price,image_url,stock,active,controlled,requires_prescription,cart_quantity_limit,has_variants")
+    .eq("organization_id", tenant.organizationId)
+    .eq("store_id", tenant.storeId)
     .in("id", ids);
   if (prodErr) return json({ success: false, error: "Falha ao carregar produtos." }, 500);
 
@@ -104,6 +117,8 @@ Deno.serve(async (req) => {
     const { data: variants } = await admin
       .from("product_variants")
       .select("id,parent_product_id,variation_type,variation_value,price,promo_price,stock,image_url,active")
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId)
       .in("id", variantIds);
     variantsById = new Map((variants || []).map((v: any) => [v.id, v]));
   }
@@ -128,6 +143,7 @@ Deno.serve(async (req) => {
 
     if (p.controlled || p.requires_prescription) {
       const { data: rx } = await admin.from("prescriptions").select("id")
+        .eq("organization_id", tenant.organizationId).eq("store_id", tenant.storeId)
         .eq("user_id", userId).eq("product_id", p.id).eq("status", "aprovada")
         .limit(1).maybeSingle();
       if (!rx) return json({ success: false, error: `É necessária receita aprovada para: ${p.name}.` }, 400);
@@ -151,7 +167,9 @@ Deno.serve(async (req) => {
   // Frete
   const { data: settings } = await admin.from("store_settings")
     .select("delivery_fee, delivery_mode, delivery_max_km, delivery_fee_zones, store_lat, store_lng")
-    .eq("id", 1).maybeSingle();
+    .eq("organization_id", tenant.organizationId)
+    .eq("store_id", tenant.storeId)
+    .maybeSingle();
   let deliveryFee = 0;
   if (body.delivery_type === "delivery") {
     const mode = (settings as any)?.delivery_mode || "flat";
@@ -179,7 +197,7 @@ Deno.serve(async (req) => {
   if (!Number.isFinite(total) || total <= 0) return json({ success: false, error: "Total inválido." }, 400);
 
   // Criar pedido
-  const { data: order, error: orderErr } = await admin.from("orders").insert({
+  const { data: order, error: orderErr } = await admin.from("orders").insert(withTenant({
     user_id: userId,
     customer_name: body.customer.name,
     customer_email: body.customer.email || userEmail,
@@ -201,16 +219,18 @@ Deno.serve(async (req) => {
     delivery_fee: deliveryFee, subtotal, total,
     status: "novo", payment_gateway: "mercado_pago", payment_method: "pix",
     payment_status: "pending", order_status: "aguardando_pagamento", trier_sent: false,
-  }).select().single();
+  }, tenant)).select().single();
   if (orderErr || !order) {
     safeError("[mp-pix] order insert failed", { msg: orderErr?.message });
     return json({ success: false, error: "Não foi possível criar o pedido." }, 500);
   }
 
-  const itemsRows = orderItems.map((it) => ({ ...it, order_id: order.id }));
+  const itemsRows = orderItems.map((it) => withTenant({ ...it, order_id: order.id }, tenant));
   const { error: itErr } = await admin.from("order_items").insert(itemsRows);
   if (itErr) {
-    await admin.from("orders").delete().eq("id", order.id);
+    await admin.from("orders").delete().eq("id", order.id)
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId);
     return json({ success: false, error: "Não foi possível gravar itens." }, 500);
   }
 
@@ -256,7 +276,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify(mpBody),
     });
   } catch (e) {
-    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id)
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId);
     return json({ success: false, error: "Falha ao contatar Mercado Pago.", details: (e as Error).message }, 502);
   }
   const text = await mpRes.text();
@@ -265,7 +287,9 @@ Deno.serve(async (req) => {
 
   if (!mpRes.ok) {
     safeError("[mp-pix] mp rejected", { status: mpRes.status, body: mp });
-    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id)
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId);
     return json({
       success: false,
       error: mp?.message ? `Mercado Pago: ${mp.message}` : "Mercado Pago rejeitou o pagamento Pix.",
@@ -285,7 +309,9 @@ Deno.serve(async (req) => {
   await admin.from("orders").update({
     mercado_pago_payment_id: String(mp.id),
     external_reference: order.id,
-  }).eq("id", order.id);
+  }).eq("id", order.id)
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId);
 
   safeLog("success", { order_id: order.id, mp_id: mp.id, status: mp.status });
 
