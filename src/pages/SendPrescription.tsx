@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
 import { toast } from "sonner";
 import { z } from "zod";
 import { FileText } from "lucide-react";
@@ -16,6 +17,7 @@ const schema = z.object({
 });
 
 export default function SendPrescription() {
+  const { organizationId, storeId } = useStorefrontTenant();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -30,7 +32,13 @@ export default function SendPrescription() {
 
     setSubmitting(true);
     try {
+      if (!organizationId || !storeId) {
+        throw new Error("Não foi possível identificar a loja desta receita.");
+      }
+
       const fd = new FormData();
+      fd.append("organization_id", organizationId);
+      fd.append("store_id", storeId);
       fd.append("name", parsed.data.name);
       fd.append("phone", parsed.data.phone);
       if (parsed.data.notes) fd.append("notes", parsed.data.notes);
