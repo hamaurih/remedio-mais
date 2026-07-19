@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -34,16 +36,17 @@ function Reveal({ children }: { children: React.ReactNode }) {
 
 
 export default function Index() {
+  const storefront = useStorefrontTenant();
   const { data: settings } = useStoreSettings();
 
   const { data: banners } = useQuery({
-    queryKey: ["home_banners"],
+    queryKey: storefrontQueryKey(storefront, ["home_banners"]),
     queryFn: async () =>
-      (await supabase.from("banners").select("*").eq("active", true).eq("placement", "hero").order("position")).data || [],
+      (await selectStorefrontRows("banners", "*", storefront).eq("active", true).eq("placement", "hero").order("position")).data || [],
   });
 
   const fetchShelf = (mod: (q: any) => any) => async () => {
-    let q = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).limit(12);
+    let q = selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).gt("stock", 0).limit(12);
     q = mod(q);
     const { data } = await q;
     return (data || []) as Product[];
@@ -51,27 +54,23 @@ export default function Index() {
 
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
-    const { data: tagged } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
+    const { data: tagged } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
     if (tagged && tagged.length > 0) return tagged as Product[];
     return null;
   };
 
   const offers = useQuery({
-    queryKey: ["shelf_offers"],
+    queryKey: storefrontQueryKey(storefront, ["shelf_offers"]),
     queryFn: async () => {
       const nowIso = new Date().toISOString();
       // 1) shelf tag
-      const tagged = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+      const tagged = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .contains("shelves", ["ofertas-da-semana"])
         .limit(12);
       if (tagged.data && tagged.data.length > 0) return tagged.data as Product[];
       // 2) on_sale
-      const onSale = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+      const onSale = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .eq("on_sale", true)
         .or(`promotion_start.is.null,promotion_start.lte.${nowIso}`)
@@ -79,18 +78,14 @@ export default function Index() {
         .limit(12);
       if (onSale.data && onSale.data.length > 0) return onSale.data as Product[];
       // 3) promo_price < price
-      const promo = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+      const promo = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .not("promo_price", "is", null)
         .limit(24);
       const promoFiltered = (promo.data || []).filter((p: any) => p.promo_price != null && Number(p.promo_price) < Number(p.price)).slice(0, 12);
       if (promoFiltered.length > 0) return promoFiltered as Product[];
       // 4) fallback: recém atualizados
-      const recent = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+      const recent = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
@@ -98,12 +93,10 @@ export default function Index() {
     },
   });
   const bestsellers = useQuery({
-    queryKey: ["shelf_bestsellers"],
+    queryKey: storefrontQueryKey(storefront, ["shelf_bestsellers"]),
     queryFn: async () => {
       // 1) Ordem manual definida no admin (bestseller_rank)
-      const ranked = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+      const ranked = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .not("bestseller_rank", "is", null)
         .order("bestseller_rank", { ascending: true })
@@ -116,9 +109,7 @@ export default function Index() {
       const feat = await fetchShelf((q) => q.eq("featured", true).gt("price", 0))();
       if (feat.length > 0) return feat;
       // 4) último fallback: recém atualizados
-      const { data } = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+      const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
@@ -126,47 +117,47 @@ export default function Index() {
     },
   });
   const meds = useQuery({
-    queryKey: ["shelf_meds"],
+    queryKey: storefrontQueryKey(storefront, ["shelf_meds"]),
     queryFn: async () => {
       const t = await shelfBy("medicamentos-populares")();
       if (t) return t;
-      const { data: cat } = await supabase.from("categories").select("id").eq("slug", "medicamentos").maybeSingle();
+      const { data: cat } = await selectStorefrontRows("categories", "id", storefront).eq("slug", "medicamentos").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
   const hygiene = useQuery({
-    queryKey: ["shelf_hygiene"],
+    queryKey: storefrontQueryKey(storefront, ["shelf_hygiene"]),
     queryFn: async () => {
       const t = await shelfBy("higiene-e-beleza")();
       if (t) return t;
-      const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
+      const { data: cat } = await selectStorefrontRows("categories", "id", storefront).eq("slug", "higiene-pessoal").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
   const babies = useQuery({
-    queryKey: ["shelf_babies"],
+    queryKey: storefrontQueryKey(storefront, ["shelf_babies"]),
     queryFn: async () => {
       const t = await shelfBy("mamaes-e-bebes")();
       if (t) return t;
-      const { data: cat } = await supabase.from("categories").select("id").eq("slug", "mamaes-e-bebes").maybeSingle();
+      const { data: cat } = await selectStorefrontRows("categories", "id", storefront).eq("slug", "mamaes-e-bebes").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
   const buildShelf = (slug: string, shelf: string) =>
     useQuery({
-      queryKey: [`shelf_${shelf}`],
+      queryKey: storefrontQueryKey(storefront, [`shelf_${shelf}`]),
       queryFn: async () => {
         const t = await shelfBy(shelf)();
         if (t) return t;
-        const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
+        const { data: cat } = await selectStorefrontRows("categories", "id", storefront).eq("slug", slug).maybeSingle();
         if (!cat) return [];
-        const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+        const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
         return (data || []) as Product[];
       },
     });
@@ -174,11 +165,9 @@ export default function Index() {
   const firstaid = buildShelf("primeiros-socorros", "primeiros-socorros");
 
   const { data: layout } = useQuery({
-    queryKey: ["home_layout"],
+    queryKey: storefrontQueryKey(storefront, ["home_layout"]),
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("home_layout")
-        .select("section_key,enabled,position")
+      const { data } = await selectStorefrontRows("home_layout", "section_key,enabled,position", storefront)
         .eq("enabled", true)
         .order("position");
       return (data || []) as { section_key: string; enabled: boolean; position: number }[];
