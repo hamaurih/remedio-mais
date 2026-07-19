@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
@@ -40,6 +42,7 @@ function rank(name: string, term: string) {
 }
 
 export function SearchAutocomplete({ className = "", compact = false }: { className?: string; compact?: boolean }) {
+  const storefront = useStorefrontTenant();
   const nav = useNavigate();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -76,9 +79,7 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
       .filter(Boolean)
       .join(",");
 
-    supabase
-      .from("products")
-      .select("id,name,slug,price,promo_price,on_sale,requires_prescription,image_url,manufacturer,category_name")
+    selectStorefrontRows("products", "id,name,slug,price,promo_price,on_sale,requires_prescription,image_url,manufacturer,category_name", storefront)
       .eq("active", true)
       .gt("stock", 0)
       .or(orFilter)
