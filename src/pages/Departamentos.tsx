@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { Layout } from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,12 +17,11 @@ type Dept = {
 };
 
 export default function Departamentos() {
+  const storefront = useStorefrontTenant();
   const { data = [], isLoading } = useQuery({
-    queryKey: ["all_departments"],
+    queryKey: storefrontQueryKey(storefront, ["all_departments"]),
     queryFn: async () => {
-      const { data } = await supabase
-        .from("categories")
-        .select("id,name,slug,image_url,link,band_color")
+      const { data } = await selectStorefrontRows("categories", "id,name,slug,image_url,link,band_color", storefront)
         .eq("active", true)
         .order("position", { ascending: true });
       return (data || []) as Dept[];
