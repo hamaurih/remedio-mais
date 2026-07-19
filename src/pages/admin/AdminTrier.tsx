@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +104,23 @@ function maskToken(t: string | null | undefined) {
 
 export default function AdminTrier() {
   const qc = useQueryClient();
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
+  const tenantPayload = {
+    organization_id: tenantScope.organizationId,
+    store_id: tenantScope.storeId,
+  };
+  const invokeTrier = (body: Record<string, unknown>) => {
+    if (!tenantScope.organizationId || !tenantScope.storeId) {
+      throw new Error("Selecione uma organização e uma loja.");
+    }
+    return supabase.functions.invoke("trier", {
+      body: { ...body, ...tenantPayload },
+    });
+  };
   const { sub } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab: Tab = (SUB_ROUTE_TO_TAB[sub || ""] || (searchParams.get("tab") as Tab) || "overview");
@@ -110,8 +129,8 @@ export default function AdminTrier() {
 
   // ----- Settings -----
   const { data: settings } = useQuery({
-    queryKey: ["trier_settings"],
-    queryFn: async () => (await supabase.from("trier_settings").select("*").eq("id", 1).single()).data,
+    queryKey: tenantQueryKey(tenantScope, ["trier_settings"]),
+    queryFn: async () => (await selectTenantRows("trier_settings", tenantScope).maybeSingle()).data,
   });
   const [form, setForm] = useState<any>({});
   const [tokenInput, setTokenInput] = useState("");
@@ -142,9 +161,17 @@ export default function AdminTrier() {
     // Token is managed exclusively via the TRIER_API_TOKEN backend secret; never store it in DB.
     delete payload.bearer_token;
     delete payload.id; delete payload.created_at; delete payload.updated_at;
-    const { error } = await supabase.from("trier_settings").update(payload).eq("id", 1);
+    if (!tenantScope.organizationId || !tenantScope.storeId) {
+      toast.error("Selecione uma organização e uma loja.");
+      return;
+    }
+    const { error } = await (supabase as any).from("trier_settings").upsert({
+      ...payload,
+      organization_id: tenantScope.organizationId,
+      store_id: tenantScope.storeId,
+    }, { onConflict: "organization_id,store_id" });
     if (error) toast.error(error.message);
-    else { toast.success("Configurações salvas"); setTokenInput(""); qc.invalidateQueries({ queryKey: ["trier_settings"] }); }
+    else { toast.success("Configurações salvas"); setTokenInput(""); qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_settings"]) }); }
   };
 
   // ----- Calls helper -----
@@ -153,15 +180,15 @@ export default function AdminTrier() {
   const call = async (action: string, body: any = {}, label = action) => {
     setBusy(action);
     try {
-      const { data, error } = await supabase.functions.invoke("trier", { body: { action, ...body } });
+      const { data, error } = await invokeTrier({ action, ...body });
       if (error) throw error;
       if (data?.ok === false) throw new Error(data.error);
       toast.success(`${label} ✓`);
-      qc.invalidateQueries({ queryKey: ["trier_jobs"] });
-      qc.invalidateQueries({ queryKey: ["trier_logs"] });
-      qc.invalidateQueries({ queryKey: ["trier_settings"] });
-      qc.invalidateQueries({ queryKey: ["trier_mappings"] });
-      qc.invalidateQueries({ queryKey: ["trier_orders"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_jobs"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_logs"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_settings"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_mappings"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_orders"]) });
       return data;
     } catch (e: any) { toast.error(e.message); return null; }
     finally { setBusy(null); }
@@ -170,13 +197,13 @@ export default function AdminTrier() {
   const runConnectionTest = async () => {
     setBusy("test-connection");
     try {
-      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "test-connection" } });
+      const { data, error } = await invokeTrier({ action: "test-connection" });
       if (error) throw error;
       setLastTestResult(data);
       if (data?.ok) toast.success("Conexão Trier validada");
       else toast.error(data?.message || "Falha ao validar conexão Trier");
-      qc.invalidateQueries({ queryKey: ["trier_logs"] });
-      qc.invalidateQueries({ queryKey: ["trier_settings"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_logs"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_settings"]) });
       return data;
     } catch (e: any) {
       toast.error(e.message);
@@ -189,13 +216,13 @@ export default function AdminTrier() {
   const runProductsTest = async () => {
     setBusy("test-products-endpoint");
     try {
-      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "test-products-endpoint" } });
+      const { data, error } = await invokeTrier({ action: "test-products-endpoint" });
       if (error) throw error;
       setLastTestResult(data);
       if (data?.ok) toast.success("Teste de produtos Trier concluído");
       else toast.error(data?.message || "Falha ao testar produtos Trier");
-      qc.invalidateQueries({ queryKey: ["trier_logs"] });
-      qc.invalidateQueries({ queryKey: ["trier_settings"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_logs"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_settings"]) });
       return data;
     } catch (e: any) {
       toast.error(e.message);
@@ -207,20 +234,22 @@ export default function AdminTrier() {
 
   // ----- Data queries -----
   const { data: jobs } = useQuery({
-    queryKey: ["trier_jobs"],
-    queryFn: async () => (await supabase.from("trier_sync_jobs").select("*").order("started_at", { ascending: false }).limit(50)).data || [],
+    queryKey: tenantQueryKey(tenantScope, ["trier_jobs"]),
+    queryFn: async () => (await selectTenantRows("trier_sync_jobs", tenantScope)
+      .order("started_at", { ascending: false }).limit(50)).data || [],
   });
   const { data: logs } = useQuery({
-    queryKey: ["trier_logs"],
-    queryFn: async () => (await supabase.from("trier_logs").select("*").order("created_at", { ascending: false }).limit(100)).data || [],
+    queryKey: tenantQueryKey(tenantScope, ["trier_logs"]),
+    queryFn: async () => (await selectTenantRows("trier_logs", tenantScope)
+      .order("created_at", { ascending: false }).limit(100)).data || [],
   });
   const [mappingPage, setMappingPage] = useState(0);
   const [mappingPageSize, setMappingPageSize] = useState(100);
   const { data: mappingsResp } = useQuery({
-    queryKey: ["trier_mappings", mappingPage, mappingPageSize],
+    queryKey: tenantQueryKey(tenantScope, ["trier_mappings", mappingPage, mappingPageSize]),
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("trier", {
-        body: { action: "list-mappings", limit: mappingPageSize, offset: mappingPage * mappingPageSize },
+      const { data, error } = await invokeTrier({
+        action: "list-mappings", limit: mappingPageSize, offset: mappingPage * mappingPageSize,
       });
       if (error) throw error;
       return data as { ok: boolean; items: any[]; total: number };
@@ -229,17 +258,18 @@ export default function AdminTrier() {
   const mappings = mappingsResp?.items || [];
   const mappingsTotal = mappingsResp?.total ?? 0;
   const { data: dbStats } = useQuery({
-    queryKey: ["trier_db_stats"],
+    queryKey: tenantQueryKey(tenantScope, ["trier_db_stats"]),
     queryFn: async () => {
-      const { data } = await supabase.functions.invoke("trier", { body: { action: "db-stats" } });
+      const { data } = await invokeTrier({ action: "db-stats" });
       return data as { cadastrados: number; ativos: number; inativos: number; vinculados_trier: number; com_estoque: number; sem_estoque: number };
     },
     refetchInterval: 30000,
   });
   const lastDiagnoseTotal = (logs || []).find((l: any) => l.type === "diagnose_total");
   const { data: orders } = useQuery({
-    queryKey: ["trier_orders"],
-    queryFn: async () => (await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100)).data || [],
+    queryKey: tenantQueryKey(tenantScope, ["trier_orders"]),
+    queryFn: async () => (await selectTenantRows("orders", tenantScope)
+      .order("created_at", { ascending: false }).limit(100)).data || [],
   });
 
   const [logDetail, setLogDetail] = useState<any>(null);
@@ -248,13 +278,13 @@ export default function AdminTrier() {
     setBusy("diagnose-products-page");
     setDiagnose(null);
     try {
-      const { data, error } = await supabase.functions.invoke("trier", { body: { action: "diagnose-products-page" } });
+      const { data, error } = await invokeTrier({ action: "diagnose-products-page" });
       if (error) throw error;
       setDiagnose(data);
       if (data?.ok) toast.success(data.message || "Diagnóstico concluído");
       else toast.error(data?.message || "Falha no diagnóstico");
-      qc.invalidateQueries({ queryKey: ["trier_logs"] });
-      qc.invalidateQueries({ queryKey: ["trier_mappings"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_logs"]) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["trier_mappings"]) });
     } catch (e: any) { toast.error(e.message); }
     finally { setBusy(null); }
   };
@@ -1504,6 +1534,11 @@ function DiagStockSourcePanel({ call, busy, stockSource }: { call: any; busy: st
 // que já existem na edge function `trier`.
 // ============================================================
 function BarcodeDivergencesPanel() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantPayload = {
+    organization_id: activeOrganization?.id ?? null,
+    store_id: activeStore?.id ?? null,
+  };
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -1512,7 +1547,7 @@ function BarcodeDivergencesPanel() {
     setLoading(true);
     try {
       const { data, error } = await (supabase as any).functions.invoke("trier", {
-        body: { action: "list-barcode-divergences", limit: 200, offset: 0 },
+        body: { action: "list-barcode-divergences", limit: 200, offset: 0, ...tenantPayload },
       });
       if (error) throw error;
       setItems(data?.items || data?.divergences || data || []);
@@ -1533,7 +1568,7 @@ function BarcodeDivergencesPanel() {
     setResolving(id);
     try {
       const { error } = await (supabase as any).functions.invoke("trier", {
-        body: { action: "resolve-barcode-divergence", id, resolution },
+        body: { action: "resolve-barcode-divergence", id, resolution, ...tenantPayload },
       });
       if (error) throw error;
       toast.success("Divergência atualizada");

@@ -1,5 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { resolveRequestTenant, TenantResolutionError, type TenantScope } from "../_shared/tenant.ts";
+import { createTenantScopedClient } from "../_shared/tenantClient.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -45,7 +48,12 @@ type Settings = {
 
 type StockSource = "loja" | "ecommerce" | "auto";
 
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+const rawSupabase = createClient(SUPABASE_URL, SERVICE_KEY);
+const tenantContext = new AsyncLocalStorage<TenantScope>();
+const supabase = createTenantScopedClient(
+  rawSupabase,
+  () => tenantContext.getStore(),
+);
 
 const slugify = (s: string) =>
   (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -141,14 +149,14 @@ function sanitizeLogDetails(details: any): any {
 }
 
 async function getSettings(opts: { requireToken?: boolean } = {}): Promise<Settings> {
-  const { data, error } = await supabase.from("trier_settings").select("*").eq("id", 1).single();
-  if (error) throw new Error("Configurações Trier não encontradas: " + error.message);
+  const { data, error } = await supabase.from("trier_settings").select("*").maybeSingle();
+  if (error || !data) throw new Error("Configurações Trier não encontradas: " + (error?.message || "ausente"));
   const baseUrl = normalizeBaseUrl(data.base_url);
   // Token is sourced exclusively from the TRIER_API_TOKEN secret (never stored in DB).
   const token = (FALLBACK_TOKEN || "").trim();
 
   if (data.base_url !== baseUrl) {
-    await supabase.from("trier_settings").update({ base_url: baseUrl }).eq("id", 1);
+    await supabase.from("trier_settings").update({ base_url: baseUrl });
   }
 
   if (!token && opts.requireToken !== false) throw new Error("Token Trier não informado (configure o secret TRIER_API_TOKEN).");
@@ -904,7 +912,7 @@ async function actionTestConnection() {
   if (!s.bearer_token) {
     await supabase.from("trier_settings").update({
       last_connection_test_at: new Date().toISOString(), last_connection_status: "error",
-    }).eq("id", 1);
+    });
     return {
       ok: false, environment: s.environment, baseUrl: s.base_url, endpoint, finalUrl,
       tokenMasked: "", authorizationHeaderMasked: "", message: "Token Trier não informado.",
@@ -914,7 +922,7 @@ async function actionTestConnection() {
   await supabase.from("trier_settings").update({
     last_connection_test_at: new Date().toISOString(),
     last_connection_status: response.ok ? "ok" : "error",
-  }).eq("id", 1);
+  });
   await log("connection", response.ok ? "success" : "error", response.message, {
     baseUrl: response.baseUrl, endpoint: response.endpoint, finalUrl: response.finalUrl,
     tokenMasked: response.tokenMasked, authorizationHeaderMasked: response.authorizationHeaderMasked,
@@ -1250,7 +1258,7 @@ async function actionSyncProducts(trigger = "manual", changed = false, modeOverr
       await sleep(PAUSE_BETWEEN_PAGES_MS);
     }
 
-    await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() }).eq("id", 1);
+    await supabase.from("trier_settings").update({ last_sync_products_at: new Date().toISOString() });
     await finishJob(job.id, {
       status: failed > 0 ? "partial" : "success",
       records_checked: checked, records_created: created, records_updated: updated,
@@ -1634,7 +1642,7 @@ async function actionSyncCategories(trigger = "manual") {
         if (error) failed++; else created++;
       }
     }
-    await supabase.from("trier_settings").update({ last_sync_categories_at: new Date().toISOString() }).eq("id", 1);
+    await supabase.from("trier_settings").update({ last_sync_categories_at: new Date().toISOString() });
     await finishJob(job.id, { status: "success", records_checked: list.length, records_created: created, records_updated: updated, records_failed: failed });
     return { ok: true, total: list.length, created, updated, failed };
   } catch (e: any) {
@@ -1716,7 +1724,7 @@ async function actionSyncStock(trigger = "manual") {
       await sleep(PAUSE_BETWEEN_PAGES_MS);
     }
 
-    await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() }).eq("id", 1);
+    await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() });
     await log("stock", failed > 0 ? "error" : "success", `Estoque sincronizado: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, {
       codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, updated, ignored, failed, pages_consulted: pages, ignored_reasons,
     });
@@ -1801,7 +1809,7 @@ async function actionSyncPrices(trigger = "manual") {
       await sleep(PAUSE_BETWEEN_PAGES_MS);
     }
 
-    await supabase.from("trier_settings").update({ last_sync_prices_at: new Date().toISOString() }).eq("id", 1);
+    await supabase.from("trier_settings").update({ last_sync_prices_at: new Date().toISOString() });
     await log("prices", failed > 0 ? "error" : "success", `Preços sincronizados: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, { updated, ignored, failed, pages_consulted: pages });
     await finishJob(job.id, {
       status: failed > 0 ? "error" : "success",
@@ -1827,7 +1835,7 @@ async function actionSyncDiscounts(trigger = "manual") {
       else if (r.failed) failed++;
       else ignored++;
     }
-    await supabase.from("trier_settings").update({ last_sync_discounts_at: new Date().toISOString() }).eq("id", 1);
+    await supabase.from("trier_settings").update({ last_sync_discounts_at: new Date().toISOString() });
     await finishJob(job.id, { status: "success", records_checked: list.length, records_updated: updated, records_failed: failed, records_ignored: ignored });
     return { ok: true, total: list.length, updated, failed, ignored };
   } catch (e: any) {
@@ -2008,7 +2016,7 @@ async function actionMarkStalledJobs(minutes = 20) {
 }
 
 async function actionToggleAutoSync(paused: boolean) {
-  await supabase.from("trier_settings").update({ auto_sync_paused: !!paused }).eq("id", 1);
+  await supabase.from("trier_settings").update({ auto_sync_paused: !!paused });
   await log("settings", "info", `Sincronização automática ${paused ? "PAUSADA" : "RETOMADA"}.`, { auto_sync_paused: !!paused });
   return { ok: true, auto_sync_paused: !!paused };
 }
@@ -2016,7 +2024,7 @@ async function actionToggleAutoSync(paused: boolean) {
 async function actionSetSyncMode(mode: SyncMode) {
   const valid: SyncMode[] = ["create_only", "stock_only", "price_only", "barcode_only", "safe_operational", "catalog_protected", "existing_stock_only"];
   if (!valid.includes(mode)) throw new Error("Modo de sincronização inválido");
-  await supabase.from("trier_settings").update({ sync_mode: mode }).eq("id", 1);
+  await supabase.from("trier_settings").update({ sync_mode: mode });
   await log("settings", "info", `Modo de sincronização alterado para: ${mode}.`, { sync_mode: mode });
   return { ok: true, sync_mode: mode };
 }
@@ -2121,15 +2129,23 @@ async function actionDiagStockSource(limit = 10) {
 
 
 // ---------- AUTH ----------
-async function requireAdmin(req: Request) {
+async function requireAdmin(req: Request, tenant: TenantScope) {
   const auth = req.headers.get("Authorization");
   if (!auth?.startsWith("Bearer ")) throw new Error("Não autenticado");
   const userSb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
   const { data: claims, error } = await userSb.auth.getClaims(auth.replace("Bearer ", ""));
   if (error || !claims?.claims) throw new Error("Não autenticado");
   const userId = claims.claims.sub;
-  const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
-  if (!role) throw new Error("Acesso restrito a administradores");
+  const { data: membership } = await rawSupabase
+    .from("organization_memberships")
+    .select("role")
+    .eq("organization_id", tenant.organizationId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!["owner", "admin", "manager"].includes(membership?.role ?? "")) {
+    throw new Error("Acesso restrito a administradores desta organização");
+  }
 }
 
 Deno.serve(async (req) => {
@@ -2141,10 +2157,29 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const trigger = body.trigger || url.searchParams.get("trigger") || "manual";
 
-    if (action !== "scheduled") {
-      await requireAdmin(req);
+    if (action === "scheduled") {
+      const auth = req.headers.get("Authorization") || "";
+      const supplied = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (!SERVICE_KEY || supplied !== SERVICE_KEY) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!body.organization_id || !body.store_id) {
+        return new Response(JSON.stringify({ error: "Tenant obrigatório para execução agendada" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
+    const tenant = await resolveRequestTenant(rawSupabase, body);
+    if (action !== "scheduled") {
+      await requireAdmin(req, tenant);
+    }
+
+    return await tenantContext.run(tenant, async () => {
     // Sync actions can exceed the 150s edge timeout — run them in background.
     const runAsync = (syncType: string, fn: () => Promise<any>) => {
       const p = (async () => {
@@ -2204,9 +2239,11 @@ Deno.serve(async (req) => {
       default: return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    });
   } catch (e: any) {
     return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: e instanceof TenantResolutionError ? e.status : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

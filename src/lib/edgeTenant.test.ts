@@ -7,6 +7,7 @@ import {
   TenantResolutionError,
   withTenant,
 } from "../../supabase/functions/_shared/tenant";
+import { createTenantScopedClient } from "../../supabase/functions/_shared/tenantClient";
 
 function queryResult(data: unknown, error: unknown = null) {
   const filters: Array<[string, string, unknown]> = [];
@@ -102,5 +103,86 @@ describe("Edge Function tenant resolver", () => {
       store_id: tenant.storeId,
       value: 1,
     });
+  });
+});
+
+describe("tenant-scoped service client", () => {
+  function thenableQuery() {
+    const filters: Array<[string, unknown]> = [];
+    let inserted: unknown;
+    const query: any = {
+      eq(column: string, value: unknown) {
+        filters.push([column, value]);
+        return query;
+      },
+      select() {
+        return query;
+      },
+      maybeSingle() {
+        return query;
+      },
+      insert(value: unknown) {
+        inserted = value;
+        return query;
+      },
+      then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
+        return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+      },
+    };
+    return { query, filters, inserted: () => inserted };
+  }
+
+  it("adds tenant filters to service-role reads", async () => {
+    const built = thenableQuery();
+    const tenant = {
+      organizationId: "10000000-0000-0000-0000-000000000001",
+      storeId: "20000000-0000-0000-0000-000000000001",
+    };
+    const client = createTenantScopedClient(
+      { from: () => built.query },
+      () => tenant,
+      new Set(["products"]),
+    );
+
+    await client.from("products").select("*").maybeSingle();
+
+    expect(built.filters).toContainEqual(["organization_id", tenant.organizationId]);
+    expect(built.filters).toContainEqual(["store_id", tenant.storeId]);
+  });
+
+  it("overwrites tenant ownership on service-role inserts", async () => {
+    const built = thenableQuery();
+    const tenant = {
+      organizationId: "10000000-0000-0000-0000-000000000001",
+      storeId: "20000000-0000-0000-0000-000000000001",
+    };
+    const client = createTenantScopedClient(
+      { from: () => built.query },
+      () => tenant,
+      new Set(["products"]),
+    );
+
+    await client.from("products").insert({
+      name: "Produto",
+      organization_id: "spoofed",
+      store_id: "spoofed",
+    });
+
+    expect(built.inserted()).toMatchObject({
+      name: "Produto",
+      organization_id: tenant.organizationId,
+      store_id: tenant.storeId,
+    });
+  });
+
+  it("refuses tenant tables outside a request context", () => {
+    const built = thenableQuery();
+    const client = createTenantScopedClient(
+      { from: () => built.query },
+      () => undefined,
+      new Set(["products"]),
+    );
+
+    expect(() => client.from("products")).toThrow(TenantResolutionError);
   });
 });
