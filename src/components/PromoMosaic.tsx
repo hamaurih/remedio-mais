@@ -274,8 +274,7 @@ function useRefs(tiles: MosaicTile[]) {
     enabled: productIds.length > 0,
     queryFn: async () => {
       const { data } = await selectStorefrontRows("products", 
-          "id,name,slug,image_url,short_description,laboratory,category_name,on_sale,requires_prescription,controlled,price,promo_price",
-        , storefront)
+          "id,name,slug,image_url,short_description,laboratory,category_name,on_sale,requires_prescription,controlled,price,promo_price", storefront)
         .in("id", productIds);
       return data || [];
     },
