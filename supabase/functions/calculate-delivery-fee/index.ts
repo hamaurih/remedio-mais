@@ -1,5 +1,6 @@
 // Calcula taxa de entrega por distância (Haversine) baseado em store_settings.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { resolveRequestTenant, TenantResolutionError } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,10 +73,13 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    const tenant = await resolveRequestTenant(supabase, body);
+
     const { data: s, error } = await supabase
       .from("store_settings")
       .select("store_lat, store_lng, delivery_max_km, delivery_fee_zones, delivery_mode, delivery_fee")
-      .eq("id", 1)
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId)
       .maybeSingle();
 
     if (error || !s) {
@@ -158,8 +162,9 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
+    const status = e instanceof TenantResolutionError ? e.status : 500;
     return new Response(JSON.stringify({ ok: false, error: e?.message || "internal_error" }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
