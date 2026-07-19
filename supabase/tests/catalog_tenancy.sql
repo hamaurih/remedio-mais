@@ -76,6 +76,43 @@ values (
   true
 );
 
+insert into public.store_settings (organization_id, store_id)
+values (
+  '30000000-0000-0000-0000-000000000001'::uuid,
+  '30000000-0000-0000-0000-000000000002'::uuid
+);
+
+do $settings_shape$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.store_settings'::regclass
+      and conname = 'single_row'
+  ) then
+    raise exception 'store_settings is still restricted to the legacy singleton row';
+  end if;
+
+  if not exists (
+    select 1
+    from public.store_settings_public
+    where organization_id = '30000000-0000-0000-0000-000000000001'::uuid
+      and store_id = '30000000-0000-0000-0000-000000000002'::uuid
+  ) then
+    raise exception 'tenant-scoped settings are not exposed by the public view';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_class
+    where oid = 'public.store_settings_public'::regclass
+      and coalesce(reloptions, '{}'::text[]) @> array['security_invoker=true']
+  ) then
+    raise exception 'store_settings_public is not a security-invoker view';
+  end if;
+end;
+$settings_shape$;
+
 insert into public.departments (
   id, organization_id, store_id, name, slug
 )
