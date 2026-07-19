@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useParams, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,15 +11,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Product } from "@/components/ProductCard";
 
 export default function Campaign() {
+  const storefront = useStorefrontTenant();
   const { slug } = useParams();
 
   const { data: campaign, isLoading } = useQuery({
-    queryKey: ["public_campaign", slug],
+    queryKey: storefrontQueryKey(storefront, ["public_campaign", slug]),
     enabled: !!slug,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("campaigns")
-        .select("*")
+      const { data } = await selectStorefrontRows("campaigns", "*", storefront)
         .eq("slug", slug)
         .eq("active", true)
         .eq("published", true)
@@ -27,12 +28,10 @@ export default function Campaign() {
   });
 
   const { data: products } = useQuery({
-    queryKey: ["public_campaign_products", campaign?.id],
+    queryKey: storefrontQueryKey(storefront, ["public_campaign_products", campaign?.id]),
     enabled: !!campaign?.id,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("campaign_products")
-        .select("position, featured_slot, products:product_id(*)")
+      const { data } = await selectStorefrontRows("campaign_products", "position, featured_slot, products:product_id(*)", storefront)
         .eq("campaign_id", campaign.id)
         .order("position");
       return ((data ?? []) as any[])
