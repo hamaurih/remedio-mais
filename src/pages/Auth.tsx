@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import { useEffect } from "react";
 
 export default function Auth() {
@@ -18,11 +19,15 @@ export default function Auth() {
   const nav = useNavigate();
   const [search] = useSearchParams();
   const next = search.get("next");
-  const { user, isAdmin } = useAuth();
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : null;
+  const { user, loading: authLoading } = useAuth();
+  const { canAccessAdmin, loading: tenantLoading } = useTenant();
 
   useEffect(() => {
-    if (user) nav(next || (isAdmin ? "/admin" : "/"));
-  }, [user, isAdmin, nav, next]);
+    if (user && !authLoading && !tenantLoading) {
+      nav(safeNext || (canAccessAdmin ? "/admin" : "/"));
+    }
+  }, [user, authLoading, tenantLoading, canAccessAdmin, nav, safeNext]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
