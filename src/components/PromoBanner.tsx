@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -548,12 +550,11 @@ function Tile({ block, index }: { block: PromoBlock; index: number }) {
 }
 
 export function PromoBanner() {
+  const storefront = useStorefrontTenant();
   const { data } = useQuery({
-    queryKey: ["promo_banner_blocks"],
+    queryKey: storefrontQueryKey(storefront, ["promo_banner_blocks"]),
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("promo_banner_blocks")
-        .select("*")
+      const { data } = await selectStorefrontRows("promo_banner_blocks", "*", storefront)
         .eq("active", true)
         .order("position");
       return (data ?? []) as PromoBlock[];

@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -88,12 +90,11 @@ function buildTree(rows: MenuItem[]): MenuItem[] {
 }
 
 export function useMenu(area: MenuArea) {
+  const storefront = useStorefrontTenant();
   return useQuery({
-    queryKey: ["menu_items", area],
+    queryKey: storefrontQueryKey(storefront, ["menu_items", area]),
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("menu_items")
-        .select("*")
+      const { data, error } = await selectStorefrontRows("menu_items", "*", storefront)
         .eq("menu_area", area)
         .eq("active", true)
         .order("position");

@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,24 +24,24 @@ import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 const sb = supabase as any;
 
 export default function Department() {
+  const storefront = useStorefrontTenant();
   const { slug } = useParams<{ slug: string }>();
   const [sort, setSort] = useState("popular");
   const [filters, setFilters] = useState<ProductFiltersState>(defaultFilters);
 
   const { data: dept } = useQuery({
-    queryKey: ["dept", slug],
+    queryKey: storefrontQueryKey(storefront, ["dept", slug]),
     queryFn: async () => {
-      const { data } = await sb.from("departments").select("*").eq("slug", slug!).eq("active", true).maybeSingle();
+      const { data } = await selectStorefrontRows("departments", "*", storefront).eq("slug", slug!).eq("active", true).maybeSingle();
       return data;
     },
     enabled: !!slug,
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["dept_categories", dept?.id],
+    queryKey: storefrontQueryKey(storefront, ["dept_categories", dept?.id]),
     queryFn: async () => {
-      const { data } = await sb.from("categories")
-        .select("id, name, slug, image_url, band_color, position")
+      const { data } = await selectStorefrontRows("categories", "id, name, slug, image_url, band_color, position", storefront)
         .eq("active", true)
         .eq("department_id", dept.id)
         .order("position");
@@ -49,10 +51,9 @@ export default function Department() {
   });
 
   const { data: productIds } = useQuery({
-    queryKey: ["dept_product_ids", dept?.id],
+    queryKey: storefrontQueryKey(storefront, ["dept_product_ids", dept?.id]),
     queryFn: async () => {
-      const { data } = await sb.from("product_taxonomy")
-        .select("product_id")
+      const { data } = await selectStorefrontRows("product_taxonomy", "product_id", storefront)
         .eq("department_id", dept.id);
       return Array.from(new Set((data ?? []).map((r: any) => r.product_id)));
     },
@@ -62,9 +63,9 @@ export default function Department() {
   const categoryIds = useMemo(() => categories.map((c: any) => c.id), [categories]);
 
   const { data: products } = useQuery({
-    queryKey: ["dept_products", dept?.id, productIds, categoryIds, sort, filters],
+    queryKey: storefrontQueryKey(storefront, ["dept_products", dept?.id, productIds, categoryIds, sort, filters]),
     queryFn: async () => {
-      let q: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true);
+      let q: any = selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true);
       // Prefer commercial classification via product_taxonomy; fall back to legacy category_id link
       if (productIds && productIds.length > 0) {
         q = q.in("id", productIds);

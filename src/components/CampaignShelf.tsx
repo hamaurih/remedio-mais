@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,13 +29,12 @@ type Campaign = {
 };
 
 export function CampaignShelf() {
+  const storefront = useStorefrontTenant();
   // Active + published campaigns within window (RLS already enforces this)
   const { data: campaigns } = useQuery({
-    queryKey: ["active_campaigns"],
+    queryKey: storefrontQueryKey(storefront, ["active_campaigns"]),
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("campaigns")
-        .select("id,name,slug,subtitle,banner_image_url,banner_link,cta_text,visual_style,position,banner_mode")
+      const { data } = await selectStorefrontRows("campaigns", "id,name,slug,subtitle,banner_image_url,banner_link,cta_text,visual_style,position,banner_mode", storefront)
         .eq("active", true)
         .eq("published", true)
         .order("position");
@@ -44,12 +45,10 @@ export function CampaignShelf() {
   const campaign = campaigns?.[0];
 
   const { data: products } = useQuery({
-    queryKey: ["campaign_products", campaign?.id],
+    queryKey: storefrontQueryKey(storefront, ["campaign_products", campaign?.id]),
     enabled: !!campaign?.id,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("campaign_products")
-        .select("position, products:product_id(*)")
+      const { data } = await selectStorefrontRows("campaign_products", "position, products:product_id(*)", storefront)
         .eq("campaign_id", campaign!.id)
         .order("position");
       const list = ((data ?? []) as any[])

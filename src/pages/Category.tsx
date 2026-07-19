@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,14 +25,15 @@ import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 const sb = supabase as any;
 
 export default function Category() {
+  const storefront = useStorefrontTenant();
   const { slug, sub } = useParams<{ slug: string; sub?: string }>();
   const [sort, setSort] = useState("popular");
   const [filters, setFilters] = useState<ProductFiltersState>(defaultFilters);
 
   const { data: cat } = useQuery({
-    queryKey: ["cat", slug],
+    queryKey: storefrontQueryKey(storefront, ["cat", slug]),
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*").eq("slug", slug!).maybeSingle();
+      const { data } = await selectStorefrontRows("categories", "*", storefront).eq("slug", slug!).maybeSingle();
       return data;
     },
     enabled: !!slug,
@@ -38,10 +41,10 @@ export default function Category() {
 
   // Resolve subcategory if present in URL
   const { data: subcategory } = useQuery({
-    queryKey: ["subcat", cat?.id, sub],
+    queryKey: storefrontQueryKey(storefront, ["subcat", cat?.id, sub]),
     queryFn: async () => {
       if (!cat?.id || !sub) return null;
-      const { data } = await sb.from("subcategories").select("*").eq("category_id", cat.id).eq("slug", sub).maybeSingle();
+      const { data } = await selectStorefrontRows("subcategories", "*", storefront).eq("category_id", cat.id).eq("slug", sub).maybeSingle();
       return data;
     },
     enabled: !!cat?.id && !!sub,
@@ -52,12 +55,10 @@ export default function Category() {
     cat.macro_group.toLowerCase().includes(cat.name.toLowerCase());
 
   const { data: siblingIds } = useQuery({
-    queryKey: ["cat_siblings", cat?.macro_group, isHub],
+    queryKey: storefrontQueryKey(storefront, ["cat_siblings", cat?.macro_group, isHub]),
     queryFn: async () => {
       if (!isHub || !cat?.macro_group) return null;
-      const { data } = await supabase
-        .from("categories")
-        .select("id")
+      const { data } = await selectStorefrontRows("categories", "id", storefront)
         .eq("active", true)
         .eq("macro_group", cat.macro_group);
       return (data ?? []).map((r: any) => r.id);
@@ -67,19 +68,19 @@ export default function Category() {
 
   // When subcategory filter is active, fetch matching product IDs via product_taxonomy
   const { data: subProductIds } = useQuery({
-    queryKey: ["sub_product_ids", subcategory?.id],
+    queryKey: storefrontQueryKey(storefront, ["sub_product_ids", subcategory?.id]),
     queryFn: async () => {
       if (!subcategory?.id) return null;
-      const { data } = await sb.from("product_taxonomy").select("product_id").eq("subcategory_id", subcategory.id);
+      const { data } = await selectStorefrontRows("product_taxonomy", "product_id", storefront).eq("subcategory_id", subcategory.id);
       return (data ?? []).map((r: any) => r.product_id);
     },
     enabled: !!subcategory?.id,
   });
 
   const { data: products } = useQuery({
-    queryKey: ["cat_products", slug, sub, sort, filters, siblingIds, subProductIds],
+    queryKey: storefrontQueryKey(storefront, ["cat_products", slug, sub, sort, filters, siblingIds, subProductIds]),
     queryFn: async () => {
-      let q: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true);
+      let q: any = selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true);
       if (slug === "ofertas") q = q.eq("on_sale", true);
       else if (cat) {
         if (isHub && siblingIds && siblingIds.length > 0) {

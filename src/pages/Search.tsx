@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { Layout } from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,13 +31,14 @@ function rankRow(name: string, term: string) {
 }
 
 export default function Search() {
+  const storefront = useStorefrontTenant();
   const [params] = useSearchParams();
   const q = (params.get("q") || "").trim();
   const [sort, setSort] = useState("popular");
   const [filters, setFilters] = useState<ProductFiltersState>(defaultFilters);
 
   const { data: products } = useQuery({
-    queryKey: ["search", q, sort, filters],
+    queryKey: storefrontQueryKey(storefront, ["search", q, sort, filters]),
     queryFn: async () => {
       if (!q) return [];
       const term = q.replace(/[%_]/g, "");
@@ -50,12 +53,10 @@ export default function Search() {
         .filter(Boolean)
         .join(",");
 
-      let qb: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or(orFilter);
+      let qb: any = selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("active", true).or(orFilter);
       qb = buildQuery(qb, filters);
       if (filters.categorySlugs.length) {
-        const { data: cs } = await supabase
-          .from("categories")
-          .select("id, slug")
+        const { data: cs } = await selectStorefrontRows("categories", "id, slug", storefront)
           .in("slug", filters.categorySlugs);
         const ids = (cs ?? []).map((c) => c.id);
         if (ids.length) qb = qb.in("category_id", ids);

@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,12 +32,11 @@ type Dept = {
 };
 
 export function DepartmentCarousel() {
+  const storefront = useStorefrontTenant();
   const { data = [] } = useQuery({
-    queryKey: ["home_departments"],
+    queryKey: storefrontQueryKey(storefront, ["home_departments"]),
     queryFn: async () => {
-      const { data } = await supabase
-        .from("categories")
-        .select("id,name,slug,image_url,link,band_color")
+      const { data } = await selectStorefrontRows("categories", "id,name,slug,image_url,link,band_color", storefront)
         .eq("active", true)
         .eq("show_on_home", true)
         .order("position", { ascending: true });

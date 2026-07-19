@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,13 +21,12 @@ export type ProductVariant = {
 };
 
 export function useProductVariants(productId: string | undefined, enabled = true) {
+  const storefront = useStorefrontTenant();
   return useQuery({
-    queryKey: ["product-variants", productId],
+    queryKey: storefrontQueryKey(storefront, ["product-variants", productId]),
     queryFn: async () => {
       if (!productId) return [] as ProductVariant[];
-      const { data } = await supabase
-        .from("product_variants")
-        .select("*")
+      const { data } = await selectStorefrontRows("product_variants", "*", storefront)
         .eq("parent_product_id", productId)
         .eq("active", true)
         .order("position", { ascending: true });
