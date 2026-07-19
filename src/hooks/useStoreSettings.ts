@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -25,14 +27,16 @@ export type StoreSettings = {
 };
 
 export function useStoreSettings() {
+  const storefront = useStorefrontTenant();
+
   return useQuery({
-    queryKey: ["store_settings"],
+    queryKey: storefrontQueryKey(storefront, ["store_settings"]),
     queryFn: async (): Promise<StoreSettings> => {
-      const { data, error } = await (supabase as any)
-        .from("store_settings_public")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
+      const { data, error } = await selectStorefrontRows(
+        "store_settings_public",
+        "*",
+        storefront,
+      ).maybeSingle();
       if (error) throw error;
       return (
         (data as StoreSettings) ?? ({
