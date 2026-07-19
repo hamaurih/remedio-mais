@@ -9,9 +9,12 @@ export type TenantScope = {
 };
 
 export class TenantResolutionError extends Error {
-  constructor(message = "Organização ou loja inválida.") {
+  readonly status: number;
+
+  constructor(message = "Organização ou loja inválida.", status = 400) {
     super(message);
     this.name = "TenantResolutionError";
+    this.status = status;
   }
 }
 
@@ -57,7 +60,7 @@ export async function resolveOrderTenant(
     .maybeSingle();
 
   if (error || !order?.organization_id || !order?.store_id) {
-    throw new TenantResolutionError("Pedido não encontrado.");
+    throw new TenantResolutionError("Pedido não encontrado.", 404);
   }
 
   return {
