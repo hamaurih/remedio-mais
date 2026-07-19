@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - main
-      - agent/saas-foundation
+      - "agent/**"
   push:
     branches:
       - main
