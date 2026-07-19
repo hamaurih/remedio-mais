@@ -3,6 +3,7 @@
 // Logs e diagnóstico estruturados (gravados em public.payment_errors).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { safeLog as maskedLog, safeError, maskId, maskEmail, maskSensitiveData } from "../_shared/mask.ts";
+import { resolveOrderTenant, resolveRequestTenant, TenantResolutionError, withTenant } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,8 @@ type CheckoutBody = {
     lat?: number; lng?: number; place_id?: string;
   };
   return_origin: string;
+  organization_id?: string;
+  store_id?: string;
 };
 
 // ---------- helpers ----------
@@ -44,8 +47,16 @@ async function recordError(adminClient: any, payload: {
   mp_error?: unknown; supabase_error?: unknown; payload_summary?: unknown;
   http_status?: number; order_id?: string | null; user_id?: string | null; user_email?: string | null;
 }) {
+  if (!payload.order_id) {
+    safeError("[mp-checkout] payment error without order tenant", {
+      stage: payload.stage,
+      error_code: payload.error_code,
+    });
+    return;
+  }
   try {
-    await adminClient.from("payment_errors").insert(payload);
+    const { tenant } = await resolveOrderTenant(adminClient, payload.order_id);
+    await adminClient.from("payment_errors").insert(withTenant(payload, tenant));
   } catch (e) {
     safeError("[mp-checkout] failed to insert payment_errors", { message: (e as Error).message });
   }
@@ -137,6 +148,23 @@ Deno.serve(async (req) => {
     });
   }
 
+  let tenant;
+  try {
+    tenant = await resolveRequestTenant(admin, body);
+  } catch (error) {
+    return fail({
+      http: 400,
+      stage: "tenant_resolution",
+      error_code: "TENANT_INVALID",
+      message: error instanceof TenantResolutionError
+        ? error.message
+        : "Não foi possível identificar a loja.",
+      adminClient: admin,
+      user_id: userId,
+      user_email: userEmail,
+    });
+  }
+
   if (!Array.isArray(body.items) || body.items.length === 0) {
     return fail({
       http: 400, stage: "cart_validation", error_code: "CART_EMPTY",
@@ -192,7 +220,9 @@ Deno.serve(async (req) => {
   const { data: products, error: prodErr } = await admin
     .from("products")
     .select("id,name,slug,price,promo_price,image_url,stock,active,controlled,requires_prescription,cart_quantity_limit,has_variants")
-    .in("id", ids);
+    .in("id", ids)
+    .eq("organization_id", tenant.organizationId)
+    .eq("store_id", tenant.storeId);
   if (prodErr) {
     return fail({
       http: 500, stage: "load_products", error_code: "DB_LOAD_PRODUCTS",
@@ -207,7 +237,9 @@ Deno.serve(async (req) => {
     const { data: variants, error: varErr } = await admin
       .from("product_variants")
       .select("id,parent_product_id,trier_product_id,barcode,variation_type,variation_value,name,price,promo_price,stock,image_url,active")
-      .in("id", variantIds);
+      .in("id", variantIds)
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId);
     if (varErr) {
       return fail({
         http: 500, stage: "load_variants", error_code: "DB_LOAD_VARIANTS",
@@ -271,7 +303,11 @@ Deno.serve(async (req) => {
       const { data: rx } = await admin
         .from("prescriptions")
         .select("id")
-        .eq("user_id", userId).eq("product_id", p.id).eq("status", "aprovada")
+        .eq("user_id", userId)
+        .eq("product_id", p.id)
+        .eq("status", "aprovada")
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId)
         .limit(1).maybeSingle();
       if (!rx) {
         return fail({
@@ -315,7 +351,8 @@ Deno.serve(async (req) => {
   const { data: settings } = await admin
     .from("store_settings")
     .select("delivery_fee, delivery_mode, delivery_max_km, delivery_fee_zones, store_lat, store_lng")
-    .eq("id", 1)
+    .eq("organization_id", tenant.organizationId)
+    .eq("store_id", tenant.storeId)
     .maybeSingle();
 
   let deliveryFee = 0;
@@ -381,7 +418,7 @@ Deno.serve(async (req) => {
   });
 
   // 6) Criar pedido
-  const { data: order, error: orderErr } = await admin.from("orders").insert({
+  const { data: order, error: orderErr } = await admin.from("orders").insert(withTenant({
     user_id: userId,
     customer_name: body.customer.name,
     customer_email: body.customer.email || userEmail,
@@ -408,7 +445,7 @@ Deno.serve(async (req) => {
     payment_status: "pending",
     order_status: "aguardando_pagamento",
     trier_sent: false,
-  }).select().single();
+  }, tenant)).select().single();
   if (orderErr) {
     return fail({
       http: 500, stage: "create_order", error_code: "DB_INSERT_ORDER",
@@ -419,7 +456,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const orderItemsRows = orderItems.map((it) => ({ ...it, order_id: order.id }));
+  const orderItemsRows = orderItems.map((it) => withTenant({ ...it, order_id: order.id }, tenant));
   const { error: itErr } = await admin.from("order_items").insert(orderItemsRows);
   if (itErr) {
     await admin.from("orders").delete().eq("id", order.id);
