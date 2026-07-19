@@ -110,6 +110,34 @@ values (
   '42000000-0000-0000-0000-000000000001'::uuid
 );
 
+insert into public.payment_settings (organization_id, store_id)
+values (
+  '41000000-0000-0000-0000-000000000001'::uuid,
+  '42000000-0000-0000-0000-000000000001'::uuid
+);
+
+do $payment_settings_shape$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.payment_settings'::regclass
+      and conname = 'payment_settings_singleton'
+  ) then
+    raise exception 'payment_settings is still a global singleton';
+  end if;
+
+  if not exists (
+    select 1
+    from public.payment_settings
+    where organization_id = '41000000-0000-0000-0000-000000000001'::uuid
+      and store_id = '42000000-0000-0000-0000-000000000001'::uuid
+  ) then
+    raise exception 'tenant payment settings could not be created';
+  end if;
+end;
+$payment_settings_shape$;
+
 insert into public.orders (
   id, user_id, customer_name, customer_phone, payment_status
 )
