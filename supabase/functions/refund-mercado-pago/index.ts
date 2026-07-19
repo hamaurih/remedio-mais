@@ -6,6 +6,7 @@
 // - Registra tudo em refund_requests + order_events
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { resolveOrderTenant, TenantResolutionError, withTenant } from "../_shared/tenant.ts";
 
 type Body = {
   order_id: string;
@@ -48,23 +49,31 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE);
 
-    // Permissões
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userId);
-    const isAdmin = (roles || []).some((r: any) => r.role === "admin");
-    const isSeller = (roles || []).some((r: any) => r.role === "seller");
+    // O pedido define o tenant; a autorização é avaliada dentro da organização.
+    const { tenant, order } = await resolveOrderTenant(admin, body.order_id);
+    const { data: membership } = await admin
+      .from("organization_memberships")
+      .select("role")
+      .eq("organization_id", tenant.organizationId)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
+    const role = membership?.role ?? "";
+    const isAdmin = ["owner", "admin", "manager"].includes(role);
+    const isSeller = role === "seller";
     if (!isAdmin && !isSeller) return json({ error: "Sem permissão" }, 403);
 
     let canExecute = isAdmin;
     let canRequest = isAdmin;
     if (!isAdmin) {
-      const { data: perm } = await admin.from("seller_permissions").select("*").eq("user_id", userId).maybeSingle();
+      const { data: perm } = await admin.from("seller_permissions").select("*")
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId)
+        .eq("user_id", userId)
+        .maybeSingle();
       canRequest = !!perm?.can_request_refund;
       canExecute = !!perm?.can_execute_refund;
     }
-
-    // Carrega pedido
-    const { data: order, error: oErr } = await admin.from("orders").select("*").eq("id", body.order_id).maybeSingle();
-    if (oErr || !order) return json({ error: "Pedido não encontrado" }, 404);
 
     const paymentId = order.mercado_pago_payment_id;
     if (!paymentId) return json({ error: "Pedido sem mercado_pago_payment_id" }, 400);
@@ -83,7 +92,7 @@ Deno.serve(async (req) => {
     const wantsExecute = mode === "execute";
 
     // Insere refund_request
-    const { data: rr, error: rrErr } = await admin.from("refund_requests").insert({
+    const { data: rr, error: rrErr } = await admin.from("refund_requests").insert(withTenant({
       order_id: order.id,
       payment_id: String(paymentId),
       requested_by: userId,
@@ -92,7 +101,7 @@ Deno.serve(async (req) => {
       amount: amount ?? order.total,
       status: "pending",
       idempotency_key: idemKey,
-    }).select().maybeSingle();
+    }, tenant)).select().maybeSingle();
     if (rrErr) {
       if (rrErr.code === "23505") return json({ error: "Solicitação duplicada (idempotency_key)" }, 409);
       return json({ error: rrErr.message }, 500);
@@ -101,25 +110,31 @@ Deno.serve(async (req) => {
     // Caso vendedor sem can_execute → para aqui como solicitação
     if (!wantsExecute || !canExecute) {
       if (!canRequest && !canExecute) {
-        await admin.from("refund_requests").update({ status: "denied", error_message: "Sem permissão" }).eq("id", rr!.id);
+        await admin.from("refund_requests").update({ status: "denied", error_message: "Sem permissão" }).eq("id", rr!.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
         return json({ error: "Sem permissão para solicitar reembolso" }, 403);
       }
-      await admin.from("orders").update({ status: "reembolso_pendente" }).eq("id", order.id);
-      await admin.from("order_events").insert({
+      await admin.from("orders").update({ status: "reembolso_pendente" }).eq("id", order.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("order_events").insert(withTenant({
         order_id: order.id, type: "refund_requested", message: `Reembolso ${reqType} solicitado`,
         created_by: userId, metadata: { refund_request_id: rr!.id, amount: amount ?? order.total },
-      });
-      await admin.from("admin_notifications").insert({
+      }, tenant));
+      await admin.from("admin_notifications").insert(withTenant({
         type: "refund_requested", title: "Solicitação de reembolso",
         message: `Pedido ${order.id.slice(0,8)} — ${reqType} ${amount ? "R$ " + amount.toFixed(2) : "total"}`,
         order_id: order.id, role_target: "admin", priority: "high",
         metadata: { refund_request_id: rr!.id },
-      });
+      }, tenant));
       return json({ ok: true, status: "pending", refund_request: rr });
     }
 
     // Executa no Mercado Pago
-    await admin.from("refund_requests").update({ status: "processing" }).eq("id", rr!.id);
+    await admin.from("refund_requests").update({ status: "processing" }).eq("id", rr!.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
 
     const mpBody = isTotal ? {} : { amount };
     const mpResp = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}/refunds`, {
@@ -138,12 +153,14 @@ Deno.serve(async (req) => {
       await admin.from("refund_requests").update({
         status: "failed", error_message: String(msg),
         processed_by: userId, processed_at: new Date().toISOString(),
-      }).eq("id", rr!.id);
-      await admin.from("order_events").insert({
+      }).eq("id", rr!.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("order_events").insert(withTenant({
         order_id: order.id, type: "refund_failed",
         message: `Falha no reembolso: ${msg}`, created_by: userId,
         metadata: { refund_request_id: rr!.id, mp_response: mpJson },
-      });
+      }, tenant));
       return json({ error: "Falha no Mercado Pago", detail: msg, mp: mpJson }, 502);
     }
 
@@ -154,32 +171,37 @@ Deno.serve(async (req) => {
       mercado_pago_refund_id: mpRefundId,
       processed_by: userId,
       processed_at: new Date().toISOString(),
-    }).eq("id", rr!.id);
+    }).eq("id", rr!.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
 
     const newPaymentStatus = isTotal ? "refunded" : "partially_refunded";
     const newOrderStatus = isTotal ? "reembolsado" : order.status;
     await admin.from("orders").update({
       payment_status: newPaymentStatus,
       status: newOrderStatus,
-    }).eq("id", order.id);
+    }).eq("id", order.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
 
-    await admin.from("order_events").insert({
+    await admin.from("order_events").insert(withTenant({
       order_id: order.id, type: "refund_completed",
       message: `Reembolso ${reqType} concluído${amount ? ` (R$ ${amount.toFixed(2)})` : ""}`,
       created_by: userId,
       metadata: { refund_request_id: rr!.id, mp_refund_id: mpRefundId, amount: amount ?? order.total },
-    });
-    await admin.from("admin_notifications").insert({
+    }, tenant));
+    await admin.from("admin_notifications").insert(withTenant({
       type: "refund_completed", title: "Reembolso concluído",
       message: `Pedido ${order.id.slice(0,8)} — ${reqType} ${amount ? "R$ " + amount.toFixed(2) : "total"}`,
       order_id: order.id, role_target: "admin", priority: "normal",
       metadata: { refund_request_id: rr!.id, mp_refund_id: mpRefundId },
-    });
+    }, tenant));
 
     return json({ ok: true, status: "completed", refund_request_id: rr!.id, mp_refund_id: mpRefundId });
   } catch (e) {
+    const status = e instanceof TenantResolutionError ? e.status : 500;
     return new Response(JSON.stringify({ error: String((e as Error).message || e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
