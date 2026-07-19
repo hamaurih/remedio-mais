@@ -31,11 +31,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      # The Lovable-generated lockfile predates the current package.json.
-      # Keep CI aligned with the existing Vercel install until lockfile cleanup
-      # is delivered in a dedicated dependency-only change.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run unit tests
         run: npm test
