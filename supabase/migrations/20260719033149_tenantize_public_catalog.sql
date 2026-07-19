@@ -58,8 +58,12 @@ begin
     execute format(
       'alter table public.%I
          alter column organization_id set not null,
-         alter column store_id set not null',
-      table_name
+         alter column store_id set not null,
+         alter column organization_id set default %L::uuid,
+         alter column store_id set default %L::uuid',
+      table_name,
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002'
     );
 
     constraint_name := table_name || '_store_same_org_fk';
