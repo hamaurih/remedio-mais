@@ -47,6 +47,7 @@ export function StorefrontTenantProvider({ children }: { children: ReactNode }) 
         import.meta.env.VITE_DEFAULT_STOREFRONT_HOSTNAME ?? "",
       );
       const hostname = configuredHostname || browserHostname;
+      const isPreview = isStorefrontPreviewHostname(browserHostname);
 
       setLoading(true);
       setError(null);
@@ -62,7 +63,10 @@ export function StorefrontTenantProvider({ children }: { children: ReactNode }) 
           .eq("status", "verified")
           .maybeSingle();
 
-        if (domainError) throw domainError;
+        // Preview deployments may still point at a database that has not
+        // received the SaaS migrations. Preserve preview access only there;
+        // a custom production domain must never bypass domain verification.
+        if (domainError && !isPreview) throw domainError;
 
         if (data?.organization_id && data?.store_id) {
           if (!cancelled) {
@@ -77,7 +81,7 @@ export function StorefrontTenantProvider({ children }: { children: ReactNode }) 
           return;
         }
 
-        if (isStorefrontPreviewHostname(browserHostname)) {
+        if (isPreview) {
           if (!cancelled) {
             setTenant({
               organizationId: CLIENT_ZERO_ORGANIZATION_ID,
