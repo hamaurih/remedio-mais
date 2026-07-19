@@ -1,0 +1,44 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - agent/saas-foundation
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The Lovable-generated lockfile predates the current package.json.
+      # Keep CI aligned with the existing Vercel install until lockfile cleanup
+      # is delivered in a dedicated dependency-only change.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build production bundle
+        run: npm run build
