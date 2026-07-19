@@ -14,6 +14,8 @@ import Departamentos from "./pages/Departamentos.tsx";
 import Department from "./pages/Department.tsx";
 import Auth from "./pages/Auth.tsx";
 import Account from "./pages/Account.tsx";
+import { AuthProvider } from "@/hooks/useAuth";
+import { TenantProvider } from "@/hooks/useTenant";
 
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Terms from "./pages/Terms.tsx";
@@ -70,7 +72,9 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+    <AuthProvider>
+      <TenantProvider>
+        <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -133,7 +137,9 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
+        </TooltipProvider>
+      </TenantProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
