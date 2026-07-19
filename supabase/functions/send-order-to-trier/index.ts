@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { safeLog, safeError, maskSensitiveData } from "../_shared/mask.ts";
+import { resolveOrderTenant, resolveRequestTenant, TenantResolutionError, type TenantScope, withTenant } from "../_shared/tenant.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -25,9 +26,9 @@ type LogArgs = {
   created_by?: string | null;
 };
 
-async function writeLog(a: LogArgs) {
+async function writeLog(tenant: TenantScope, a: LogArgs) {
   try {
-    await admin.from("trier_order_logs").insert({
+    await admin.from("trier_order_logs").insert(withTenant({
       order_id: a.order_id,
       action: a.action,
       endpoint: a.endpoint ?? null,
@@ -37,7 +38,7 @@ async function writeLog(a: LogArgs) {
       response_payload_masked: a.response_payload ? (maskSensitiveData(a.response_payload) as any) : null,
       error_message: a.error_message ?? null,
       created_by: a.created_by ?? null,
-    });
+    }, tenant));
   } catch (e) {
     safeError("[send-order-to-trier] log insert failed", { message: (e as Error)?.message });
   }
@@ -160,8 +161,6 @@ Deno.serve(async (req) => {
       const { data: claimsRes, error: claimsErr } = await supaUser.auth.getClaims(token);
       if (claimsErr || !claimsRes?.claims) return json({ error: "Unauthorized" }, 401);
       actorId = claimsRes.claims.sub as string;
-      const { data: hasAdmin } = await admin.rpc("has_role", { _user_id: actorId, _role: "admin" });
-      if (!hasAdmin) return json({ error: "Forbidden" }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
@@ -170,9 +169,30 @@ Deno.serve(async (req) => {
     const force = !!body?.force;
     const presetParam = String(body?.preset || "") as PaymentMode | "";
 
+    const resolvedOrder = orderId
+      ? await resolveOrderTenant(admin, orderId)
+      : null;
+    const tenant = resolvedOrder?.tenant ?? await resolveRequestTenant(admin, body);
+
+    if (actorId) {
+      const { data: membership } = await admin
+        .from("organization_memberships")
+        .select("role")
+        .eq("organization_id", tenant.organizationId)
+        .eq("user_id", actorId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!["owner", "admin", "manager"].includes(membership?.role ?? "")) {
+        return json({ error: "Forbidden" }, 403);
+      }
+    }
+
     // Resolve sales base URL (gateway or local webservice)
     const { data: settingsForBase } = await admin
-      .from("trier_settings").select("*").eq("id", 1).maybeSingle();
+      .from("trier_settings").select("*")
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId)
+      .maybeSingle();
     const salesBaseUrl: string = (settingsForBase?.trier_sales_base_url
       || settingsForBase?.base_url
       || "https://api-sgf-gateway.triersistemas.com.br/sgfpod1").replace(/\/$/, "");
@@ -218,7 +238,10 @@ Deno.serve(async (req) => {
 
     // 1) Carrega config
     const { data: settings, error: setErr } = await admin
-      .from("trier_settings").select("*").eq("id", 1).maybeSingle();
+      .from("trier_settings").select("*")
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId)
+      .maybeSingle();
     if (setErr || !settings) return json({ error: "trier_settings ausente" }, 500);
 
     if (action === "send_order" && isInternal && !settings.auto_send_orders_enabled) {
@@ -226,15 +249,13 @@ Deno.serve(async (req) => {
     }
 
     if (!TRIER_TOKEN) {
-      await writeLog({ order_id: orderId, action, status: "error",
+      await writeLog(tenant, { order_id: orderId, action, status: "error",
         error_message: "TRIER_API_TOKEN ausente" });
       return json({ error: "TRIER_API_TOKEN ausente" }, 500);
     }
 
     // 2) Carrega pedido + itens
-    const { data: order, error: orderErr } = await admin
-      .from("orders").select("*").eq("id", orderId).maybeSingle();
-    if (orderErr || !order) return json({ error: "Pedido não encontrado" }, 404);
+    const order = resolvedOrder!.order;
 
     const isPaymentTest = action === "test_payment_preset";
     const isDiagnosticTest = action === "test_diagnostic_preset";
@@ -253,7 +274,12 @@ Deno.serve(async (req) => {
     }
 
     const { data: items, error: itemsErr } = await admin
-      .from("order_items").select("*, products(trier_product_id)").eq("order_id", orderId);
+      .from("order_items").select("*, products(trier_product_id)")
+      .eq("organization_id", tenant.organizationId)
+      .eq("store_id", tenant.storeId)
+      .eq("order_id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
     if (itemsErr || !items?.length) return json({ error: "Itens do pedido não encontrados" }, 400);
 
     // 3) Validações de configuração mínimas
@@ -288,9 +314,11 @@ Deno.serve(async (req) => {
     }
     if (missingConfig.length) {
       const msg = `Configuração Trier incompleta: ${missingConfig.join(", ")}`;
-      await writeLog({ order_id: orderId, action, status: "error", error_message: msg, created_by: actorId });
+      await writeLog(tenant, { order_id: orderId, action, status: "error", error_message: msg, created_by: actorId });
       if (!isTest) {
-        await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId);
+        await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
       }
       return json({ error: msg }, 400);
     }
@@ -314,9 +342,11 @@ Deno.serve(async (req) => {
     }
     if (itemsWithoutTrierId.length) {
       const msg = `Itens sem trier_product_id: ${itemsWithoutTrierId.join("; ")}`;
-      await writeLog({ order_id: orderId, action, status: "error", error_message: msg, created_by: actorId });
+      await writeLog(tenant, { order_id: orderId, action, status: "error", error_message: msg, created_by: actorId });
       if (!isTest) {
-        await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId);
+        await admin.from("orders").update({ trier_last_error: msg }).eq("id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
       }
       return json({ error: msg }, 400);
     }
@@ -451,7 +481,9 @@ Deno.serve(async (req) => {
       await admin.from("orders").update({
         trier_attempts: (order.trier_attempts || 0) + 1,
         trier_payload_hash: payloadHash,
-      }).eq("id", orderId);
+      }).eq("id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
     }
 
     let httpStatus = 0;
@@ -487,7 +519,7 @@ Deno.serve(async (req) => {
       : isPaymentTest
         ? `test_payment_preset:${mode}`
         : "send_order";
-    await writeLog({
+    await writeLog(tenant, {
       order_id: orderId,
       action: logAction,
       endpoint: SEND_PATH,
@@ -527,14 +559,18 @@ Deno.serve(async (req) => {
         trier_sale_id: trierSaleId ? String(trierSaleId) : null,
         trier_numero_nota: trierNumeroNota ? String(trierNumeroNota) : null,
         trier_last_error: null,
-      }).eq("id", orderId);
-      await admin.from("order_items").update({ trier_item_sent: true }).eq("order_id", orderId);
-      await admin.from("admin_notifications").insert({
+      }).eq("id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("order_items").update({ trier_item_sent: true }).eq("order_id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("admin_notifications").insert(withTenant({
         type: "trier_order_sent",
         title: "Pedido enviado ao Trier",
         message: `Pedido #${String(orderId).slice(0,6)} enviado com sucesso ao Trier.`,
         order_id: orderId,
-      });
+      }, tenant));
       return json({ ok: true, trier_order_id: trierOrderId, http_status: httpStatus });
     } else {
       await admin.from("orders").update({
@@ -542,19 +578,22 @@ Deno.serve(async (req) => {
         trier_status: "error",
         trier_status_code: httpStatus || null,
         trier_last_error: errorMessage || JSON.stringify(responseBody).slice(0, 500),
-      }).eq("id", orderId);
-      await admin.from("admin_notifications").insert({
+      }).eq("id", orderId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("admin_notifications").insert(withTenant({
         type: "trier_order_failed",
         title: "Falha ao enviar pedido ao Trier",
         message: `Pedido #${String(orderId).slice(0,6)}: ${errorMessage || "erro Trier"}`,
         order_id: orderId,
-      });
+      }, tenant));
       return json({ ok: false, http_status: httpStatus, error: errorMessage, response: responseBody }, 502);
     }
 
   } catch (e) {
     safeError("[send-order-to-trier] unexpected", { message: (e as Error)?.message });
-    return json({ error: (e as Error)?.message }, 500);
+    const status = e instanceof TenantResolutionError ? e.status : 500;
+    return json({ error: (e as Error)?.message }, status);
   }
 });
 
