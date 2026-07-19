@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Tag, Pill, Sparkles, Baby, ShoppingBag } from "lucide-react";
@@ -256,6 +258,7 @@ function TileCard({ tile, large }: { tile: ResolvedTile; large?: boolean }) {
 }
 
 function useRefs(tiles: MosaicTile[]) {
+  const storefront = useStorefrontTenant();
   const productIds = Array.from(
     new Set(tiles.filter((t) => t.link_type === "product" && t.product_id).map((t) => t.product_id!)),
   );
@@ -267,38 +270,32 @@ function useRefs(tiles: MosaicTile[]) {
   );
 
   const { data: products } = useQuery({
-    queryKey: ["mosaic_refs_products", productIds.sort().join(",")],
+    queryKey: storefrontQueryKey(storefront, ["mosaic_refs_products", productIds.sort().join(",")]),
     enabled: productIds.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("products")
-        .select(
+      const { data } = await selectStorefrontRows("products", 
           "id,name,slug,image_url,short_description,laboratory,category_name,on_sale,requires_prescription,controlled,price,promo_price",
-        )
+        , storefront)
         .in("id", productIds);
       return data || [];
     },
   });
 
   const { data: categories } = useQuery({
-    queryKey: ["mosaic_refs_categories", categoryIds.sort().join(",")],
+    queryKey: storefrontQueryKey(storefront, ["mosaic_refs_categories", categoryIds.sort().join(",")]),
     enabled: categoryIds.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("categories")
-        .select("id,name,slug,image_url,description")
+      const { data } = await selectStorefrontRows("categories", "id,name,slug,image_url,description", storefront)
         .in("id", categoryIds);
       return data || [];
     },
   });
 
   const { data: campaigns } = useQuery({
-    queryKey: ["mosaic_refs_campaigns", campaignIds.sort().join(",")],
+    queryKey: storefrontQueryKey(storefront, ["mosaic_refs_campaigns", campaignIds.sort().join(",")]),
     enabled: campaignIds.length > 0,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("campaigns")
-        .select("id,name,slug,banner_image_url,subtitle,cta_text")
+      const { data } = await selectStorefrontRows("campaigns", "id,name,slug,banner_image_url,subtitle,cta_text", storefront)
         .in("id", campaignIds);
       return data || [];
     },
@@ -318,12 +315,11 @@ function useRefs(tiles: MosaicTile[]) {
 }
 
 export function PromoMosaic() {
+  const storefront = useStorefrontTenant();
   const { data } = useQuery({
-    queryKey: ["home_mosaic_tiles"],
+    queryKey: storefrontQueryKey(storefront, ["home_mosaic_tiles"]),
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("home_mosaic_tiles")
-        .select("*")
+      const { data } = await selectStorefrontRows("home_mosaic_tiles", "*", storefront)
         .eq("active", true)
         .order("position");
       return (data ?? []) as MosaicTile[];
