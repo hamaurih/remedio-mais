@@ -2,6 +2,7 @@
 // Requer JWT válido. Acesso liberado para: dono do pedido (auth.uid() = order.user_id) ou admin.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { resolveOrderTenant, TenantResolutionError, withTenant } from "../_shared/tenant.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -28,12 +29,17 @@ Deno.serve(async (req) => {
     const { order_id } = await req.json();
     if (!order_id) return json({ error: "order_id obrigatório" }, 400);
 
-    const { data: order } = await admin.from("orders").select("*").eq("id", order_id).maybeSingle();
-    if (!order) return json({ error: "Pedido não encontrado" }, 404);
+    const { tenant, order } = await resolveOrderTenant(admin, order_id);
 
-    // Authz: dono ou admin
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userId);
-    const isAdmin = (roles || []).some((r: any) => r.role === "admin");
+    // Authz: dono do pedido ou membro administrativo da organização.
+    const { data: membership } = await admin
+      .from("organization_memberships")
+      .select("role")
+      .eq("organization_id", tenant.organizationId)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
+    const isAdmin = ["owner", "admin", "manager"].includes(membership?.role ?? "");
     if (!isAdmin && order.user_id !== userId) {
       return json({ error: "Forbidden" }, 403);
     }
@@ -70,20 +76,24 @@ Deno.serve(async (req) => {
           update.order_status = "pago";
           update.status = "em_atendimento";
           update.paid_at = new Date().toISOString();
-          await admin.from("admin_notifications").insert({
+          await admin.from("admin_notifications").insert(withTenant({
             type: "order_paid",
             title: "Produto vendido",
             message: `Pedido #${String(order.id).slice(0, 6)} pago. Cliente: ${order.customer_name}.`,
             order_id: order.id,
-          });
+          }, tenant));
         }
-        await admin.from("orders").update(update).eq("id", order.id);
+        await admin.from("orders").update(update)
+          .eq("id", order.id)
+          .eq("organization_id", tenant.organizationId)
+          .eq("store_id", tenant.storeId);
       }
     }
 
     return json({ order_id: order.id, payment_status: status });
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    const status = e instanceof TenantResolutionError ? e.status : 500;
+    return json({ error: (e as Error).message }, status);
   }
 });
 

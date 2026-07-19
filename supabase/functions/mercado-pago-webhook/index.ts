@@ -2,6 +2,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { safeLog, safeError, maskId } from "../_shared/mask.ts";
+import { resolveOrderTenant, type TenantScope, withTenant } from "../_shared/tenant.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -49,17 +50,8 @@ Deno.serve(async (req) => {
       return unauthorized();
     }
 
-    // Idempotência
-    const externalId = `${topic || "unknown"}:${dataId}`;
-    const { error: insErr } = await admin.from("payment_events").insert({
-      gateway: "mercado_pago", event_type: topic, external_id: externalId, payload,
-    });
-    if (insErr && !insErr.message.includes("duplicate")) {
-      safeError("[mp-webhook] event insert error", { code: insErr.code, message: insErr.message });
-    }
-    if (insErr?.message.includes("duplicate")) return ok();
-
     if (topic !== "payment" && topic !== "merchant_order") return ok();
+    const externalId = `${topic || "unknown"}:${dataId}`;
 
     // Busca payment no MP
     let paymentId = dataId;
@@ -93,8 +85,23 @@ Deno.serve(async (req) => {
     const externalReference = pay.external_reference as string | undefined;
     if (!externalReference) return ok();
 
-    const { data: order } = await admin.from("orders").select("*").eq("id", externalReference).maybeSingle();
-    if (!order) return ok();
+    let resolved;
+    try {
+      resolved = await resolveOrderTenant(admin, externalReference);
+    } catch {
+      return ok();
+    }
+    const { tenant, order } = resolved;
+
+    // Idempotência é registrada somente depois que o pedido define o tenant.
+    const { error: insErr } = await admin.from("payment_events").insert(withTenant({
+      gateway: "mercado_pago", event_type: topic, external_id: externalId,
+      payload, order_id: order.id,
+    }, tenant));
+    if (insErr && !insErr.message.includes("duplicate")) {
+      safeError("[mp-webhook] event insert error", { code: insErr.code, message: insErr.message });
+    }
+    if (insErr?.message.includes("duplicate")) return ok();
 
     const map: Record<string, string> = {
       approved: "approved", authorized: "approved",
@@ -109,19 +116,23 @@ Deno.serve(async (req) => {
       // Bloqueia aprovação por divergência de valor
       await logError(admin, "webhook_amount", "amount_mismatch",
         `Valor pago R$ ${valid.toFixed(2)} difere do total esperado R$ ${Number(order.total).toFixed(2)}`,
-        { paymentId, orderId: order.id, paid: valid, expected: Number(order.total) }, order.id);
+        { paymentId, orderId: order.id, paid: valid, expected: Number(order.total) }, order.id, tenant);
       await admin.from("orders").update({
         payment_status: "payment_review",
         mercado_pago_payment_id: String(paymentId),
         mercado_pago_order_id: merchantOrderId ?? order.mercado_pago_order_id,
-      }).eq("id", order.id);
-      await admin.from("payment_events").update({ processed: true, order_id: order.id }).eq("external_id", externalId);
-      await admin.from("admin_notifications").insert({
+      }).eq("id", order.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("payment_events").update({ processed: true, order_id: order.id }).eq("external_id", externalId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+      await admin.from("admin_notifications").insert(withTenant({
         type: "payment_review",
         title: "Pagamento em revisão — divergência de valor",
         message: `Pedido #${String(order.id).slice(0,6)}: pago R$ ${valid.toFixed(2)} ≠ esperado R$ ${Number(order.total).toFixed(2)}`,
         order_id: order.id,
-      });
+      }, tenant));
       return ok();
     }
 
@@ -138,22 +149,29 @@ Deno.serve(async (req) => {
     if (newPaymentStatus === "cancelled" || newPaymentStatus === "rejected") {
       update.cancelled_at = new Date().toISOString();
     }
-    await admin.from("orders").update(update).eq("id", order.id);
-    await admin.from("payment_events").update({ processed: true, order_id: order.id }).eq("external_id", externalId);
+    await admin.from("orders").update(update).eq("id", order.id)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
+    await admin.from("payment_events").update({ processed: true, order_id: order.id }).eq("external_id", externalId)
+        .eq("organization_id", tenant.organizationId)
+        .eq("store_id", tenant.storeId);
 
     if (newPaymentStatus === "approved" && order.payment_status !== "approved") {
-      await admin.from("admin_notifications").insert({
+      await admin.from("admin_notifications").insert(withTenant({
         type: "order_paid",
         title: "Produto vendido",
         message: `Pedido #${String(order.id).slice(0, 6)} pago com sucesso. Cliente: ${order.customer_name}. Total: R$ ${Number(order.total).toFixed(2)}.`,
         order_id: order.id,
-      });
+      }, tenant));
 
       // Disparo automático ao Trier (gated por trier_settings.auto_send_orders_enabled).
       // Falha aqui NÃO derruba o webhook — pedido fica trier_sent=false para reenvio manual.
       try {
         const { data: tset } = await admin.from("trier_settings")
-          .select("auto_send_orders_enabled").eq("id", 1).maybeSingle();
+          .select("auto_send_orders_enabled")
+          .eq("organization_id", tenant.organizationId)
+          .eq("store_id", tenant.storeId)
+          .maybeSingle();
         if (tset?.auto_send_orders_enabled && order.sales_channel === "site") {
           const fnUrl = `${SUPABASE_URL}/functions/v1/send-order-to-trier`;
           fetch(fnUrl, {
@@ -163,7 +181,11 @@ Deno.serve(async (req) => {
               "Authorization": `Bearer ${SERVICE}`,
               "x-internal-source": "mercado-pago-webhook",
             },
-            body: JSON.stringify({ order_id: order.id }),
+            body: JSON.stringify({
+              order_id: order.id,
+              organization_id: tenant.organizationId,
+              store_id: tenant.storeId,
+            }),
           }).catch((e) => safeError("[mp-webhook] trier dispatch failed", { message: (e as Error)?.message }));
         }
       } catch (e) {
@@ -201,13 +223,17 @@ function timingSafeEqual(a: string, b: string): boolean {
 async function logError(
   admin: ReturnType<typeof createClient>,
   stage: string, code: string, message: string,
-  summary?: Record<string, unknown>, orderId?: string,
+  summary?: Record<string, unknown>, orderId?: string, tenant?: TenantScope,
 ) {
+  if (!tenant) {
+    safeError("[mp-webhook] payment error without tenant", { stage, code, message });
+    return;
+  }
   try {
-    await admin.from("payment_errors").insert({
+    await admin.from("payment_errors").insert(withTenant({
       stage, error_code: code, message,
       payload_summary: summary ?? null,
       order_id: orderId ?? null,
-    });
+    }, tenant));
   } catch (e) { safeError("[mp-webhook] payment_errors log failed", { message: (e as Error)?.message }); }
 }

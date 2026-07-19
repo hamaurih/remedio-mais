@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { safeLog, safeError, maskId, maskPath, maskPhone } from "../_shared/mask.ts";
+import { resolveRequestTenant, TenantResolutionError, withTenant } from "../_shared/tenant.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +57,20 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
+    let tenant;
+    try {
+      tenant = await resolveRequestTenant(admin, {
+        organization_id: form.get("organization_id"),
+        store_id: form.get("store_id"),
+      });
+    } catch (error) {
+      return json({
+        error: error instanceof TenantResolutionError
+          ? error.message
+          : "Não foi possível identificar a loja.",
+      }, 400);
+    }
+
     let file_url: string | null = null;
 
     if (file && file instanceof File && file.size > 0) {
@@ -64,7 +79,7 @@ Deno.serve(async (req) => {
       if (!ALLOWED_MIME.has(mime)) return json({ error: "Tipo de arquivo não permitido." }, 400);
       const ext = EXT_BY_MIME[mime];
       const rand = crypto.randomUUID();
-      const path = `submissions/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${rand}.${ext}`;
+      const path = `${tenant.organizationId}/${tenant.storeId}/submissions/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${rand}.${ext}`;
 
       const bytes = new Uint8Array(await file.arrayBuffer());
       const { error: upErr } = await admin.storage
@@ -85,14 +100,14 @@ Deno.serve(async (req) => {
       user_id = data.user?.id ?? null;
     }
 
-    const { error: insErr } = await admin.from("prescriptions").insert({
+    const { error: insErr } = await admin.from("prescriptions").insert(withTenant({
       customer_name: name,
       customer_phone: phone,
       notes,
       file_url,
       status: "recebida",
       user_id,
-    });
+    }, tenant));
     if (insErr) {
       safeError("[submit-prescription] insert error", { message: insErr.message, user_id: maskId(user_id ?? "") });
       return json({ error: "Falha ao registrar a receita." }, 500);

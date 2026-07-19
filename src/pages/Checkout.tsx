@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
 import { cartTotal, clearCart, formatBRL } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ export default function Checkout() {
   const items = useCart();
   const { user, loading } = useAuth();
   const { data: settings } = useStoreSettings();
+  const { organizationId, storeId } = useStorefrontTenant();
   const nav = useNavigate();
 
   const [step, setStep] = useState<Step>(1);
@@ -137,7 +139,9 @@ export default function Checkout() {
     setQuoting(true);
     const fullAddress = hasCoords ? undefined : `${street}, ${number}, ${neighborhood}, ${city}-${state}, ${cep}`;
     supabase.functions.invoke("calculate-delivery-fee", {
-      body: hasCoords ? { lat, lng } : { address: fullAddress },
+      body: hasCoords
+        ? { lat, lng, organization_id: organizationId, store_id: storeId }
+        : { address: fullAddress, organization_id: organizationId, store_id: storeId },
     }).then(({ data, error }) => {
       if (cancelled) return;
       if (error || !data?.ok) {
@@ -165,7 +169,7 @@ export default function Checkout() {
       }
     }).finally(() => { if (!cancelled) setQuoting(false); });
     return () => { cancelled = true; };
-  }, [deliveryType, lat, lng, street, number, neighborhood, city, state, cep]);
+  }, [deliveryType, lat, lng, street, number, neighborhood, city, state, cep, organizationId, storeId]);
 
 
 
@@ -254,7 +258,13 @@ export default function Checkout() {
     setSubmitting(true);
     try {
       await persistCustomerData();
+      if (!organizationId || !storeId) {
+        throw new Error("Não foi possível identificar a loja deste pedido.");
+      }
+
       const commonBody = {
+        organization_id: organizationId,
+        store_id: storeId,
         items: items.map((i) => ({
           id: i.product_id || i.id,
           variant_id: i.variant_id || null,
