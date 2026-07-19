@@ -49,7 +49,7 @@ export async function resolveRequestTenant(
 export async function resolveOrderTenant(
   admin: any,
   orderId: string,
-): Promise<TenantScope & { order: any }> {
+): Promise<{ tenant: TenantScope; order: any }> {
   const { data: order, error } = await admin
     .from("orders")
     .select("*")
@@ -61,8 +61,10 @@ export async function resolveOrderTenant(
   }
 
   return {
-    organizationId: order.organization_id,
-    storeId: order.store_id,
+    tenant: {
+      organizationId: order.organization_id,
+      storeId: order.store_id,
+    },
     order,
   };
 }
