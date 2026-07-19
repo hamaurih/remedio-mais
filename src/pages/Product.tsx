@@ -1,3 +1,5 @@
+import { useStorefrontTenant } from "@/hooks/useStorefrontTenant";
+import { selectStorefrontRows, storefrontQueryKey } from "@/lib/storefrontQuery";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -16,12 +18,13 @@ import { openGenericCheck } from "@/lib/genericSuggestion";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 
 export default function Product() {
+  const storefront = useStorefrontTenant();
   const { slug } = useParams<{ slug: string }>();
   const { data: _settings } = useStoreSettings();
   const { data: p, isLoading } = useQuery({
-    queryKey: ["product", slug],
+    queryKey: storefrontQueryKey(storefront, ["product", slug]),
     queryFn: async () => {
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", slug!).eq("active", true).maybeSingle();
+      const { data } = await selectStorefrontRows("products", PUBLIC_PRODUCT_SELECT, storefront).eq("slug", slug!).eq("active", true).maybeSingle();
       return data;
     },
     enabled: !!slug,
