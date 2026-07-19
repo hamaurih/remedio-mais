@@ -322,6 +322,40 @@ begin
 end;
 $member_selects$;
 
+-- Profiles and saved addresses are user-global, but operators may only read
+-- customers who have an order in one of their organizations.
+drop policy if exists profiles_tenant_select on public.profiles;
+create policy profiles_tenant_select
+on public.profiles
+as restrictive
+for select
+to authenticated
+using (
+  id = (select auth.uid())
+  or exists (
+    select 1
+    from public.orders customer_order
+    where customer_order.user_id = profiles.id
+      and private.is_organization_member(customer_order.organization_id)
+  )
+);
+
+drop policy if exists customer_addresses_tenant_select on public.customer_addresses;
+create policy customer_addresses_tenant_select
+on public.customer_addresses
+as restrictive
+for select
+to authenticated
+using (
+  customer_id = (select auth.uid())
+  or exists (
+    select 1
+    from public.orders customer_order
+    where customer_order.user_id = customer_addresses.customer_id
+      and private.is_organization_member(customer_order.organization_id)
+  )
+);
+
 -- Composite relationships prevent a transaction from pointing at another
 -- tenant. NOT VALID protects rollout from historical orphans while enforcing
 -- the rule for all new rows.
