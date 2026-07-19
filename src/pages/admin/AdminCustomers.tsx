@@ -1,3 +1,5 @@
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,17 +11,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL } from "@/lib/store";
 
 export default function AdminCustomers() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const [q, setQ] = useState("");
   const [view, setView] = useState<any>(null);
 
   const { data } = useQuery({
-    queryKey: ["admin_customers"],
-    queryFn: async () =>
-      (await supabase
+    queryKey: tenantQueryKey(tenantScope, ["admin_customers"]),
+    queryFn: async () => {
+      const { data: customerOrders, error: ordersError } = await selectTenantRows(
+        "orders",
+        tenantScope,
+        "user_id",
+      ).not("user_id", "is", null);
+      if (ordersError) throw ordersError;
+
+      const customerIds = Array.from(
+        new Set((customerOrders ?? []).map((order: any) => order.user_id).filter(Boolean)),
+      );
+      if (customerIds.length === 0) return [];
+
+      const { data: customers, error: customersError } = await supabase
         .from("profiles")
         .select("id, full_name, email, phone, cpf, created_at")
+        .in("id", customerIds)
         .order("created_at", { ascending: false })
-        .limit(500)).data || [],
+        .limit(500);
+      if (customersError) throw customersError;
+      return customers ?? [];
+    },
   });
 
   const filtered = useMemo(() => {
@@ -78,17 +101,20 @@ export default function AdminCustomers() {
 }
 
 function CustomerDetail({ customer }: { customer: any }) {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const { data: addresses } = useQuery({
-    queryKey: ["customer_addresses", customer.id],
+    queryKey: tenantQueryKey(tenantScope, ["customer_addresses", customer.id]),
     queryFn: async () =>
       (await supabase.from("customer_addresses").select("*").eq("customer_id", customer.id).order("is_default", { ascending: false })).data || [],
   });
   const { data: orders } = useQuery({
-    queryKey: ["customer_orders", customer.id],
+    queryKey: tenantQueryKey(tenantScope, ["customer_orders", customer.id]),
     queryFn: async () =>
-      (await supabase
-        .from("orders")
-        .select("id, created_at, total, status, payment_status")
+      (await selectTenantRows("orders", tenantScope, "id, created_at, total, status, payment_status")
         .eq("user_id", customer.id)
         .order("created_at", { ascending: false })
         .limit(50)).data || [],
