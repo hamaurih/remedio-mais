@@ -277,32 +277,43 @@ export default function Checkout() {
           : undefined,
       };
 
-      if (paymentMethod === "pix") {
-        // Pix nativo: gera QR Code e navega para a tela interna
-        const { data, error } = await supabase.functions.invoke("create-pix-payment", { body: commonBody });
-        await parseInvokeError(error, data);
-        if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
+      // O storefront conhece métodos, não provedores. A Edge Function resolve
+      // a rota configurada para esta loja e normaliza a resposta.
+      const { data, error } = await supabase.functions.invoke("create-payment", {
+        body: {
+          ...commonBody,
+          payment_method: paymentMethod,
+          return_origin: window.location.origin,
+        },
+      });
+      await parseInvokeError(error, data);
+
+      if (data?.kind === "pix") {
+        const pix = data.pix || {};
+        if (!data.order_id || !pix.qr_code_base64) {
+          throw new Error("Resposta inválida do provedor Pix.");
+        }
         sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({
-          qr_code: data.qr_code,
-          qr_code_base64: data.qr_code_base64,
-          ticket_url: data.ticket_url,
-          expires_at: data.expires_at,
+          qr_code: pix.qr_code,
+          qr_code_base64: pix.qr_code_base64,
+          ticket_url: pix.ticket_url,
+          expires_at: pix.expires_at,
           total: data.total,
+          provider: data.provider,
         }));
-        // Navega ANTES de limpar o carrinho — senão o useEffect de "carrinho vazio" redireciona para /carrinho
+        // Navega antes de limpar o carrinho para preservar a rota do pedido.
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         setTimeout(() => clearCart(), 100);
         return;
       }
 
-      // Cartão: continua via Checkout Pro do Mercado Pago
-      const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
-        body: { ...commonBody, payment_method: paymentMethod, return_origin: window.location.origin },
-      });
-      await parseInvokeError(error, data);
-      if (!data?.checkout_url) throw new Error("URL de checkout não recebida");
-      clearCart();
-      window.location.href = data.checkout_url;
+      if (data?.kind === "redirect" && data.redirect_url) {
+        clearCart();
+        window.location.href = data.redirect_url;
+        return;
+      }
+
+      throw new Error("O provedor não retornou uma ação de pagamento válida.");
     } catch (e: any) {
       toast.error(e?.message || "Falha ao iniciar pagamento", { duration: 8000 });
       setSubmitting(false);
