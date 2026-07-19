@@ -1,3 +1,5 @@
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,11 @@ import { toast } from "sonner";
 import { ShieldCheck, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 
 export default function AdminPayments() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const [s, setS] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,18 +24,25 @@ export default function AdminPayments() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("payment_settings" as any).select("*").eq("id", 1).maybeSingle();
-      setS(data || { id: 1, gateway: "mercado_pago", environment: "sandbox", pix_enabled: true, credit_card_enabled: true, boleto_enabled: false, modo_integracao: "checkout_redirect" });
+      const { data } = await selectTenantRows("payment_settings", tenantScope, "*").maybeSingle();
+      setS(data || {
+        organization_id: tenantScope.organizationId,
+        store_id: tenantScope.storeId,
+        gateway: "mercado_pago",
+        environment: "sandbox",
+        pix_enabled: true,
+        credit_card_enabled: true,
+        boleto_enabled: false,
+        modo_integracao: "checkout_redirect",
+      });
       setLoading(false);
       loadErrors();
     })();
-  }, []);
+  }, [tenantScope.organizationId, tenantScope.storeId]);
 
   const loadErrors = async () => {
     setLoadingErrors(true);
-    const { data } = await supabase
-      .from("payment_errors" as any)
-      .select("*")
+    const { data } = await selectTenantRows("payment_errors", tenantScope, "*")
       .order("created_at", { ascending: false })
       .limit(30);
     setErrors(data || []);
@@ -37,7 +51,14 @@ export default function AdminPayments() {
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("payment_settings" as any).upsert(s);
+    const { error } = await supabase.from("payment_settings" as any).upsert(
+      {
+        ...s,
+        organization_id: tenantScope.organizationId,
+        store_id: tenantScope.storeId,
+      },
+      { onConflict: "organization_id,store_id" },
+    );
     setSaving(false);
     if (error) toast.error(error.message); else toast.success("Salvo");
   };
@@ -48,7 +69,15 @@ export default function AdminPayments() {
       // Chama a Edge Function de checkout com um body propositalmente vazio.
       // Resposta esperada: 400 CART_EMPTY se token + auth OK; 500 ENV_MISSING se faltar config.
       const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
-        body: { items: [], payment_method: "pix", delivery_type: "pickup", customer: { name: "", email: "", phone: "" }, return_origin: window.location.origin },
+        body: {
+          items: [],
+          payment_method: "pix",
+          delivery_type: "pickup",
+          customer: { name: "", email: "", phone: "" },
+          return_origin: window.location.origin,
+          organization_id: tenantScope.organizationId,
+          store_id: tenantScope.storeId,
+        },
       });
 
       let parsed: any = data;
@@ -82,7 +111,9 @@ export default function AdminPayments() {
       await supabase.from("payment_settings" as any).update({
         last_connection_test_at: new Date().toISOString(),
         last_connection_status: status,
-      }).eq("id", 1);
+      })
+        .eq("organization_id", tenantScope.organizationId)
+        .eq("store_id", tenantScope.storeId);
       setS((p: any) => ({ ...p, last_connection_test_at: new Date().toISOString(), last_connection_status: status }));
 
       if (status === "ok") toast.success(msg);

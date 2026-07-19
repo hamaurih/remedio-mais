@@ -1,3 +1,5 @@
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,14 +22,17 @@ type Notif = {
 };
 
 export function NotificationsBell() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const { user, isAdmin, isSeller } = useAuth();
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
 
   const fetchAll = async () => {
-    const { data } = await supabase
-      .from("admin_notifications")
-      .select("*")
+    const { data } = await selectTenantRows("admin_notifications", tenantScope, "*")
       .order("created_at", { ascending: false })
       .limit(30);
     setItems((data || []) as Notif[]);

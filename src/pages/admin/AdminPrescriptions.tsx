@@ -1,3 +1,5 @@
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,19 +15,24 @@ const STATUSES = ["recebida", "em_analise", "aprovada", "recusada", "finalizada"
 const LABEL: Record<string, string> = { recebida: "Recebida", em_analise: "Em análise", aprovada: "Aprovada", recusada: "Recusada", finalizada: "Finalizada" };
 
 export default function AdminPrescriptions() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const qc = useQueryClient();
   const [view, setView] = useState<any>(null);
   const [internalNote, setInternalNote] = useState("");
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
 
   const { data } = useQuery({
-    queryKey: ["admin_presc"],
-    queryFn: async () => (await supabase.from("prescriptions").select("*").order("created_at", { ascending: false })).data || [],
+    queryKey: tenantQueryKey(tenantScope, ["admin_presc"]),
+    queryFn: async () => (await selectTenantRows("prescriptions", tenantScope, "*").order("created_at", { ascending: false })).data || [],
   });
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("prescriptions").update({ status }).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Atualizado"); qc.invalidateQueries({ queryKey: ["admin_presc"] }); }
+    if (error) toast.error(error.message); else { toast.success("Atualizado"); qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["admin_presc"]) }); }
   };
 
   const openDetail = async (p: any) => {
@@ -38,7 +45,7 @@ export default function AdminPrescriptions() {
 
   const saveNote = async () => {
     const { error } = await supabase.from("prescriptions").update({ internal_notes: internalNote }).eq("id", view.id);
-    if (error) toast.error(error.message); else { toast.success("Anotação salva"); qc.invalidateQueries({ queryKey: ["admin_presc"] }); }
+    if (error) toast.error(error.message); else { toast.success("Anotação salva"); qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["admin_presc"]) }); }
   };
 
   return (

@@ -1,3 +1,5 @@
+import { useTenant } from "@/hooks/useTenant";
+import { selectTenantRows, tenantQueryKey } from "@/lib/tenantQuery";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,20 +67,25 @@ const TABS: Array<{ key: string; label: string; match: (o: any) => boolean }> = 
 ];
 
 export default function AdminOrders() {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [view, setView] = useState<any>(null);
   const [tab, setTab] = useState("todos");
 
   const { data } = useQuery({
-    queryKey: ["admin_orders"],
-    queryFn: async () => (await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false })).data || [],
+    queryKey: tenantQueryKey(tenantScope, ["admin_orders"]),
+    queryFn: async () => (await selectTenantRows("orders", tenantScope, "*, order_items(*)").order("created_at", { ascending: false })).data || [],
   });
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) toast.error(error.message);
-    else { toast.success("Status atualizado"); qc.invalidateQueries({ queryKey: ["admin_orders"] }); }
+    else { toast.success("Status atualizado"); qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["admin_orders"]) }); }
   };
 
   const updateItemStatus = async (itemId: string, status: string) => {
@@ -86,9 +93,9 @@ export default function AdminOrders() {
     if (error) toast.error(error.message);
     else {
       toast.success("Item atualizado");
-      qc.invalidateQueries({ queryKey: ["admin_orders"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey(tenantScope, ["admin_orders"]) });
       if (view) {
-        const refreshed = await supabase.from("orders").select("*, order_items(*)").eq("id", view.id).maybeSingle();
+        const refreshed = await selectTenantRows("orders", tenantScope, "*, order_items(*)").eq("id", view.id).maybeSingle();
         if (refreshed.data) setView(refreshed.data);
       }
     }
@@ -307,9 +314,14 @@ function ItemRow({ item, onStatus, onNotes }: { item: any; onStatus: (id: string
 }
 
 function OrderHistory({ orderId }: { orderId: string }) {
+  const { activeOrganization, activeStore } = useTenant();
+  const tenantScope = {
+    organizationId: activeOrganization?.id ?? null,
+    storeId: activeStore?.id ?? null,
+  };
   const { data, isLoading } = useQuery({
-    queryKey: ["order_events", orderId],
-    queryFn: async () => (await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: false })).data || [],
+    queryKey: tenantQueryKey(tenantScope, ["order_events", orderId]),
+    queryFn: async () => (await selectTenantRows("order_events", tenantScope, "*").eq("order_id", orderId).order("created_at", { ascending: false })).data || [],
   });
   if (isLoading) return <div className="text-xs text-muted-foreground">Carregando...</div>;
   if (!data?.length) return <div className="text-xs text-muted-foreground">Sem eventos registrados.</div>;
