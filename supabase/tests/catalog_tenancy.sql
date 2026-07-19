@@ -132,6 +132,27 @@ values
     'slug-compartilhado'
   );
 
+insert into public.departments (id, name, slug)
+values (
+  '31000000-0000-0000-0000-000000000003'::uuid,
+  'Departamento legado',
+  'departamento-legado'
+);
+
+do $legacy_defaults$
+begin
+  if not exists (
+    select 1
+    from public.departments
+    where id = '31000000-0000-0000-0000-000000000003'::uuid
+      and organization_id = '00000000-0000-0000-0000-000000000001'::uuid
+      and store_id = '00000000-0000-0000-0000-000000000002'::uuid
+  ) then
+    raise exception 'legacy client-zero catalog writes lost their tenant defaults';
+  end if;
+end;
+$legacy_defaults$;
+
 insert into public.categories (
   id, organization_id, store_id, department_id, name, slug
 )
