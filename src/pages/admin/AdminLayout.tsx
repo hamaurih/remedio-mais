@@ -33,6 +33,7 @@ const items: Item[] = [
   { to: "/admin/auditoria", label: "Auditoria do Site", icon: Stethoscope, roles: ["admin"] },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity, roles: ["admin"] },
   { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert, roles: ["admin"] },
+  { to: "/admin/arquivar-produtos", label: "Arquivar Produtos", icon: Archive, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
 
