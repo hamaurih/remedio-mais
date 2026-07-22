@@ -64,10 +64,10 @@ export default function AdminProducts() {
   const [activeTab, setActiveTab] = useState<string>("basic");
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
-  const [search, setSearch] = useState("");
-  const [catFilter, setCatFilter] = useState("all");
-  const [manuFilter, setManuFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [catFilter, setCatFilter] = useState(searchParams.get("category") || "all");
+  const [manuFilter, setManuFilter] = useState(searchParams.get("manufacturer") || "all");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
@@ -278,13 +278,14 @@ export default function AdminProducts() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="active">Ativos</SelectItem>
             <SelectItem value="inactive">Inativos</SelectItem>
             <SelectItem value="sale">Em oferta</SelectItem>
             <SelectItem value="low">Estoque baixo</SelectItem>
+            <SelectItem value="stock_inactive">Stock&gt;0 mas inativos</SelectItem>
           </SelectContent>
         </Select>
       </div>
