@@ -7,17 +7,29 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-type Stat = { label: string; value: number | string; warn?: boolean };
+type Stat = { label: string; value: number | string; warn?: boolean; href?: string };
 
 function StatGrid({ stats }: { stats: Stat[] }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {stats.map((s) => (
-        <div key={s.label} className={`rounded-lg border p-3 ${s.warn ? "border-destructive/40 bg-destructive/5" : "bg-card"}`}>
-          <div className="text-xs text-muted-foreground">{s.label}</div>
-          <div className="text-2xl font-bold tabular-nums">{s.value}</div>
-        </div>
-      ))}
+      {stats.map((s) => {
+        const body = (
+          <>
+            <div className="text-xs text-muted-foreground">{s.label}</div>
+            <div className="text-2xl font-bold tabular-nums">{s.value}</div>
+          </>
+        );
+        const className = `rounded-lg border p-3 block ${s.warn ? "border-destructive/40 bg-destructive/5" : "bg-card"} ${s.href ? "hover:border-primary hover:shadow-sm transition-colors cursor-pointer" : ""}`;
+        return s.href ? (
+          <Link key={s.label} to={s.href} className={className}>
+            {body}
+          </Link>
+        ) : (
+          <div key={s.label} className={className}>
+            {body}
+          </div>
+        );
+      })}
     </div>
   );
 }
