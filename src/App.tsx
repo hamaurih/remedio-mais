@@ -125,6 +125,7 @@ const App = () => (
             <Route path="menus" element={<AdminMenus />} />
             <Route path="qualidade-dados" element={<AdminDataQuality />} />
             <Route path="auditoria" element={<AdminAudit />} />
+            <Route path="arquivar-produtos" element={<AdminArchiveProducts />} />
             <Route path="integrations/trier" element={<AdminTrier />} />
             <Route path="integrations/trier/:sub" element={<AdminTrier />} />
             <Route path="trier/vendas-ecommerce" element={<AdminTrierEcommerceSales />} />
