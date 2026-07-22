@@ -2032,8 +2032,9 @@ async function actionScheduled() {
     await log("scheduled", "info", "Sincronização automática pausada (auto_sync_paused=true). Nada será executado.");
     return { ok: true, paused: true, results: {} };
   }
-  // Close anything truly stuck before doing new work (worker died w/o pausing)
-  await actionMarkStalledJobs(5);
+  // Fecha o que realmente travou (worker morreu sem chamar pauseJob). Usamos janela maior
+  // que o intervalo do cron - 3min para dar folga ao próprio tick que está rodando agora.
+  await actionMarkStalledJobs(12);
 
   // Detect paused jobs to resume them on this tick regardless of "due" timer
   const { data: pausedRows } = await supabase.from("trier_sync_jobs")
@@ -2062,9 +2063,11 @@ async function actionScheduled() {
   if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
     results.stock = await actionSyncStock("cron");
   }
-  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia)
+  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia).
+  // Reduzido para 150 itens/3 workers para não sufocar o orçamento de execução dos jobs paginados
+  // acima (products/prices/stock) e provocar timeout no worker.
   if (!s.auto_sync_paused) {
-    try { results.stock_active = await actionSyncStockActive("cron", 250, 5); }
+    try { results.stock_active = await actionSyncStockActive("cron", 150, 3); }
     catch (e: any) { await log("stock", "error", `stock_active falhou: ${String(e?.message || e)}`); }
   }
 
@@ -2082,21 +2085,46 @@ async function actionScheduled() {
 
 // ---------- SAFE-SYNC ACTIONS ----------
 
-async function actionMarkStalledJobs(minutes = 20) {
+async function actionMarkStalledJobs(minutes = 12) {
   const cutoff = new Date(Date.now() - minutes * 60_000).toISOString();
   const { data: stalled } = await supabase.from("trier_sync_jobs")
-    .select("id, sync_type, started_at, records_checked")
+    .select("id, sync_type, started_at, records_checked, details")
     .eq("status", "running")
     .lt("started_at", cutoff);
-  const ids = (stalled || []).map((j: any) => j.id);
-  if (ids.length === 0) return { ok: true, marked: 0, jobs: [] };
-  await supabase.from("trier_sync_jobs").update({
-    status: "error",
-    error_message: "job_travado_sem_progresso",
-    finished_at: new Date().toISOString(),
-  }).in("id", ids);
-  await log("jobs", "info", `Marcados ${ids.length} jobs travados (>${minutes}min) como falhos.`, { ids });
-  return { ok: true, marked: ids.length, jobs: stalled };
+  const rows = stalled || [];
+  if (rows.length === 0) return { ok: true, marked: 0, jobs: [] };
+
+  // Se o job tinha progresso salvo (next_offset > 0 ou records_checked > 0), convertemos
+  // para "paused" para que o próximo tick RETOME de onde parou — em vez de descartar
+  // como "error" e reiniciar do offset 0 no ciclo seguinte (era isso que causava o loop
+  // eterno com "job_travado_sem_progresso").
+  const now = new Date().toISOString();
+  const toResume: string[] = [];
+  const toError: string[] = [];
+  for (const j of rows as any[]) {
+    const nextOffset = Number(j?.details?.next_offset || 0);
+    const checked = Number(j?.records_checked || 0);
+    if (nextOffset > 0 || checked > 0) toResume.push(j.id);
+    else toError.push(j.id);
+  }
+  if (toResume.length) {
+    await supabase.from("trier_sync_jobs").update({
+      status: "paused",
+      finished_at: null,
+      error_message: "worker_interrompido_retomar_no_proximo_tick",
+    }).in("id", toResume);
+  }
+  if (toError.length) {
+    await supabase.from("trier_sync_jobs").update({
+      status: "error",
+      error_message: "job_travado_sem_progresso",
+      finished_at: now,
+    }).in("id", toError);
+  }
+  await log("jobs", "info",
+    `Jobs travados (>${minutes}min): ${toResume.length} convertidos para retomada, ${toError.length} marcados como erro.`,
+    { resumed: toResume, errored: toError });
+  return { ok: true, marked: rows.length, resumed: toResume.length, errored: toError.length };
 }
 
 async function actionToggleAutoSync(paused: boolean) {
