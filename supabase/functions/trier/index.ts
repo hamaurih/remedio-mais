@@ -1167,6 +1167,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
     .from("products")
     .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, last_stock_sync_at")
     .eq("active", true)
+    .is("archived_at", null)
     .or("barcode.not.is.null,trier_barcode.not.is.null")
     .order("last_stock_sync_at", { ascending: true, nullsFirst: true })
     .limit(batchSize);
