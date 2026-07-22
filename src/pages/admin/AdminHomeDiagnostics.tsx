@@ -113,7 +113,7 @@ export default function AdminHomeDiagnostics() {
               { label: "Shelves: ofertas-da-semana", value: t.shelf_offers },
               { label: "Shelves: mais-vendidos", value: t.shelf_bestsellers },
               { label: "Elegível para home (active+stock+price)", value: t.home_eligible, warn: t.home_eligible === 0 },
-              { label: "Stock>0 mas inativos", value: t.stock_pos_inactive, warn: t.stock_pos_inactive > 50 },
+              { label: "Stock>0 mas inativos", value: t.stock_pos_inactive, warn: t.stock_pos_inactive > 50, href: "/admin/produtos?status=stock_inactive" },
               { label: "Sem código de barras", value: t.no_barcode, warn: t.no_barcode > 500 },
               { label: "Sem EAN + stock>0", value: t.no_barcode_stock_pos, warn: t.no_barcode_stock_pos > 100 },
               { label: "Sem EAN + stock<=0", value: t.no_barcode_stock_zero },
