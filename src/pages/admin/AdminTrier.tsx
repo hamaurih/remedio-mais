@@ -672,9 +672,18 @@ export default function AdminTrier() {
 
         {/* ---------- ESTOQUE ---------- */}
         <TabsContent value="stock" className="pt-4 space-y-3">
-          <Button onClick={() => call("sync-stock", { trigger: "manual" }, "Estoque sincronizado")} disabled={busy !== null}>
-            <Boxes className="h-4 w-4 mr-2" />Sincronizar estoque agora
-          </Button>
+          <div className="rounded-lg border bg-primary/5 p-3 text-xs">
+            <div className="font-semibold text-sm mb-1">Refresh contínuo automático (ativos)</div>
+            A cada execução do cron (a cada 15 min), o sistema já atualiza o estoque dos produtos <b>ativos</b> com EAN, priorizando os mais desatualizados. Não é preciso apertar nada — o catálogo visível fica sempre em dia. A varredura completa (abaixo) continua rodando para pegar novidades.
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => call("sync-stock-active", { trigger: "manual", batchSize: 500, concurrency: 6 }, "Refresh de ativos disparado")} disabled={busy !== null}>
+              <Boxes className="h-4 w-4 mr-2" />Atualizar estoque dos ativos agora
+            </Button>
+            <Button variant="outline" onClick={() => call("sync-stock", { trigger: "manual" }, "Varredura completa iniciada")} disabled={busy !== null}>
+              <Boxes className="h-4 w-4 mr-2" />Varredura completa (todos)
+            </Button>
+          </div>
           <JobsTable jobs={(jobs || []).filter((j: any) => j.sync_type === "stock")} />
         </TabsContent>
 
