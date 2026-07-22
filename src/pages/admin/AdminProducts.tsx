@@ -278,13 +278,14 @@ export default function AdminProducts() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="active">Ativos</SelectItem>
             <SelectItem value="inactive">Inativos</SelectItem>
             <SelectItem value="sale">Em oferta</SelectItem>
             <SelectItem value="low">Estoque baixo</SelectItem>
+            <SelectItem value="stock_inactive">Stock&gt;0 mas inativos</SelectItem>
           </SelectContent>
         </Select>
       </div>
