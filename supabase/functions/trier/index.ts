@@ -2063,9 +2063,11 @@ async function actionScheduled() {
   if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
     results.stock = await actionSyncStock("cron");
   }
-  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia)
+  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia).
+  // Reduzido para 150 itens/3 workers para não sufocar o orçamento de execução dos jobs paginados
+  // acima (products/prices/stock) e provocar timeout no worker.
   if (!s.auto_sync_paused) {
-    try { results.stock_active = await actionSyncStockActive("cron", 250, 5); }
+    try { results.stock_active = await actionSyncStockActive("cron", 150, 3); }
     catch (e: any) { await log("stock", "error", `stock_active falhou: ${String(e?.message || e)}`); }
   }
 
