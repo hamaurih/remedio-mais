@@ -1595,6 +1595,9 @@ export type Database = {
           active: boolean
           active_ingredient: string | null
           active_ingredient_code: string | null
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           barcode: string | null
           bestseller_rank: number | null
           cart_quantity_limit: number | null
@@ -1692,6 +1695,9 @@ export type Database = {
           active?: boolean
           active_ingredient?: string | null
           active_ingredient_code?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           barcode?: string | null
           bestseller_rank?: number | null
           cart_quantity_limit?: number | null
@@ -1789,6 +1795,9 @@ export type Database = {
           active?: boolean
           active_ingredient?: string | null
           active_ingredient_code?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           barcode?: string | null
           bestseller_rank?: number | null
           cart_quantity_limit?: number | null
@@ -3006,6 +3015,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_archive_apply: {
+        Args: { _limit?: number; _months_without_sale?: number }
+        Returns: Json
+      }
+      admin_archive_preview: {
+        Args: { _months_without_sale?: number }
+        Returns: Json
+      }
       admin_invite_seller: { Args: { _email: string }; Returns: Json }
       admin_list_sellers: {
         Args: never
@@ -3032,6 +3049,7 @@ export type Database = {
         Returns: Json
       }
       admin_revoke_seller: { Args: { _user_id: string }; Returns: undefined }
+      admin_unarchive_product: { Args: { _id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
