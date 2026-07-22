@@ -64,10 +64,10 @@ export default function AdminProducts() {
   const [activeTab, setActiveTab] = useState<string>("basic");
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
-  const [search, setSearch] = useState("");
-  const [catFilter, setCatFilter] = useState("all");
-  const [manuFilter, setManuFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [catFilter, setCatFilter] = useState(searchParams.get("category") || "all");
+  const [manuFilter, setManuFilter] = useState(searchParams.get("manufacturer") || "all");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
