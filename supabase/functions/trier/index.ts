@@ -2285,6 +2285,7 @@ Deno.serve(async (req) => {
       case "list-product-sync-logs": result = await actionListProductSyncLogs(body.product_id, Number(body.limit) || 50); break;
       case "sync-categories": result = runAsync("categories", () => actionSyncCategories(trigger)); break;
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
+      case "sync-stock-active": result = runAsync("stock_active", () => actionSyncStockActive(trigger, Number(body.batchSize) || 250, Number(body.concurrency) || 5)); break;
       case "sync-stock-single": result = await actionSyncStockSingle(String(body.product_id || "")); break;
       case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;
       case "sync-discounts": result = runAsync("discounts", () => actionSyncDiscounts(trigger)); break;
