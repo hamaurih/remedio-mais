@@ -2062,6 +2062,12 @@ async function actionScheduled() {
   if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
     results.stock = await actionSyncStock("cron");
   }
+  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia)
+  if (!s.auto_sync_paused) {
+    try { results.stock_active = await actionSyncStockActive("cron", 250, 5); }
+    catch (e: any) { await log("stock", "error", `stock_active falhou: ${String(e?.message || e)}`); }
+  }
+
   await log("scheduled", "info", `Cron Trier executado: ${Object.keys(results).join(", ") || "nada pendente"}`, {
     ran: Object.keys(results), schedules: {
       products: s.schedule_products_minutes,
