@@ -993,6 +993,7 @@ async function applyStockPage(items: any[]) {
   const { data: existingRows, error: existingErr } = await supabase
     .from("products")
     .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock")
+    .is("archived_at", null)
     .in("trier_product_id", codes);
 
   if (existingErr) {
