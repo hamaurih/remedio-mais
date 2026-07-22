@@ -704,9 +704,10 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
+  if (existing?.archived_at) return { skipped: true, reason: "archived", trier_id: trierId, name };
 
   const mapped: any = mapProduct(t, opts.stockSource || "loja");
   const autoShelves: string[] = mapped._shelves || [];
@@ -1166,6 +1167,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
     .from("products")
     .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, last_stock_sync_at")
     .eq("active", true)
+    .is("archived_at", null)
     .or("barcode.not.is.null,trier_barcode.not.is.null")
     .order("last_stock_sync_at", { ascending: true, nullsFirst: true })
     .limit(batchSize);

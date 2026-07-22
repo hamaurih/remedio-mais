@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog, Stethoscope } from "lucide-react";
+import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog, Stethoscope, Archive } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 
 type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller"> };
@@ -33,6 +33,7 @@ const items: Item[] = [
   { to: "/admin/auditoria", label: "Auditoria do Site", icon: Stethoscope, roles: ["admin"] },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity, roles: ["admin"] },
   { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert, roles: ["admin"] },
+  { to: "/admin/arquivar-produtos", label: "Arquivar Produtos", icon: Archive, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
 
