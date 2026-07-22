@@ -1153,6 +1153,92 @@ async function actionSyncStockSingle(productId: string) {
   };
 }
 
+// Refresh de estoque focado em produtos ATIVOS com EAN, priorizando os mais desatualizados.
+// Consulta a Trier por código de barras em pequenos lotes concorrentes e atualiza estoque/ativo.
+// Roda a cada tick do cron para manter o catálogo visível sempre com estoque em dia,
+// independente da varredura completa (que percorre 50k+ registros).
+async function actionSyncStockActive(trigger = "manual", batchSize = 250, concurrency = 5) {
+  const s = await getSettings();
+  const startedAt = new Date().toISOString();
+  const start = Date.now();
+
+  const { data: rows, error } = await supabase
+    .from("products")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, last_stock_sync_at")
+    .eq("active", true)
+    .or("barcode.not.is.null,trier_barcode.not.is.null")
+    .order("last_stock_sync_at", { ascending: true, nullsFirst: true })
+    .limit(batchSize);
+  if (error) {
+    await log("stock", "error", `sync-stock-active: falha lendo produtos: ${error.message}`, { trigger });
+    return { ok: false, error: error.message };
+  }
+  const list = (rows || []).filter((p: any) => (p.barcode || p.trier_barcode));
+  if (list.length === 0) return { ok: true, checked: 0, updated: 0, failed: 0, note: "Nenhum produto ativo com EAN." };
+
+  let checked = 0, updated = 0, failed = 0, deactivated = 0;
+  const now = () => new Date().toISOString();
+
+  const runOne = async (prod: any) => {
+    if (Date.now() - start > MAX_RUN_MS) return;
+    const barcode = String(prod.barcode || prod.trier_barcode).trim();
+    if (!barcode) return;
+    checked += 1;
+    try {
+      const qs = buildProductsQuery(s, 0, 5, { codigoBarras: barcode }, { ativo: "" });
+      const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+      const resp = await requestTrier(s, path, { method: "GET" });
+      if (!resp.ok) { failed += 1; return; }
+      const items = extractList(resp.json ?? []);
+      const match = items.find((t: any) => String(pickBarcode(t) || "") === barcode) || items[0];
+      // Sem correspondência: apenas marcamos como visto (não desativa).
+      if (!match) {
+        await supabase.from("products").update({ last_stock_sync_at: now() }).eq("id", prod.id);
+        return;
+      }
+      const trierId = pickCode(match);
+      const stockReal = pickStoreStockOnly(match);
+      const stockSite = stockReal ?? 0;
+      const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+      const patch: any = {
+        stock: stockSite,
+        stock_quantity: stockSite,
+        trier_stock_quantity: stockReal,
+        active: nextActive,
+        last_stock_sync_at: now(),
+        last_trier_sync_at: now(),
+        source: "trier",
+      };
+      if (trierId && !prod.trier_product_id) patch.trier_product_id = trierId;
+      const { error: upErr } = await supabase.from("products").update(patch).eq("id", prod.id);
+      if (upErr) { failed += 1; return; }
+      if (Number(prod.stock || 0) !== stockSite || prod.active !== nextActive) updated += 1;
+      if (prod.active && !nextActive) deactivated += 1;
+    } catch (_e) {
+      failed += 1;
+    }
+  };
+
+  // Concorrência simples: pool de N workers.
+  let i = 0;
+  const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
+    while (i < list.length) {
+      if (Date.now() - start > MAX_RUN_MS) return;
+      const p = list[i++];
+      await runOne(p);
+    }
+  });
+  await Promise.all(workers);
+
+  await log("stock", failed > 0 ? "error" : "success",
+    `Refresh de ativos: ${checked} consultados · ${updated} atualizados · ${deactivated} desativados por falta de estoque · ${failed} falhas`,
+    { trigger, batchSize, concurrency, startedAt, durationMs: Date.now() - start });
+
+  return { ok: true, checked, updated, deactivated, failed, trigger };
+}
+
+
+
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
   const s = await getSettings();
   const sync_type = changed ? "products_changed" : "products";
