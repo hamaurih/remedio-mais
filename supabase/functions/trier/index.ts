@@ -2032,8 +2032,9 @@ async function actionScheduled() {
     await log("scheduled", "info", "Sincronização automática pausada (auto_sync_paused=true). Nada será executado.");
     return { ok: true, paused: true, results: {} };
   }
-  // Close anything truly stuck before doing new work (worker died w/o pausing)
-  await actionMarkStalledJobs(5);
+  // Fecha o que realmente travou (worker morreu sem chamar pauseJob). Usamos janela maior
+  // que o intervalo do cron - 3min para dar folga ao próprio tick que está rodando agora.
+  await actionMarkStalledJobs(12);
 
   // Detect paused jobs to resume them on this tick regardless of "due" timer
   const { data: pausedRows } = await supabase.from("trier_sync_jobs")
