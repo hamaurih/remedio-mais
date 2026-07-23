@@ -12,8 +12,12 @@ import { cartTotal, clearCart, formatBRL } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, CreditCard, QrCode, AlertTriangle } from "lucide-react";
+import { Loader2, CreditCard, QrCode, AlertTriangle, Lock } from "lucide-react";
 import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
+
+
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -61,6 +65,13 @@ export default function Checkout() {
 
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardExpiration, setCardExpiration] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [installments, setInstallments] = useState(1);
+
+
 
   const subtotal = cartTotal(items);
   const deliveryFee = useMemo(() => {

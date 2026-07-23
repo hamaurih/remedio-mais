@@ -49,7 +49,7 @@ export default function PixPayment() {
       // A cada 2 ciclos (~8s) força uma checagem ativa no Mercado Pago,
       // assim não dependemos só do webhook para atualizar o pedido.
       if (tick % 2 === 0) {
-        try { await supabase.functions.invoke("check-mercado-pago-status", { body: { order_id: orderId } }); } catch { /* ignore */ }
+        try { await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } }); } catch { /* ignore */ }
       }
       const { data } = await supabase
         .from("orders")
