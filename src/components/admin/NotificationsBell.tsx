@@ -49,8 +49,23 @@ type Notif = {
 
 export function NotificationsBell() {
   const { user, isAdmin, isSeller } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
+  const [alertNotif, setAlertNotif] = useState<Notif | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(SOUND_PREF_KEY) !== "0";
+  });
+  const seenIds = useRef<Set<string>>(new Set());
+
+  const toggleSound = () => {
+    setSoundEnabled((v) => {
+      const next = !v;
+      try { localStorage.setItem(SOUND_PREF_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const fetchAll = async () => {
     const { data } = await supabase
@@ -58,7 +73,9 @@ export function NotificationsBell() {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(30);
-    setItems((data || []) as Notif[]);
+    const list = (data || []) as Notif[];
+    setItems(list);
+    list.forEach((n) => seenIds.current.add(n.id));
   };
 
   useEffect(() => {
@@ -68,8 +85,16 @@ export function NotificationsBell() {
       .channel("admin_notifications_live")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_notifications" }, (payload) => {
         const n = payload.new as Notif;
+        if (seenIds.current.has(n.id)) return;
+        seenIds.current.add(n.id);
         setItems((prev) => [n, ...prev].slice(0, 30));
-        toast.message(n.title, { description: n.message || undefined });
+        const isSale = n.type === "order_paid";
+        if (isSale) {
+          setAlertNotif(n);
+          if (soundEnabled) playSaleChime();
+        } else {
+          toast.message(n.title, { description: n.message || undefined });
+        }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "admin_notifications" }, (payload) => {
         const n = payload.new as Notif;
@@ -77,7 +102,7 @@ export function NotificationsBell() {
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user?.id, isAdmin, isSeller]);
+  }, [user?.id, isAdmin, isSeller, soundEnabled]);
 
   const unread = items.filter((i) => !i.read).length;
 
