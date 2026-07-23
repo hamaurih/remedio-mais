@@ -12,8 +12,12 @@ import { cartTotal, clearCart, formatBRL } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, CreditCard, QrCode, AlertTriangle } from "lucide-react";
+import { Loader2, CreditCard, QrCode, AlertTriangle, Lock } from "lucide-react";
 import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
+
+
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -61,6 +65,13 @@ export default function Checkout() {
 
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardExpiration, setCardExpiration] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [installments, setInstallments] = useState(1);
+
+
 
   const subtotal = cartTotal(items);
   const deliveryFee = useMemo(() => {
@@ -268,31 +279,50 @@ export default function Checkout() {
       };
 
       if (paymentMethod === "pix") {
-        // Pix nativo: gera QR Code e navega para a tela interna
-        const { data, error } = await supabase.functions.invoke("create-pix-payment", { body: commonBody });
+        // Pix nativo (Cielo): gera QR Code e navega para a tela interna
+        const { data, error } = await supabase.functions.invoke("create-cielo-pix", { body: commonBody });
         await parseInvokeError(error, data);
         if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
         sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({
           qr_code: data.qr_code,
           qr_code_base64: data.qr_code_base64,
-          ticket_url: data.ticket_url,
           expires_at: data.expires_at,
           total: data.total,
         }));
-        // Navega ANTES de limpar o carrinho — senão o useEffect de "carrinho vazio" redireciona para /carrinho
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         setTimeout(() => clearCart(), 100);
         return;
       }
 
-      // Cartão: continua via Checkout Pro do Mercado Pago
-      const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
-        body: { ...commonBody, payment_method: paymentMethod, return_origin: window.location.origin },
+      // Cartão de crédito via Cielo (transparente – processado aqui mesmo)
+      const cardDigits = cardNumber.replace(/\D/g, "");
+      if (cardDigits.length < 13) { toast.error("Número de cartão inválido."); setSubmitting(false); return; }
+      if (!cardHolder.trim()) { toast.error("Informe o nome como no cartão."); setSubmitting(false); return; }
+      if (!/^\d{2}\s*\/\s*\d{2,4}$/.test(cardExpiration)) { toast.error("Validade inválida (MM/AA)."); setSubmitting(false); return; }
+      if (cardCvv.replace(/\D/g, "").length < 3) { toast.error("CVV inválido."); setSubmitting(false); return; }
+
+      const { data, error } = await supabase.functions.invoke("create-cielo-card", {
+        body: {
+          ...commonBody,
+          card: {
+            number: cardDigits,
+            holder: cardHolder.trim().toUpperCase(),
+            expiration: cardExpiration,
+            security_code: cardCvv,
+            installments,
+          },
+        },
       });
       await parseInvokeError(error, data);
-      if (!data?.checkout_url) throw new Error("URL de checkout não recebida");
-      clearCart();
-      window.location.href = data.checkout_url;
+      if (data?.status === "approved") {
+        const orderId = data.order_id;
+        clearCart();
+        toast.success("Pagamento aprovado!");
+        nav(`/pedido/sucesso?order=${orderId}`, { replace: true });
+        return;
+      }
+      throw new Error(data?.reason || "Cartão recusado pela operadora. Tente outro cartão ou use Pix.");
+
     } catch (e: any) {
       toast.error(e?.message || "Falha ao iniciar pagamento", { duration: 8000 });
       setSubmitting(false);
@@ -463,21 +493,85 @@ export default function Checkout() {
                 <CreditCard className="h-6 w-6" />
                 <div>
                   <div className="font-bold">Cartão de crédito</div>
-                  <div className="text-xs text-muted-foreground">Pagamento pelo Mercado Pago</div>
+                  <div className="text-xs text-muted-foreground">Até {maxInstallmentsForTotal(total)}x sem juros · Cielo</div>
                 </div>
               </label>
             </RadioGroup>
+
+            {paymentMethod === "credit_card" && (
+              <div className="mt-4 space-y-3 border rounded-lg p-4 bg-secondary/20">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5" />
+                  Ambiente seguro Cielo · seus dados são criptografados
+                </div>
+                <Field label="Número do cartão">
+                  <Input
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const d = e.target.value.replace(/\D/g, "").slice(0, 19);
+                      const grouped = d.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+                      setCardNumber(grouped);
+                    }}
+                    placeholder="0000 0000 0000 0000"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                  />
+                </Field>
+                <Field label="Nome como está no cartão">
+                  <Input
+                    value={cardHolder}
+                    onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                    placeholder="NOME SOBRENOME"
+                    autoComplete="cc-name"
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Validade (MM/AA)">
+                    <Input
+                      value={cardExpiration}
+                      onChange={(e) => {
+                        const d = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setCardExpiration(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
+                      }}
+                      placeholder="12/28"
+                      inputMode="numeric"
+                      autoComplete="cc-exp"
+                    />
+                  </Field>
+                  <Field label="CVV">
+                    <Input
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="000"
+                      inputMode="numeric"
+                      autoComplete="cc-csc"
+                    />
+                  </Field>
+                </div>
+                <Field label="Parcelamento">
+                  <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {buildInstallmentOptions(total).map((o) => (
+                        <SelectItem key={o.n} value={String(o.n)}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground mt-4">
               {paymentMethod === "pix"
                 ? "Você verá o QR Code e o Pix Copia e Cola na próxima tela, sem sair do site."
-                : "Você será redirecionado ao ambiente seguro do Mercado Pago para concluir o pagamento."}
+                : "Pagamento processado com segurança pela Cielo. Aprovação imediata ao finalizar."}
             </p>
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(3)} disabled={submitting}>Voltar</Button>
               <Button onClick={goPay} disabled={submitting || deliveryBlocked} className="bg-primary hover:bg-primary-dark">
                 {submitting
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {paymentMethod === "pix" ? "Gerando Pix..." : "Redirecionando..."}</>
-                  : (paymentMethod === "pix" ? "Gerar QR Code Pix" : "Pagar agora")}
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {paymentMethod === "pix" ? "Gerando Pix..." : "Processando..."}</>
+                  : (paymentMethod === "pix" ? "Gerar QR Code Pix" : `Pagar ${formatBRL(total)}`)}
               </Button>
             </div>
           </Section>

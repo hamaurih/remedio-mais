@@ -1050,6 +1050,13 @@ export type Database = {
       orders: {
         Row: {
           cancelled_at: string | null
+          card_brand: string | null
+          card_last4: string | null
+          cielo_authorization_code: string | null
+          cielo_payment_id: string | null
+          cielo_proof_of_sale: string | null
+          cielo_status: number | null
+          cielo_tid: string | null
           created_at: string
           customer_address: string | null
           customer_cpf: string | null
@@ -1072,6 +1079,7 @@ export type Database = {
           external_reference: string | null
           fulfillment_status: string
           id: string
+          installments: number | null
           mercado_pago_checkout_url: string | null
           mercado_pago_order_id: string | null
           mercado_pago_payment_id: string | null
@@ -1082,6 +1090,9 @@ export type Database = {
           payment_gateway: string | null
           payment_method: string | null
           payment_status: string
+          pix_expires_at: string | null
+          pix_qr_code: string | null
+          pix_qr_code_base64: string | null
           sales_channel: string
           status: string
           subtotal: number
@@ -1103,6 +1114,13 @@ export type Database = {
         }
         Insert: {
           cancelled_at?: string | null
+          card_brand?: string | null
+          card_last4?: string | null
+          cielo_authorization_code?: string | null
+          cielo_payment_id?: string | null
+          cielo_proof_of_sale?: string | null
+          cielo_status?: number | null
+          cielo_tid?: string | null
           created_at?: string
           customer_address?: string | null
           customer_cpf?: string | null
@@ -1125,6 +1143,7 @@ export type Database = {
           external_reference?: string | null
           fulfillment_status?: string
           id?: string
+          installments?: number | null
           mercado_pago_checkout_url?: string | null
           mercado_pago_order_id?: string | null
           mercado_pago_payment_id?: string | null
@@ -1135,6 +1154,9 @@ export type Database = {
           payment_gateway?: string | null
           payment_method?: string | null
           payment_status?: string
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           sales_channel?: string
           status?: string
           subtotal?: number
@@ -1156,6 +1178,13 @@ export type Database = {
         }
         Update: {
           cancelled_at?: string | null
+          card_brand?: string | null
+          card_last4?: string | null
+          cielo_authorization_code?: string | null
+          cielo_payment_id?: string | null
+          cielo_proof_of_sale?: string | null
+          cielo_status?: number | null
+          cielo_tid?: string | null
           created_at?: string
           customer_address?: string | null
           customer_cpf?: string | null
@@ -1178,6 +1207,7 @@ export type Database = {
           external_reference?: string | null
           fulfillment_status?: string
           id?: string
+          installments?: number | null
           mercado_pago_checkout_url?: string | null
           mercado_pago_order_id?: string | null
           mercado_pago_payment_id?: string | null
@@ -1188,6 +1218,9 @@ export type Database = {
           payment_gateway?: string | null
           payment_method?: string | null
           payment_status?: string
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           sales_channel?: string
           status?: string
           subtotal?: number
@@ -1294,6 +1327,8 @@ export type Database = {
           environment: string
           gateway: string
           id: number
+          installments_max: number | null
+          installments_no_interest_max: number | null
           last_connection_status: string | null
           last_connection_test_at: string | null
           modo_integracao: string
@@ -1306,6 +1341,8 @@ export type Database = {
           environment?: string
           gateway?: string
           id?: number
+          installments_max?: number | null
+          installments_no_interest_max?: number | null
           last_connection_status?: string | null
           last_connection_test_at?: string | null
           modo_integracao?: string
@@ -1318,6 +1355,8 @@ export type Database = {
           environment?: string
           gateway?: string
           id?: number
+          installments_max?: number | null
+          installments_no_interest_max?: number | null
           last_connection_status?: string | null
           last_connection_test_at?: string | null
           modo_integracao?: string

@@ -1,0 +1,216 @@
+// Cria pedido pendente + cobrança de cartão de crédito via Cielo API 3.0.
+// Auto-captura (Capture=true). Parcelamento sem juros até 6x seguindo as
+// regras da operação (ver src/lib/installments.ts / _shared/cielo.ts).
+import { safeLog, safeError } from "../_shared/mask.ts";
+import { prepareOrder, jsonResp } from "../_shared/prepare-order.ts";
+import {
+  CIELO_BASES, toCents, mapCieloStatus, detectBrand, maskCard,
+  maxInstallmentsForTotal, type CieloEnv,
+} from "../_shared/cielo.ts";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+type CardBody = {
+  card: {
+    number: string;
+    holder: string;
+    expiration: string;   // "MM/YYYY" ou "MM/YY"
+    security_code: string;
+    installments: number;
+  };
+};
+
+function normalizeExpiration(exp: string): string {
+  const m = (exp || "").match(/^(\d{1,2})\s*\/\s*(\d{2}|\d{4})$/);
+  if (!m) return "";
+  const mm = m[1].padStart(2, "0");
+  const yy = m[2].length === 2 ? `20${m[2]}` : m[2];
+  return `${mm}/${yy}`;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  const MERCHANT_ID = Deno.env.get("CIELO_MERCHANT_ID");
+  const MERCHANT_KEY = Deno.env.get("CIELO_MERCHANT_KEY");
+  if (!MERCHANT_ID || !MERCHANT_KEY) {
+    return jsonResp({ success: false, error: "Cielo não configurada (credenciais ausentes)." }, 500);
+  }
+
+  // Lemos o body 1x para o prepareOrder — mas prepareOrder consome o req.
+  // Estratégia: clonamos o request e passamos o clone ao prepareOrder.
+  const bodyText = await req.text();
+  let raw: any = {};
+  try { raw = JSON.parse(bodyText); } catch { return jsonResp({ success: false, error: "Corpo inválido." }, 400); }
+
+  const card = (raw as CardBody).card;
+  if (!card?.number || !card?.holder || !card?.expiration || !card?.security_code) {
+    return jsonResp({ success: false, error: "Dados do cartão incompletos." }, 400);
+  }
+  const cardDigits = String(card.number).replace(/\D/g, "");
+  if (cardDigits.length < 13 || cardDigits.length > 19) {
+    return jsonResp({ success: false, error: "Número de cartão inválido." }, 400);
+  }
+  const expiration = normalizeExpiration(String(card.expiration));
+  if (!expiration) return jsonResp({ success: false, error: "Validade do cartão inválida (use MM/AAAA)." }, 400);
+  const cvv = String(card.security_code).replace(/\D/g, "");
+  if (cvv.length < 3 || cvv.length > 4) return jsonResp({ success: false, error: "CVV inválido." }, 400);
+
+  // Reconstroi o Request para prepareOrder
+  const forwarded = new Request(req.url, {
+    method: "POST",
+    headers: req.headers,
+    body: JSON.stringify(raw),
+  });
+  const prep = await prepareOrder(forwarded, "credit_card");
+  if (!prep.ok) return jsonResp(prep.body, prep.status);
+  const { admin, order, total } = prep;
+
+  // Parcelamento — força limites da operação
+  const maxAllowed = maxInstallmentsForTotal(total);
+  let installments = Math.floor(Number(card.installments) || 1);
+  if (installments < 1) installments = 1;
+  if (installments > maxAllowed) installments = maxAllowed;
+
+  const brand = detectBrand(cardDigits);
+
+  // Ambiente
+  const { data: pset } = await admin.from("payment_settings").select("environment").eq("id", 1).maybeSingle();
+  const env: CieloEnv = ((pset as any)?.environment === "sandbox" ? "sandbox" : "production");
+  const base = CIELO_BASES[env].transaction;
+
+  const softDescriptor = "AtacadaoMed".slice(0, 13); // Cielo limita a 13 chars
+  const cieloBody = {
+    MerchantOrderId: order.id,
+    Customer: {
+      Name: order.customer_name || card.holder,
+      Identity: (order.customer_cpf || "").replace(/\D/g, "") || undefined,
+      IdentityType: order.customer_cpf ? "CPF" : undefined,
+      Email: order.customer_email || undefined,
+    },
+    Payment: {
+      Type: "CreditCard",
+      Amount: toCents(total),
+      Installments: installments,
+      Capture: true,
+      SoftDescriptor: softDescriptor,
+      CreditCard: {
+        CardNumber: cardDigits,
+        Holder: card.holder,
+        ExpirationDate: expiration,
+        SecurityCode: cvv,
+        Brand: brand,
+      },
+    },
+  };
+
+  safeLog("[cielo-card] request", { order_id: order.id, total, installments, brand, card: maskCard(cardDigits), env });
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}/1/sales/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "MerchantId": MERCHANT_ID,
+        "MerchantKey": MERCHANT_KEY,
+        "RequestId": crypto.randomUUID(),
+      },
+      body: JSON.stringify(cieloBody),
+    });
+  } catch (e) {
+    safeError("[cielo-card] network error", { message: (e as Error).message });
+    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    return jsonResp({ success: false, error: "Falha ao contatar Cielo." }, 502);
+  }
+
+  const text = await res.text();
+  let cielo: any = null;
+  try { cielo = JSON.parse(text); } catch { cielo = { raw: text }; }
+
+  if (!res.ok) {
+    safeError("[cielo-card] rejected", { status: res.status, body: cielo });
+    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    const firstErr = Array.isArray(cielo) ? cielo[0] : cielo;
+    return jsonResp({
+      success: false,
+      error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento.",
+      details: cielo,
+    }, 402);
+  }
+
+  const pay = cielo?.Payment || {};
+  const statusCode = Number(pay.Status ?? 0);
+  const status = mapCieloStatus(statusCode);
+  const paymentId = pay.PaymentId as string | undefined;
+  const tid = pay.Tid as string | undefined;
+  const auth = pay.AuthorizationCode as string | undefined;
+  const proof = pay.ProofOfSale as string | undefined;
+
+  const updates: Record<string, unknown> = {
+    cielo_payment_id: paymentId ?? null,
+    cielo_tid: tid ?? null,
+    cielo_authorization_code: auth ?? null,
+    cielo_proof_of_sale: proof ?? null,
+    cielo_status: statusCode,
+    installments,
+    card_brand: brand,
+    card_last4: cardDigits.slice(-4),
+    payment_status: status,
+    external_reference: order.id,
+  };
+  if (status === "approved") {
+    updates.order_status = "pago";
+    updates.status = "em_atendimento";
+    updates.paid_at = new Date().toISOString();
+  } else if (status === "rejected" || status === "cancelled") {
+    updates.cancelled_at = new Date().toISOString();
+  }
+  await admin.from("orders").update(updates).eq("id", order.id);
+
+  // Se aprovado, dispara Trier automaticamente (mesma regra do webhook MP)
+  if (status === "approved") {
+    try {
+      await admin.from("admin_notifications").insert({
+        type: "order_paid",
+        title: "Produto vendido",
+        message: `Pedido #${String(order.id).slice(0, 6)} pago com cartão. Cliente: ${order.customer_name}. Total: R$ ${Number(total).toFixed(2)}.`,
+        order_id: order.id,
+      });
+      const { data: tset } = await admin.from("trier_settings")
+        .select("auto_send_orders_enabled").eq("id", 1).maybeSingle();
+      if ((tset as any)?.auto_send_orders_enabled) {
+        const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+        const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        fetch(`${SUPABASE_URL}/functions/v1/send-order-to-trier`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SERVICE}`,
+            "x-internal-source": "cielo-card",
+          },
+          body: JSON.stringify({ order_id: order.id }),
+        }).catch((e) => safeError("[cielo-card] trier dispatch failed", { message: (e as Error)?.message }));
+      }
+    } catch (e) {
+      safeError("[cielo-card] post-approve error", { message: (e as Error)?.message });
+    }
+  }
+
+  safeLog("[cielo-card] result", { order_id: order.id, statusCode, status });
+
+  return jsonResp({
+    success: status === "approved",
+    order_id: order.id,
+    payment_id: paymentId,
+    status,
+    installments,
+    brand,
+    total,
+    reason: status !== "approved" ? (pay.ReasonMessage || pay.ReturnMessage || null) : null,
+  });
+});
