@@ -125,44 +125,86 @@ export function NotificationsBell() {
   if (!user || (!isAdmin && !isSeller)) return null;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unread > 0 && (
-            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-              {unread > 99 ? "99+" : unread}
-            </span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 p-0">
-        <div className="flex items-center justify-between px-3 py-2 border-b">
-          <div className="text-sm font-semibold">Notificações</div>
-          <Button size="sm" variant="ghost" onClick={markAllRead} disabled={!unread}>
-            <CheckCheck className="h-3.5 w-3.5 mr-1" /> Marcar todas
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
           </Button>
-        </div>
-        <div className="max-h-[420px] overflow-y-auto">
-          {!items.length ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">Nenhuma notificação.</div>
-          ) : items.map((n) => (
-            <Link
-              key={n.id}
-              to={n.order_id ? `/admin/pedidos` : "/admin"}
-              onClick={() => { markRead(n.id); setOpen(false); }}
-              className={`block px-3 py-2 border-b hover:bg-accent transition-colors ${!n.read ? "bg-primary/5" : ""}`}
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-96 p-0">
+          <div className="flex items-center justify-between px-3 py-2 border-b">
+            <div className="text-sm font-semibold">Notificações</div>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={toggleSound}
+                title={soundEnabled ? "Som de venda ativado" : "Som de venda desativado"}
+              >
+                {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={markAllRead} disabled={!unread}>
+                <CheckCheck className="h-3.5 w-3.5 mr-1" /> Marcar todas
+              </Button>
+            </div>
+          </div>
+          <div className="max-h-[420px] overflow-y-auto">
+            {!items.length ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">Nenhuma notificação.</div>
+            ) : items.map((n) => (
+              <Link
+                key={n.id}
+                to={n.order_id ? `/admin/pedidos` : "/admin"}
+                onClick={() => { markRead(n.id); setOpen(false); }}
+                className={`block px-3 py-2 border-b hover:bg-accent transition-colors ${!n.read ? "bg-primary/5" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-xs font-semibold">{n.title}</div>
+                  {n.priority === "high" && <Badge variant="destructive" className="text-[9px]">alta</Badge>}
+                </div>
+                {n.message && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</div>}
+                <div className="text-[10px] text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString("pt-BR")}</div>
+              </Link>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Dialog open={!!alertNotif} onOpenChange={(o) => { if (!o) setAlertNotif(null); }}>
+        <DialogContent className="max-w-md border-2 border-primary">
+          <DialogHeader>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-2 animate-pulse">
+              <PartyPopper className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-center text-2xl">
+              {alertNotif?.title || "Venda realizada!"}
+            </DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              {alertNotif?.message || "Um novo pedido foi pago."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button variant="outline" onClick={() => { if (alertNotif) markRead(alertNotif.id); setAlertNotif(null); }}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                if (alertNotif) markRead(alertNotif.id);
+                setAlertNotif(null);
+                navigate("/admin/pedidos");
+              }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-xs font-semibold">{n.title}</div>
-                {n.priority === "high" && <Badge variant="destructive" className="text-[9px]">alta</Badge>}
-              </div>
-              {n.message && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</div>}
-              <div className="text-[10px] text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString("pt-BR")}</div>
-            </Link>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+              Ver pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
