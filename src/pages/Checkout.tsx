@@ -493,21 +493,85 @@ export default function Checkout() {
                 <CreditCard className="h-6 w-6" />
                 <div>
                   <div className="font-bold">Cartão de crédito</div>
-                  <div className="text-xs text-muted-foreground">Pagamento pelo Mercado Pago</div>
+                  <div className="text-xs text-muted-foreground">Até {maxInstallmentsForTotal(total)}x sem juros · Cielo</div>
                 </div>
               </label>
             </RadioGroup>
+
+            {paymentMethod === "credit_card" && (
+              <div className="mt-4 space-y-3 border rounded-lg p-4 bg-secondary/20">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5" />
+                  Ambiente seguro Cielo · seus dados são criptografados
+                </div>
+                <Field label="Número do cartão">
+                  <Input
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const d = e.target.value.replace(/\D/g, "").slice(0, 19);
+                      const grouped = d.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+                      setCardNumber(grouped);
+                    }}
+                    placeholder="0000 0000 0000 0000"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                  />
+                </Field>
+                <Field label="Nome como está no cartão">
+                  <Input
+                    value={cardHolder}
+                    onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                    placeholder="NOME SOBRENOME"
+                    autoComplete="cc-name"
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Validade (MM/AA)">
+                    <Input
+                      value={cardExpiration}
+                      onChange={(e) => {
+                        const d = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setCardExpiration(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
+                      }}
+                      placeholder="12/28"
+                      inputMode="numeric"
+                      autoComplete="cc-exp"
+                    />
+                  </Field>
+                  <Field label="CVV">
+                    <Input
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="000"
+                      inputMode="numeric"
+                      autoComplete="cc-csc"
+                    />
+                  </Field>
+                </div>
+                <Field label="Parcelamento">
+                  <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {buildInstallmentOptions(total).map((o) => (
+                        <SelectItem key={o.n} value={String(o.n)}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground mt-4">
               {paymentMethod === "pix"
                 ? "Você verá o QR Code e o Pix Copia e Cola na próxima tela, sem sair do site."
-                : "Você será redirecionado ao ambiente seguro do Mercado Pago para concluir o pagamento."}
+                : "Pagamento processado com segurança pela Cielo. Aprovação imediata ao finalizar."}
             </p>
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setStep(3)} disabled={submitting}>Voltar</Button>
               <Button onClick={goPay} disabled={submitting || deliveryBlocked} className="bg-primary hover:bg-primary-dark">
                 {submitting
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {paymentMethod === "pix" ? "Gerando Pix..." : "Redirecionando..."}</>
-                  : (paymentMethod === "pix" ? "Gerar QR Code Pix" : "Pagar agora")}
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {paymentMethod === "pix" ? "Gerando Pix..." : "Processando..."}</>
+                  : (paymentMethod === "pix" ? "Gerar QR Code Pix" : `Pagar ${formatBRL(total)}`)}
               </Button>
             </div>
           </Section>
