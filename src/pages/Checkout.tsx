@@ -279,31 +279,50 @@ export default function Checkout() {
       };
 
       if (paymentMethod === "pix") {
-        // Pix nativo: gera QR Code e navega para a tela interna
-        const { data, error } = await supabase.functions.invoke("create-pix-payment", { body: commonBody });
+        // Pix nativo (Cielo): gera QR Code e navega para a tela interna
+        const { data, error } = await supabase.functions.invoke("create-cielo-pix", { body: commonBody });
         await parseInvokeError(error, data);
         if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
         sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({
           qr_code: data.qr_code,
           qr_code_base64: data.qr_code_base64,
-          ticket_url: data.ticket_url,
           expires_at: data.expires_at,
           total: data.total,
         }));
-        // Navega ANTES de limpar o carrinho — senão o useEffect de "carrinho vazio" redireciona para /carrinho
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         setTimeout(() => clearCart(), 100);
         return;
       }
 
-      // Cartão: continua via Checkout Pro do Mercado Pago
-      const { data, error } = await supabase.functions.invoke("create-mercado-pago-checkout", {
-        body: { ...commonBody, payment_method: paymentMethod, return_origin: window.location.origin },
+      // Cartão de crédito via Cielo (transparente – processado aqui mesmo)
+      const cardDigits = cardNumber.replace(/\D/g, "");
+      if (cardDigits.length < 13) { toast.error("Número de cartão inválido."); setSubmitting(false); return; }
+      if (!cardHolder.trim()) { toast.error("Informe o nome como no cartão."); setSubmitting(false); return; }
+      if (!/^\d{2}\s*\/\s*\d{2,4}$/.test(cardExpiration)) { toast.error("Validade inválida (MM/AA)."); setSubmitting(false); return; }
+      if (cardCvv.replace(/\D/g, "").length < 3) { toast.error("CVV inválido."); setSubmitting(false); return; }
+
+      const { data, error } = await supabase.functions.invoke("create-cielo-card", {
+        body: {
+          ...commonBody,
+          card: {
+            number: cardDigits,
+            holder: cardHolder.trim().toUpperCase(),
+            expiration: cardExpiration,
+            security_code: cardCvv,
+            installments,
+          },
+        },
       });
       await parseInvokeError(error, data);
-      if (!data?.checkout_url) throw new Error("URL de checkout não recebida");
-      clearCart();
-      window.location.href = data.checkout_url;
+      if (data?.status === "approved") {
+        const orderId = data.order_id;
+        clearCart();
+        toast.success("Pagamento aprovado!");
+        nav(`/pedido/sucesso?order=${orderId}`, { replace: true });
+        return;
+      }
+      throw new Error(data?.reason || "Cartão recusado pela operadora. Tente outro cartão ou use Pix.");
+
     } catch (e: any) {
       toast.error(e?.message || "Falha ao iniciar pagamento", { duration: 8000 });
       setSubmitting(false);
