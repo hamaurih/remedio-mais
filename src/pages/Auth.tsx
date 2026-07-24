@@ -24,8 +24,20 @@ export default function Auth() {
     if (user) nav(next || (isAdmin || isSeller ? "/admin" : "/"));
   }, [user, isAdmin, isSeller, nav, next]);
 
+  // Critério simples e amigável: mínimo 8 caracteres, com pelo menos 1 letra e 1 número.
+  const pwChecks = {
+    length: password.length >= 8,
+    letter: /[A-Za-z]/.test(password),
+    number: /\d/.test(password),
+  };
+  const passwordValid = pwChecks.length && pwChecks.letter && pwChecks.number;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === "signup" && !passwordValid) {
+      toast.error("A senha precisa ter pelo menos 8 caracteres, com letras e números.");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "login") {
@@ -43,7 +55,7 @@ export default function Auth() {
     } catch (e: any) {
       const msg = String(e?.message || "");
       if (/weak|pwned|known to be|leaked|compromised/i.test(msg)) {
-        toast.error("Essa senha é muito comum ou apareceu em vazamentos conhecidos. Escolha uma senha mais forte (ideal: 10+ caracteres com letras, números e símbolos).");
+        toast.error("Essa senha apareceu em vazamentos conhecidos ou é muito comum. Tente uma combinação diferente de letras e números.");
       } else if (/invalid login|invalid credentials/i.test(msg)) {
         toast.error("E-mail ou senha incorretos.");
       } else if (/already registered|already exists|user already/i.test(msg)) {
@@ -56,6 +68,13 @@ export default function Auth() {
     }
   };
 
+  const Rule = ({ ok, children }: { ok: boolean; children: React.ReactNode }) => (
+    <li className={`flex items-center gap-2 ${ok ? "text-green-600" : "text-muted-foreground"}`}>
+      <span aria-hidden>{ok ? "✓" : "○"}</span>
+      <span>{children}</span>
+    </li>
+  );
+
   return (
     <Layout>
       <div className="container max-w-md py-10">
@@ -67,8 +86,30 @@ export default function Auth() {
               <div className="space-y-2"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
             )}
             <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-            <div className="space-y-2"><Label>Senha</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required /></div>
-            <Button type="submit" className="w-full" disabled={loading}>{loading ? "..." : mode === "login" ? "Entrar" : "Criar conta"}</Button>
+            <div className="space-y-2">
+              <Label>Senha</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={mode === "signup" ? 8 : 6}
+                required
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              />
+              {mode === "signup" && (
+                <ul className="text-xs space-y-1 mt-2" aria-live="polite">
+                  <Rule ok={pwChecks.length}>Pelo menos 8 caracteres</Rule>
+                  <Rule ok={pwChecks.letter}>Contém letras (a-z)</Rule>
+                  <Rule ok={pwChecks.number}>Contém números (0-9)</Rule>
+                  <li className="text-muted-foreground pt-1">
+                    Dica: evite senhas comuns como "12345678" ou "senha123" — elas podem ser recusadas por segurança.
+                  </li>
+                </ul>
+              )}
+            </div>
+            <Button type="submit" className="w-full" disabled={loading || (mode === "signup" && !passwordValid)}>
+              {loading ? "..." : mode === "login" ? "Entrar" : "Criar conta"}
+            </Button>
           </form>
           <button className="mt-4 text-sm text-primary hover:underline" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
             {mode === "login" ? "Não tem conta? Criar agora" : "Já tem conta? Entrar"}
