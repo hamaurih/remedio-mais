@@ -4,7 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/store";
-import { CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Loader2, Package, Truck, Store } from "lucide-react";
 
 type Status = "success" | "pending" | "failure";
 
@@ -39,7 +39,7 @@ export default function OrderReturn({ status }: { status: Status }) {
     if (!orderId) return;
     setLoading(true);
     try {
-      await supabase.functions.invoke("check-mercado-pago-status", { body: { order_id: orderId } });
+      await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } });
     } catch {}
     const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
     setOrder(data);
@@ -69,12 +69,33 @@ export default function OrderReturn({ status }: { status: Status }) {
     : effective === "pending" ? "Pagamento em análise"
     : "Pagamento não aprovado";
 
+  const isPickup = order?.delivery_type === "pickup";
+
   return (
     <Layout>
       <div className="container py-10 max-w-xl">
         <div className="bg-card border rounded-xl p-6 shadow-card text-center space-y-4">
           {icon}
           <h1 className="text-2xl font-extrabold">{title}</h1>
+
+          {effective === "success" && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 p-4 text-left flex gap-3 items-start">
+              <Package className="h-6 w-6 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <div className="font-bold mb-1">Seu pedido já está sendo preparado! 🎉</div>
+                <p className="leading-relaxed">
+                  Recebemos seu pagamento e nossa equipe está separando seus produtos com todo cuidado.
+                  {isPickup
+                    ? " Avisaremos assim que estiver pronto para retirada na loja."
+                    : " Em breve seu pedido será despachado para entrega no endereço informado."}
+                </p>
+                <div className="flex items-center gap-2 mt-3 text-xs font-medium text-emerald-800">
+                  {isPickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                  <span>{isPickup ? "Retirada na loja" : "Entrega em domicílio"}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {loading && <Loader2 className="h-5 w-5 animate-spin mx-auto" />}
 

@@ -110,7 +110,8 @@ export default function PixPayment() {
         <div className="container py-16 max-w-md text-center">
           <CheckCircle2 className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
           <h1 className="text-2xl font-extrabold mb-2">Pagamento aprovado!</h1>
-          <p className="text-muted-foreground">Redirecionando para o seu pedido…</p>
+          <p className="text-muted-foreground mb-4">Seu pedido já está sendo preparado pela nossa equipe. 🎉</p>
+          <p className="text-xs text-muted-foreground">Redirecionando para o acompanhamento do pedido…</p>
         </div>
       </Layout>
     );
