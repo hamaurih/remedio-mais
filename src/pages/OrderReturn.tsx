@@ -39,7 +39,7 @@ export default function OrderReturn({ status }: { status: Status }) {
     if (!orderId) return;
     setLoading(true);
     try {
-      await supabase.functions.invoke("check-mercado-pago-status", { body: { order_id: orderId } });
+      await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } });
     } catch {}
     const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
     setOrder(data);
