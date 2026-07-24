@@ -247,7 +247,11 @@ export default function Checkout() {
     }
     if (data && data.success === false) {
       const code = data.error_code ? ` [${data.error_code}]` : "";
-      throw new Error(`${data.error || "Falha ao iniciar pagamento"}${code}`);
+      const reason = data.error || data.reason;
+      const friendly = data.status === "rejected"
+        ? `${reason ? reason + ". " : ""}Cartão recusado pela operadora. Tente outro cartão ou use Pix.`
+        : (reason || "Falha ao iniciar pagamento");
+      throw new Error(`${friendly}${code}`);
     }
   };
 
