@@ -203,6 +203,7 @@ export default function AdminProducts() {
         lock_manual_price: true,
       };
       delete payload.categories;
+      delete payload.category_display_name; // vem da RPC admin_products_list (alias do JOIN)
       delete payload.discount_percentage; // generated column
 
       let saved;
