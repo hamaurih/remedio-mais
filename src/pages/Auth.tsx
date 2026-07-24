@@ -18,11 +18,11 @@ export default function Auth() {
   const nav = useNavigate();
   const [search] = useSearchParams();
   const next = search.get("next");
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSeller } = useAuth();
 
   useEffect(() => {
-    if (user) nav(next || (isAdmin ? "/admin" : "/"));
-  }, [user, isAdmin, nav, next]);
+    if (user) nav(next || (isAdmin || isSeller ? "/admin" : "/"));
+  }, [user, isAdmin, isSeller, nav, next]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
