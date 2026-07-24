@@ -63,6 +63,7 @@ export default function AdminHomeDiagnostics() {
       no_barcode: await countWith((q) => q.or("barcode.is.null,barcode.eq.")),
       no_barcode_stock_pos: await countWith((q) => q.or("barcode.is.null,barcode.eq.").gt("stock", 0)),
       no_barcode_stock_zero: await countWith((q) => q.or("barcode.is.null,barcode.eq.").lte("stock", 0)),
+      no_image_stock_pos: await countWith((q) => q.or("image_url.is.null,image_url.eq.,image_url.ilike.%placeholder%").gt("stock", 0)),
     }),
   });
 
@@ -115,8 +116,9 @@ export default function AdminHomeDiagnostics() {
               { label: "Elegível para home (active+stock+price)", value: t.home_eligible, warn: t.home_eligible === 0 },
               { label: "Stock>0 mas inativos", value: t.stock_pos_inactive, warn: t.stock_pos_inactive > 50, href: "/admin/produtos?status=stock_inactive" },
               { label: "Sem código de barras", value: t.no_barcode, warn: t.no_barcode > 500 },
-              { label: "Sem EAN + stock>0", value: t.no_barcode_stock_pos, warn: t.no_barcode_stock_pos > 100 },
+              { label: "Sem EAN + stock>0", value: t.no_barcode_stock_pos, warn: t.no_barcode_stock_pos > 100, href: "/admin/produtos?status=no_barcode_stock" },
               { label: "Sem EAN + stock<=0", value: t.no_barcode_stock_zero },
+              { label: "Sem imagem + stock>0", value: t.no_image_stock_pos, warn: t.no_image_stock_pos > 0, href: "/admin/produtos?status=no_image_stock" },
             ]} />
           )}
           {t && t.stock_pos_inactive > 50 && (
