@@ -63,6 +63,7 @@ export default function AdminHomeDiagnostics() {
       no_barcode: await countWith((q) => q.or("barcode.is.null,barcode.eq.")),
       no_barcode_stock_pos: await countWith((q) => q.or("barcode.is.null,barcode.eq.").gt("stock", 0)),
       no_barcode_stock_zero: await countWith((q) => q.or("barcode.is.null,barcode.eq.").lte("stock", 0)),
+      no_image_stock_pos: await countWith((q) => q.or("image_url.is.null,image_url.eq.,image_url.ilike.%placeholder%").gt("stock", 0)),
     }),
   });
 
