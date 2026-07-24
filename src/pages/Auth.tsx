@@ -41,7 +41,16 @@ export default function Auth() {
         toast.success("Conta criada! Verifique seu e-mail se necessário.");
       }
     } catch (e: any) {
-      toast.error(e.message || "Erro");
+      const msg = String(e?.message || "");
+      if (/weak|pwned|known to be|leaked|compromised/i.test(msg)) {
+        toast.error("Essa senha é muito comum ou apareceu em vazamentos conhecidos. Escolha uma senha mais forte (ideal: 10+ caracteres com letras, números e símbolos).");
+      } else if (/invalid login|invalid credentials/i.test(msg)) {
+        toast.error("E-mail ou senha incorretos.");
+      } else if (/already registered|already exists|user already/i.test(msg)) {
+        toast.error("Este e-mail já está cadastrado. Tente entrar.");
+      } else {
+        toast.error(msg || "Erro");
+      }
     } finally {
       setLoading(false);
     }
