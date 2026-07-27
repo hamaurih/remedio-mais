@@ -49,6 +49,19 @@ export default function Index() {
     return (data || []) as Product[];
   };
 
+  // Curadoria manual definida em Admin > Vitrines da Home
+  const manualShelf = async (key: string): Promise<Product[] | null> => {
+    const { data } = await (supabase as any)
+      .from("home_shelf_items")
+      .select(`position, products:product_id(${PUBLIC_PRODUCT_SELECT})`)
+      .eq("shelf_key", key)
+      .order("position");
+    const list = ((data || []) as any[])
+      .map((r) => r.products)
+      .filter((p) => p && p.active && Number(p.stock ?? 0) > 0);
+    return list.length > 0 ? (list as Product[]) : null;
+  };
+
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
     const { data: tagged } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
@@ -60,6 +73,9 @@ export default function Index() {
     queryKey: ["shelf_offers"],
     queryFn: async () => {
       const nowIso = new Date().toISOString();
+      // 0) curadoria manual
+      const manual = await manualShelf("ofertas-da-semana");
+      if (manual) return manual;
       // 1) shelf tag
       const tagged = await (supabase as any)
         .from("products")
@@ -100,6 +116,9 @@ export default function Index() {
   const bestsellers = useQuery({
     queryKey: ["shelf_bestsellers"],
     queryFn: async () => {
+      // 0) curadoria manual
+      const manual = await manualShelf("mais-vendidos");
+      if (manual) return manual;
       // 1) Ordem manual definida no admin (bestseller_rank)
       const ranked = await (supabase as any)
         .from("products")
@@ -128,6 +147,8 @@ export default function Index() {
   const meds = useQuery({
     queryKey: ["shelf_meds"],
     queryFn: async () => {
+      const manual = await manualShelf("medicamentos-populares");
+      if (manual) return manual;
       const t = await shelfBy("medicamentos-populares")();
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "medicamentos").maybeSingle();
@@ -139,6 +160,8 @@ export default function Index() {
   const hygiene = useQuery({
     queryKey: ["shelf_hygiene"],
     queryFn: async () => {
+      const manual = await manualShelf("higiene-e-beleza");
+      if (manual) return manual;
       const t = await shelfBy("higiene-e-beleza")();
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
@@ -150,6 +173,8 @@ export default function Index() {
   const babies = useQuery({
     queryKey: ["shelf_babies"],
     queryFn: async () => {
+      const manual = await manualShelf("mamaes-e-bebes");
+      if (manual) return manual;
       const t = await shelfBy("mamaes-e-bebes")();
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "mamaes-e-bebes").maybeSingle();
@@ -162,6 +187,8 @@ export default function Index() {
     useQuery({
       queryKey: [`shelf_${shelf}`],
       queryFn: async () => {
+        const manual = await manualShelf(shelf);
+        if (manual) return manual;
         const t = await shelfBy(shelf)();
         if (t) return t;
         const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
