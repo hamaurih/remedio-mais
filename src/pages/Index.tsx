@@ -49,6 +49,19 @@ export default function Index() {
     return (data || []) as Product[];
   };
 
+  // Curadoria manual definida em Admin > Vitrines da Home
+  const manualShelf = async (key: string): Promise<Product[] | null> => {
+    const { data } = await (supabase as any)
+      .from("home_shelf_items")
+      .select(`position, products:product_id(${PUBLIC_PRODUCT_SELECT})`)
+      .eq("shelf_key", key)
+      .order("position");
+    const list = ((data || []) as any[])
+      .map((r) => r.products)
+      .filter((p) => p && p.active && Number(p.stock ?? 0) > 0);
+    return list.length > 0 ? (list as Product[]) : null;
+  };
+
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
     const { data: tagged } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
