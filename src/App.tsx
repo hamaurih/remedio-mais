@@ -40,6 +40,7 @@ import AdminBannerGenerator from "./pages/admin/AdminBannerGenerator.tsx";
 import AdminPromoBanner from "./pages/admin/AdminPromoBanner.tsx";
 import AdminMosaic from "./pages/admin/AdminMosaic.tsx";
 import AdminHomeLayout from "./pages/admin/AdminHomeLayout.tsx";
+import AdminHomeShelves from "./pages/admin/AdminHomeShelves.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import Campaign from "./pages/Campaign.tsx";
 import Checkout from "./pages/Checkout.tsx";
@@ -115,6 +116,7 @@ const App = () => (
             <Route path="promo-banner" element={<AdminPromoBanner />} />
             <Route path="mosaico" element={<AdminMosaic />} />
             <Route path="layout-home" element={<AdminHomeLayout />} />
+            <Route path="vitrines" element={<AdminHomeShelves />} />
             <Route path="campanhas" element={<AdminCampaigns />} />
             <Route path="ofertas" element={<AdminOffers />} />
             <Route path="pedidos" element={<AdminOrders />} />
