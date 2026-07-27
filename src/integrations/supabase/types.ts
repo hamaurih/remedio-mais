@@ -700,6 +700,38 @@ export type Database = {
         }
         Relationships: []
       }
+      home_shelf_items: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          product_id: string
+          shelf_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          product_id: string
+          shelf_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          product_id?: string
+          shelf_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "home_shelf_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_job_items: {
         Row: {
           action: string | null
