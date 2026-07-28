@@ -2392,6 +2392,8 @@ Deno.serve(async (req) => {
       case "check-order-status": result = await actionCheckOrderStatus(body.order_ids); break;
       case "update-order-status": result = await actionUpdateOrderStatus(body.order_id, body.status); break;
       case "scheduled": result = runAsync("scheduled", () => actionScheduled()); break;
+      case "retry-pending-orders": result = await actionRetryPendingOrders(Number(body.limit) || 10); break;
+
       default: return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
