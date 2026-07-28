@@ -2328,9 +2328,12 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const trigger = body.trigger || url.searchParams.get("trigger") || "manual";
 
-    if (action !== "scheduled") {
+    const internalCron = req.headers.get("x-internal-cron");
+    const isInternalCron = !!internalCron && internalCron === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (action !== "scheduled" && !isInternalCron) {
       await requireAdmin(req);
     }
+
 
     // Sync actions can exceed the 150s edge timeout — run them in background.
     const runAsync = (syncType: string, fn: () => Promise<any>) => {
