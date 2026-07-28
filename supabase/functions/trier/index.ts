@@ -2059,7 +2059,7 @@ async function actionRetryPendingOrders(limit = 5) {
     .select("id, trier_attempts")
     .eq("payment_status", "approved")
     .or("trier_sent.is.false,trier_sent.is.null")
-    .lt("trier_attempts", 5)
+    .lt("trier_attempts", 60)
     .order("created_at", { ascending: true })
     .limit(limit);
   const rows = pending || [];
