@@ -119,6 +119,7 @@ function friendlyTrierMessage(status?: number, body?: string, fallback?: string)
   if (status === 500 && b.includes("endpoint não localizado")) return "Endpoint não localizado. Verifique Base URL e caminho /rest/integracao/...";
   if (status === 403) return "Erro 403: token sem permissão para este recurso.";
   if (status === 404) return "Erro 404: endpoint inexistente nesta Base URL.";
+  if (status === 545 || status === 554) return `Erro ${status}: o Gateway Trier não conseguiu falar com o servidor (SGF) da farmácia — provavelmente desligado, sem internet ou fora do ar. Nada a corrigir no site; o sistema re-tenta sozinho.`;
   return fallback || (status ? `Trier respondeu HTTP ${status}.` : "Falha ao conectar com a Trier.");
 }
 
