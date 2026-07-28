@@ -340,7 +340,9 @@ export default function AdminTrier() {
           <div className="flex gap-2 mt-4 flex-wrap">
             <Button onClick={runConnectionTest} disabled={busy !== null}><Plug className="h-4 w-4 mr-2" />Testar conexão</Button>
             <Button onClick={() => call("sync-all", { trigger: "manual" }, "Sincronização completa")} disabled={busy !== null} variant="secondary"><RefreshCw className={`h-4 w-4 mr-2 ${busy === "sync-all" ? "animate-spin" : ""}`} />Sincronizar tudo</Button>
+            <Button onClick={() => call("retry-pending-orders", { limit: 10 }, "Reenvio de pedidos pendentes")} disabled={busy !== null} variant="outline">Reenviar pedidos pendentes</Button>
           </div>
+
         </TabsContent>
 
         {/* ---------- CONFIGURAÇÃO ---------- */}
