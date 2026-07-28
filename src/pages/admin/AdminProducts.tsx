@@ -86,7 +86,11 @@ export default function AdminProducts() {
         _page_size: pageSize,
       });
       if (error) throw error;
-      return { rows: data?.rows || [], count: data?.count || 0 };
+      const rows = (data?.rows || []).map((r: any) => ({
+        ...r,
+        categories: r.categories ?? (r.category_display_name ? { name: r.category_display_name } : null),
+      }));
+      return { rows, count: data?.total ?? data?.count ?? 0 };
     },
   });
   const products = productsResp?.rows || [];
