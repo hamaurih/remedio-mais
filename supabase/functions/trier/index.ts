@@ -2029,6 +2029,60 @@ async function actionUpdateOrderStatus(orderId: string, statusCode: number) {
   return { ok: true };
 }
 
+// Dispara uma ação da própria função em outro worker (orçamento de execução independente).
+// Sem isso, preços/produtos consomem todo o tempo do tick e estoque nunca roda.
+async function dispatchInternal(action: string, body: Record<string, unknown> = {}) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/trier`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+        "x-internal-cron": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      },
+      body: JSON.stringify({ ...body, action, trigger: "cron" }),
+    });
+    return { ok: res.ok, status: res.status };
+  } catch (e: any) {
+    await log("scheduled", "error", `Falha ao disparar ${action}`, { error: String(e?.message || e) });
+    return { ok: false, error: String(e?.message || e) };
+  }
+}
+
+// Reenvia pedidos pagos que ainda não chegaram à Trier (rede caiu, erro temporário etc.)
+async function actionRetryPendingOrders(limit = 5) {
+  const s = await getSettings({ requireToken: false });
+  if (!s.auto_send_orders_enabled) return { ok: true, skipped: "auto_send_disabled" };
+  const { data: pending } = await supabase.from("orders")
+    .select("id, trier_attempts")
+    .eq("payment_status", "approved")
+    .or("trier_sent.is.false,trier_sent.is.null")
+    .lt("trier_attempts", 5)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  const rows = pending || [];
+  let sent = 0, failed = 0;
+  for (const o of rows as any[]) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-order-to-trier`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+          "x-internal-source": "mercado-pago-webhook",
+        },
+        body: JSON.stringify({ order_id: o.id, action: "send_order" }),
+      });
+      if (res.ok) sent++; else failed++;
+    } catch { failed++; }
+  }
+  if (rows.length) {
+    await log("order_send", failed ? "error" : "success",
+      `Reenvio automático de pedidos pendentes: ${sent} enviados, ${failed} com falha`, { total: rows.length });
+  }
+  return { ok: true, total: rows.length, sent, failed };
+}
+
 async function actionScheduled() {
   const s = await getSettings();
   if (s.auto_sync_paused) {
@@ -2048,31 +2102,38 @@ async function actionScheduled() {
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
   const results: any = {};
 
-  // Executa primeiro os jobs comerciais leves. O estoque pode levar muitos ciclos
-  // paginando milhares de registros; se ele rodar primeiro, atrasa preço/produtos.
+  // Cada sync pesado roda em um worker próprio (dispatch paralelo). Antes eles rodavam
+  // em sequência no mesmo worker: preços consumia todo o orçamento e o estoque nunca
+  // chegava a rodar (ficou ~1 mês sem atualizar).
+  const jobs: Promise<any>[] = [];
   if (paused.has("prices") || (s.sync_prices_enabled && due(s.last_sync_prices_at, s.schedule_prices_minutes))) {
-    results.prices = await actionSyncPrices("cron");
+    results.prices = "dispatched";
+    jobs.push(dispatchInternal("sync-prices"));
   }
   if (paused.has("discounts") || (s.sync_discounts_enabled && due(s.last_sync_discounts_at, s.schedule_discounts_minutes))) {
-    results.discounts = await actionSyncDiscounts("cron");
+    results.discounts = "dispatched";
+    jobs.push(dispatchInternal("sync-discounts"));
   }
   if (paused.has("products")) {
-    results.products = await actionSyncProducts("cron", false);
-  } else if (paused.has("products_changed")) {
-    results.products = await actionSyncProducts("cron", true);
-  } else if (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes)) {
-    results.products = await actionSyncProducts("cron", true);
+    results.products = "dispatched";
+    jobs.push(dispatchInternal("sync-products", { changed: false }));
+  } else if (paused.has("products_changed") || (s.sync_products_enabled && due(s.last_sync_products_at, s.schedule_products_minutes))) {
+    results.products = "dispatched";
+    jobs.push(dispatchInternal("sync-products", { changed: true }));
   }
   if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
-    results.stock = await actionSyncStock("cron");
+    results.stock = "dispatched";
+    jobs.push(dispatchInternal("sync-stock"));
   }
   // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia).
-  // Reduzido para 150 itens/3 workers para não sufocar o orçamento de execução dos jobs paginados
-  // acima (products/prices/stock) e provocar timeout no worker.
-  if (!s.auto_sync_paused) {
-    try { results.stock_active = await actionSyncStockActive("cron", 150, 3); }
-    catch (e: any) { await log("stock", "error", `stock_active falhou: ${String(e?.message || e)}`); }
-  }
+  results.stock_active = "dispatched";
+  jobs.push(dispatchInternal("sync-stock-active", { batchSize: 250, concurrency: 5 }));
+
+  await Promise.allSettled(jobs);
+
+  // Pedidos pagos que ainda não foram enviados à Trier
+  try { results.pending_orders = await actionRetryPendingOrders(5); }
+  catch (e: any) { await log("order_send", "error", `Reenvio de pendentes falhou: ${String(e?.message || e)}`); }
 
   await log("scheduled", "info", `Cron Trier executado: ${Object.keys(results).join(", ") || "nada pendente"}`, {
     ran: Object.keys(results), schedules: {
@@ -2084,6 +2145,7 @@ async function actionScheduled() {
   });
   return { ok: true, results };
 }
+
 
 
 // ---------- SAFE-SYNC ACTIONS ----------
