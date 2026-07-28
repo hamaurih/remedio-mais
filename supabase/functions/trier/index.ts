@@ -10,7 +10,8 @@ const FALLBACK_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 const GATEWAY_BASE_URL = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
 const PAGE_SIZE = 150;
 const RETRY_MAX = 6;
-const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504, 556]);
+// 545/554 = gateway Trier não conseguiu falar com o SGF da farmácia (instável/desligado) -> vale re-tentar
+const RETRY_HTTP_STATUSES = new Set([429, 500, 502, 503, 504, 545, 554, 556]);
 const RETRY_NETWORK_CODES = ["ECONNRESET", "ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNREFUSED", "EAI_AGAIN"];
 const PAUSE_BETWEEN_PAGES_MS = 400;
 
@@ -118,6 +119,7 @@ function friendlyTrierMessage(status?: number, body?: string, fallback?: string)
   if (status === 500 && b.includes("endpoint não localizado")) return "Endpoint não localizado. Verifique Base URL e caminho /rest/integracao/...";
   if (status === 403) return "Erro 403: token sem permissão para este recurso.";
   if (status === 404) return "Erro 404: endpoint inexistente nesta Base URL.";
+  if (status === 545 || status === 554) return `Erro ${status}: o Gateway Trier não conseguiu falar com o servidor (SGF) da farmácia — provavelmente desligado, sem internet ou fora do ar. Nada a corrigir no site; o sistema re-tenta sozinho.`;
   return fallback || (status ? `Trier respondeu HTTP ${status}.` : "Falha ao conectar com a Trier.");
 }
 
