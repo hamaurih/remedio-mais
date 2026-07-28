@@ -148,7 +148,8 @@ export default function AdminBanners() {
         tablet_image_url,
         product_image_url,
         background_image_url,
-        desktop_image_url: editing.desktop_image_url || image_url || null,
+        // Se um novo arquivo desktop foi enviado, ele SEMPRE substitui a imagem antiga
+        desktop_image_url: file ? image_url : (editing.desktop_image_url || image_url || null),
         position: Number(editing.position) || 0,
         autoplay_delay: Math.max(2000, Number(editing.autoplay_delay) || 4000),
         discount_percent: editing.discount_percent === "" || editing.discount_percent == null ? null : Number(editing.discount_percent),
