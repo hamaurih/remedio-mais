@@ -332,7 +332,7 @@ export default function AdminTrier() {
 
           <div className="grid md:grid-cols-3 gap-3">
             <Card title="Conexão" value={settings?.last_connection_status === "ok" ? "OK" : (settings?.last_connection_status === "error" ? "Erro" : "—")} sub={settings?.last_connection_test_at ? new Date(settings.last_connection_test_at).toLocaleString("pt-BR") : "Nunca testado"} />
-            <Card title="Pedidos pendentes" value={String(orders?.filter((o: any) => !o.trier_sent).length ?? 0)} sub="Não enviados à Trier" />
+            <Card title="Pedidos pendentes" value={String(orders?.filter((o: any) => !o.trier_sent && o.payment_status === "approved").length ?? 0)} sub="Pagos e ainda não enviados à Trier" />
             <Card title="Último sync produtos" value={settings?.last_sync_products_at ? new Date(settings.last_sync_products_at).toLocaleString("pt-BR") : "—"} />
             <Card title="Último sync estoque" value={settings?.last_sync_stock_at ? new Date(settings.last_sync_stock_at).toLocaleString("pt-BR") : "—"} />
             <Card title="Último sync preços" value={settings?.last_sync_prices_at ? new Date(settings.last_sync_prices_at).toLocaleString("pt-BR") : "—"} />
