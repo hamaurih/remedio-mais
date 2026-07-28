@@ -2051,8 +2051,10 @@ async function dispatchInternal(action: string, body: Record<string, unknown> = 
 
 // Reenvia pedidos pagos que ainda não chegaram à Trier (rede caiu, erro temporário etc.)
 async function actionRetryPendingOrders(limit = 5) {
-  const s = await getSettings({ requireToken: false });
-  if (!s.auto_send_orders_enabled) return { ok: true, skipped: "auto_send_disabled" };
+  const { data: cfg } = await supabase.from("trier_settings")
+    .select("auto_send_orders_enabled").eq("id", 1).maybeSingle();
+  if (!cfg?.auto_send_orders_enabled) return { ok: true, skipped: "auto_send_disabled" };
+
   const { data: pending } = await supabase.from("orders")
     .select("id, trier_attempts")
     .eq("payment_status", "approved")
