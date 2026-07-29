@@ -304,17 +304,27 @@ export function CategoryNav() {
 
         <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
           <ul className="flex gap-2 md:gap-3 whitespace-nowrap text-base md:text-lg items-center">
-            {chipList.map((c) => (
-              <li key={c.key} className="snap-start">
-                <Link
-                  to={c.href}
-                  className="inline-block px-3 md:px-4 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-semibold relative group"
-                >
-                  <span>{c.label}</span>
-                  <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
-                </Link>
-              </li>
-            ))}
+            {chipList.map((c) => {
+              const highlighted = isHighlightChip(c);
+              return (
+                <li key={c.key} className="snap-start">
+                  <Link
+                    to={c.href}
+                    className={cn(
+                      "inline-block px-3 md:px-4 py-1.5 rounded-full font-semibold relative group transition-all",
+                      highlighted
+                        ? "bg-highlight text-highlight-foreground shadow-[0_2px_10px_-2px_hsl(var(--highlight)/0.5)] hover:brightness-105 hover:shadow-[0_4px_14px_-2px_hsl(var(--highlight)/0.6)]"
+                        : "hover:bg-accent hover:text-accent-foreground transition-colors"
+                    )}
+                  >
+                    <span className={cn("relative z-10", highlighted && "drop-shadow-sm")}>{c.label}</span>
+                    {!highlighted && (
+                      <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
