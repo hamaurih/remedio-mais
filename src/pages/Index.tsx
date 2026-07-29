@@ -212,31 +212,18 @@ export default function Index() {
     },
   });
 
-  const shelvesBlock = (
-    <>
-      <Reveal>
-        <ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/categoria/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay />
-      </Reveal>
-      <Reveal>
-        <ProductShelf title="Mais Vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" />
-      </Reveal>
-      <Reveal>
-        <ProductShelf title="Medicamentos Populares" viewAllLink="/categoria/medicamentos" products={meds.data} loading={meds.isLoading} backgroundVariant="white" />
-      </Reveal>
-      <Reveal>
-        <ProductShelf title="Higiene e Beleza" viewAllLink="/categoria/higiene-pessoal" products={hygiene.data} loading={hygiene.isLoading} backgroundVariant="light" />
-      </Reveal>
-      <Reveal>
-        <ProductShelf title="Mamães e Bebês" viewAllLink="/categoria/mamaes-e-bebes" products={babies.data} loading={babies.isLoading} backgroundVariant="white" />
-      </Reveal>
-      <Reveal>
-        <ProductShelf title="Vitaminas e Suplementos" viewAllLink="/categoria/vitaminas" products={vitamins.data} loading={vitamins.isLoading} backgroundVariant="light" />
-      </Reveal>
-      <Reveal>
-        <ProductShelf title="Primeiros Socorros" viewAllLink="/categoria/primeiros-socorros" products={firstaid.data} loading={firstaid.isLoading} backgroundVariant="white" />
-      </Reveal>
-    </>
-  );
+  const shelfSections: Record<string, React.ReactNode> = {
+    shelf_offers: <Reveal><ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/categoria/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay /></Reveal>,
+    shelf_bestsellers: <Reveal><ProductShelf title="Mais Vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" /></Reveal>,
+    shelf_meds: <Reveal><ProductShelf title="Medicamentos Populares" viewAllLink="/categoria/medicamentos" products={meds.data} loading={meds.isLoading} backgroundVariant="white" /></Reveal>,
+    shelf_hygiene: <Reveal><ProductShelf title="Higiene e Beleza" viewAllLink="/categoria/higiene-pessoal" products={hygiene.data} loading={hygiene.isLoading} backgroundVariant="light" /></Reveal>,
+    shelf_babies: <Reveal><ProductShelf title="Mamães e Bebês" viewAllLink="/categoria/mamaes-e-bebes" products={babies.data} loading={babies.isLoading} backgroundVariant="white" /></Reveal>,
+    shelf_vitamins: <Reveal><ProductShelf title="Vitaminas e Suplementos" viewAllLink="/categoria/vitaminas" products={vitamins.data} loading={vitamins.isLoading} backgroundVariant="light" /></Reveal>,
+    shelf_firstaid: <Reveal><ProductShelf title="Primeiros Socorros" viewAllLink="/categoria/primeiros-socorros" products={firstaid.data} loading={firstaid.isLoading} backgroundVariant="white" /></Reveal>,
+  };
+  const shelfKeys = Object.keys(shelfSections);
+  const shelvesBlock = <>{shelfKeys.map((k) => <div key={k}>{shelfSections[k]}</div>)}</>;
+
 
   const locationBlock = (
     <Reveal>
