@@ -391,8 +391,12 @@ async function finishJob(id: string, patch: any) {
 const MAX_RUN_MS = 80_000;
 
 async function getOrCreateResumableJob(sync_type: string, trigger: string) {
-  const { data: paused } = await supabase.from("trier_sync_jobs")
-    .select("*").eq("sync_type", sync_type).eq("status", "paused")
+  let pausedQuery = supabase.from("trier_sync_jobs")
+    .select("*").eq("sync_type", sync_type).eq("status", "paused");
+  if (sync_type === "stock") {
+    pausedQuery = pausedQuery.eq("details->>strategy", "local_products");
+  }
+  const { data: paused } = await pausedQuery
     .order("started_at", { ascending: false }).limit(1).maybeSingle();
   if (paused) {
     await supabase.from("trier_sync_jobs").update({ status: "running" }).eq("id", paused.id);
@@ -1242,6 +1246,129 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
   return { ok: true, checked, updated, deactivated, failed, trigger };
 }
 
+async function findTrierStockItemForLocalProduct(s: Settings, prod: any): Promise<{ item?: any; failed?: boolean; error?: string; lookup?: string }> {
+  const barcode = String(prod.barcode || prod.trier_barcode || "").trim();
+  const trierId = String(prod.trier_product_id || "").trim();
+  const attempts: Array<{ lookup: string; extras: Record<string, string>; matches: (t: any) => boolean }> = [];
+
+  if (barcode) {
+    attempts.push({
+      lookup: "codigoBarras",
+      extras: { codigoBarras: barcode },
+      matches: (t) => String(pickBarcode(t) || "").trim() === barcode,
+    });
+  }
+  if (trierId) {
+    attempts.push({
+      lookup: "codigo",
+      extras: { codigo: trierId },
+      matches: (t) => String(pickCode(t) || "").trim() === trierId,
+    });
+    attempts.push({
+      lookup: "codigoProduto",
+      extras: { codigoProduto: trierId },
+      matches: (t) => String(pickCode(t) || "").trim() === trierId,
+    });
+  }
+
+  for (const attempt of attempts) {
+    const qs = buildProductsQuery(s, 0, 10, attempt.extras, { ativo: "" });
+    const path = `/rest/integracao/produto/obter-todos-v1?${qs}`;
+    const resp = await requestTrier(s, path, { method: "GET" });
+    if (!resp.ok) return { failed: true, error: resp.message || `Trier respondeu HTTP ${resp.status}`, lookup: attempt.lookup };
+    const list = extractList(resp.json ?? []);
+    const exact = list.find(attempt.matches);
+    if (exact) return { item: exact, lookup: attempt.lookup };
+    if (list.length === 1 && (!trierId || String(pickCode(list[0]) || "").trim() === trierId)) {
+      return { item: list[0], lookup: attempt.lookup };
+    }
+  }
+
+  return { error: "Produto não encontrado na Trier pelos identificadores locais" };
+}
+
+async function syncLocalStockBatch(s: Settings, products: any[], start: number, concurrency = 6) {
+  const ignored_reasons: Record<string, number> = {};
+  const addIgnored = (reason: string) => { ignored_reasons[reason] = (ignored_reasons[reason] || 0) + 1; };
+  let checked = 0, updated = 0, ignored = 0, failed = 0, deactivated = 0;
+
+  const runOne = async (prod: any) => {
+    if (Date.now() - start > MAX_RUN_MS) return;
+    if (prod.lock_manual_stock) {
+      ignored += 1;
+      addIgnored("estoque_manual_bloqueado");
+      return;
+    }
+
+    checked += 1;
+    try {
+      const found = await findTrierStockItemForLocalProduct(s, prod);
+      if (found.failed) {
+        failed += 1;
+        addIgnored("falha_consulta_trier");
+        return;
+      }
+      if (!found.item) {
+        ignored += 1;
+        addIgnored("nao_encontrado_trier");
+        return;
+      }
+
+      const stockReal = pickStoreStockOnly(found.item);
+      const stockSite = stockReal ?? 0;
+      const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+      const now = new Date().toISOString();
+      const changed =
+        Number(prod.stock ?? 0) !== stockSite ||
+        Number(prod.stock_quantity ?? 0) !== stockSite ||
+        Number(prod.trier_stock_quantity ?? 0) !== Number(stockReal ?? 0) ||
+        prod.active !== nextActive;
+
+      const patch: any = {
+        stock: stockSite,
+        stock_quantity: stockSite,
+        trier_stock_quantity: stockReal,
+        active: nextActive,
+        last_stock_sync_at: now,
+        last_trier_sync_at: now,
+        source: "trier",
+      };
+
+      const { error: upErr } = await supabase.from("products").update(patch).eq("id", prod.id);
+      if (upErr) {
+        failed += 1;
+        addIgnored("erro_gravacao_banco");
+        await log("stock", "error", "Falha ao gravar estoque local", { product_id: prod.id, trier_product_id: prod.trier_product_id, error: upErr.message });
+        return;
+      }
+
+      if (changed) {
+        updated += 1;
+        if (prod.active && !nextActive) deactivated += 1;
+      } else {
+        ignored += 1;
+        addIgnored("sem_alteracao");
+      }
+    } catch (e: any) {
+      failed += 1;
+      addIgnored("erro_inesperado");
+      await log("stock", "error", "Erro inesperado no estoque local", { product_id: prod.id, trier_product_id: prod.trier_product_id, error: String(e?.message || e).slice(0, 500) });
+    }
+  };
+
+  let i = 0;
+  const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
+    while (i < products.length) {
+      if (Date.now() - start > MAX_RUN_MS) return;
+      const prod = products[i++];
+      await runOne(prod);
+    }
+  });
+  await Promise.all(workers);
+
+  return { checked, updated, ignored, failed, deactivated, ignored_reasons };
+}
+
 
 
 async function actionSyncProducts(trigger = "manual", changed = false, modeOverride?: SyncMode) {
@@ -1739,87 +1866,86 @@ async function actionSyncStock(trigger = "manual") {
   const { job, resumed } = await getOrCreateResumableJob("stock", trigger);
   const start = Date.now();
   const prev = (job.details as any) || {};
-  let offset: number = Number(prev.next_offset) || 0;
-  let pages: number = Number(prev.pages_consulted) || 0;
-  let checked: number = Number(job.records_checked) || 0;
-  let updated: number = Number(job.records_updated) || 0;
-  let ignored: number = Number(job.records_ignored) || 0;
-  let failed: number = Number(job.records_failed) || 0;
-  const ignored_reasons: Record<string, number> = prev.ignored_reasons || {};
-  const ecom = ecommerceParamOrOmit(s);
-  const codFilial = s.branch_code ?? 1;
-  const ecomStatus = ecom === undefined ? "omitido" : ecom;
-  // Estoque: gateway Trier dá timeout (HTTP 556) com páginas grandes. Usar página menor.
-  const pageSize = 50;
+  const localResume = prev.strategy === "local_products";
+  let offset: number = localResume ? Number(prev.next_offset) || 0 : 0;
+  let pages: number = localResume ? Number(prev.pages_consulted) || 0 : 0;
+  let checked: number = localResume ? Number(job.records_checked) || 0 : 0;
+  let updated: number = localResume ? Number(job.records_updated) || 0 : 0;
+  let ignored: number = localResume ? Number(job.records_ignored) || 0 : 0;
+  let failed: number = localResume ? Number(job.records_failed) || 0 : 0;
+  let deactivated: number = localResume ? Number(prev.deactivated) || 0 : 0;
+  const ignored_reasons: Record<string, number> = localResume ? (prev.ignored_reasons || {}) : {};
+  const pageSize = 250;
+  const concurrency = 6;
+  let totalLocal: number | null = localResume && Number.isFinite(Number(prev.total_local)) ? Number(prev.total_local) : null;
 
   try {
-    if (resumed) {
-      await log("stock", "info", `Retomando sync de estoque (offset ${offset})`, { job_id: job.id, codFilial });
+    if (resumed && !localResume) {
+      await log("stock", "info", "Job antigo de estoque convertido: agora o estoque consulta apenas produtos locais não arquivados.", { job_id: job.id, old_next_offset: prev.next_offset });
+    } else if (resumed) {
+      await log("stock", "info", `Retomando estoque local (posição ${offset})`, { job_id: job.id, totalLocal });
     } else {
-      await log("stock", "info", "Iniciando sincronização de estoque", { endpoint: "/rest/integracao/estoque/obter-todos-v1", codFilial, integracaoEcommerce: ecomStatus, pageSize });
+      await log("stock", "info", "Iniciando estoque local: apenas produtos não arquivados e vinculados à Trier", { pageSize, concurrency });
     }
 
     while (true) {
       if (Date.now() - start > MAX_RUN_MS) {
         await pauseJob(job.id, {
           records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
-          details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, next_offset: offset, pages_consulted: pages, ignored_reasons },
+          details: { strategy: "local_products", next_offset: offset, pages_consulted: pages, total_local: totalLocal, ignored_reasons, deactivated },
         });
-        await log("stock", "info", `Pausado (deadline ${MAX_RUN_MS}ms). Próximo offset ${offset}.`, { job_id: job.id });
-        return { ok: true, paused: true, job_id: job.id, next_offset: offset, checked, updated, ignored, failed };
+        await log("stock", "info", `Estoque local pausado. Próxima posição ${offset}.`, { job_id: job.id, checked, updated, ignored, failed, totalLocal });
+        return { ok: true, paused: true, job_id: job.id, next_offset: offset, checked, updated, ignored, failed, totalLocal };
       }
-      const path = `/rest/integracao/estoque/obter-todos-v1?${buildQueryParams({
-        codFilial,
-        primeiroRegistro: offset,
-        quantidadeRegistros: pageSize,
-        integracaoEcommerce: ecom,
-      })}`;
-      let list: any[] = [];
-      try {
-        const json = await trierGet(s, path, { page: pages });
-        list = extractList(json);
-      } catch (e: any) {
-        await pauseJob(job.id, {
-          records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
-          details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, next_offset: offset, pages_consulted: pages, ignored_reasons, last_error: String(e?.message || e).slice(0, 300) },
-        });
-        await log("stock", "error", `Erro consultando página (offset ${offset}). Job pausado para retomada.`, { error: String(e?.message || e), job_id: job.id });
-        return { ok: false, paused: true, job_id: job.id, error: String(e?.message || e) };
-      }
-      const batch = await applyStockPage(list);
+
+      const { data: rows, count, error } = await supabase
+        .from("products")
+        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock", { count: "exact" })
+        .is("archived_at", null)
+        .not("trier_product_id", "is", null)
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (error) throw new Error(`Erro lendo produtos locais para estoque: ${error.message}`);
+      const localProducts = rows || [];
+      totalLocal = count ?? totalLocal ?? localProducts.length;
+      if (localProducts.length === 0) break;
+
+      const batch = await syncLocalStockBatch(s, localProducts, start, concurrency);
       checked += batch.checked;
       updated += batch.updated;
       ignored += batch.ignored;
       failed += batch.failed;
+      deactivated += batch.deactivated;
       Object.entries(batch.ignored_reasons).forEach(([reason, count]) => {
         ignored_reasons[reason] = (ignored_reasons[reason] || 0) + Number(count || 0);
       });
       pages += 1;
-      const advanced = offset + pageSize;
+      const advanced = offset + localProducts.length;
+
       await updateJobProgress(job.id, {
         records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
-        details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, next_offset: advanced, pages_consulted: pages, ignored_reasons },
+        details: { strategy: "local_products", next_offset: advanced, pages_consulted: pages, total_local: totalLocal, ignored_reasons, deactivated },
       });
 
-      if (list.length < pageSize) break;
+      if (localProducts.length < pageSize || advanced >= (totalLocal ?? advanced)) break;
       offset = advanced;
-      if (offset > 75000) break;
       await sleep(PAUSE_BETWEEN_PAGES_MS);
     }
 
     await supabase.from("trier_settings").update({ last_sync_stock_at: new Date().toISOString() }).eq("id", 1);
-    await log("stock", failed > 0 ? "error" : "success", `Estoque sincronizado: ${checked} lidos · ${updated} atualizados · ${ignored} ignorados · ${failed} com erro`, {
-      codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, updated, ignored, failed, pages_consulted: pages, ignored_reasons,
+    await log("stock", failed > 0 ? "error" : "success", `Estoque local sincronizado: ${checked} produtos consultados · ${updated} atualizados · ${ignored} sem alteração/ignorados · ${failed} falhas`, {
+      totalLocal, updated, ignored, failed, deactivated, pages_consulted: pages, ignored_reasons,
     });
     await finishJob(job.id, {
       status: failed > 0 ? "error" : "success",
       records_checked: checked, records_updated: updated, records_failed: failed, records_ignored: ignored,
-      details: { ...prev, codFilial, integracaoEcommerce: ecomStatus, total_returned: checked, pages_consulted: pages, next_offset: 0, ignored_reasons, completed: true },
+      details: { strategy: "local_products", total_local: totalLocal, pages_consulted: pages, next_offset: 0, ignored_reasons, deactivated, completed: true },
     });
-    return { ok: true, total: checked, updated, failed, ignored, codFilial, integracaoEcommerce: ecomStatus, pages_consulted: pages };
+    return { ok: true, total: checked, totalLocal, updated, failed, ignored, deactivated, pages_consulted: pages };
   } catch (e: any) {
     const msg = String(e.message).slice(0, 1200);
-    await log("stock", "error", "Erro na sincronização de estoque", { error: msg, job_id: job.id });
+    await log("stock", "error", "Erro na sincronização de estoque local", { error: msg, job_id: job.id });
     await finishJob(job.id, { status: "error", error_message: msg });
     return { ok: false, error: e.message };
   }
@@ -2058,10 +2184,9 @@ async function actionRetryPendingOrders(limit = 5) {
   if (!cfg?.auto_send_orders_enabled) return { ok: true, skipped: "auto_send_disabled" };
 
   const { data: pending } = await supabase.from("orders")
-    .select("id, trier_attempts")
+    .select("id, trier_attempts, trier_last_error")
     .eq("payment_status", "approved")
     .or("trier_sent.is.false,trier_sent.is.null")
-    .lt("trier_attempts", 60)
     .order("created_at", { ascending: true })
     .limit(limit);
   const rows = pending || [];
@@ -2099,8 +2224,9 @@ async function actionScheduled() {
 
   // Detect paused jobs to resume them on this tick regardless of "due" timer
   const { data: pausedRows } = await supabase.from("trier_sync_jobs")
-    .select("sync_type").eq("status", "paused");
+    .select("sync_type, details").eq("status", "paused");
   const paused = new Set((pausedRows || []).map((r: any) => r.sync_type));
+  const hasLocalStockPaused = (pausedRows || []).some((r: any) => r.sync_type === "stock" && r.details?.strategy === "local_products");
 
   const now = Date.now();
   const due = (last: string | null, mins: number) => !last || (now - new Date(last).getTime()) >= mins * 60000;
@@ -2125,13 +2251,17 @@ async function actionScheduled() {
     results.products = "dispatched";
     jobs.push(dispatchInternal("sync-products", { changed: true }));
   }
-  if (paused.has("stock") || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
+  let stockDispatched = false;
+  if (hasLocalStockPaused || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
     results.stock = "dispatched";
     jobs.push(dispatchInternal("sync-stock"));
+    stockDispatched = true;
   }
   // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia).
-  results.stock_active = "dispatched";
-  jobs.push(dispatchInternal("sync-stock-active", { batchSize: 250, concurrency: 5 }));
+  if (!stockDispatched) {
+    results.stock_active = "dispatched";
+    jobs.push(dispatchInternal("sync-stock-active", { batchSize: 250, concurrency: 5 }));
+  }
 
   await Promise.allSettled(jobs);
 
@@ -2177,11 +2307,23 @@ async function actionMarkStalledJobs(minutes = 12) {
     else toError.push(j.id);
   }
   if (toResume.length) {
-    await supabase.from("trier_sync_jobs").update({
+    const resumableIds: string[] = [];
+    const obsoleteIds: string[] = [];
+    for (const j of rows as any[]) {
+      const shouldResume = j.sync_type !== "stock" || j?.details?.strategy === "local_products";
+      if (toResume.includes(j.id) && shouldResume) resumableIds.push(j.id);
+      else if (toResume.includes(j.id)) obsoleteIds.push(j.id);
+    }
+    if (resumableIds.length) await supabase.from("trier_sync_jobs").update({
       status: "paused",
       finished_at: null,
       error_message: "worker_interrompido_retomar_no_proximo_tick",
-    }).in("id", toResume);
+    }).in("id", resumableIds);
+    if (obsoleteIds.length) await supabase.from("trier_sync_jobs").update({
+      status: "cancelled",
+      finished_at: now,
+      error_message: "job_antigo_de_estoque_api_cancelado_apos_modo_local",
+    }).in("id", obsoleteIds);
   }
   if (toError.length) {
     await supabase.from("trier_sync_jobs").update({

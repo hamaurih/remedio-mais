@@ -10,6 +10,7 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TRIER_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 
 const SEND_PATH = "/rest/integracao/venda/ecommerce/efetuar-venda-v1";
+const TRANSIENT_TRIER_STATUSES = new Set([500, 502, 503, 504, 545, 554]);
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -131,6 +132,25 @@ function resolveModeCode(settings: any, mode: PaymentMode): number | null {
     case "site_debit_card": return settings.trier_site_debit_card_code ?? null;
     case "site_credit_card": return settings.trier_site_credit_card_code ?? settings.card_payment_code ?? null;
   }
+}
+
+function friendlyOrderError(httpStatus: number, errorMessage: string | null, responseBody: any) {
+  if (httpStatus === 545 || httpStatus === 554) {
+    return `Trier indisponível (HTTP ${httpStatus}): o gateway não conseguiu falar com o servidor SGF da farmácia. O pedido permanece pago no site e será reenviado automaticamente.`;
+  }
+  const bodyText = typeof responseBody === "string" ? responseBody : JSON.stringify(responseBody || {});
+  if (httpStatus === 500 && /sgf|servidor|conex/i.test(bodyText)) {
+    return "Trier/SGF instável (HTTP 500): pedido pago no site, aguardando reenvio automático.";
+  }
+  if (errorMessage) return errorMessage;
+  if (httpStatus) return `Trier respondeu HTTP ${httpStatus}`;
+  return "Falha de rede ao enviar pedido ao Trier";
+}
+
+function shouldNotifyFailure(isInternal: boolean, httpStatus: number, currentAttempt: number) {
+  if (!isInternal) return true;
+  if (!TRANSIENT_TRIER_STATUSES.has(httpStatus)) return true;
+  return currentAttempt <= 1;
 }
 
 Deno.serve(async (req) => {
@@ -447,9 +467,10 @@ Deno.serve(async (req) => {
     // 7) Envia
     const url = `${salesBaseUrl}${SEND_PATH}`;
     const startedAt = Date.now();
+    const currentAttempt = (order.trier_attempts || 0) + 1;
     if (!isTest) {
       await admin.from("orders").update({
-        trier_attempts: (order.trier_attempts || 0) + 1,
+        trier_attempts: currentAttempt,
         trier_payload_hash: payloadHash,
       }).eq("id", orderId);
     }
@@ -527,6 +548,7 @@ Deno.serve(async (req) => {
         trier_sale_id: trierSaleId ? String(trierSaleId) : null,
         trier_numero_nota: trierNumeroNota ? String(trierNumeroNota) : null,
         trier_last_error: null,
+        trier_error_message: null,
       }).eq("id", orderId);
       await admin.from("order_items").update({ trier_item_sent: true }).eq("order_id", orderId);
       await admin.from("admin_notifications").insert({
@@ -537,19 +559,23 @@ Deno.serve(async (req) => {
       });
       return json({ ok: true, trier_order_id: trierOrderId, http_status: httpStatus });
     } else {
+      const friendly = friendlyOrderError(httpStatus, errorMessage, responseBody);
       await admin.from("orders").update({
         trier_sent: false,
         trier_status: "error",
         trier_status_code: httpStatus || null,
-        trier_last_error: errorMessage || JSON.stringify(responseBody).slice(0, 500),
+        trier_last_error: friendly.slice(0, 500),
+        trier_error_message: friendly.slice(0, 1200),
       }).eq("id", orderId);
-      await admin.from("admin_notifications").insert({
-        type: "trier_order_failed",
-        title: "Falha ao enviar pedido ao Trier",
-        message: `Pedido #${String(orderId).slice(0,6)}: ${errorMessage || "erro Trier"}`,
-        order_id: orderId,
-      });
-      return json({ ok: false, http_status: httpStatus, error: errorMessage, response: responseBody }, 502);
+      if (shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
+        await admin.from("admin_notifications").insert({
+          type: "trier_order_failed",
+          title: "Falha ao enviar pedido ao Trier",
+          message: `Pedido #${String(orderId).slice(0,6)}: ${friendly}`,
+          order_id: orderId,
+        });
+      }
+      return json({ ok: false, http_status: httpStatus, error: friendly, response: responseBody }, 502);
     }
 
   } catch (e) {
