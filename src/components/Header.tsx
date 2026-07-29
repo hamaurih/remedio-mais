@@ -49,15 +49,15 @@ export function Header() {
               <span className="leading-tight text-left">
                 {user ? (
                   <>
-                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">
+                    <span className="block text-xs uppercase tracking-wide text-muted-foreground font-bold">
                       {isAdmin ? "Bem-vindo" : `Olá, ${firstName || "cliente"}`}
                     </span>
-                    <span className="block text-sm font-bold text-foreground">{isAdmin ? "Admin" : "Minha conta"}</span>
+                    <span className="block text-base font-bold text-foreground">{isAdmin ? "Admin" : "Minha conta"}</span>
                   </>
                 ) : (
                   <>
-                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground font-bold">Olá, faça seu</span>
-                    <span className="block text-sm font-bold text-foreground">Login <span className="font-normal text-muted-foreground">ou cadastre-se</span></span>
+                    <span className="block text-xs uppercase tracking-wide text-muted-foreground font-bold">Olá, faça seu</span>
+                    <span className="block text-base font-bold text-foreground">Login <span className="font-normal text-muted-foreground">ou cadastre-se</span></span>
                   </>
                 )}
               </span>
