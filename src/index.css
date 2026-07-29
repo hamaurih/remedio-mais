@@ -275,3 +275,6 @@
   .promo-deco-petals span:nth-child(n+3) { display: none; }
   .promo-deco-dots { opacity: 0.25; }
 }
+
+/* Container fluido: ocupa a tela toda com um teto em telas gigantes */
+.container { max-width: 1920px; }
