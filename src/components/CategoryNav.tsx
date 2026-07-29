@@ -247,8 +247,10 @@ export function CategoryNav() {
   })();
 
   const chipList = chipsFromMenu.length > 0 ? chipsFromMenu : chipsFallback;
-  const isHighlightChip = (c: { label: string; highlight?: boolean }) =>
-    c.highlight || c.label.toLowerCase().includes("melhores ofertas");
+  const isHighlightChip = (c: { label: string; highlight?: boolean }) => {
+    const label = c.label.toLowerCase().trim();
+    return c.highlight || label.startsWith("melhores oferta") || label === "ofertas" || label === "melhores ofertas";
+  };
 
   // ----- Build MEGA MENU groups (rich) -----
   // Priority 1: new departments → categories → subcategories (when populated)
