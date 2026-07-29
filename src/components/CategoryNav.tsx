@@ -301,12 +301,12 @@ export function CategoryNav() {
         </div>
 
         <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-          <ul className="flex gap-1 md:gap-2 whitespace-nowrap text-sm items-center">
+          <ul className="flex gap-2 md:gap-3 whitespace-nowrap text-base md:text-lg items-center">
             {chipList.map((c) => (
               <li key={c.key} className="snap-start">
                 <Link
                   to={c.href}
-                  className="inline-block px-3 md:px-4 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-medium relative group"
+                  className="inline-block px-3 md:px-4 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-semibold relative group"
                 >
                   <span>{c.label}</span>
                   <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
