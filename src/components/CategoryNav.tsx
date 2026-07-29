@@ -233,9 +233,9 @@ export function CategoryNav() {
     "Outros";
 
   // CHIPS — prefer header_main from DB, fallback to live categories
-  const chipsFromMenu: { label: string; href: string; key: string }[] = headerMenu
+  const chipsFromMenu: { label: string; href: string; key: string; highlight?: boolean }[] = headerMenu
     .filter((m) => m.show_on_desktop || m.show_on_mobile)
-    .map((m) => ({ label: m.label, href: resolveMenuHref(m), key: m.id }));
+    .map((m) => ({ label: m.label, href: resolveMenuHref(m), key: m.id, highlight: m.highlight }));
 
   const chipsFallback = (() => {
     const bySlug = new Map<string, Category>();
@@ -243,10 +243,14 @@ export function CategoryNav() {
     (live ?? []).forEach((c) => bySlug.set(c.slug, { ...(bySlug.get(c.slug) || {}), ...c, show_in_menu: c.show_in_menu ?? true }));
     return Array.from(bySlug.values())
       .filter((c) => c.show_in_menu !== false)
-      .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, key: c.slug }));
+      .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, key: c.slug, highlight: c.name.toLowerCase().includes("oferta") }));
   })();
 
   const chipList = chipsFromMenu.length > 0 ? chipsFromMenu : chipsFallback;
+  const isHighlightChip = (c: { label: string; highlight?: boolean }) => {
+    const label = c.label.toLowerCase().trim();
+    return c.highlight || label.startsWith("melhores oferta") || label === "ofertas" || label === "melhores ofertas";
+  };
 
   // ----- Build MEGA MENU groups (rich) -----
   // Priority 1: new departments → categories → subcategories (when populated)
@@ -302,17 +306,27 @@ export function CategoryNav() {
 
         <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
           <ul className="flex gap-2 md:gap-3 whitespace-nowrap text-base md:text-lg items-center">
-            {chipList.map((c) => (
-              <li key={c.key} className="snap-start">
-                <Link
-                  to={c.href}
-                  className="inline-block px-3 md:px-4 py-1.5 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors font-semibold relative group"
-                >
-                  <span>{c.label}</span>
-                  <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
-                </Link>
-              </li>
-            ))}
+            {chipList.map((c) => {
+              const highlighted = isHighlightChip(c);
+              return (
+                <li key={c.key} className="snap-start">
+                  <Link
+                    to={c.href}
+                    className={cn(
+                      "inline-block px-3 md:px-4 py-1.5 rounded-full font-semibold relative group transition-all",
+                      highlighted
+                        ? "bg-highlight text-highlight-foreground shadow-[0_2px_10px_-2px_hsl(var(--highlight)/0.5)] hover:brightness-105 hover:shadow-[0_4px_14px_-2px_hsl(var(--highlight)/0.6)]"
+                        : "hover:bg-accent hover:text-accent-foreground transition-colors"
+                    )}
+                  >
+                    <span className={cn("relative z-10", highlighted && "drop-shadow-sm")}>{c.label}</span>
+                    {!highlighted && (
+                      <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>

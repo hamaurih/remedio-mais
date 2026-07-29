@@ -27,6 +27,9 @@
     --accent: 354 90% 96%;
     --accent-foreground: 354 78% 38%;
 
+    --highlight: 45 93% 55%;
+    --highlight-foreground: 30 80% 18%;
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
