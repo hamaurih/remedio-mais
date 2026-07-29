@@ -82,12 +82,12 @@ function MegaMenuDesktop({ groups }: { groups: MegaGroupRich[] }) {
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 px-3 md:px-4 py-1.5 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-sm hover:shadow-md transition"
+        className="inline-flex items-center gap-2 px-4 md:px-5 py-2 rounded-full bg-primary text-primary-foreground font-bold text-base md:text-lg shadow-sm hover:shadow-md transition"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <Menu className="h-4 w-4" /> Todas as Categorias
-        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
+        <Menu className="h-5 w-5" /> <span className="hidden sm:inline">Todas as Categorias</span><span className="sm:hidden">Categorias</span>
+        <ChevronDown className={cn("h-5 w-5 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
         <div className="absolute left-0 top-full pt-2 z-50 w-[min(1080px,92vw)]">
