@@ -94,16 +94,16 @@ function MegaMenuDesktop({ groups }: { groups: MegaGroupRich[] }) {
           <div className="bg-card border border-border rounded-xl shadow-xl p-6 grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
             {groups.map((g) => (
               <div key={g.label} className="min-w-0">
-                <div className="text-xs uppercase tracking-wider font-extrabold text-primary mb-2">{g.label}</div>
-                <ul className="space-y-2.5">
+                <div className="text-sm uppercase tracking-wider font-extrabold text-primary mb-2">{g.label}</div>
+                <ul className="space-y-3">
                   {g.categories.map((c) => (
                     <li key={c.href}>
-                      <Link to={c.href} className="text-sm font-semibold text-foreground hover:text-primary transition-colors">{c.label}</Link>
+                      <Link to={c.href} className="text-base font-semibold text-foreground hover:text-primary transition-colors">{c.label}</Link>
                       {c.subs.length > 0 && (
-                        <ul className="mt-1 ml-2 space-y-0.5 border-l border-border pl-2">
+                        <ul className="mt-1.5 ml-2 space-y-1 border-l border-border pl-2">
                           {c.subs.map((s) => (
                             <li key={s.href}>
-                              <Link to={s.href} className="text-xs text-muted-foreground hover:text-primary transition-colors">{s.label}</Link>
+                              <Link to={s.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">{s.label}</Link>
                             </li>
                           ))}
                         </ul>
@@ -124,8 +124,8 @@ function MegaMenuMobile({ groups }: { groups: MegaGroupRich[] }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
-          <Menu className="h-4 w-4" /> Categorias
+        <button type="button" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-base shrink-0">
+          <Menu className="h-5 w-5" /> Categorias
         </button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[88vw] sm:w-96 p-0 overflow-y-auto">
@@ -135,17 +135,17 @@ function MegaMenuMobile({ groups }: { groups: MegaGroupRich[] }) {
         <Accordion type="multiple" className="px-2 py-2">
           {groups.map((g) => (
             <AccordionItem key={g.label} value={g.label} className="border-b">
-              <AccordionTrigger className="px-2 text-sm font-bold">{g.label}</AccordionTrigger>
+              <AccordionTrigger className="px-2 text-base font-bold">{g.label}</AccordionTrigger>
               <AccordionContent>
-                <ul className="px-2 pb-2 space-y-2">
+                <ul className="px-2 pb-2 space-y-2.5">
                   {g.categories.map((c) => (
                     <li key={c.href}>
-                      <Link to={c.href} className="block py-1 text-sm font-semibold text-foreground hover:text-primary">{c.label}</Link>
+                      <Link to={c.href} className="block py-1 text-base font-semibold text-foreground hover:text-primary">{c.label}</Link>
                       {c.subs.length > 0 && (
-                        <ul className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                        <ul className="ml-3 mt-1 space-y-1 border-l border-border pl-2">
                           {c.subs.map((s) => (
                             <li key={s.href}>
-                              <Link to={s.href} className="block py-0.5 text-xs text-muted-foreground hover:text-primary">{s.label}</Link>
+                              <Link to={s.href} className="block py-0.5 text-sm text-muted-foreground hover:text-primary">{s.label}</Link>
                             </li>
                           ))}
                         </ul>
