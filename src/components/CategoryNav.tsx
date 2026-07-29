@@ -233,9 +233,9 @@ export function CategoryNav() {
     "Outros";
 
   // CHIPS — prefer header_main from DB, fallback to live categories
-  const chipsFromMenu: { label: string; href: string; key: string }[] = headerMenu
+  const chipsFromMenu: { label: string; href: string; key: string; highlight?: boolean }[] = headerMenu
     .filter((m) => m.show_on_desktop || m.show_on_mobile)
-    .map((m) => ({ label: m.label, href: resolveMenuHref(m), key: m.id }));
+    .map((m) => ({ label: m.label, href: resolveMenuHref(m), key: m.id, highlight: m.highlight }));
 
   const chipsFallback = (() => {
     const bySlug = new Map<string, Category>();
@@ -243,10 +243,12 @@ export function CategoryNav() {
     (live ?? []).forEach((c) => bySlug.set(c.slug, { ...(bySlug.get(c.slug) || {}), ...c, show_in_menu: c.show_in_menu ?? true }));
     return Array.from(bySlug.values())
       .filter((c) => c.show_in_menu !== false)
-      .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, key: c.slug }));
+      .map((c) => ({ label: c.name, href: `/categoria/${c.slug}`, key: c.slug, highlight: c.name.toLowerCase().includes("oferta") }));
   })();
 
   const chipList = chipsFromMenu.length > 0 ? chipsFromMenu : chipsFallback;
+  const isHighlightChip = (c: { label: string; highlight?: boolean }) =>
+    c.highlight || c.label.toLowerCase().includes("melhores ofertas");
 
   // ----- Build MEGA MENU groups (rich) -----
   // Priority 1: new departments → categories → subcategories (when populated)
