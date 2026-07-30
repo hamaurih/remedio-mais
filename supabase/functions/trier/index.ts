@@ -1081,6 +1081,74 @@ async function applyStockPage(items: any[]) {
   return { checked: items.length, updated: updatedCount, ignored, failed: failedCount, ignored_reasons };
 }
 
+// ---------- VERIFICAÇÃO AO VIVO (site) ----------
+// Consulta a Trier na hora para um punhado de produtos (página de produto e checkout),
+// atualiza estoque/preço no banco e devolve os valores reais. Evita vender item sem
+// estoque ou com preço desatualizado entre um ciclo de sync e outro.
+async function actionLiveCheck(productIds: string[]) {
+  const ids = Array.from(new Set((productIds || []).filter(Boolean))).slice(0, 30);
+  if (ids.length === 0) return { ok: false, error: "product_ids ausente" };
+  const s = await getSettings();
+
+  const { data: rows, error } = await supabase
+    .from("products")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, lock_manual_price, lock_manual_stock")
+    .in("id", ids);
+  if (error) return { ok: false, error: error.message };
+
+  const now = new Date().toISOString();
+  const items = await Promise.all((rows || []).map(async (prod: any) => {
+    const base = {
+      product_id: prod.id,
+      name: prod.name,
+      stock: Number(prod.stock || 0),
+      price: prod.promo_price != null ? Number(prod.promo_price) : Number(prod.price || 0),
+      active: prod.active !== false,
+      fresh: false,
+    };
+    try {
+      const found = await findTrierStockItemForLocalProduct(s, prod);
+      const t = found.item;
+      if (!t) return base;
+
+      const patch: any = { last_trier_sync_at: now };
+      let stock = base.stock;
+      let price = base.price;
+
+      if (!prod.lock_manual_stock) {
+        const stockReal = pickStoreStockOnly(t);
+        stock = stockReal ?? 0;
+        patch.stock = stock;
+        patch.stock_quantity = stock;
+        patch.trier_stock_quantity = stockReal;
+        patch.active = prod.manual_disabled === true ? false : (prod.trier_active !== false && stock > 0);
+        patch.last_stock_sync_at = now;
+      }
+      if (!prod.lock_manual_price) {
+        const basePrice = pickPriceNum(t);
+        if (basePrice != null && basePrice > 0) {
+          patch.price = basePrice;
+          price = prod.promo_price != null ? Number(prod.promo_price) : basePrice;
+        }
+      }
+
+      await supabase.from("products").update(patch).eq("id", prod.id);
+      return {
+        product_id: prod.id,
+        name: prod.name,
+        stock,
+        price,
+        active: patch.active !== undefined ? patch.active : base.active,
+        fresh: true,
+      };
+    } catch (_e) {
+      return base;
+    }
+  }));
+
+  return { ok: true, checked: items.length, items };
+}
+
 // Sincronização de estoque de UM produto específico via barcode (EAN).
 // Usada pelo botão "Atualizar estoque do Trier agora" na tela Admin > Produtos.
 async function actionSyncStockSingle(productId: string) {
@@ -2251,17 +2319,15 @@ async function actionScheduled() {
     results.products = "dispatched";
     jobs.push(dispatchInternal("sync-products", { changed: true }));
   }
-  let stockDispatched = false;
   if (hasLocalStockPaused || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
     results.stock = "dispatched";
     jobs.push(dispatchInternal("sync-stock"));
-    stockDispatched = true;
   }
-  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia).
-  if (!stockDispatched) {
-    results.stock_active = "dispatched";
-    jobs.push(dispatchInternal("sync-stock-active", { batchSize: 250, concurrency: 5 }));
-  }
+  // Refresh contínuo de estoque dos produtos ATIVOS. Roda SEMPRE (em worker próprio),
+  // mesmo quando a varredura completa está em andamento — antes ficava bloqueado e o
+  // catálogo visível levava horas para refletir o estoque real da loja.
+  results.stock_active = "dispatched";
+  jobs.push(dispatchInternal("sync-stock-active", { batchSize: 600, concurrency: 8 }));
 
   await Promise.allSettled(jobs);
 
@@ -2474,7 +2540,10 @@ Deno.serve(async (req) => {
 
     const internalCron = req.headers.get("x-internal-cron");
     const isInternalCron = !!internalCron && internalCron === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (action !== "scheduled" && !isInternalCron) {
+    // "live-check" é usada pela loja (página de produto e checkout) para conferir
+    // estoque/preço reais antes de vender — por isso não exige admin.
+    const PUBLIC_ACTIONS = new Set(["scheduled", "live-check"]);
+    if (!PUBLIC_ACTIONS.has(String(action)) && !isInternalCron) {
       await requireAdmin(req);
     }
 
@@ -2529,6 +2598,7 @@ Deno.serve(async (req) => {
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
       case "sync-stock-active": result = runAsync("stock_active", () => actionSyncStockActive(trigger, Number(body.batchSize) || 250, Number(body.concurrency) || 5)); break;
       case "sync-stock-single": result = await actionSyncStockSingle(String(body.product_id || "")); break;
+      case "live-check": result = await actionLiveCheck((body.product_ids || []) as string[]); break;
       case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;
       case "sync-discounts": result = runAsync("discounts", () => actionSyncDiscounts(trigger)); break;
       case "sync-all": result = runAsync("all", () => actionSyncAll(trigger)); break;

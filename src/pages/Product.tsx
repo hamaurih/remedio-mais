@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,11 +14,13 @@ import { useRelatedProducts } from "@/hooks/useRelatedProducts";
 import { ProductShelf } from "@/components/ProductShelf";
 import { openGenericCheck } from "@/lib/genericSuggestion";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
+import { liveCheckProducts } from "@/lib/liveStock";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { data: _settings } = useStoreSettings();
-  const { data: p, isLoading } = useQuery({
+  
+  const { data: p, isLoading, refetch } = useQuery({
     queryKey: ["product", slug],
     queryFn: async () => {
       const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("slug", slug!).eq("active", true).maybeSingle();
@@ -26,6 +28,17 @@ export default function Product() {
     },
     enabled: !!slug,
   });
+
+  // Ao abrir a página, confere estoque/preço reais no sistema da farmácia e recarrega.
+  const productId = (p as any)?.id as string | undefined;
+  useEffect(() => {
+    if (!productId) return;
+    let cancelled = false;
+    liveCheckProducts([productId]).then((items) => {
+      if (!cancelled && items.some((i) => i.fresh)) refetch();
+    });
+    return () => { cancelled = true; };
+  }, [productId, refetch]);
 
   const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && (p as any)?.has_variants);
   const { data: related = [], isLoading: relatedLoading } = useRelatedProducts(p);
