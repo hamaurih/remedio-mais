@@ -2137,7 +2137,7 @@ const STATUS_MAP: Record<number, string> = {
 function localOrderPatchForTrierStatus(code: number, deliveryMethod?: string | null) {
   switch (code) {
     case 2:
-      return { status: "pronto_retirada", fulfillment_status: "packed", delivery_status: "ready_for_pickup" };
+      return { status: "pronto_retirada", fulfillment_status: "packed", delivery_status: "pickup_ready" };
     case 3:
       return {
         status: deliveryMethod === "pickup" ? "retirado" : "entregue",

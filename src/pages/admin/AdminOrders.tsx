@@ -84,7 +84,7 @@ export default function AdminOrders() {
     if (status === "em_separacao") operationalPatch.fulfillment_status = "picking";
     if (status === "pronto_retirada") {
       operationalPatch.fulfillment_status = "packed";
-      operationalPatch.delivery_status = "ready_for_pickup";
+      operationalPatch.delivery_status = "pickup_ready";
     }
     if (status === "saiu_para_entrega") {
       operationalPatch.fulfillment_status = "shipped";
