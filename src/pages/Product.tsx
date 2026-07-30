@@ -14,6 +14,7 @@ import { useRelatedProducts } from "@/hooks/useRelatedProducts";
 import { ProductShelf } from "@/components/ProductShelf";
 import { openGenericCheck } from "@/lib/genericSuggestion";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
+import { liveCheckProducts } from "@/lib/liveStock";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
