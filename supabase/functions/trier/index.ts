@@ -2225,7 +2225,7 @@ async function actionCheckOrderStatus(orderIds?: string[]) {
         const numeroPedido = String(r.numeroPedido || r.numero_pedido || "");
         const { data: localOrder } = await supabase.from("orders")
           .select("id, delivery_method")
-          .or(`id.eq.${numeroPedido},trier_order_id.eq.${numeroPedido}`)
+          .eq("trier_order_id", numeroPedido)
           .maybeSingle();
         if (!localOrder) continue;
         await supabase.from("orders").update({
