@@ -2134,6 +2134,25 @@ const STATUS_MAP: Record<number, string> = {
   0: "indefinido", 1: "pendente", 2: "disponivel_retirada", 3: "entregue", 4: "cancelado", 5: "em_entrega",
 };
 
+function localOrderPatchForTrierStatus(code: number, deliveryMethod?: string | null) {
+  switch (code) {
+    case 2:
+      return { status: "pronto_retirada", fulfillment_status: "packed", delivery_status: "ready_for_pickup" };
+    case 3:
+      return {
+        status: deliveryMethod === "pickup" ? "retirado" : "entregue",
+        fulfillment_status: "delivered",
+        delivery_status: "delivered",
+      };
+    case 4:
+      return { status: "cancelado", fulfillment_status: "cancelled", delivery_status: "cancelled" };
+    case 5:
+      return { status: "saiu_para_entrega", fulfillment_status: "shipped", delivery_status: "out_for_delivery" };
+    default:
+      return {};
+  }
+}
+
 async function actionSendOrder(orderId: string) {
   const s = await getSettings();
   const { data: order, error: oe } = await supabase.from("orders").select("*").eq("id", orderId).single();
@@ -2203,10 +2222,17 @@ async function actionCheckOrderStatus(orderIds?: string[]) {
       for (const r of arr) {
         const code = Number(r.status ?? r.statusVenda ?? 0);
         const label = STATUS_MAP[code] || "indefinido";
+        const numeroPedido = String(r.numeroPedido || r.numero_pedido || "");
+        const { data: localOrder } = await supabase.from("orders")
+          .select("id, delivery_method")
+          .or(`id.eq.${numeroPedido},trier_order_id.eq.${numeroPedido}`)
+          .maybeSingle();
+        if (!localOrder) continue;
         await supabase.from("orders").update({
           trier_status: label, trier_status_code: code,
           trier_last_status_check_at: new Date().toISOString(),
-        }).eq("id", r.numeroPedido || r.numero_pedido);
+          ...localOrderPatchForTrierStatus(code, localOrder.delivery_method),
+        }).eq("id", localOrder.id);
         updated++;
       }
     } catch (e: any) {
@@ -2334,6 +2360,11 @@ async function actionScheduled() {
   // Pedidos pagos que ainda não foram enviados à Trier
   try { results.pending_orders = await actionRetryPendingOrders(5); }
   catch (e: any) { await log("order_send", "error", `Reenvio de pendentes falhou: ${String(e?.message || e)}`); }
+
+  if (s.check_order_status_enabled) {
+    try { results.order_status = await actionCheckOrderStatus(); }
+    catch (e: any) { await log("order_status", "error", `Consulta automática de status falhou: ${String(e?.message || e)}`); }
+  }
 
   await log("scheduled", "info", `Cron Trier executado: ${Object.keys(results).join(", ") || "nada pendente"}`, {
     ran: Object.keys(results), schedules: {
