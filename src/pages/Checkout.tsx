@@ -16,7 +16,7 @@ import { Loader2, CreditCard, QrCode, AlertTriangle, Lock } from "lucide-react";
 import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
-import { liveCheckProducts } from "@/lib/liveStock";
+import { liveCheckProductsDetailed } from "@/lib/liveStock";
 
 
 
@@ -270,7 +270,13 @@ export default function Checkout() {
     setSubmitting(true);
     try {
       // Confere estoque e preço direto no sistema da farmácia antes de cobrar.
-      const live = await liveCheckProducts(items.map((i) => i.product_id || i.id));
+      const liveResult = await liveCheckProductsDetailed(items.map((i) => i.product_id || i.id));
+      const live = liveResult.items;
+      if (!liveResult.ok) {
+        toast.error("Não foi possível confirmar preço e estoque no sistema da farmácia. Por segurança, o pagamento não foi realizado. Aguarde um momento e tente novamente.", { duration: 12000 });
+        setSubmitting(false);
+        return;
+      }
       if (live.length > 0) {
         const problems: string[] = [];
         for (const i of items) {
@@ -297,6 +303,7 @@ export default function Checkout() {
           id: i.product_id || i.id,
           variant_id: i.variant_id || null,
           quantity: i.quantity,
+          expected_unit_price: i.price,
         })),
         delivery_type: deliveryType,
         customer: { name, email, phone, cpf: cpf || undefined },

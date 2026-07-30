@@ -76,7 +76,29 @@ export default function AdminOrders() {
   });
 
   const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+    const operationalPatch: {
+      status: string;
+      fulfillment_status?: string;
+      delivery_status?: string;
+    } = { status };
+    if (status === "em_separacao") operationalPatch.fulfillment_status = "picking";
+    if (status === "pronto_retirada") {
+      operationalPatch.fulfillment_status = "packed";
+      operationalPatch.delivery_status = "pickup_ready";
+    }
+    if (status === "saiu_para_entrega") {
+      operationalPatch.fulfillment_status = "shipped";
+      operationalPatch.delivery_status = "out_for_delivery";
+    }
+    if (["entregue", "retirado", "finalizado"].includes(status)) {
+      operationalPatch.fulfillment_status = "delivered";
+      operationalPatch.delivery_status = "delivered";
+    }
+    if (status === "cancelado") {
+      operationalPatch.fulfillment_status = "cancelled";
+      operationalPatch.delivery_status = "cancelled";
+    }
+    const { error } = await supabase.from("orders").update(operationalPatch).eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("Status atualizado"); qc.invalidateQueries({ queryKey: ["admin_orders"] }); }
   };

@@ -3,7 +3,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { safeError } from "./mask.ts";
 
-export type CartItem = { id: string; variant_id?: string | null; quantity: number };
+export type CartItem = { id: string; variant_id?: string | null; quantity: number; expected_unit_price?: number };
 export type OrderBody = {
   items: CartItem[];
   delivery_type: "pickup" | "delivery";
@@ -109,6 +109,18 @@ export async function prepareOrder(
     const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, stock));
     const unit = Number(variant ? (variant.promo_price ?? variant.price ?? p.promo_price ?? p.price) : (p.promo_price ?? p.price));
     if (!Number.isFinite(unit) || unit <= 0) return { ok: false, status: 400, body: { success: false, error: `Preço inválido: ${p.name}.` } };
+    const expectedUnit = Number(ci.expected_unit_price);
+    if (Number.isFinite(expectedUnit) && Math.abs(expectedUnit - unit) > 0.009) {
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          success: false,
+          error_code: "price_changed",
+          error: `O preço de ${p.name} mudou de R$ ${expectedUnit.toFixed(2)} para R$ ${unit.toFixed(2)}. Volte ao carrinho para revisar antes de pagar.`,
+        },
+      };
+    }
     const line = unit * qty;
     subtotal += line;
     const variantLabel = variant ? `${(variant.variation_type || "tamanho").replace(/^./, (c: string) => c.toUpperCase())}: ${variant.variation_value}` : null;

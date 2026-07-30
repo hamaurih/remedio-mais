@@ -145,7 +145,7 @@ export default function AdminTrierEcommerceSales() {
   const saveSettings = async () => {
     const payload = {
       id: 1,
-      auto_send_orders_enabled: false,
+      auto_send_orders_enabled: !!settings.auto_send_orders_enabled,
       pix_payment_code: settings.pix_payment_code ? Number(settings.pix_payment_code) : null,
       card_payment_code: settings.card_payment_code ? Number(settings.card_payment_code) : null,
       seller_code: settings.seller_code ? Number(settings.seller_code) : null,
@@ -294,12 +294,11 @@ export default function AdminTrierEcommerceSales() {
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={false}
-              disabled
-              onChange={() => setSettings({ ...settings, auto_send_orders_enabled: false })}
+              checked={!!settings?.auto_send_orders_enabled}
+              onChange={(e) => setSettings({ ...settings, auto_send_orders_enabled: e.target.checked })}
               className="h-4 w-4"
             />
-            <span className="text-sm">Desligado</span>
+            <span className="text-sm">{settings?.auto_send_orders_enabled ? "Ligado" : "Desligado"}</span>
           </label>
         </div>
 
