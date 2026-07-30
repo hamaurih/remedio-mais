@@ -2319,17 +2319,15 @@ async function actionScheduled() {
     results.products = "dispatched";
     jobs.push(dispatchInternal("sync-products", { changed: true }));
   }
-  let stockDispatched = false;
   if (hasLocalStockPaused || (s.sync_stock_enabled && due(s.last_sync_stock_at, s.schedule_stock_minutes))) {
     results.stock = "dispatched";
     jobs.push(dispatchInternal("sync-stock"));
-    stockDispatched = true;
   }
-  // Refresh contínuo de estoque dos produtos ATIVOS (roda todo tick para manter o catálogo em dia).
-  if (!stockDispatched) {
-    results.stock_active = "dispatched";
-    jobs.push(dispatchInternal("sync-stock-active", { batchSize: 250, concurrency: 5 }));
-  }
+  // Refresh contínuo de estoque dos produtos ATIVOS. Roda SEMPRE (em worker próprio),
+  // mesmo quando a varredura completa está em andamento — antes ficava bloqueado e o
+  // catálogo visível levava horas para refletir o estoque real da loja.
+  results.stock_active = "dispatched";
+  jobs.push(dispatchInternal("sync-stock-active", { batchSize: 600, concurrency: 8 }));
 
   await Promise.allSettled(jobs);
 
