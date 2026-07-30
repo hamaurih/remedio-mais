@@ -2540,7 +2540,10 @@ Deno.serve(async (req) => {
 
     const internalCron = req.headers.get("x-internal-cron");
     const isInternalCron = !!internalCron && internalCron === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (action !== "scheduled" && !isInternalCron) {
+    // "live-check" é usada pela loja (página de produto e checkout) para conferir
+    // estoque/preço reais antes de vender — por isso não exige admin.
+    const PUBLIC_ACTIONS = new Set(["scheduled", "live-check"]);
+    if (!PUBLIC_ACTIONS.has(String(action)) && !isInternalCron) {
       await requireAdmin(req);
     }
 
