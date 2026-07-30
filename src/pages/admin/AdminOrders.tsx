@@ -76,7 +76,11 @@ export default function AdminOrders() {
   });
 
   const updateStatus = async (id: string, status: string) => {
-    const operationalPatch: Record<string, string> = { status };
+    const operationalPatch: {
+      status: string;
+      fulfillment_status?: string;
+      delivery_status?: string;
+    } = { status };
     if (status === "em_separacao") operationalPatch.fulfillment_status = "picking";
     if (status === "pronto_retirada") {
       operationalPatch.fulfillment_status = "packed";
