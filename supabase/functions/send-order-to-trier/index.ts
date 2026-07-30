@@ -575,7 +575,9 @@ Deno.serve(async (req) => {
           order_id: orderId,
         });
       }
-      return json({ ok: false, http_status: httpStatus, error: friendly, response: responseBody }, 502);
+      // Retorna 200 para que o cliente exiba a mensagem amigável em vez de
+      // "Edge Function returned a non-2xx status code" (a falha é externa: SGF/Trier fora do ar).
+      return json({ ok: false, http_status: httpStatus, error: friendly, response: responseBody }, 200);
     }
 
   } catch (e) {
