@@ -2598,6 +2598,7 @@ Deno.serve(async (req) => {
       case "sync-stock": result = runAsync("stock", () => actionSyncStock(trigger)); break;
       case "sync-stock-active": result = runAsync("stock_active", () => actionSyncStockActive(trigger, Number(body.batchSize) || 250, Number(body.concurrency) || 5)); break;
       case "sync-stock-single": result = await actionSyncStockSingle(String(body.product_id || "")); break;
+      case "live-check": result = await actionLiveCheck((body.product_ids || []) as string[]); break;
       case "sync-prices": result = runAsync("prices", () => actionSyncPrices(trigger)); break;
       case "sync-discounts": result = runAsync("discounts", () => actionSyncDiscounts(trigger)); break;
       case "sync-all": result = runAsync("all", () => actionSyncAll(trigger)); break;
