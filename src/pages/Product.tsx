@@ -19,7 +19,7 @@ import { liveCheckProducts } from "@/lib/liveStock";
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { data: _settings } = useStoreSettings();
-  const qc = useQueryClient();
+  
   const { data: p, isLoading, refetch } = useQuery({
     queryKey: ["product", slug],
     queryFn: async () => {
