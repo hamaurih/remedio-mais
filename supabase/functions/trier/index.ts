@@ -1081,6 +1081,74 @@ async function applyStockPage(items: any[]) {
   return { checked: items.length, updated: updatedCount, ignored, failed: failedCount, ignored_reasons };
 }
 
+// ---------- VERIFICAÇÃO AO VIVO (site) ----------
+// Consulta a Trier na hora para um punhado de produtos (página de produto e checkout),
+// atualiza estoque/preço no banco e devolve os valores reais. Evita vender item sem
+// estoque ou com preço desatualizado entre um ciclo de sync e outro.
+async function actionLiveCheck(productIds: string[]) {
+  const ids = Array.from(new Set((productIds || []).filter(Boolean))).slice(0, 30);
+  if (ids.length === 0) return { ok: false, error: "product_ids ausente" };
+  const s = await getSettings();
+
+  const { data: rows, error } = await supabase
+    .from("products")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, lock_manual_price, lock_manual_stock")
+    .in("id", ids);
+  if (error) return { ok: false, error: error.message };
+
+  const now = new Date().toISOString();
+  const items = await Promise.all((rows || []).map(async (prod: any) => {
+    const base = {
+      product_id: prod.id,
+      name: prod.name,
+      stock: Number(prod.stock || 0),
+      price: prod.promo_price != null ? Number(prod.promo_price) : Number(prod.price || 0),
+      active: prod.active !== false,
+      fresh: false,
+    };
+    try {
+      const found = await findTrierStockItemForLocalProduct(s, prod);
+      const t = found.item;
+      if (!t) return base;
+
+      const patch: any = { last_trier_sync_at: now };
+      let stock = base.stock;
+      let price = base.price;
+
+      if (!prod.lock_manual_stock) {
+        const stockReal = pickStoreStockOnly(t);
+        stock = stockReal ?? 0;
+        patch.stock = stock;
+        patch.stock_quantity = stock;
+        patch.trier_stock_quantity = stockReal;
+        patch.active = prod.manual_disabled === true ? false : (prod.trier_active !== false && stock > 0);
+        patch.last_stock_sync_at = now;
+      }
+      if (!prod.lock_manual_price) {
+        const basePrice = pickPriceNum(t);
+        if (basePrice != null && basePrice > 0) {
+          patch.price = basePrice;
+          price = prod.promo_price != null ? Number(prod.promo_price) : basePrice;
+        }
+      }
+
+      await supabase.from("products").update(patch).eq("id", prod.id);
+      return {
+        product_id: prod.id,
+        name: prod.name,
+        stock,
+        price,
+        active: patch.active !== undefined ? patch.active : base.active,
+        fresh: true,
+      };
+    } catch (_e) {
+      return base;
+    }
+  }));
+
+  return { ok: true, checked: items.length, items };
+}
+
 // Sincronização de estoque de UM produto específico via barcode (EAN).
 // Usada pelo botão "Atualizar estoque do Trier agora" na tela Admin > Produtos.
 async function actionSyncStockSingle(productId: string) {
