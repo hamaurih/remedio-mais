@@ -481,25 +481,23 @@ Deno.serve(async (req) => {
     const dataPedido = isoDateTimeBR(order.paid_at || order.created_at);
     const numeroPedido = shortNumericOrderId(String(order.id));
 
-    // cliente: modo configurável (no_code padrão de homologação, real_code usa trier_test_customer_code, no_customer remove objeto)
+    // cliente: modo configurável.
+    // no_code (padrão) => codigo: "" conforme coleção oficial
+    // omit_code => sem o campo codigo
+    // real_code => usa trier_test_customer_code
+    // no_customer => remove objeto cliente
     const customerMode: string = settings.trier_customer_mode || "no_code";
-    const clienteBase: Record<string, unknown> = {
-      nome: order.customer_name,
-      numeroCpfCnpj: onlyDigits(order.customer_cpf),
-      celular: onlyDigits(order.customer_phone),
-      fone: onlyDigits(order.customer_phone),
-      email: order.customer_email,
-    };
-    let cliente: Record<string, unknown> | null = omitBlankFields(clienteBase);
-    if (customerMode === "real_code") {
-      const code = settings.trier_test_customer_code;
-      if (code != null && code !== "") {
-        cliente = { codigo: Number(code), ...cliente };
-      }
-    } else if (customerMode === "no_customer") {
+    let cliente: Record<string, unknown> | null;
+    if (customerMode === "no_customer") {
       cliente = null;
+    } else if (customerMode === "omit_code") {
+      cliente = buildClienteOficial(order, null);
+    } else if (customerMode === "real_code") {
+      const code = settings.trier_test_customer_code;
+      cliente = buildClienteOficial(order, code != null && code !== "" ? Number(code) : "");
+    } else {
+      cliente = buildClienteOficial(order, "");
     }
-    // "no_code" => envia cliente sem campo codigo (default)
 
     const payload: Record<string, unknown> = {
       numeroPedido,
@@ -515,8 +513,10 @@ Deno.serve(async (req) => {
       pagamentoMultiplo,
     };
     if (cliente) payload.cliente = cliente;
+    // enderecoEntrega sempre presente (inclusive retirada) para evitar NullPointerException
+    payload.enderecoEntrega = buildEnderecoEntrega(order, !isDelivery);
 
-    // Diagnostic preset overrides for cliente/vendedor
+    // Diagnostic preset overrides
     if (isDiagnosticTest && diagnosticPreset) {
       const diagCliente = {
         nome: "Amauri Rodrigues",
@@ -531,6 +531,9 @@ Deno.serve(async (req) => {
           break;
         case "customer_no_code":
           payload.cliente = { ...diagCliente };
+          break;
+        case "customer_empty_code":
+          payload.cliente = buildClienteOficial(order, "");
           break;
         case "customer_real_code": {
           const code = settings.trier_test_customer_code;
@@ -553,23 +556,39 @@ Deno.serve(async (req) => {
           payload.vendedor = { codigo: Number(sCode), nome: String(sName) };
           break;
         }
+        case "pickup_full_address":
+          payload.cliente = buildClienteOficial(order, "");
+          payload.entrega = false;
+          payload.valorFrete = 0;
+          payload.enderecoEntrega = buildEnderecoEntrega(order, false);
+          break;
+        case "pickup_min_address":
+          payload.cliente = buildClienteOficial(order, "");
+          payload.entrega = false;
+          payload.valorFrete = 0;
+          payload.enderecoEntrega = buildEnderecoEntrega(order, true);
+          break;
+        case "official_payload": {
+          payload.cliente = buildClienteOficial(order, "");
+          payload.entrega = false;
+          payload.valorFrete = 0;
+          payload.enderecoEntrega = buildEnderecoEntrega(order, true);
+          payload.pagamentoMultiplo = {
+            cartao: [
+              {
+                pagamentoRealizado: true,
+                codigo: Number(settings.trier_site_pix_card_code ?? settings.card_payment_code ?? 18),
+                valor: Number(order.total),
+                qtdParcela: 1,
+                numeroAutorizacao: 1,
+              },
+            ],
+          };
+          break;
+        }
       }
     }
 
-
-    if (isDelivery) {
-      const end = omitBlankFields({
-        logradouro: order.delivery_street,
-        numero: order.delivery_number,
-        complemento: order.delivery_complement,
-        referencia: order.delivery_reference,
-        bairro: order.delivery_neighborhood,
-        cidade: order.delivery_city,
-        estado: order.delivery_state,
-        cep: onlyDigits(order.delivery_cep),
-      });
-      if (Object.keys(end).length) payload.enderecoEntrega = end;
-    }
 
     // 6) Idempotência por hash (somente envio real)
     const payloadHash = await sha256Hex(JSON.stringify(payload));
