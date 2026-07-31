@@ -422,11 +422,21 @@ export default function AdminTrierEcommerceSales() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" onClick={testConnection} disabled={connBusy}>
               {connBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FlaskConical className="h-4 w-4 mr-2" />}
-              Testar conexão venda e-commerce
+              Testar conexão (GET vendedor)
             </Button>
+            <Button variant="outline" onClick={validateRegistrations} disabled={validBusy}>
+              {validBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+              Validar cadastros (produto/vendedor/cartão)
+            </Button>
+            <Input
+              className="w-40"
+              placeholder="cód. produto (ex 36403)"
+              value={validProductCode}
+              onChange={(e) => setValidProductCode(e.target.value)}
+            />
             {connTest && (
               <div className="text-xs">
                 <Badge variant={connTest.reachable ? "default" : "destructive"}>
@@ -436,6 +446,54 @@ export default function AdminTrierEcommerceSales() {
               </div>
             )}
           </div>
+
+          {connTest && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {[
+                ["Gateway alcançado", connTest.gateway_reached],
+                ["SGF alcançado", connTest.sgf_reached],
+                ["Autenticação válida", connTest.auth_valid],
+                ["Filial/token válido", connTest.branch_valid],
+              ].map(([label, ok]) => (
+                <div key={label as string} className="border rounded p-2 flex items-center justify-between">
+                  <span>{label}</span>
+                  <Badge variant={ok ? "default" : "destructive"}>{ok ? "sim" : "não"}</Badge>
+                </div>
+              ))}
+              {connTest.error && (
+                <div className="col-span-2 md:col-span-4 text-destructive">
+                  {connTest.error_kind === "connection" ? "Conexão: " : "Payload: "}{connTest.error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {validation && (
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {(["produto", "vendedor", "cartao"] as const).map((k) => {
+                  const v = (validation as any)[k];
+                  return (
+                    <div key={k} className="border rounded p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold capitalize">{k === "cartao" ? "Cartão" : k}</span>
+                        <Badge variant={v?.found ? "default" : "destructive"}>{v ? (v.found ? "encontrado" : "não encontrado") : "não consultado"}</Badge>
+                      </div>
+                      {v && <div className="text-muted-foreground mt-1">código {v.codigo} · HTTP {v.http_status}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-muted-foreground">
+                Token/filial respondendo: <b>{validation.token_valid ? "sim" : "não"}</b> · SGF alcançado: <b>{validation.sgf_reached ? "sim" : "não"}</b>
+              </div>
+              <details>
+                <summary className="cursor-pointer text-muted-foreground">Respostas completas</summary>
+                <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(validation, null, 2)}</pre>
+              </details>
+            </div>
+          )}
+
           {connTest && (
             <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground">Diagnóstico da conexão</summary>
@@ -444,11 +502,13 @@ export default function AdminTrierEcommerceSales() {
           )}
 
           <div className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 rounded p-2">
-            <strong>Antes de testar:</strong> confirme que a venda manual no SGF finaliza usando o mesmo produto, vendedor e cartão de pagamento que serão usados aqui.
+            <strong>Sequência de homologação:</strong> 1) confirmar SGF online · 2) validar produto, vendedor e cartão · 3) rodar “Testar payload oficial Trier”.
+            Só ative o envio automático depois de um retorno HTTP 2xx.
           </div>
         </div>
 
         <Button className="mt-3" onClick={saveSettings}>Salvar configuração</Button>
+
 
       </Card>
 
