@@ -286,40 +286,66 @@ Deno.serve(async (req) => {
       || "https://api-sgf-gateway.triersistemas.com.br/sgfpod1").replace(/\/$/, "");
     const baseMode: string = settingsForBase?.trier_sales_base_mode || "gateway";
 
-    // Quick connectivity test: do not require order_id, do not POST a sale
+    // Teste de conexão via GET válido (não posta venda)
     if (action === "test_connection") {
       const startedAt = Date.now();
-      const testUrl = `${salesBaseUrl}${SEND_PATH}`;
-      let httpStatus = 0;
-      let errorMessage: string | null = null;
-      let respBody: any = null;
-      try {
-        const res = await fetch(testUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${TRIER_TOKEN || ""}`,
-          },
-          body: JSON.stringify({ ping: true }),
-        });
-        httpStatus = res.status;
-        const text = await res.text();
-        try { respBody = text ? JSON.parse(text) : null; } catch { respBody = { raw: (text || "").slice(0, 500) }; }
-      } catch (e) {
-        errorMessage = `Erro de rede: ${(e as Error).message}`;
-      }
+      const sellerCode = String(body?.codigo_vendedor ?? settingsForBase?.seller_code ?? 45);
+      const probe = await trierGet(salesBaseUrl, SELLER_PATH, { codigo: sellerCode });
+      const bodyText = JSON.stringify(probe.body || {});
+      const gatewayReached = probe.http_status > 0;
+      const sgfReached = gatewayReached && probe.http_status !== 545 && probe.http_status !== 554;
+      const authValid = ![401, 403].includes(probe.http_status) && gatewayReached;
+      const branchValid = probe.ok || (sgfReached && authValid && probe.http_status < 500);
       return json({
-        ok: httpStatus > 0,
-        reachable: httpStatus > 0,
-        url: testUrl,
+        ok: probe.ok,
+        reachable: gatewayReached,
+        gateway_reached: gatewayReached,
+        sgf_reached: sgfReached,
+        auth_valid: authValid,
+        branch_valid: branchValid,
+        url: probe.url,
+        method: "GET",
         base_mode: baseMode,
-        http_status: httpStatus,
-        error: errorMessage,
-        response: respBody,
+        http_status: probe.http_status,
+        error: probe.error || (probe.ok ? null : classifyTrierError(probe.http_status, probe.error, probe.body).message),
+        error_kind: probe.ok ? null : classifyTrierError(probe.http_status, probe.error, probe.body).kind,
+        response: probe.body,
+        raw_hint: bodyText.slice(0, 300),
         elapsed_ms: Date.now() - startedAt,
         timestamp: new Date().toISOString(),
       });
     }
+
+    // Validação de cadastros (produto / vendedor / cartão) antes de enviar a venda
+    if (action === "validate_registrations") {
+      const codigoProduto = body?.codigo_produto != null ? String(body.codigo_produto) : null;
+      const codigoVendedor = String(body?.codigo_vendedor ?? settingsForBase?.seller_code ?? "");
+      const codigoCartao = String(
+        body?.codigo_cartao ?? settingsForBase?.trier_site_pix_card_code ?? settingsForBase?.card_payment_code ?? "",
+      );
+
+      const [produto, vendedor, cartao] = await Promise.all([
+        codigoProduto ? trierGet(salesBaseUrl, PRODUCT_PATH, { codigo: codigoProduto }) : Promise.resolve(null),
+        codigoVendedor ? trierGet(salesBaseUrl, SELLER_PATH, { codigo: codigoVendedor }) : Promise.resolve(null),
+        codigoCartao ? trierGet(salesBaseUrl, CARD_PATH, { codigoCartao, ativo: "true" }) : Promise.resolve(null),
+      ]);
+
+      const found = (r: any) => !!(r && r.ok && r.body && (Array.isArray(r.body) ? r.body.length > 0 : Object.keys(r.body).length > 0));
+      const anyReached = [produto, vendedor, cartao].some((r) => r && r.http_status > 0);
+      const sgfOnline = [produto, vendedor, cartao].some((r) => r && r.http_status > 0 && r.http_status !== 545 && r.http_status !== 554);
+
+      return json({
+        ok: found(produto) !== false && found(vendedor) && found(cartao),
+        gateway_reached: anyReached,
+        sgf_reached: sgfOnline,
+        token_valid: ![401, 403].includes(vendedor?.http_status ?? 0),
+        produto: produto ? { codigo: codigoProduto, found: found(produto), http_status: produto.http_status, response: produto.body } : null,
+        vendedor: vendedor ? { codigo: codigoVendedor, found: found(vendedor), http_status: vendedor.http_status, response: vendedor.body } : null,
+        cartao: cartao ? { codigo: codigoCartao, found: found(cartao), http_status: cartao.http_status, response: cartao.body } : null,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
 
     if (!orderId) return json({ error: "order_id obrigatório" }, 400);
 
