@@ -98,13 +98,35 @@ type PresetResult = {
 type ConnTest = {
   ok: boolean;
   reachable?: boolean;
+  gateway_reached?: boolean;
+  sgf_reached?: boolean;
+  auth_valid?: boolean;
+  branch_valid?: boolean;
   url?: string;
   base_mode?: string;
   http_status?: number;
   error?: string | null;
+  error_kind?: string | null;
   response?: any;
   elapsed_ms?: number;
   timestamp?: string;
+};
+
+type RegistrationCheck = {
+  codigo: string | null;
+  found: boolean;
+  http_status: number;
+  response?: any;
+} | null;
+
+type ValidationResult = {
+  ok: boolean;
+  gateway_reached?: boolean;
+  sgf_reached?: boolean;
+  token_valid?: boolean;
+  produto: RegistrationCheck;
+  vendedor: RegistrationCheck;
+  cartao: RegistrationCheck;
 };
 
 
@@ -122,6 +144,29 @@ export default function AdminTrierEcommerceSales() {
   const [connBusy, setConnBusy] = useState(false);
   const [diagBusy, setDiagBusy] = useState<string | null>(null);
   const [diagResults, setDiagResults] = useState<Record<string, PresetResult>>({});
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [validBusy, setValidBusy] = useState(false);
+  const [validProductCode, setValidProductCode] = useState("");
+
+  const validateRegistrations = async () => {
+    setValidBusy(true);
+    setValidation(null);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: {
+        action: "validate_registrations",
+        codigo_produto: validProductCode || undefined,
+      },
+    });
+    setValidBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setValidation(data as ValidationResult);
+    if ((data as any)?.ok) toast.success("Cadastros validados no Trier");
+    else toast.error("Há cadastros ausentes ou SGF indisponível");
+  };
+
 
 
 
