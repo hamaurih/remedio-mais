@@ -52,11 +52,19 @@ const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_
 type DiagnosticPresetId =
   | "customer_code_zero"
   | "customer_no_code"
+  | "customer_empty_code"
   | "customer_real_code"
   | "no_customer_object"
-  | "seller_real";
+  | "seller_real"
+  | "pickup_full_address"
+  | "pickup_min_address"
+  | "official_payload";
 
 const DIAGNOSTIC_PRESETS: { id: DiagnosticPresetId; label: string; help: string }[] = [
+  { id: "official_payload", label: "Testar payload oficial Trier", help: "Estrutura idêntica à coleção oficial: cliente.codigo=\"\", entrega=false, enderecoEntrega mínimo, cartão 1x." },
+  { id: "pickup_full_address", label: "Retirada com endereço completo", help: "entrega=false, frete=0 e enderecoEntrega com o endereço real do pedido." },
+  { id: "pickup_min_address", label: "Retirada com endereço mínimo", help: "entrega=false com enderecoEntrega estruturado (RETIRADA NA LOJA)." },
+  { id: "customer_empty_code", label: "Cliente código vazio", help: "cliente.codigo = \"\" com numeroRGIE/dataNascimento/sexo null." },
   { id: "customer_code_zero", label: "Cliente código 0", help: "cliente.codigo = 0, dados Amauri." },
   { id: "customer_no_code", label: "Cliente sem código", help: "cliente sem campo codigo." },
   { id: "customer_real_code", label: "Cliente cadastrado real", help: "usa trier_test_customer_code." },
@@ -81,6 +89,7 @@ type PresetResult = {
   response?: any;
   request_masked?: any;
   numero_autorizacao_type?: string;
+  error_kind?: string | null;
   url?: string;
   method?: string;
   base_mode?: string;
@@ -90,13 +99,35 @@ type PresetResult = {
 type ConnTest = {
   ok: boolean;
   reachable?: boolean;
+  gateway_reached?: boolean;
+  sgf_reached?: boolean;
+  auth_valid?: boolean;
+  branch_valid?: boolean;
   url?: string;
   base_mode?: string;
   http_status?: number;
   error?: string | null;
+  error_kind?: string | null;
   response?: any;
   elapsed_ms?: number;
   timestamp?: string;
+};
+
+type RegistrationCheck = {
+  codigo: string | null;
+  found: boolean;
+  http_status: number;
+  response?: any;
+} | null;
+
+type ValidationResult = {
+  ok: boolean;
+  gateway_reached?: boolean;
+  sgf_reached?: boolean;
+  token_valid?: boolean;
+  produto: RegistrationCheck;
+  vendedor: RegistrationCheck;
+  cartao: RegistrationCheck;
 };
 
 
@@ -114,6 +145,29 @@ export default function AdminTrierEcommerceSales() {
   const [connBusy, setConnBusy] = useState(false);
   const [diagBusy, setDiagBusy] = useState<string | null>(null);
   const [diagResults, setDiagResults] = useState<Record<string, PresetResult>>({});
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [validBusy, setValidBusy] = useState(false);
+  const [validProductCode, setValidProductCode] = useState("");
+
+  const validateRegistrations = async () => {
+    setValidBusy(true);
+    setValidation(null);
+    const { data, error } = await supabase.functions.invoke("send-order-to-trier", {
+      body: {
+        action: "validate_registrations",
+        codigo_produto: validProductCode || undefined,
+      },
+    });
+    setValidBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setValidation(data as ValidationResult);
+    if ((data as any)?.ok) toast.success("Cadastros validados no Trier");
+    else toast.error("Há cadastros ausentes ou SGF indisponível");
+  };
+
 
 
 
@@ -360,14 +414,17 @@ export default function AdminTrierEcommerceSales() {
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="no_code">Cliente sem código (padrão homologação)</SelectItem>
+                <SelectItem value="no_code">Cliente com código vazio "" (padrão oficial)</SelectItem>
+                <SelectItem value="omit_code">Cliente sem o campo código</SelectItem>
                 <SelectItem value="real_code">Cliente cadastrado no Trier (usa código de teste)</SelectItem>
                 <SelectItem value="no_customer">Sem cliente</SelectItem>
               </SelectContent>
             </Select>
             <div className="text-xs text-muted-foreground">
-              Enquanto o formato correto não for confirmado, o envio real usa <b>cliente sem código</b> — não envia mais <code>codigo: 0</code>.
+              A coleção oficial Trier 1.5.23 usa <code>cliente.codigo: ""</code> quando o cliente ainda não tem cadastro. Nunca é enviado <code>codigo: 0</code>.
+              O objeto <code>enderecoEntrega</code> agora é sempre enviado, inclusive em retirada.
             </div>
+
           </div>
           <div className="space-y-1"><Label>Código cliente cadastrado (teste)</Label>
             <Input type="number" placeholder="ex: 12345" value={settings?.trier_test_customer_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_customer_code: e.target.value })} /></div>
@@ -411,11 +468,21 @@ export default function AdminTrierEcommerceSales() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" onClick={testConnection} disabled={connBusy}>
               {connBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FlaskConical className="h-4 w-4 mr-2" />}
-              Testar conexão venda e-commerce
+              Testar conexão (GET vendedor)
             </Button>
+            <Button variant="outline" onClick={validateRegistrations} disabled={validBusy}>
+              {validBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+              Validar cadastros (produto/vendedor/cartão)
+            </Button>
+            <Input
+              className="w-40"
+              placeholder="cód. produto (ex 36403)"
+              value={validProductCode}
+              onChange={(e) => setValidProductCode(e.target.value)}
+            />
             {connTest && (
               <div className="text-xs">
                 <Badge variant={connTest.reachable ? "default" : "destructive"}>
@@ -425,6 +492,54 @@ export default function AdminTrierEcommerceSales() {
               </div>
             )}
           </div>
+
+          {connTest && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {[
+                ["Gateway alcançado", connTest.gateway_reached],
+                ["SGF alcançado", connTest.sgf_reached],
+                ["Autenticação válida", connTest.auth_valid],
+                ["Filial/token válido", connTest.branch_valid],
+              ].map(([label, ok]) => (
+                <div key={label as string} className="border rounded p-2 flex items-center justify-between">
+                  <span>{label}</span>
+                  <Badge variant={ok ? "default" : "destructive"}>{ok ? "sim" : "não"}</Badge>
+                </div>
+              ))}
+              {connTest.error && (
+                <div className="col-span-2 md:col-span-4 text-destructive">
+                  {connTest.error_kind === "connection" ? "Conexão: " : "Payload: "}{connTest.error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {validation && (
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {(["produto", "vendedor", "cartao"] as const).map((k) => {
+                  const v = (validation as any)[k];
+                  return (
+                    <div key={k} className="border rounded p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold capitalize">{k === "cartao" ? "Cartão" : k}</span>
+                        <Badge variant={v?.found ? "default" : "destructive"}>{v ? (v.found ? "encontrado" : "não encontrado") : "não consultado"}</Badge>
+                      </div>
+                      {v && <div className="text-muted-foreground mt-1">código {v.codigo} · HTTP {v.http_status}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-muted-foreground">
+                Token/filial respondendo: <b>{validation.token_valid ? "sim" : "não"}</b> · SGF alcançado: <b>{validation.sgf_reached ? "sim" : "não"}</b>
+              </div>
+              <details>
+                <summary className="cursor-pointer text-muted-foreground">Respostas completas</summary>
+                <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(validation, null, 2)}</pre>
+              </details>
+            </div>
+          )}
+
           {connTest && (
             <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground">Diagnóstico da conexão</summary>
@@ -433,11 +548,13 @@ export default function AdminTrierEcommerceSales() {
           )}
 
           <div className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 rounded p-2">
-            <strong>Antes de testar:</strong> confirme que a venda manual no SGF finaliza usando o mesmo produto, vendedor e cartão de pagamento que serão usados aqui.
+            <strong>Sequência de homologação:</strong> 1) confirmar SGF online · 2) validar produto, vendedor e cartão · 3) rodar “Testar payload oficial Trier”.
+            Só ative o envio automático depois de um retorno HTTP 2xx.
           </div>
         </div>
 
         <Button className="mt-3" onClick={saveSettings}>Salvar configuração</Button>
+
 
       </Card>
 
@@ -557,7 +674,7 @@ export default function AdminTrierEcommerceSales() {
 
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
-                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      {r.error && <div className="text-destructive break-all">{r.error_kind === "connection" ? "Conexão: " : r.error_kind === "payload" ? "Payload: " : ""}{r.error}</div>}
                       {r.url && (
                         <div className="text-muted-foreground break-all">
                           <span className="font-mono">{r.method || "POST"}</span> {r.url}
@@ -626,7 +743,7 @@ export default function AdminTrierEcommerceSales() {
                         <span>HTTP {r.http_status ?? "—"}</span>
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
-                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      {r.error && <div className="text-destructive break-all">{r.error_kind === "connection" ? "Conexão: " : r.error_kind === "payload" ? "Payload: " : ""}{r.error}</div>}
                       <details>
                         <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
                         <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>

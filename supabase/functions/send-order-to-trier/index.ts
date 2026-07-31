@@ -10,6 +10,9 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TRIER_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 
 const SEND_PATH = "/rest/integracao/venda/ecommerce/efetuar-venda-v1";
+const PRODUCT_PATH = "/rest/integracao/produto/obter-v1";
+const SELLER_PATH = "/rest/integracao/vendedor/obter-v1";
+const CARD_PATH = "/rest/integracao/cartao/obter-v1";
 const TRANSIENT_TRIER_STATUSES = new Set([500, 502, 503, 504, 545, 554]);
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -58,11 +61,6 @@ function isoDateTimeBR(s?: string | null) {
   return `${br.getUTCFullYear()}-${pad(br.getUTCMonth() + 1)}-${pad(br.getUTCDate())}T${pad(br.getUTCHours())}:${pad(br.getUTCMinutes())}:${pad(br.getUTCSeconds())}-0300`;
 }
 
-function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== null && value !== undefined && value !== "")
-  );
-}
 
 // numeroPedido curto e numérico (até 10 dígitos)
 function shortNumericOrderId(uuid: string): string {
@@ -82,16 +80,84 @@ type PaymentMode = "pix_native" | "site_pix_card" | "site_debit_card" | "site_cr
 type DiagnosticPreset =
   | "customer_code_zero"
   | "customer_no_code"
+  | "customer_empty_code"
   | "customer_real_code"
   | "no_customer_object"
-  | "seller_real";
+  | "seller_real"
+  | "pickup_full_address"
+  | "pickup_min_address"
+  | "official_payload";
 const DIAGNOSTIC_PRESETS: DiagnosticPreset[] = [
   "customer_code_zero",
   "customer_no_code",
+  "customer_empty_code",
   "customer_real_code",
   "no_customer_object",
   "seller_real",
+  "pickup_full_address",
+  "pickup_min_address",
+  "official_payload",
 ];
+
+const FALLBACK_ADDRESS = {
+  logradouro: "RETIRADA NA LOJA",
+  numero: "0",
+  complemento: "",
+  referencia: "",
+  bairro: "CENTRO",
+  cidade: "CAMPINA GRANDE",
+  estado: "PB",
+  cep: "58400000",
+};
+
+// enderecoEntrega é sempre enviado (mesmo em retirada) — o backend Trier
+// dispara NullPointerException quando o objeto está ausente.
+function buildEnderecoEntrega(order: any, minimal = false): Record<string, string> {
+  if (minimal) return { ...FALLBACK_ADDRESS };
+  return {
+    logradouro: String(order.delivery_street || FALLBACK_ADDRESS.logradouro),
+    numero: String(order.delivery_number || "0"),
+    complemento: String(order.delivery_complement || ""),
+    referencia: String(order.delivery_reference || ""),
+    bairro: String(order.delivery_neighborhood || FALLBACK_ADDRESS.bairro),
+    cidade: String(order.delivery_city || FALLBACK_ADDRESS.cidade),
+    estado: String(order.delivery_state || FALLBACK_ADDRESS.estado),
+    cep: onlyDigits(order.delivery_cep) || FALLBACK_ADDRESS.cep,
+  };
+}
+
+// Cliente no formato oficial da coleção Trier 1.5.23
+function buildClienteOficial(order: any, codigo: string | number | null): Record<string, unknown> {
+  const phone = onlyDigits(order.customer_phone);
+  const cli: Record<string, unknown> = {
+    nome: String(order.customer_name || "").slice(0, 40),
+    numeroCpfCnpj: onlyDigits(order.customer_cpf),
+    numeroRGIE: null,
+    dataNascimento: null,
+    sexo: null,
+    celular: phone,
+    fone: phone,
+    email: order.customer_email || "",
+  };
+  if (codigo !== null) return { codigo, ...cli };
+  return cli;
+}
+
+async function trierGet(baseUrl: string, path: string, params: Record<string, string>) {
+  const url = `${baseUrl}${path}?${new URLSearchParams(params).toString()}`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "Authorization": `Bearer ${TRIER_TOKEN || ""}`, "Accept": "application/json" },
+    });
+    const text = await res.text();
+    let body: any = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = { raw: (text || "").slice(0, 500) }; }
+    return { url, http_status: res.status, ok: res.ok, body, error: null as string | null };
+  } catch (e) {
+    return { url, http_status: 0, ok: false, body: null, error: (e as Error).message };
+  }
+}
 
 function buildPagamentoMultiplo(
   mode: PaymentMode,
@@ -134,17 +200,34 @@ function resolveModeCode(settings: any, mode: PaymentMode): number | null {
   }
 }
 
-function friendlyOrderError(httpStatus: number, errorMessage: string | null, responseBody: any) {
-  if (httpStatus === 545 || httpStatus === 554) {
-    return `Trier indisponível (HTTP ${httpStatus}): o gateway não conseguiu falar com o servidor SGF da farmácia. O pedido permanece pago no site e será reenviado automaticamente.`;
-  }
+// Classifica a falha: conexão (SGF fora) x payload (SGF respondeu com erro interno)
+function classifyTrierError(httpStatus: number, errorMessage: string | null, responseBody: any) {
   const bodyText = typeof responseBody === "string" ? responseBody : JSON.stringify(responseBody || {});
-  if (httpStatus === 500 && /sgf|servidor|conex/i.test(bodyText)) {
-    return "Trier/SGF instável (HTTP 500): pedido pago no site, aguardando reenvio automático.";
+  if (httpStatus === 545 || httpStatus === 554) {
+    return {
+      kind: "connection",
+      message: `SGF da farmácia indisponível (HTTP ${httpStatus}). Verifique servidor, serviço Trier e comunicação com o gateway.`,
+    };
   }
-  if (errorMessage) return errorMessage;
-  if (httpStatus) return `Trier respondeu HTTP ${httpStatus}`;
-  return "Falha de rede ao enviar pedido ao Trier";
+  if (/NullPointerException/i.test(bodyText)) {
+    return {
+      kind: "payload",
+      message: "SGF conectado, mas houve falha interna no processamento do payload (NullPointerException no Trier).",
+    };
+  }
+  if (httpStatus === 500 && /sgf|servidor|conex/i.test(bodyText)) {
+    return { kind: "connection", message: "Trier/SGF instável (HTTP 500): conexão com o servidor da farmácia falhou." };
+  }
+  if (httpStatus >= 500) {
+    return { kind: "payload", message: `SGF conectado, mas retornou erro interno HTTP ${httpStatus}.` };
+  }
+  if (errorMessage) return { kind: httpStatus ? "payload" : "connection", message: errorMessage };
+  if (httpStatus) return { kind: "payload", message: `Trier respondeu HTTP ${httpStatus}` };
+  return { kind: "connection", message: "Falha de rede ao enviar pedido ao Trier" };
+}
+
+function friendlyOrderError(httpStatus: number, errorMessage: string | null, responseBody: any) {
+  return classifyTrierError(httpStatus, errorMessage, responseBody).message;
 }
 
 function shouldNotifyFailure(isInternal: boolean, httpStatus: number, currentAttempt: number) {
@@ -198,40 +281,66 @@ Deno.serve(async (req) => {
       || "https://api-sgf-gateway.triersistemas.com.br/sgfpod1").replace(/\/$/, "");
     const baseMode: string = settingsForBase?.trier_sales_base_mode || "gateway";
 
-    // Quick connectivity test: do not require order_id, do not POST a sale
+    // Teste de conexão via GET válido (não posta venda)
     if (action === "test_connection") {
       const startedAt = Date.now();
-      const testUrl = `${salesBaseUrl}${SEND_PATH}`;
-      let httpStatus = 0;
-      let errorMessage: string | null = null;
-      let respBody: any = null;
-      try {
-        const res = await fetch(testUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${TRIER_TOKEN || ""}`,
-          },
-          body: JSON.stringify({ ping: true }),
-        });
-        httpStatus = res.status;
-        const text = await res.text();
-        try { respBody = text ? JSON.parse(text) : null; } catch { respBody = { raw: (text || "").slice(0, 500) }; }
-      } catch (e) {
-        errorMessage = `Erro de rede: ${(e as Error).message}`;
-      }
+      const sellerCode = String(body?.codigo_vendedor ?? settingsForBase?.seller_code ?? 45);
+      const probe = await trierGet(salesBaseUrl, SELLER_PATH, { codigo: sellerCode });
+      const bodyText = JSON.stringify(probe.body || {});
+      const gatewayReached = probe.http_status > 0;
+      const sgfReached = gatewayReached && probe.http_status !== 545 && probe.http_status !== 554;
+      const authValid = ![401, 403].includes(probe.http_status) && gatewayReached;
+      const branchValid = probe.ok || (sgfReached && authValid && probe.http_status < 500);
       return json({
-        ok: httpStatus > 0,
-        reachable: httpStatus > 0,
-        url: testUrl,
+        ok: probe.ok,
+        reachable: gatewayReached,
+        gateway_reached: gatewayReached,
+        sgf_reached: sgfReached,
+        auth_valid: authValid,
+        branch_valid: branchValid,
+        url: probe.url,
+        method: "GET",
         base_mode: baseMode,
-        http_status: httpStatus,
-        error: errorMessage,
-        response: respBody,
+        http_status: probe.http_status,
+        error: probe.error || (probe.ok ? null : classifyTrierError(probe.http_status, probe.error, probe.body).message),
+        error_kind: probe.ok ? null : classifyTrierError(probe.http_status, probe.error, probe.body).kind,
+        response: probe.body,
+        raw_hint: bodyText.slice(0, 300),
         elapsed_ms: Date.now() - startedAt,
         timestamp: new Date().toISOString(),
       });
     }
+
+    // Validação de cadastros (produto / vendedor / cartão) antes de enviar a venda
+    if (action === "validate_registrations") {
+      const codigoProduto = body?.codigo_produto != null ? String(body.codigo_produto) : null;
+      const codigoVendedor = String(body?.codigo_vendedor ?? settingsForBase?.seller_code ?? "");
+      const codigoCartao = String(
+        body?.codigo_cartao ?? settingsForBase?.trier_site_pix_card_code ?? settingsForBase?.card_payment_code ?? "",
+      );
+
+      const [produto, vendedor, cartao] = await Promise.all([
+        codigoProduto ? trierGet(salesBaseUrl, PRODUCT_PATH, { codigo: codigoProduto }) : Promise.resolve(null),
+        codigoVendedor ? trierGet(salesBaseUrl, SELLER_PATH, { codigo: codigoVendedor }) : Promise.resolve(null),
+        codigoCartao ? trierGet(salesBaseUrl, CARD_PATH, { codigoCartao, ativo: "true" }) : Promise.resolve(null),
+      ]);
+
+      const found = (r: any) => !!(r && r.ok && r.body && (Array.isArray(r.body) ? r.body.length > 0 : Object.keys(r.body).length > 0));
+      const anyReached = [produto, vendedor, cartao].some((r) => r && r.http_status > 0);
+      const sgfOnline = [produto, vendedor, cartao].some((r) => r && r.http_status > 0 && r.http_status !== 545 && r.http_status !== 554);
+
+      return json({
+        ok: found(produto) !== false && found(vendedor) && found(cartao),
+        gateway_reached: anyReached,
+        sgf_reached: sgfOnline,
+        token_valid: ![401, 403].includes(vendedor?.http_status ?? 0),
+        produto: produto ? { codigo: codigoProduto, found: found(produto), http_status: produto.http_status, response: produto.body } : null,
+        vendedor: vendedor ? { codigo: codigoVendedor, found: found(vendedor), http_status: vendedor.http_status, response: vendedor.body } : null,
+        cartao: cartao ? { codigo: codigoCartao, found: found(cartao), http_status: cartao.http_status, response: cartao.body } : null,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
 
     if (!orderId) return json({ error: "order_id obrigatório" }, 400);
 
@@ -367,25 +476,23 @@ Deno.serve(async (req) => {
     const dataPedido = isoDateTimeBR(order.paid_at || order.created_at);
     const numeroPedido = shortNumericOrderId(String(order.id));
 
-    // cliente: modo configurável (no_code padrão de homologação, real_code usa trier_test_customer_code, no_customer remove objeto)
+    // cliente: modo configurável.
+    // no_code (padrão) => codigo: "" conforme coleção oficial
+    // omit_code => sem o campo codigo
+    // real_code => usa trier_test_customer_code
+    // no_customer => remove objeto cliente
     const customerMode: string = settings.trier_customer_mode || "no_code";
-    const clienteBase: Record<string, unknown> = {
-      nome: order.customer_name,
-      numeroCpfCnpj: onlyDigits(order.customer_cpf),
-      celular: onlyDigits(order.customer_phone),
-      fone: onlyDigits(order.customer_phone),
-      email: order.customer_email,
-    };
-    let cliente: Record<string, unknown> | null = omitBlankFields(clienteBase);
-    if (customerMode === "real_code") {
-      const code = settings.trier_test_customer_code;
-      if (code != null && code !== "") {
-        cliente = { codigo: Number(code), ...cliente };
-      }
-    } else if (customerMode === "no_customer") {
+    let cliente: Record<string, unknown> | null;
+    if (customerMode === "no_customer") {
       cliente = null;
+    } else if (customerMode === "omit_code") {
+      cliente = buildClienteOficial(order, null);
+    } else if (customerMode === "real_code") {
+      const code = settings.trier_test_customer_code;
+      cliente = buildClienteOficial(order, code != null && code !== "" ? Number(code) : "");
+    } else {
+      cliente = buildClienteOficial(order, "");
     }
-    // "no_code" => envia cliente sem campo codigo (default)
 
     const payload: Record<string, unknown> = {
       numeroPedido,
@@ -401,8 +508,10 @@ Deno.serve(async (req) => {
       pagamentoMultiplo,
     };
     if (cliente) payload.cliente = cliente;
+    // enderecoEntrega sempre presente (inclusive retirada) para evitar NullPointerException
+    payload.enderecoEntrega = buildEnderecoEntrega(order, !isDelivery);
 
-    // Diagnostic preset overrides for cliente/vendedor
+    // Diagnostic preset overrides
     if (isDiagnosticTest && diagnosticPreset) {
       const diagCliente = {
         nome: "Amauri Rodrigues",
@@ -417,6 +526,9 @@ Deno.serve(async (req) => {
           break;
         case "customer_no_code":
           payload.cliente = { ...diagCliente };
+          break;
+        case "customer_empty_code":
+          payload.cliente = buildClienteOficial(order, "");
           break;
         case "customer_real_code": {
           const code = settings.trier_test_customer_code;
@@ -439,23 +551,39 @@ Deno.serve(async (req) => {
           payload.vendedor = { codigo: Number(sCode), nome: String(sName) };
           break;
         }
+        case "pickup_full_address":
+          payload.cliente = buildClienteOficial(order, "");
+          payload.entrega = false;
+          payload.valorFrete = 0;
+          payload.enderecoEntrega = buildEnderecoEntrega(order, false);
+          break;
+        case "pickup_min_address":
+          payload.cliente = buildClienteOficial(order, "");
+          payload.entrega = false;
+          payload.valorFrete = 0;
+          payload.enderecoEntrega = buildEnderecoEntrega(order, true);
+          break;
+        case "official_payload": {
+          payload.cliente = buildClienteOficial(order, "");
+          payload.entrega = false;
+          payload.valorFrete = 0;
+          payload.enderecoEntrega = buildEnderecoEntrega(order, true);
+          payload.pagamentoMultiplo = {
+            cartao: [
+              {
+                pagamentoRealizado: true,
+                codigo: Number(settings.trier_site_pix_card_code ?? settings.card_payment_code ?? 18),
+                valor: Number(order.total),
+                qtdParcela: 1,
+                numeroAutorizacao: 1,
+              },
+            ],
+          };
+          break;
+        }
       }
     }
 
-
-    if (isDelivery) {
-      const end = omitBlankFields({
-        logradouro: order.delivery_street,
-        numero: order.delivery_number,
-        complemento: order.delivery_complement,
-        referencia: order.delivery_reference,
-        bairro: order.delivery_neighborhood,
-        cidade: order.delivery_city,
-        estado: order.delivery_state,
-        cep: onlyDigits(order.delivery_cep),
-      });
-      if (Object.keys(end).length) payload.enderecoEntrega = end;
-    }
 
     // 6) Idempotência por hash (somente envio real)
     const payloadHash = await sha256Hex(JSON.stringify(payload));
@@ -529,7 +657,8 @@ Deno.serve(async (req) => {
         method: "POST",
         base_mode: baseMode,
         http_status: httpStatus,
-        error: errorMessage,
+        error: success ? null : classifyTrierError(httpStatus, errorMessage, responseBody).message,
+        error_kind: success ? null : classifyTrierError(httpStatus, errorMessage, responseBody).kind,
         response: responseBody,
         request_masked: maskSensitiveData(payload),
         numero_autorizacao_type: typeof numeroAutorizacao,
