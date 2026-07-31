@@ -368,14 +368,17 @@ export default function AdminTrierEcommerceSales() {
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="no_code">Cliente sem código (padrão homologação)</SelectItem>
+                <SelectItem value="no_code">Cliente com código vazio "" (padrão oficial)</SelectItem>
+                <SelectItem value="omit_code">Cliente sem o campo código</SelectItem>
                 <SelectItem value="real_code">Cliente cadastrado no Trier (usa código de teste)</SelectItem>
                 <SelectItem value="no_customer">Sem cliente</SelectItem>
               </SelectContent>
             </Select>
             <div className="text-xs text-muted-foreground">
-              Enquanto o formato correto não for confirmado, o envio real usa <b>cliente sem código</b> — não envia mais <code>codigo: 0</code>.
+              A coleção oficial Trier 1.5.23 usa <code>cliente.codigo: ""</code> quando o cliente ainda não tem cadastro. Nunca é enviado <code>codigo: 0</code>.
+              O objeto <code>enderecoEntrega</code> agora é sempre enviado, inclusive em retirada.
             </div>
+
           </div>
           <div className="space-y-1"><Label>Código cliente cadastrado (teste)</Label>
             <Input type="number" placeholder="ex: 12345" value={settings?.trier_test_customer_code ?? ""} onChange={(e) => setSettings({ ...settings, trier_test_customer_code: e.target.value })} /></div>
