@@ -89,6 +89,7 @@ type PresetResult = {
   response?: any;
   request_masked?: any;
   numero_autorizacao_type?: string;
+  error_kind?: string | null;
   url?: string;
   method?: string;
   base_mode?: string;
