@@ -85,16 +85,84 @@ type PaymentMode = "pix_native" | "site_pix_card" | "site_debit_card" | "site_cr
 type DiagnosticPreset =
   | "customer_code_zero"
   | "customer_no_code"
+  | "customer_empty_code"
   | "customer_real_code"
   | "no_customer_object"
-  | "seller_real";
+  | "seller_real"
+  | "pickup_full_address"
+  | "pickup_min_address"
+  | "official_payload";
 const DIAGNOSTIC_PRESETS: DiagnosticPreset[] = [
   "customer_code_zero",
   "customer_no_code",
+  "customer_empty_code",
   "customer_real_code",
   "no_customer_object",
   "seller_real",
+  "pickup_full_address",
+  "pickup_min_address",
+  "official_payload",
 ];
+
+const FALLBACK_ADDRESS = {
+  logradouro: "RETIRADA NA LOJA",
+  numero: "0",
+  complemento: "",
+  referencia: "",
+  bairro: "CENTRO",
+  cidade: "CAMPINA GRANDE",
+  estado: "PB",
+  cep: "58400000",
+};
+
+// enderecoEntrega é sempre enviado (mesmo em retirada) — o backend Trier
+// dispara NullPointerException quando o objeto está ausente.
+function buildEnderecoEntrega(order: any, minimal = false): Record<string, string> {
+  if (minimal) return { ...FALLBACK_ADDRESS };
+  return {
+    logradouro: String(order.delivery_street || FALLBACK_ADDRESS.logradouro),
+    numero: String(order.delivery_number || "0"),
+    complemento: String(order.delivery_complement || ""),
+    referencia: String(order.delivery_reference || ""),
+    bairro: String(order.delivery_neighborhood || FALLBACK_ADDRESS.bairro),
+    cidade: String(order.delivery_city || FALLBACK_ADDRESS.cidade),
+    estado: String(order.delivery_state || FALLBACK_ADDRESS.estado),
+    cep: onlyDigits(order.delivery_cep) || FALLBACK_ADDRESS.cep,
+  };
+}
+
+// Cliente no formato oficial da coleção Trier 1.5.23
+function buildClienteOficial(order: any, codigo: string | number | null): Record<string, unknown> {
+  const phone = onlyDigits(order.customer_phone);
+  const cli: Record<string, unknown> = {
+    nome: String(order.customer_name || "").slice(0, 40),
+    numeroCpfCnpj: onlyDigits(order.customer_cpf),
+    numeroRGIE: null,
+    dataNascimento: null,
+    sexo: null,
+    celular: phone,
+    fone: phone,
+    email: order.customer_email || "",
+  };
+  if (codigo !== null) return { codigo, ...cli };
+  return cli;
+}
+
+async function trierGet(baseUrl: string, path: string, params: Record<string, string>) {
+  const url = `${baseUrl}${path}?${new URLSearchParams(params).toString()}`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "Authorization": `Bearer ${TRIER_TOKEN || ""}`, "Accept": "application/json" },
+    });
+    const text = await res.text();
+    let body: any = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = { raw: (text || "").slice(0, 500) }; }
+    return { url, http_status: res.status, ok: res.ok, body, error: null as string | null };
+  } catch (e) {
+    return { url, http_status: 0, ok: false, body: null, error: (e as Error).message };
+  }
+}
 
 function buildPagamentoMultiplo(
   mode: PaymentMode,
