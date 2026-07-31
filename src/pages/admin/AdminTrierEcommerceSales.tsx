@@ -52,11 +52,19 @@ const PRESETS: { id: "pix_native" | "site_pix_card" | "site_debit_card" | "site_
 type DiagnosticPresetId =
   | "customer_code_zero"
   | "customer_no_code"
+  | "customer_empty_code"
   | "customer_real_code"
   | "no_customer_object"
-  | "seller_real";
+  | "seller_real"
+  | "pickup_full_address"
+  | "pickup_min_address"
+  | "official_payload";
 
 const DIAGNOSTIC_PRESETS: { id: DiagnosticPresetId; label: string; help: string }[] = [
+  { id: "official_payload", label: "Testar payload oficial Trier", help: "Estrutura idêntica à coleção oficial: cliente.codigo=\"\", entrega=false, enderecoEntrega mínimo, cartão 1x." },
+  { id: "pickup_full_address", label: "Retirada com endereço completo", help: "entrega=false, frete=0 e enderecoEntrega com o endereço real do pedido." },
+  { id: "pickup_min_address", label: "Retirada com endereço mínimo", help: "entrega=false com enderecoEntrega estruturado (RETIRADA NA LOJA)." },
+  { id: "customer_empty_code", label: "Cliente código vazio", help: "cliente.codigo = \"\" com numeroRGIE/dataNascimento/sexo null." },
   { id: "customer_code_zero", label: "Cliente código 0", help: "cliente.codigo = 0, dados Amauri." },
   { id: "customer_no_code", label: "Cliente sem código", help: "cliente sem campo codigo." },
   { id: "customer_real_code", label: "Cliente cadastrado real", help: "usa trier_test_customer_code." },
