@@ -205,17 +205,34 @@ function resolveModeCode(settings: any, mode: PaymentMode): number | null {
   }
 }
 
-function friendlyOrderError(httpStatus: number, errorMessage: string | null, responseBody: any) {
-  if (httpStatus === 545 || httpStatus === 554) {
-    return `Trier indisponível (HTTP ${httpStatus}): o gateway não conseguiu falar com o servidor SGF da farmácia. O pedido permanece pago no site e será reenviado automaticamente.`;
-  }
+// Classifica a falha: conexão (SGF fora) x payload (SGF respondeu com erro interno)
+function classifyTrierError(httpStatus: number, errorMessage: string | null, responseBody: any) {
   const bodyText = typeof responseBody === "string" ? responseBody : JSON.stringify(responseBody || {});
-  if (httpStatus === 500 && /sgf|servidor|conex/i.test(bodyText)) {
-    return "Trier/SGF instável (HTTP 500): pedido pago no site, aguardando reenvio automático.";
+  if (httpStatus === 545 || httpStatus === 554) {
+    return {
+      kind: "connection",
+      message: `SGF da farmácia indisponível (HTTP ${httpStatus}). Verifique servidor, serviço Trier e comunicação com o gateway.`,
+    };
   }
-  if (errorMessage) return errorMessage;
-  if (httpStatus) return `Trier respondeu HTTP ${httpStatus}`;
-  return "Falha de rede ao enviar pedido ao Trier";
+  if (/NullPointerException/i.test(bodyText)) {
+    return {
+      kind: "payload",
+      message: "SGF conectado, mas houve falha interna no processamento do payload (NullPointerException no Trier).",
+    };
+  }
+  if (httpStatus === 500 && /sgf|servidor|conex/i.test(bodyText)) {
+    return { kind: "connection", message: "Trier/SGF instável (HTTP 500): conexão com o servidor da farmácia falhou." };
+  }
+  if (httpStatus >= 500) {
+    return { kind: "payload", message: `SGF conectado, mas retornou erro interno HTTP ${httpStatus}.` };
+  }
+  if (errorMessage) return { kind: httpStatus ? "payload" : "connection", message: errorMessage };
+  if (httpStatus) return { kind: "payload", message: `Trier respondeu HTTP ${httpStatus}` };
+  return { kind: "connection", message: "Falha de rede ao enviar pedido ao Trier" };
+}
+
+function friendlyOrderError(httpStatus: number, errorMessage: string | null, responseBody: any) {
+  return classifyTrierError(httpStatus, errorMessage, responseBody).message;
 }
 
 function shouldNotifyFailure(isInternal: boolean, httpStatus: number, currentAttempt: number) {
