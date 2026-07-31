@@ -674,7 +674,7 @@ export default function AdminTrierEcommerceSales() {
 
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
-                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      {r.error && <div className="text-destructive break-all">{r.error_kind === "connection" ? "Conexão: " : r.error_kind === "payload" ? "Payload: " : ""}{r.error}</div>}
                       {r.url && (
                         <div className="text-muted-foreground break-all">
                           <span className="font-mono">{r.method || "POST"}</span> {r.url}
@@ -743,7 +743,7 @@ export default function AdminTrierEcommerceSales() {
                         <span>HTTP {r.http_status ?? "—"}</span>
                         {r.timestamp && <span className="text-muted-foreground ml-auto">{new Date(r.timestamp).toLocaleTimeString("pt-BR")}</span>}
                       </div>
-                      {r.error && <div className="text-destructive break-all">{r.error}</div>}
+                      {r.error && <div className="text-destructive break-all">{r.error_kind === "connection" ? "Conexão: " : r.error_kind === "payload" ? "Payload: " : ""}{r.error}</div>}
                       <details>
                         <summary className="cursor-pointer text-muted-foreground">Payload enviado (mascarado)</summary>
                         <pre className="bg-muted p-2 rounded overflow-auto max-h-48 mt-1">{JSON.stringify(r.request_masked, null, 2)}</pre>
