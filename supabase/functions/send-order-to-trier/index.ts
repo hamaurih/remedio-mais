@@ -10,6 +10,9 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TRIER_TOKEN = Deno.env.get("TRIER_API_TOKEN");
 
 const SEND_PATH = "/rest/integracao/venda/ecommerce/efetuar-venda-v1";
+const PRODUCT_PATH = "/rest/integracao/produto/obter-v1";
+const SELLER_PATH = "/rest/integracao/vendedor/obter-v1";
+const CARD_PATH = "/rest/integracao/cartao/obter-v1";
 const TRANSIENT_TRIER_STATUSES = new Set([500, 502, 503, 504, 545, 554]);
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
