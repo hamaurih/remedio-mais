@@ -61,11 +61,6 @@ function isoDateTimeBR(s?: string | null) {
   return `${br.getUTCFullYear()}-${pad(br.getUTCMonth() + 1)}-${pad(br.getUTCDate())}T${pad(br.getUTCHours())}:${pad(br.getUTCMinutes())}:${pad(br.getUTCSeconds())}-0300`;
 }
 
-function omitBlankFields<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== null && value !== undefined && value !== "")
-  );
-}
 
 // numeroPedido curto e numérico (até 10 dígitos)
 function shortNumericOrderId(uuid: string): string {
