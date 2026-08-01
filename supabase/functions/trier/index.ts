@@ -587,6 +587,9 @@ type UpsertResult = {
 
 // Campos que a Trier NUNCA deve sobrescrever em produto já existente
 // (campos comerciais/manuais — controlados pelo admin do site).
+// Obs.: promo_price/on_sale/datas NÃO ficam aqui: eles são protegidos de forma
+// condicional (lock_promotion / promotion_source), para que a Trier possa
+// sincronizar promoções próprias quando não houver promoção manual no site.
 const PROTECTED_ALWAYS = new Set<string>([
   "image_url", "gallery_images",
   "slug",
@@ -595,13 +598,15 @@ const PROTECTED_ALWAYS = new Set<string>([
   "featured",
   "shelves",
   "tags",
-  // Promoções são do site, Trier nunca deve mexer:
-  "promo_price", "on_sale", "promotion_start", "promotion_end",
 ]);
 
 // Campos operacionais que a Trier pode atualizar.
 const FIELDS_STOCK = ["stock", "stock_quantity", "trier_stock_quantity", "ecommerce_stock_quantity", "last_stock_sync_at", "trier_active"];
-const FIELDS_PRICE = ["price", "ecommerce_price", "promo_price", "on_sale"];
+// Preço normal/base — atualizado pela Trier salvo trava explícita (lock_base_price).
+const FIELDS_BASE_PRICE = ["price", "ecommerce_price"];
+// Promoção — protegida quando a promoção é manual/campanha (lock_promotion).
+const FIELDS_PROMOTION = ["promo_price", "on_sale", "promotion_start", "promotion_end"];
+const FIELDS_PRICE = [...FIELDS_BASE_PRICE, ...FIELDS_PROMOTION];
 const FIELDS_BARCODE = ["barcode", "trier_barcode"];
 const FIELDS_TECHNICAL = [
   "laboratory", "manufacturer", "laboratory_code",
