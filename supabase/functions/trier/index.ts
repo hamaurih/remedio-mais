@@ -1141,11 +1141,16 @@ async function actionLiveCheck(productIds: string[]) {
 
   const now = new Date().toISOString();
   const items = await Promise.all((rows || []).map(async (prod: any) => {
+    // Preço efetivo: só usa promoção quando ela é realmente menor que o preço normal.
+    const effective = (basePrice: number, promo: any) => {
+      const p = promo == null ? null : Number(promo);
+      return p != null && Number.isFinite(p) && p > 0 && p < basePrice ? p : basePrice;
+    };
     const base = {
       product_id: prod.id,
       name: prod.name,
       stock: Number(prod.stock || 0),
-      price: prod.promo_price != null ? Number(prod.promo_price) : Number(prod.price || 0),
+      price: effective(Number(prod.price || 0), prod.promo_price),
       active: prod.active !== false,
       fresh: false,
     };
@@ -1171,7 +1176,7 @@ async function actionLiveCheck(productIds: string[]) {
         const basePrice = pickPriceNum(t);
         if (basePrice != null && basePrice > 0) {
           patch.price = basePrice;
-          price = prod.promo_price != null ? Number(prod.promo_price) : basePrice;
+          price = effective(basePrice, prod.promo_price);
         }
       }
 
