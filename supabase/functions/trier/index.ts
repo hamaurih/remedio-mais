@@ -2332,7 +2332,8 @@ async function actionRetryPendingOrders(limit = 5) {
     .order("created_at", { ascending: true })
     .limit(limit);
   const rows = pending || [];
-  let sent = 0, failed = 0;
+  let sent = 0, failed = 0, skipped = 0;
+  const errors: Array<{ order_id: string; error: string; http_status?: number }> = [];
   for (const o of rows as any[]) {
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/send-order-to-trier`, {
@@ -2344,14 +2345,33 @@ async function actionRetryPendingOrders(limit = 5) {
         },
         body: JSON.stringify({ order_id: o.id, action: "send_order" }),
       });
-      if (res.ok) sent++; else failed++;
-    } catch { failed++; }
+      // A função de envio responde HTTP 200 mesmo quando a Trier/SGF recusa
+      // (para não mostrar erro técnico ao usuário). Por isso o resultado real
+      // está no corpo: ok=true (enviado), skipped=true (nada a fazer) ou ok=false.
+      const payload = await res.json().catch(() => null) as any;
+      if (payload?.ok === true) sent++;
+      else if (payload?.skipped === true) skipped++;
+      else {
+        failed++;
+        errors.push({
+          order_id: o.id,
+          error: String(payload?.error || `HTTP ${res.status}`),
+          http_status: payload?.http_status ?? res.status,
+        });
+      }
+    } catch (e: any) {
+      failed++;
+      errors.push({ order_id: o.id, error: String(e?.message || e) });
+    }
   }
   if (rows.length) {
     await log("order_send", failed ? "error" : "success",
-      `Reenvio automático de pedidos pendentes: ${sent} enviados, ${failed} com falha`, { total: rows.length });
+      `Reenvio automático de pedidos pendentes: ${sent} enviados, ${failed} com falha` +
+      (skipped ? `, ${skipped} ignorados` : "") +
+      (failed ? ` — último erro: ${errors[errors.length - 1]?.error}` : ""),
+      { total: rows.length, sent, failed, skipped, errors });
   }
-  return { ok: true, total: rows.length, sent, failed };
+  return { ok: true, total: rows.length, sent, failed, skipped, errors };
 }
 
 async function actionScheduled() {
