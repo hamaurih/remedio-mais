@@ -653,10 +653,24 @@ function fieldsForMode(mode: SyncMode): Set<string> {
   return base;
 }
 
+// Promoção do site é considerada manual (não pode ser sobrescrita pela Trier)?
+function hasManualPromotion(existing: any): boolean {
+  if (!existing) return false;
+  if (existing.lock_promotion === true) return true;
+  const src = String(existing.promotion_source || "none");
+  if (src === "manual" || src === "campaign") return true;
+  // Compatibilidade com a trava antiga: só protege a PROMOÇÃO, nunca o preço base.
+  if (existing.lock_manual_price === true && existing.promo_price != null) return true;
+  return false;
+}
+
 function manualLocksOf(existing: any): Set<string> {
   const locked = new Set<string>();
   if (!existing) return locked;
-  if (existing.lock_manual_price) FIELDS_PRICE.forEach((f) => locked.add(f));
+  // Preço base: só trava com pedido explícito do admin.
+  if (existing.lock_base_price === true) FIELDS_BASE_PRICE.forEach((f) => locked.add(f));
+  // Promoção: travada quando é promoção manual/campanha do site.
+  if (hasManualPromotion(existing)) FIELDS_PROMOTION.forEach((f) => locked.add(f));
   if (existing.lock_manual_stock) FIELDS_STOCK.forEach((f) => locked.add(f));
   if (existing.manual_image) { locked.add("image_url"); locked.add("gallery_images"); }
   if (existing.manual_description) { locked.add("description"); locked.add("short_description"); }
