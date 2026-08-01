@@ -729,7 +729,7 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
   if (existing?.archived_at) return { skipped: true, reason: "archived", trier_id: trierId, name };
@@ -938,7 +938,7 @@ async function upsertProductFromTrier(
     product_id: existing.id, trier_product_id: trierId, sync_type: opts.syncType || "update",
     fields_updated, fields_protected, old_values: oldValues, new_values: newValues,
   });
-  return { updated: true, trier_id: trierId, name, fields_updated, fields_protected, barcode_divergence: barcodeDivergence };
+  return { updated: true, trier_id: trierId, name, fields_updated, fields_protected, barcode_divergence: barcodeDivergence, promotion_inconsistent: promotionInconsistent };
 }
 
 // ---------- ACTIONS ----------
@@ -1135,7 +1135,7 @@ async function actionLiveCheck(productIds: string[]) {
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, lock_manual_price, lock_manual_stock")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
     .in("id", ids);
   if (error) return { ok: false, error: error.message };
 
@@ -1167,7 +1167,7 @@ async function actionLiveCheck(productIds: string[]) {
         patch.active = prod.manual_disabled === true ? false : (prod.trier_active !== false && stock > 0);
         patch.last_stock_sync_at = now;
       }
-      if (!prod.lock_manual_price) {
+      if (prod.lock_base_price !== true) {
         const basePrice = pickPriceNum(t);
         if (basePrice != null && basePrice > 0) {
           patch.price = basePrice;
