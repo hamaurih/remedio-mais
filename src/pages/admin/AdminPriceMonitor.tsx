@@ -18,7 +18,9 @@ type TabKey =
   | "active_offers"
   | "promotion_ended"
   | "expired_offers"
-  | "out_of_stock_offer";
+  | "out_of_stock_offer"
+  | "inconsistent_offer"
+  | "locked_base_price";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "Todos" },
@@ -29,7 +31,12 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "promotion_ended", label: "Saíram da oferta" },
   { key: "expired_offers", label: "Ofertas expiradas" },
   { key: "out_of_stock_offer", label: "Sem estoque em oferta" },
+  { key: "inconsistent_offer", label: "Ofertas inconsistentes" },
+  { key: "locked_base_price", label: "Preço normal travado" },
 ];
+
+const isInconsistent = (p: any) =>
+  p?.promo_price != null && Number(p.price ?? 0) > 0 && Number(p.promo_price) >= Number(p.price);
 
 const money = (v: any) => `R$ ${Number(v ?? 0).toFixed(2).replace(".", ",")}`;
 const SOURCE_LABEL: Record<string, string> = {
@@ -40,7 +47,7 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 const PRODUCT_COLS =
-  "id,name,image_url,stock,price,promo_price,on_sale,promotion_start,promotion_end,trier_product_id,shelves,active";
+  "id,name,image_url,stock,price,promo_price,on_sale,promotion_start,promotion_end,trier_product_id,shelves,active,lock_base_price,lock_promotion,promotion_source,last_trier_sync_at";
 
 export default function AdminPriceMonitor() {
   const [tab, setTab] = useState<TabKey>("all");
@@ -64,8 +71,8 @@ export default function AdminPriceMonitor() {
         .from("products")
         .select(PRODUCT_COLS)
         .eq("active", true)
-        .not("promo_price", "is", null)
-        .limit(500);
+        .or("promo_price.not.is.null,lock_base_price.eq.true")
+        .limit(1000);
       return (data || []) as any[];
     },
   });
@@ -92,6 +99,10 @@ export default function AdminPriceMonitor() {
       return prods
         .filter((p) => p.promotion_end && new Date(p.promotion_end).getTime() < Date.now())
         .map((p) => fromProduct(p, "expired_offer"));
+    if (tab === "inconsistent_offer")
+      return prods.filter(isInconsistent).map((p) => fromProduct(p, "inconsistent_offer"));
+    if (tab === "locked_base_price")
+      return prods.filter((p) => p.lock_base_price === true).map((p) => fromProduct(p, "locked_base_price"));
     if (tab === "out_of_stock_offer")
       return prods
         .filter((p) => hasActiveOffer(p) && Number(p.stock ?? 0) <= 0)
@@ -111,6 +122,8 @@ export default function AdminPriceMonitor() {
       active_offers: prods.filter((p) => hasActiveOffer(p)).length,
       expired_offers: prods.filter((p) => p.promotion_end && new Date(p.promotion_end).getTime() < Date.now()).length,
       out_of_stock_offer: prods.filter((p) => hasActiveOffer(p) && Number(p.stock ?? 0) <= 0).length,
+      inconsistent_offer: prods.filter(isInconsistent).length,
+      locked_base_price: prods.filter((p) => p.lock_base_price === true).length,
     } as Record<TabKey, number>;
   }, [history.data, offers.data]);
 
@@ -127,7 +140,8 @@ export default function AdminPriceMonitor() {
         <h1 className="text-2xl font-extrabold">Monitoramento de Preços e Ofertas</h1>
         <p className="text-sm text-muted-foreground">
           Histórico real de alterações de preço (Trier, manual, importação, campanha) e situação das ofertas.
-          Redução de preço <strong>não</strong> significa oferta comercial.
+          Redução de preço <strong>não</strong> significa oferta comercial. Promoções manuais são protegidas;
+          o preço normal continua sincronizando, salvo travas explícitas.
         </p>
       </div>
 
@@ -190,7 +204,9 @@ export default function AdminPriceMonitor() {
                     <td className="p-2 text-xs">{r.source ? SOURCE_LABEL[r.source] || r.source : "—"}</td>
                     <td className="p-2 text-right">{p?.stock ?? "—"}</td>
                     <td className="p-2 text-xs">
-                      {p && hasActiveOffer(p) ? (
+                      {p && isInconsistent(p) ? (
+                        <Badge variant="destructive">Inconsistente</Badge>
+                      ) : p && hasActiveOffer(p) ? (
                         <Badge variant="secondary">Ativa {discountPercentage(p).toFixed(0)}%</Badge>
                       ) : p?.promotion_end && new Date(p.promotion_end).getTime() < Date.now() ? (
                         <Badge variant="outline">Expirada</Badge>
