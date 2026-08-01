@@ -40,7 +40,7 @@ export default function AdminOffers() {
   const removeFromOffer = async (p: any) => {
     if (!confirm(`Remover "${p.name}" das ofertas?`)) return;
     const shelves = (p.shelves || []).filter((s: string) => s !== "ofertas-da-semana");
-    await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves, lock_manual_price: false }).eq("id", p.id);
+    await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves, lock_promotion: false, promotion_source: "none", lock_manual_price: false }).eq("id", p.id);
     qc.invalidateQueries({ queryKey: ["admin_offers"] });
     toast.success("Removido das ofertas");
   };
@@ -54,10 +54,15 @@ export default function AdminOffers() {
       product_badge: editing.product_badge || null,
       on_sale: true,
       shelves,
-      lock_manual_price: true,
+      // Protege APENAS a promoção. O preço normal continua sendo atualizado
+      // pelo sistema da farmácia, salvo trava explícita do admin.
+      lock_promotion: true,
+      promotion_source: "manual",
+      lock_base_price: !!editing.lock_base_price,
+      lock_manual_price: false,
     }).eq("id", editing.id);
     if (error) toast.error(error.message);
-    else { toast.success("Salvo (protegido contra sobrescrita do Trier)"); qc.invalidateQueries({ queryKey: ["admin_offers"] }); setEditing(null); }
+    else { toast.success("Oferta salva — promoção protegida, preço normal continua sincronizando"); qc.invalidateQueries({ queryKey: ["admin_offers"] }); setEditing(null); }
   };
 
   return (
@@ -66,7 +71,7 @@ export default function AdminOffers() {
         <div>
           <h1 className="text-2xl font-extrabold">Ofertas da Semana</h1>
           <p className="text-sm text-muted-foreground">Produtos exibidos na prateleira "Ofertas da Semana" da home.</p>
-          <p className="text-xs text-primary mt-1">🔒 Ao salvar, o produto é travado contra a sincronização automática de preços do Trier (que rodava a cada 15 min e zerava as ofertas).</p>
+          <p className="text-xs text-primary mt-1">🔒 Ao salvar, apenas a PROMOÇÃO fica protegida contra a sincronização do Trier. O preço normal continua sendo atualizado automaticamente (salvo se você travar o preço normal na edição).</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-1" /> Adicionar produto</Button>
@@ -94,6 +99,8 @@ export default function AdminOffers() {
               if (!p.promo_price) alerts.push("Sem preço promocional");
               if (p.promotion_end && new Date(p.promotion_end) < now) alerts.push("Oferta expirada");
               if (p.stock <= 0) alerts.push("Sem estoque");
+              if (p.promo_price != null && p.price != null && Number(p.promo_price) >= Number(p.price)) alerts.push("Promoção inconsistente (promo ≥ preço normal)");
+              if (p.lock_base_price) alerts.push("Preço normal travado");
               return (
                 <tr key={p.id} className="border-t">
                   <td className="p-2 flex items-center gap-2">
@@ -133,6 +140,13 @@ export default function AdminOffers() {
                 <div className="space-y-1"><Label>Início</Label><Input type="datetime-local" value={editing.promotion_start?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_start: e.target.value })} /></div>
                 <div className="space-y-1"><Label>Fim</Label><Input type="datetime-local" value={editing.promotion_end?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_end: e.target.value })} /></div>
               </div>
+              <label className="flex items-start gap-2 text-sm border rounded-lg p-3 bg-secondary/40">
+                <input type="checkbox" className="mt-0.5" checked={!!editing.lock_base_price} onChange={(e) => setEditing({ ...editing, lock_base_price: e.target.checked })} />
+                <span>
+                  <span className="font-medium">Travar também o preço normal</span>
+                  <span className="block text-xs text-muted-foreground">Só marque se este preço base for definido manualmente. Desmarcado (recomendado), o sistema da farmácia continua atualizando o preço normal.</span>
+                </span>
+              </label>
               <div className="space-y-1"><Label>Selo</Label><Input value={editing.product_badge || ""} onChange={(e) => setEditing({ ...editing, product_badge: e.target.value })} placeholder="oferta, leve-mais..." /></div>
               <Button className="w-full" onClick={saveEdit}>Salvar oferta</Button>
             </div>
@@ -152,7 +166,7 @@ export default function AdminOffers() {
               if (!p) { toast.error("Produto não encontrado"); return; }
               const shelves = [...new Set([...(p.shelves || []), "ofertas-da-semana"])];
               const on_sale = p.promo_price != null && Number(p.promo_price) < Number(p.price);
-              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale, lock_manual_price: true }).eq("id", p.id);
+              await supabase.from("products").update({ shelves, on_sale: on_sale || p.on_sale, lock_promotion: true, promotion_source: "manual", lock_manual_price: false }).eq("id", p.id);
               qc.invalidateQueries({ queryKey: ["admin_offers"] });
               toast.success("Produto adicionado às ofertas");
               setAddOpen(false);

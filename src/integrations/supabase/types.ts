@@ -1453,8 +1453,11 @@ export type Database = {
           old_ecommerce_price: number | null
           old_price: number | null
           product_id: string
+          promo_price: number | null
+          promotion_status: string | null
           source: string
           sync_run_id: string | null
+          trier_product_id: string | null
         }
         Insert: {
           change_type: string
@@ -1466,8 +1469,11 @@ export type Database = {
           old_ecommerce_price?: number | null
           old_price?: number | null
           product_id: string
+          promo_price?: number | null
+          promotion_status?: string | null
           source?: string
           sync_run_id?: string | null
+          trier_product_id?: string | null
         }
         Update: {
           change_type?: string
@@ -1479,8 +1485,11 @@ export type Database = {
           old_ecommerce_price?: number | null
           old_price?: number | null
           product_id?: string
+          promo_price?: number | null
+          promotion_status?: string | null
           source?: string
           sync_run_id?: string | null
+          trier_product_id?: string | null
         }
         Relationships: [
           {
@@ -1753,8 +1762,10 @@ export type Database = {
           last_stock_sync_at: string | null
           last_synced_at: string | null
           last_trier_sync_at: string | null
+          lock_base_price: boolean
           lock_manual_price: boolean
           lock_manual_stock: boolean
+          lock_promotion: boolean
           manual_active: boolean
           manual_barcode: boolean
           manual_category: boolean
@@ -1780,6 +1791,7 @@ export type Database = {
           product_badge: string | null
           promo_price: number | null
           promotion_end: string | null
+          promotion_source: string
           promotion_start: string | null
           publish_even_incomplete: boolean
           requires_prescription: boolean
@@ -1853,8 +1865,10 @@ export type Database = {
           last_stock_sync_at?: string | null
           last_synced_at?: string | null
           last_trier_sync_at?: string | null
+          lock_base_price?: boolean
           lock_manual_price?: boolean
           lock_manual_stock?: boolean
+          lock_promotion?: boolean
           manual_active?: boolean
           manual_barcode?: boolean
           manual_category?: boolean
@@ -1880,6 +1894,7 @@ export type Database = {
           product_badge?: string | null
           promo_price?: number | null
           promotion_end?: string | null
+          promotion_source?: string
           promotion_start?: string | null
           publish_even_incomplete?: boolean
           requires_prescription?: boolean
@@ -1953,8 +1968,10 @@ export type Database = {
           last_stock_sync_at?: string | null
           last_synced_at?: string | null
           last_trier_sync_at?: string | null
+          lock_base_price?: boolean
           lock_manual_price?: boolean
           lock_manual_stock?: boolean
+          lock_promotion?: boolean
           manual_active?: boolean
           manual_barcode?: boolean
           manual_category?: boolean
@@ -1980,6 +1997,7 @@ export type Database = {
           product_badge?: string | null
           promo_price?: number | null
           promotion_end?: string | null
+          promotion_source?: string
           promotion_start?: string | null
           publish_even_incomplete?: boolean
           requires_prescription?: boolean

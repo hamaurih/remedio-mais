@@ -587,6 +587,9 @@ type UpsertResult = {
 
 // Campos que a Trier NUNCA deve sobrescrever em produto já existente
 // (campos comerciais/manuais — controlados pelo admin do site).
+// Obs.: promo_price/on_sale/datas NÃO ficam aqui: eles são protegidos de forma
+// condicional (lock_promotion / promotion_source), para que a Trier possa
+// sincronizar promoções próprias quando não houver promoção manual no site.
 const PROTECTED_ALWAYS = new Set<string>([
   "image_url", "gallery_images",
   "slug",
@@ -595,13 +598,15 @@ const PROTECTED_ALWAYS = new Set<string>([
   "featured",
   "shelves",
   "tags",
-  // Promoções são do site, Trier nunca deve mexer:
-  "promo_price", "on_sale", "promotion_start", "promotion_end",
 ]);
 
 // Campos operacionais que a Trier pode atualizar.
 const FIELDS_STOCK = ["stock", "stock_quantity", "trier_stock_quantity", "ecommerce_stock_quantity", "last_stock_sync_at", "trier_active"];
-const FIELDS_PRICE = ["price", "ecommerce_price", "promo_price", "on_sale"];
+// Preço normal/base — atualizado pela Trier salvo trava explícita (lock_base_price).
+const FIELDS_BASE_PRICE = ["price", "ecommerce_price"];
+// Promoção — protegida quando a promoção é manual/campanha (lock_promotion).
+const FIELDS_PROMOTION = ["promo_price", "on_sale", "promotion_start", "promotion_end"];
+const FIELDS_PRICE = [...FIELDS_BASE_PRICE, ...FIELDS_PROMOTION];
 const FIELDS_BARCODE = ["barcode", "trier_barcode"];
 const FIELDS_TECHNICAL = [
   "laboratory", "manufacturer", "laboratory_code",
@@ -648,10 +653,24 @@ function fieldsForMode(mode: SyncMode): Set<string> {
   return base;
 }
 
+// Promoção do site é considerada manual (não pode ser sobrescrita pela Trier)?
+function hasManualPromotion(existing: any): boolean {
+  if (!existing) return false;
+  if (existing.lock_promotion === true) return true;
+  const src = String(existing.promotion_source || "none");
+  if (src === "manual" || src === "campaign") return true;
+  // Compatibilidade com a trava antiga: só protege a PROMOÇÃO, nunca o preço base.
+  if (existing.lock_manual_price === true && existing.promo_price != null) return true;
+  return false;
+}
+
 function manualLocksOf(existing: any): Set<string> {
   const locked = new Set<string>();
   if (!existing) return locked;
-  if (existing.lock_manual_price) FIELDS_PRICE.forEach((f) => locked.add(f));
+  // Preço base: só trava com pedido explícito do admin.
+  if (existing.lock_base_price === true) FIELDS_BASE_PRICE.forEach((f) => locked.add(f));
+  // Promoção: travada quando é promoção manual/campanha do site.
+  if (hasManualPromotion(existing)) FIELDS_PROMOTION.forEach((f) => locked.add(f));
   if (existing.lock_manual_stock) FIELDS_STOCK.forEach((f) => locked.add(f));
   if (existing.manual_image) { locked.add("image_url"); locked.add("gallery_images"); }
   if (existing.manual_description) { locked.add("description"); locked.add("short_description"); }
@@ -710,7 +729,7 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
   if (existing?.archived_at) return { skipped: true, reason: "archived", trier_id: trierId, name };
@@ -849,6 +868,30 @@ async function upsertProductFromTrier(
     }
   }
 
+  // Promoção manual vs. novo preço base da Trier.
+  // Nunca apagamos a promoção: se ela ficou >= preço base, marcamos como
+  // inconsistente e avisamos o admin (o desconto deixa de aparecer no site
+  // porque o cálculo de desconto ignora promo >= preço).
+  let promotionInconsistent = false;
+  if (hasManualPromotion(existing) && existing.promo_price != null && candidate.price != null) {
+    const newBase = Number(candidate.price);
+    const promo = Number(existing.promo_price);
+    if (Number.isFinite(newBase) && Number.isFinite(promo) && newBase > 0 && promo >= newBase) {
+      promotionInconsistent = true;
+      fields_protected.push("promo_price:inconsistente_preco_base_menor");
+      if (!opts.simulate) {
+        await supabase.from("admin_notifications").insert({
+          type: "promotion_inconsistent",
+          title: "Oferta ficou inconsistente",
+          message: `${name || existing.name}: preço promocional (R$ ${promo.toFixed(2)}) ficou maior ou igual ao preço normal atualizado pelo sistema da farmácia (R$ ${newBase.toFixed(2)}). Revise a oferta.`,
+          priority: "high",
+          role_target: "admin",
+          metadata: { product_id: existing.id, promo_price: promo, new_price: newBase, trier_product_id: trierId },
+        });
+      }
+    }
+  }
+
   // Sempre atualizar last_trier_sync_at
   candidate.last_trier_sync_at = mapped.last_trier_sync_at;
 
@@ -895,7 +938,7 @@ async function upsertProductFromTrier(
     product_id: existing.id, trier_product_id: trierId, sync_type: opts.syncType || "update",
     fields_updated, fields_protected, old_values: oldValues, new_values: newValues,
   });
-  return { updated: true, trier_id: trierId, name, fields_updated, fields_protected, barcode_divergence: barcodeDivergence };
+  return { updated: true, trier_id: trierId, name, fields_updated, fields_protected, barcode_divergence: barcodeDivergence, promotion_inconsistent: promotionInconsistent };
 }
 
 // ---------- ACTIONS ----------
@@ -1092,17 +1135,22 @@ async function actionLiveCheck(productIds: string[]) {
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, lock_manual_price, lock_manual_stock")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
     .in("id", ids);
   if (error) return { ok: false, error: error.message };
 
   const now = new Date().toISOString();
   const items = await Promise.all((rows || []).map(async (prod: any) => {
+    // Preço efetivo: só usa promoção quando ela é realmente menor que o preço normal.
+    const effective = (basePrice: number, promo: any) => {
+      const p = promo == null ? null : Number(promo);
+      return p != null && Number.isFinite(p) && p > 0 && p < basePrice ? p : basePrice;
+    };
     const base = {
       product_id: prod.id,
       name: prod.name,
       stock: Number(prod.stock || 0),
-      price: prod.promo_price != null ? Number(prod.promo_price) : Number(prod.price || 0),
+      price: effective(Number(prod.price || 0), prod.promo_price),
       active: prod.active !== false,
       fresh: false,
     };
@@ -1124,11 +1172,11 @@ async function actionLiveCheck(productIds: string[]) {
         patch.active = prod.manual_disabled === true ? false : (prod.trier_active !== false && stock > 0);
         patch.last_stock_sync_at = now;
       }
-      if (!prod.lock_manual_price) {
+      if (prod.lock_base_price !== true) {
         const basePrice = pickPriceNum(t);
         if (basePrice != null && basePrice > 0) {
           patch.price = basePrice;
-          price = prod.promo_price != null ? Number(prod.promo_price) : basePrice;
+          price = effective(basePrice, prod.promo_price);
         }
       }
 

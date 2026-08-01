@@ -203,8 +203,12 @@ export default function AdminProducts() {
         whatsapp_promo_price: toNumOrNull(editing.whatsapp_promo_price),
         use_channel_pricing: !!editing.use_channel_pricing,
         channel_price_notes: editing.channel_price_notes || null,
-        // Trava preço manual: sincronização do Trier não vai sobrescrever depois.
-        lock_manual_price: true,
+        // Travas separadas: a promoção é protegida contra o Trier; o preço normal
+        // continua sincronizando, exceto se o admin travar explicitamente.
+        lock_base_price: !!editing.lock_base_price,
+        lock_promotion: promoNum != null ? true : !!editing.lock_promotion,
+        promotion_source: promoNum != null ? (editing.promotion_source && editing.promotion_source !== "none" ? editing.promotion_source : "manual") : "none",
+        lock_manual_price: false,
       };
       delete payload.categories;
       delete payload.category_display_name; // vem da RPC admin_products_list (alias do JOIN)
@@ -420,6 +424,27 @@ export default function AdminProducts() {
             </TabsContent>
 
             <TabsContent value="price" className="space-y-3 pt-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="flex items-start gap-2 text-sm border rounded-lg p-3 bg-secondary/40">
+                  <input type="checkbox" className="mt-0.5" checked={!!editing.lock_base_price} onChange={(e) => setEditing({ ...editing, lock_base_price: e.target.checked })} />
+                  <span>
+                    <span className="font-medium">Travar preço normal</span>
+                    <span className="block text-xs text-muted-foreground">Impede o sistema da farmácia de atualizar o preço normal. Deixe desmarcado para manter o preço sempre sincronizado.</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm border rounded-lg p-3 bg-secondary/40">
+                  <input type="checkbox" className="mt-0.5" checked={editing.promo_price != null ? true : !!editing.lock_promotion} disabled={editing.promo_price != null} onChange={(e) => setEditing({ ...editing, lock_promotion: e.target.checked })} />
+                  <span>
+                    <span className="font-medium">Proteger promoção</span>
+                    <span className="block text-xs text-muted-foreground">Promoções manuais nunca são apagadas pela sincronização. Ativado automaticamente quando há preço promocional.</span>
+                  </span>
+                </label>
+              </div>
+              {editing.promo_price != null && Number(editing.promo_price) >= Number(editing.price || 0) && Number(editing.price || 0) > 0 && (
+                <div className="text-xs rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-3">
+                  Promoção inconsistente: o preço promocional está maior ou igual ao preço normal. O desconto não aparece no site até você corrigir.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>Preço normal (R$) *</Label><Input type="number" step="0.01" value={editing.price} onChange={(e) => setEditing({ ...editing, price: e.target.value })} /></div>
                 <div className="space-y-1"><Label>Preço promocional (R$)</Label><Input type="number" step="0.01" value={editing.promo_price ?? ""} onChange={(e) => setEditing({ ...editing, promo_price: e.target.value || null })} /></div>
