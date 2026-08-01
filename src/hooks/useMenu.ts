@@ -34,7 +34,7 @@ export interface MenuItem {
 
 export const PAGE_KEYS: { key: string; label: string; path: string }[] = [
   { key: "home", label: "Home", path: "/" },
-  { key: "offers", label: "Ofertas", path: "/categoria/ofertas" },
+  { key: "offers", label: "Melhores Ofertas", path: "/melhores-ofertas" },
   { key: "medicamentos", label: "Medicamentos", path: "/categoria/medicamentos" },
   { key: "genericos", label: "Genéricos", path: "/categoria/genericos" },
   { key: "send_prescription", label: "Enviar Receita", path: "/enviar-receita" },

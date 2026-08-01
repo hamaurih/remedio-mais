@@ -22,6 +22,7 @@ const items: Item[] = [
   { to: "/admin/promo-banner", label: "Faixa Promo (5 blocos)", icon: Tag, roles: ["admin"] },
   { to: "/admin/campanhas", label: "Campanhas", icon: Megaphone, roles: ["admin"] },
   { to: "/admin/ofertas", label: "Ofertas", icon: Tag, roles: ["admin"] },
+  { to: "/admin/monitor-precos", label: "Preços e Ofertas", icon: Activity, roles: ["admin"] },
   { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
