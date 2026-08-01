@@ -43,6 +43,8 @@ import AdminHomeLayout from "./pages/admin/AdminHomeLayout.tsx";
 import AdminHomeShelves from "./pages/admin/AdminHomeShelves.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import Campaign from "./pages/Campaign.tsx";
+import Collection from "./pages/Collection.tsx";
+import AdminPriceMonitor from "./pages/admin/AdminPriceMonitor.tsx";
 import Checkout from "./pages/Checkout.tsx";
 import PixPayment from "./pages/PixPayment.tsx";
 import OrderReturn from "./pages/OrderReturn.tsx";
@@ -83,6 +85,14 @@ const App = () => (
           <Route path="/departamento/:slug" element={<Department />} />
           <Route path="/produto/:slug" element={<Product />} />
           <Route path="/campanha/:slug" element={<Campaign />} />
+          <Route path="/ofertas" element={<Collection slug="ofertas-da-semana" />} />
+          <Route path="/melhores-ofertas" element={<Collection slug="melhores-ofertas" />} />
+          <Route path="/medicamentos-populares" element={<Collection slug="medicamentos-populares" />} />
+          <Route path="/mais-vendidos" element={<Collection slug="mais-vendidos" />} />
+          <Route path="/novidades" element={<Collection slug="novidades" />} />
+          <Route path="/preco-reduzido" element={<Collection slug="preco-reduzido" />} />
+          <Route path="/genericos-em-oferta" element={<Collection slug="genericos-em-oferta" />} />
+          <Route path="/colecao/:slug" element={<Collection />} />
           <Route path="/carrinho" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/pedido/pix/:orderId" element={<PixPayment />} />
@@ -119,6 +129,7 @@ const App = () => (
             <Route path="vitrines" element={<AdminHomeShelves />} />
             <Route path="campanhas" element={<AdminCampaigns />} />
             <Route path="ofertas" element={<AdminOffers />} />
+            <Route path="monitor-precos" element={<AdminPriceMonitor />} />
             <Route path="pedidos" element={<AdminOrders />} />
             <Route path="pagamentos" element={<AdminPayments />} />
             <Route path="receitas" element={<AdminPrescriptions />} />

@@ -1442,6 +1442,56 @@ export type Database = {
         }
         Relationships: []
       }
+      product_price_history: {
+        Row: {
+          change_type: string
+          changed_at: string
+          created_at: string
+          id: string
+          new_ecommerce_price: number | null
+          new_price: number | null
+          old_ecommerce_price: number | null
+          old_price: number | null
+          product_id: string
+          source: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          change_type: string
+          changed_at?: string
+          created_at?: string
+          id?: string
+          new_ecommerce_price?: number | null
+          new_price?: number | null
+          old_ecommerce_price?: number | null
+          old_price?: number | null
+          product_id: string
+          source?: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          change_type?: string
+          changed_at?: string
+          created_at?: string
+          id?: string
+          new_ecommerce_price?: number | null
+          new_price?: number | null
+          old_ecommerce_price?: number | null
+          old_price?: number | null
+          product_id?: string
+          source?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_related: {
         Row: {
           created_at: string
@@ -2312,6 +2362,13 @@ export type Database = {
         Row: {
           address: string | null
           afe: string | null
+          best_offers_auto_price_drop: boolean
+          best_offers_limit: number
+          best_offers_subtitle: string | null
+          best_offers_theme: string
+          best_offers_title: string
+          bestsellers_limit: number
+          bestsellers_period_days: number
           cnpj: string | null
           contact_email: string | null
           crf: string | null
@@ -2347,6 +2404,13 @@ export type Database = {
         Insert: {
           address?: string | null
           afe?: string | null
+          best_offers_auto_price_drop?: boolean
+          best_offers_limit?: number
+          best_offers_subtitle?: string | null
+          best_offers_theme?: string
+          best_offers_title?: string
+          bestsellers_limit?: number
+          bestsellers_period_days?: number
           cnpj?: string | null
           contact_email?: string | null
           crf?: string | null
@@ -2382,6 +2446,13 @@ export type Database = {
         Update: {
           address?: string | null
           afe?: string | null
+          best_offers_auto_price_drop?: boolean
+          best_offers_limit?: number
+          best_offers_subtitle?: string | null
+          best_offers_theme?: string
+          best_offers_title?: string
+          bestsellers_limit?: number
+          bestsellers_period_days?: number
           cnpj?: string | null
           contact_email?: string | null
           crf?: string | null
@@ -3094,6 +3165,23 @@ export type Database = {
         Args: { _months_without_sale?: number }
         Returns: Json
       }
+      admin_bestsellers_diagnostic: {
+        Args: { _days?: number; _limit?: number }
+        Returns: {
+          active: boolean
+          hidden_reason: string
+          orders_count: number
+          price: number
+          product_id: string
+          product_name: string
+          rank_position: number
+          revenue: number
+          stock: number
+          trier_code: string
+          units: number
+          visible: boolean
+        }[]
+      }
       admin_invite_seller: { Args: { _email: string }; Returns: Json }
       admin_list_sellers: {
         Args: never
@@ -3127,6 +3215,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      public_bestsellers: {
+        Args: { _days?: number; _limit?: number }
+        Returns: {
+          last_sale_at: string
+          orders_count: number
+          product_id: string
+          revenue: number
+          units: number
+        }[]
       }
     }
     Enums: {

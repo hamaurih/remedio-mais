@@ -45,7 +45,7 @@ const FALLBACK: MosaicTile[] = [
     subtitle: "Até 40% OFF em itens selecionados",
     badge_text: "Promoção",
     cta_text: "Ver agora",
-    link: "/categoria/ofertas",
+    link: "/melhores-ofertas",
     image_url: null,
     bg_style: "soft-pink",
     active: true,

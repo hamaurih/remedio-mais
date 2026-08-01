@@ -4,12 +4,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard, Product } from "./ProductCard";
 import { cn } from "@/lib/utils";
 
-export type ShelfBg = "white" | "light" | "red-soft";
+export type ShelfBg = "white" | "light" | "red-soft" | "highlight";
 
 const BG_CLASS: Record<ShelfBg, string> = {
   white: "bg-background",
   light: "bg-secondary/40",
   "red-soft": "bg-primary/5",
+  highlight: "bg-highlight text-highlight-foreground",
 };
 
 export interface ProductShelfProps {

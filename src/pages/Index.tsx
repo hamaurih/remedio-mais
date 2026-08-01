@@ -19,6 +19,7 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useEffect, useRef, useState } from "react";
 import type { Product as ProductType } from "@/components/ProductCard";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
+import { fetchBestsellers, fetchCollectionProducts } from "@/lib/collections";
 
 function Reveal({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -113,49 +114,27 @@ export default function Index() {
       return (recent.data || []) as Product[];
     },
   });
+  // Ranking automático por unidades realmente vendidas (função do banco)
+  const bestsellerDays = Number((settings as any)?.bestsellers_period_days ?? 30);
+  const bestsellerLimit = Number((settings as any)?.bestsellers_limit ?? 12);
   const bestsellers = useQuery({
-    queryKey: ["shelf_bestsellers"],
-    queryFn: async () => {
-      // 0) curadoria manual
-      const manual = await manualShelf("mais-vendidos");
-      if (manual) return manual;
-      // 1) Ordem manual definida no admin (bestseller_rank)
-      const ranked = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).gt("stock", 0).gt("price", 0)
-        .not("bestseller_rank", "is", null)
-        .order("bestseller_rank", { ascending: true })
-        .limit(12);
-      if (ranked.data && ranked.data.length > 0) return ranked.data as Product[];
-      // 2) Fallback antigo: tag de prateleira
-      const t = await shelfBy("mais-vendidos")();
-      if (t) return t;
-      // 3) Fallback: destaques
-      const feat = await fetchShelf((q) => q.eq("featured", true).gt("price", 0))();
-      if (feat.length > 0) return feat;
-      // 4) último fallback: recém atualizados
-      const { data } = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).gt("stock", 0).gt("price", 0)
-        .order("updated_at", { ascending: false })
-        .limit(12);
-      return (data || []) as Product[];
-    },
+    queryKey: ["shelf_bestsellers", bestsellerDays, bestsellerLimit],
+    queryFn: async () => await fetchBestsellers(bestsellerDays, bestsellerLimit),
   });
+
+  // Melhores Ofertas: elegibilidade comercial (oferta/campanha/curadoria), ordenada por desconto
+  const bestOffers = useQuery({
+    queryKey: ["shelf_best_offers", (settings as any)?.best_offers_limit, (settings as any)?.best_offers_auto_price_drop],
+    queryFn: async () =>
+      await fetchCollectionProducts("melhores-ofertas", {
+        limit: Number((settings as any)?.best_offers_limit ?? 12),
+        autoPriceDrop: (settings as any)?.best_offers_auto_price_drop ?? false,
+      }),
+  });
+
   const meds = useQuery({
     queryKey: ["shelf_meds"],
-    queryFn: async () => {
-      const manual = await manualShelf("medicamentos-populares");
-      if (manual) return manual;
-      const t = await shelfBy("medicamentos-populares")();
-      if (t) return t;
-      const { data: cat } = await supabase.from("categories").select("id").eq("slug", "medicamentos").maybeSingle();
-      if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
-      return (data || []) as Product[];
-    },
+    queryFn: async () => await fetchCollectionProducts("medicamentos-populares", { limit: 12, bestsellerDays: 90 }),
   });
   const hygiene = useQuery({
     queryKey: ["shelf_hygiene"],
@@ -213,9 +192,10 @@ export default function Index() {
   });
 
   const shelfSections: Record<string, React.ReactNode> = {
-    shelf_offers: <Reveal><ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/categoria/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay /></Reveal>,
-    shelf_bestsellers: <Reveal><ProductShelf title="Mais Vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" /></Reveal>,
-    shelf_meds: <Reveal><ProductShelf title="Medicamentos Populares" viewAllLink="/categoria/medicamentos" products={meds.data} loading={meds.isLoading} backgroundVariant="white" /></Reveal>,
+    shelf_offers: <Reveal><ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay /></Reveal>,
+    shelf_best_offers: <Reveal><ProductShelf title={(settings as any)?.best_offers_title || "Melhores Ofertas"} subtitle={(settings as any)?.best_offers_subtitle || "Os maiores descontos da loja"} badge="Melhor preço" viewAllLink="/melhores-ofertas" products={bestOffers.data} loading={bestOffers.isLoading} backgroundVariant="highlight" /></Reveal>,
+    shelf_bestsellers: <Reveal><ProductShelf title="Mais Vendidos" subtitle={`Ranking por unidades vendidas (últimos ${bestsellerDays} dias)`} viewAllLink="/mais-vendidos" products={bestsellers.data} loading={bestsellers.isLoading} backgroundVariant="light" /></Reveal>,
+    shelf_meds: <Reveal><ProductShelf title="Medicamentos Populares" viewAllLink="/medicamentos-populares" products={meds.data} loading={meds.isLoading} backgroundVariant="white" /></Reveal>,
     shelf_hygiene: <Reveal><ProductShelf title="Higiene e Beleza" viewAllLink="/categoria/higiene-pessoal" products={hygiene.data} loading={hygiene.isLoading} backgroundVariant="light" /></Reveal>,
     shelf_babies: <Reveal><ProductShelf title="Mamães e Bebês" viewAllLink="/categoria/mamaes-e-bebes" products={babies.data} loading={babies.isLoading} backgroundVariant="white" /></Reveal>,
     shelf_vitamins: <Reveal><ProductShelf title="Vitaminas e Suplementos" viewAllLink="/categoria/vitaminas" products={vitamins.data} loading={vitamins.isLoading} backgroundVariant="light" /></Reveal>,
