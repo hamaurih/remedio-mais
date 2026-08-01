@@ -868,6 +868,30 @@ async function upsertProductFromTrier(
     }
   }
 
+  // Promoção manual vs. novo preço base da Trier.
+  // Nunca apagamos a promoção: se ela ficou >= preço base, marcamos como
+  // inconsistente e avisamos o admin (o desconto deixa de aparecer no site
+  // porque o cálculo de desconto ignora promo >= preço).
+  let promotionInconsistent = false;
+  if (hasManualPromotion(existing) && existing.promo_price != null && candidate.price != null) {
+    const newBase = Number(candidate.price);
+    const promo = Number(existing.promo_price);
+    if (Number.isFinite(newBase) && Number.isFinite(promo) && newBase > 0 && promo >= newBase) {
+      promotionInconsistent = true;
+      fields_protected.push("promo_price:inconsistente_preco_base_menor");
+      if (!opts.simulate) {
+        await supabase.from("admin_notifications").insert({
+          type: "promotion_inconsistent",
+          title: "Oferta ficou inconsistente",
+          message: `${name || existing.name}: preço promocional (R$ ${promo.toFixed(2)}) ficou maior ou igual ao preço normal atualizado pelo sistema da farmácia (R$ ${newBase.toFixed(2)}). Revise a oferta.`,
+          priority: "high",
+          role_target: "admin",
+          metadata: { product_id: existing.id, promo_price: promo, new_price: newBase, trier_product_id: trierId },
+        });
+      }
+    }
+  }
+
   // Sempre atualizar last_trier_sync_at
   candidate.last_trier_sync_at = mapped.last_trier_sync_at;
 
