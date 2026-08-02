@@ -5,7 +5,7 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { CategoryNav } from "./CategoryNav";
 import { SearchAutocomplete } from "./SearchAutocomplete";
-import logoRed from "@/assets/logo-red.png";
+import logoRed from "@/assets/logo-red.webp";
 
 export function Header() {
   const cart = useCart();
@@ -23,6 +23,10 @@ export function Header() {
             <img
               src={logoRed}
               alt="Farmácia Atacadão dos Medicamentos"
+              width={364}
+              height={64}
+              decoding="async"
+              {...({ fetchpriority: "high" } as any)}
               className="h-12 md:h-16 w-auto object-contain"
               onError={(e) => {
                 const t = e.currentTarget;
