@@ -23,6 +23,10 @@ export function Header() {
             <img
               src={logoRed}
               alt="Farmácia Atacadão dos Medicamentos"
+              width={364}
+              height={64}
+              decoding="async"
+              {...({ fetchpriority: "high" } as any)}
               className="h-12 md:h-16 w-auto object-contain"
               onError={(e) => {
                 const t = e.currentTarget;
