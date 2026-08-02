@@ -80,6 +80,10 @@ export function ProductCard({ p }: { p: Product }) {
           src={p.image_url || productPlaceholder}
           alt={p.name}
           loading="lazy"
+          decoding="async"
+          width={300}
+          height={300}
+          sizes="(max-width: 768px) 45vw, 250px"
           className="w-full h-full object-contain p-2 md:p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
         />
         {badge && (

@@ -5,7 +5,7 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { CategoryNav } from "./CategoryNav";
 import { SearchAutocomplete } from "./SearchAutocomplete";
-import logoRed from "@/assets/logo-red.png";
+import logoRed from "@/assets/logo-red.webp";
 
 export function Header() {
   const cart = useCart();

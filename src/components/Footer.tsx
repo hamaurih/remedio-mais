@@ -3,7 +3,7 @@ import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
 import { buildWhatsAppLink } from "@/lib/store";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
-import logoRed from "@/assets/logo-red.png";
+import logoRed from "@/assets/logo-red.webp";
 
 function renderFooterLinks(items: MenuItem[], fallback: { label: string; href: string }[]) {
   const list = items.length > 0
@@ -73,7 +73,7 @@ export function Footer() {
       <div className="container py-10 grid gap-10 md:grid-cols-12">
         {/* Marca + endereço */}
         <div className="md:col-span-4 space-y-4">
-          <img src={logoRed} alt="Atacadão dos Medicamentos" className="h-12 w-auto object-contain" />
+          <img src={logoRed} alt="Atacadão dos Medicamentos" width={273} height={48} loading="lazy" decoding="async" className="h-12 w-auto object-contain" />
           <p className="text-sm text-muted-foreground leading-relaxed">
             Farmácia em Campina Grande - PB. Atendimento humano, preço justo e regularidade sanitária.
           </p>
