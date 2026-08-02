@@ -20,6 +20,7 @@ type TabKey =
   | "expired_offers"
   | "out_of_stock_offer"
   | "inconsistent_offer"
+  | "changed_in_offer"
   | "locked_base_price";
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -31,6 +32,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "promotion_ended", label: "Saíram da oferta" },
   { key: "expired_offers", label: "Ofertas expiradas" },
   { key: "out_of_stock_offer", label: "Sem estoque em oferta" },
+  { key: "changed_in_offer", label: "Mudou de preço em oferta" },
   { key: "inconsistent_offer", label: "Ofertas inconsistentes" },
   { key: "locked_base_price", label: "Preço normal travado" },
 ];
@@ -99,6 +101,13 @@ export default function AdminPriceMonitor() {
       return prods
         .filter((p) => p.promotion_end && new Date(p.promotion_end).getTime() < Date.now())
         .map((p) => fromProduct(p, "expired_offer"));
+    if (tab === "changed_in_offer")
+      return hist.filter(
+        (h) =>
+          (h.change_type === "decrease" || h.change_type === "increase") &&
+          h.products &&
+          hasActiveOffer(h.products),
+      );
     if (tab === "inconsistent_offer")
       return prods.filter(isInconsistent).map((p) => fromProduct(p, "inconsistent_offer"));
     if (tab === "locked_base_price")
@@ -122,6 +131,9 @@ export default function AdminPriceMonitor() {
       active_offers: prods.filter((p) => hasActiveOffer(p)).length,
       expired_offers: prods.filter((p) => p.promotion_end && new Date(p.promotion_end).getTime() < Date.now()).length,
       out_of_stock_offer: prods.filter((p) => hasActiveOffer(p) && Number(p.stock ?? 0) <= 0).length,
+      changed_in_offer: hist.filter(
+        (h) => (h.change_type === "decrease" || h.change_type === "increase") && h.products && hasActiveOffer(h.products),
+      ).length,
       inconsistent_offer: prods.filter(isInconsistent).length,
       locked_base_price: prods.filter((p) => p.lock_base_price === true).length,
     } as Record<TabKey, number>;
