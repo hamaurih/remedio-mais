@@ -274,6 +274,7 @@ export default function Index() {
     department_carousel: <Reveal><DepartmentCarousel /></Reveal>,
     product_shelves: shelvesBlock,
     ...shelfSections,
+    ...customSections,
     prescription_cta: <Reveal><PrescriptionCTA /></Reveal>,
     google_rating: <Reveal><GoogleRatingBlock /></Reveal>,
     location: locationBlock,
@@ -288,10 +289,12 @@ export default function Index() {
     "campaign_shelf",
     "department_carousel",
     ...shelfKeys,
+    ...Object.keys(customSections),
     "prescription_cta",
     "google_rating",
     "location",
   ];
+
   const order = layout && layout.length > 0
     ? layout.map((r) => r.section_key)
     : defaultOrder;
