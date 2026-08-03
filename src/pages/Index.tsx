@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Product } from "@/components/ProductCard";
-import { ProductShelf } from "@/components/ProductShelf";
+import { ProductShelf, type ShelfBg } from "@/components/ProductShelf";
+import { customShelfSectionKey, type CustomShelf } from "@/hooks/useCustomShelves";
+
 import { HeroPromoCarousel } from "@/components/HeroPromoCarousel";
 import { PromoBanner as PromoMiniBannerRow } from "@/components/PromoBanner";
 import { PromoMosaic } from "@/components/PromoMosaic";
@@ -191,6 +193,25 @@ export default function Index() {
     },
   });
 
+  // Vitrines personalizadas criadas em Admin > Vitrines da Home
+  const customShelves = useQuery({
+    queryKey: ["home_custom_shelves_with_products"],
+    queryFn: async () => {
+      const { data: defs } = await (supabase as any)
+        .from("home_custom_shelves")
+        .select("*")
+        .eq("active", true)
+        .order("created_at");
+      const list = (defs || []) as CustomShelf[];
+      const out: (CustomShelf & { products: Product[] })[] = [];
+      for (const d of list) {
+        const items = await manualShelf(d.shelf_key);
+        out.push({ ...d, products: (items || []).slice(0, d.max_items || 12) });
+      }
+      return out;
+    },
+  });
+
   const shelfSections: Record<string, React.ReactNode> = {
     shelf_offers: <Reveal><ProductShelf title="Ofertas da Semana" subtitle="Promoções por tempo limitado" badge="Oferta" viewAllLink="/ofertas" products={offers.data} loading={offers.isLoading} backgroundVariant="red-soft" autoplay /></Reveal>,
     shelf_best_offers: <Reveal><ProductShelf title={(settings as any)?.best_offers_title || "Melhores Ofertas"} subtitle={(settings as any)?.best_offers_subtitle || "Os maiores descontos da loja"} badge="Melhor preço" viewAllLink="/melhores-ofertas" products={bestOffers.data} loading={bestOffers.isLoading} backgroundVariant="highlight" /></Reveal>,
@@ -201,8 +222,27 @@ export default function Index() {
     shelf_vitamins: <Reveal><ProductShelf title="Vitaminas e Suplementos" viewAllLink="/categoria/vitaminas" products={vitamins.data} loading={vitamins.isLoading} backgroundVariant="light" /></Reveal>,
     shelf_firstaid: <Reveal><ProductShelf title="Primeiros Socorros" viewAllLink="/categoria/primeiros-socorros" products={firstaid.data} loading={firstaid.isLoading} backgroundVariant="white" /></Reveal>,
   };
+
+  const customSections: Record<string, React.ReactNode> = {};
+  (customShelves.data || []).forEach((s) => {
+    if (s.products.length === 0) return;
+    customSections[customShelfSectionKey(s.shelf_key)] = (
+      <Reveal>
+        <ProductShelf
+          title={s.title}
+          subtitle={s.subtitle || undefined}
+          badge={s.badge || undefined}
+          viewAllLink={s.view_all_link || undefined}
+          products={s.products}
+          backgroundVariant={(s.background_variant || "white") as ShelfBg}
+        />
+      </Reveal>
+    );
+  });
+
   const shelfKeys = Object.keys(shelfSections);
-  const shelvesBlock = <>{shelfKeys.map((k) => <div key={k}>{shelfSections[k]}</div>)}</>;
+  const shelvesBlock = <>{[...shelfKeys, ...Object.keys(customSections)].map((k) => <div key={k}>{shelfSections[k] ?? customSections[k]}</div>)}</>;
+
 
 
   const locationBlock = (
@@ -234,6 +274,7 @@ export default function Index() {
     department_carousel: <Reveal><DepartmentCarousel /></Reveal>,
     product_shelves: shelvesBlock,
     ...shelfSections,
+    ...customSections,
     prescription_cta: <Reveal><PrescriptionCTA /></Reveal>,
     google_rating: <Reveal><GoogleRatingBlock /></Reveal>,
     location: locationBlock,
@@ -248,10 +289,12 @@ export default function Index() {
     "campaign_shelf",
     "department_carousel",
     ...shelfKeys,
+    ...Object.keys(customSections),
     "prescription_cta",
     "google_rating",
     "location",
   ];
+
   const order = layout && layout.length > 0
     ? layout.map((r) => r.section_key)
     : defaultOrder;

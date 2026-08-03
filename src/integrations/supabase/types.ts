@@ -598,6 +598,48 @@ export type Database = {
         }
         Relationships: []
       }
+      home_custom_shelves: {
+        Row: {
+          active: boolean
+          background_variant: string
+          badge: string | null
+          created_at: string
+          id: string
+          max_items: number
+          shelf_key: string
+          subtitle: string | null
+          title: string
+          updated_at: string
+          view_all_link: string | null
+        }
+        Insert: {
+          active?: boolean
+          background_variant?: string
+          badge?: string | null
+          created_at?: string
+          id?: string
+          max_items?: number
+          shelf_key: string
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+          view_all_link?: string | null
+        }
+        Update: {
+          active?: boolean
+          background_variant?: string
+          badge?: string | null
+          created_at?: string
+          id?: string
+          max_items?: number
+          shelf_key?: string
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+          view_all_link?: string | null
+        }
+        Relationships: []
+      }
       home_layout: {
         Row: {
           created_at: string
