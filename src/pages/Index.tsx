@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Product } from "@/components/ProductCard";
-import { ProductShelf } from "@/components/ProductShelf";
+import { ProductShelf, type ShelfBg } from "@/components/ProductShelf";
+import { customShelfSectionKey, type CustomShelf } from "@/hooks/useCustomShelves";
+
 import { HeroPromoCarousel } from "@/components/HeroPromoCarousel";
 import { PromoBanner as PromoMiniBannerRow } from "@/components/PromoBanner";
 import { PromoMosaic } from "@/components/PromoMosaic";
