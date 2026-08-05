@@ -729,7 +729,7 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, discount_percentage, on_sale, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
   if (existing?.archived_at) return { skipped: true, reason: "archived", trier_id: trierId, name };
@@ -869,14 +869,36 @@ async function upsertProductFromTrier(
   }
 
   // Promoção manual vs. novo preço base da Trier.
-  // Nunca apagamos a promoção: se ela ficou >= preço base, marcamos como
-  // inconsistente e avisamos o admin (o desconto deixa de aparecer no site
-  // porque o cálculo de desconto ignora promo >= preço).
+  // A trava de promoção protege a BASE DE DESCONTO (%), não o valor fixo:
+  // se a Trier atualizar o preço normal, o preço promocional é recalculado
+  // mantendo o mesmo percentual de desconto definido no site.
   let promotionInconsistent = false;
   if (hasManualPromotion(existing) && existing.promo_price != null && candidate.price != null) {
     const newBase = Number(candidate.price);
+    const oldBase = Number(existing.price ?? 0);
     const promo = Number(existing.promo_price);
-    if (Number.isFinite(newBase) && Number.isFinite(promo) && newBase > 0 && promo >= newBase) {
+
+    // Percentual protegido: o cadastrado no site ou, na falta dele, o derivado
+    // do preço normal anterior.
+    let pct = Number(existing.discount_percentage ?? 0);
+    if (!(pct > 0 && pct < 100) && oldBase > 0 && promo > 0 && promo < oldBase) {
+      pct = ((oldBase - promo) / oldBase) * 100;
+    }
+
+    if (Number.isFinite(newBase) && newBase > 0 && pct > 0 && pct < 100) {
+      const recalculated = Math.round(newBase * (1 - pct / 100) * 100) / 100;
+      if (recalculated > 0 && recalculated < newBase) {
+        candidate.promo_price = recalculated;
+        candidate.on_sale = true;
+        if (recalculated !== promo) {
+          fields_updated.push("promo_price");
+          oldValues.promo_price = promo;
+          newValues.promo_price = recalculated;
+        }
+        fields_protected.push(`promo_price:desconto_${pct.toFixed(2)}%_recalculado`);
+      }
+    } else if (Number.isFinite(newBase) && newBase > 0 && promo >= newBase) {
+      // Sem percentual utilizável e promoção acima do novo preço normal: avisa o admin.
       promotionInconsistent = true;
       fields_protected.push("promo_price:inconsistente_preco_base_menor");
       if (!opts.simulate) {
