@@ -436,7 +436,7 @@ export default function AdminProducts() {
                   <input type="checkbox" className="mt-0.5" checked={editing.promo_price != null ? true : !!editing.lock_promotion} disabled={editing.promo_price != null} onChange={(e) => setEditing({ ...editing, lock_promotion: e.target.checked })} />
                   <span>
                     <span className="font-medium">Proteger promoção</span>
-                    <span className="block text-xs text-muted-foreground">Promoções manuais nunca são apagadas pela sincronização. Ativado automaticamente quando há preço promocional.</span>
+                    <span className="block text-xs text-muted-foreground">Protege a <strong>base de desconto (%)</strong>: se o sistema da farmácia mudar o preço normal, o preço promocional é recalculado mantendo o mesmo percentual. A oferta nunca é apagada pela sincronização.</span>
                   </span>
                 </label>
               </div>
