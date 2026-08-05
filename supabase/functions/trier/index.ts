@@ -869,14 +869,36 @@ async function upsertProductFromTrier(
   }
 
   // Promoção manual vs. novo preço base da Trier.
-  // Nunca apagamos a promoção: se ela ficou >= preço base, marcamos como
-  // inconsistente e avisamos o admin (o desconto deixa de aparecer no site
-  // porque o cálculo de desconto ignora promo >= preço).
+  // A trava de promoção protege a BASE DE DESCONTO (%), não o valor fixo:
+  // se a Trier atualizar o preço normal, o preço promocional é recalculado
+  // mantendo o mesmo percentual de desconto definido no site.
   let promotionInconsistent = false;
   if (hasManualPromotion(existing) && existing.promo_price != null && candidate.price != null) {
     const newBase = Number(candidate.price);
+    const oldBase = Number(existing.price ?? 0);
     const promo = Number(existing.promo_price);
-    if (Number.isFinite(newBase) && Number.isFinite(promo) && newBase > 0 && promo >= newBase) {
+
+    // Percentual protegido: o cadastrado no site ou, na falta dele, o derivado
+    // do preço normal anterior.
+    let pct = Number(existing.discount_percentage ?? 0);
+    if (!(pct > 0 && pct < 100) && oldBase > 0 && promo > 0 && promo < oldBase) {
+      pct = ((oldBase - promo) / oldBase) * 100;
+    }
+
+    if (Number.isFinite(newBase) && newBase > 0 && pct > 0 && pct < 100) {
+      const recalculated = Math.round(newBase * (1 - pct / 100) * 100) / 100;
+      if (recalculated > 0 && recalculated < newBase) {
+        candidate.promo_price = recalculated;
+        candidate.on_sale = true;
+        if (recalculated !== promo) {
+          fields_updated.push("promo_price");
+          oldValues.promo_price = promo;
+          newValues.promo_price = recalculated;
+        }
+        fields_protected.push(`promo_price:desconto_${pct.toFixed(2)}%_recalculado`);
+      }
+    } else if (Number.isFinite(newBase) && newBase > 0 && promo >= newBase) {
+      // Sem percentual utilizável e promoção acima do novo preço normal: avisa o admin.
       promotionInconsistent = true;
       fields_protected.push("promo_price:inconsistente_preco_base_menor");
       if (!opts.simulate) {
