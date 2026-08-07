@@ -35,6 +35,10 @@ export function updateQty(id: string, qty: number) {
   save(items);
 }
 
+export function updateItemPrice(id: string, price: number) {
+  save(getCart().map((i) => (i.id === id ? { ...i, price } : i)));
+}
+
 export function removeFromCart(id: string) {
   save(getCart().filter((i) => i.id !== id));
 }
