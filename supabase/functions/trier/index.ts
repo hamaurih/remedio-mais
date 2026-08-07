@@ -740,7 +740,7 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, discount_percentage, on_sale, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, archived_at")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, discount_percentage, on_sale, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, force_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
   if (existing?.archived_at) return { skipped: true, reason: "archived", trier_id: trierId, name };
@@ -1074,7 +1074,7 @@ async function applyStockPage(items: any[]) {
 
   const { data: existingRows, error: existingErr } = await supabase
     .from("products")
-    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, lock_manual_stock")
+    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, force_active, archived_at, lock_manual_stock")
     .is("archived_at", null)
     .in("trier_product_id", codes);
 
@@ -1172,7 +1172,7 @@ async function actionLiveCheck(productIds: string[]) {
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, archived_at, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, force_active, archived_at, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
     .in("id", ids);
   if (error) return { ok: false, error: error.message };
 
@@ -1247,7 +1247,7 @@ async function actionSyncStockSingle(productId: string) {
 
   const { data: prod, error: prodErr } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, force_active, archived_at")
     .eq("id", productId)
     .maybeSingle();
   if (prodErr) return { ok: false, error: `Erro ao ler produto: ${prodErr.message}` };
@@ -1333,7 +1333,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, last_stock_sync_at")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, force_active, archived_at, last_stock_sync_at")
     .eq("active", true)
     .is("archived_at", null)
     .or("barcode.not.is.null,trier_barcode.not.is.null")
@@ -2064,7 +2064,7 @@ async function actionSyncStock(trigger = "manual") {
 
       const { data: rows, count, error } = await supabase
         .from("products")
-        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, lock_manual_stock", { count: "exact" })
+        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, force_active, archived_at, lock_manual_stock", { count: "exact" })
         .is("archived_at", null)
         .not("trier_product_id", "is", null)
         .order("id", { ascending: true })

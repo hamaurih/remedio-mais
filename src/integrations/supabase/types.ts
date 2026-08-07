@@ -1790,6 +1790,7 @@ export type Database = {
           ecommerce_price: number | null
           ecommerce_stock_quantity: number | null
           featured: boolean
+          force_active: boolean
           gallery_images: string[]
           generic_equivalent_id: string | null
           group_code: string | null
@@ -1893,6 +1894,7 @@ export type Database = {
           ecommerce_price?: number | null
           ecommerce_stock_quantity?: number | null
           featured?: boolean
+          force_active?: boolean
           gallery_images?: string[]
           generic_equivalent_id?: string | null
           group_code?: string | null
@@ -1996,6 +1998,7 @@ export type Database = {
           ecommerce_price?: number | null
           ecommerce_stock_quantity?: number | null
           featured?: boolean
+          force_active?: boolean
           gallery_images?: string[]
           generic_equivalent_id?: string | null
           group_code?: string | null
