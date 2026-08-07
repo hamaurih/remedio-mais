@@ -12,6 +12,7 @@ const sb = supabase as any;
 
 type TabKey =
   | "all"
+  | "trier_adjust"
   | "decrease"
   | "increase"
   | "promotion_started"
@@ -25,6 +26,7 @@ type TabKey =
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "Todos" },
+  { key: "trier_adjust", label: "Reajustes do Trier (7d)" },
   { key: "decrease", label: "Preço reduzido" },
   { key: "increase", label: "Preço aumentado" },
   { key: "promotion_started", label: "Entraram em oferta" },
@@ -36,6 +38,14 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "inconsistent_offer", label: "Ofertas inconsistentes" },
   { key: "locked_base_price", label: "Preço normal travado" },
 ];
+
+const SEVEN_DAYS = 7 * 86400000;
+const isTrierAdjust = (h: any, sinceMs = SEVEN_DAYS) =>
+  h?.source === "trier" &&
+  (h.change_type === "increase" || h.change_type === "decrease") &&
+  h.changed_at != null &&
+  Date.now() - new Date(h.changed_at).getTime() <= sinceMs;
+
 
 const isInconsistent = (p: any) =>
   p?.promo_price != null && Number(p.price ?? 0) > 0 && Number(p.promo_price) >= Number(p.price);
@@ -93,9 +103,11 @@ export default function AdminPriceMonitor() {
     });
 
     if (tab === "all") return hist;
+    if (tab === "trier_adjust") return hist.filter((h) => isTrierAdjust(h));
     if (tab === "decrease" || tab === "increase" || tab === "promotion_started" || tab === "promotion_ended") {
       return hist.filter((h) => h.change_type === tab);
     }
+
     if (tab === "active_offers") return prods.filter((p) => hasActiveOffer(p)).map((p) => fromProduct(p, "active_offer"));
     if (tab === "expired_offers")
       return prods
@@ -124,7 +136,9 @@ export default function AdminPriceMonitor() {
     const prods = offers.data || [];
     return {
       all: hist.length,
+      trier_adjust: hist.filter((h) => isTrierAdjust(h)).length,
       decrease: hist.filter((h) => h.change_type === "decrease").length,
+
       increase: hist.filter((h) => h.change_type === "increase").length,
       promotion_started: hist.filter((h) => h.change_type === "promotion_started").length,
       promotion_ended: hist.filter((h) => h.change_type === "promotion_ended").length,
@@ -144,6 +158,12 @@ export default function AdminPriceMonitor() {
       ? "price"
       : "price";
 
+  const trier24h = useMemo(
+    () => (history.data || []).filter((h) => isTrierAdjust(h, 86400000)),
+    [history.data],
+  );
+  const trier7d = counts.trier_adjust ?? 0;
+
   const loading = history.isLoading || offers.isLoading;
 
   return (
@@ -156,6 +176,21 @@ export default function AdminPriceMonitor() {
           o preço normal continua sincronizando, salvo travas explícitas.
         </p>
       </div>
+
+      {trier7d > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-500/10 p-3">
+          <span className="rounded bg-amber-500 text-white text-[10px] font-bold px-2 py-1">REAJUSTE TRIER</span>
+          <p className="text-sm">
+            <strong>{trier24h.length}</strong> produto(s) tiveram reajuste de preço pelo Trier nas últimas 24h ·{" "}
+            <strong>{trier7d}</strong> nos últimos 7 dias.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setTab("trier_adjust")}>
+            Ver produtos reajustados
+          </Button>
+        </div>
+      )}
+
+
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <TabsList className="flex flex-wrap h-auto">
