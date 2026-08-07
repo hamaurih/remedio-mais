@@ -134,11 +134,49 @@ export default function AdminProducts() {
   });
 
 
+  const isAdjustFilter = statusFilter.startsWith("readjusted");
+  const adjustIds = useMemo(() => Object.keys(trierAdjust || {}), [trierAdjust]);
+
+  // Produtos reajustados pelo Trier (7d) — filtro dedicado, paginado no cliente
+  const { data: adjustedRows = [] } = useQuery({
+    queryKey: ["admin_products_readjusted", adjustIds.length, statusFilter],
+    enabled: isAdjustFilter && adjustIds.length > 0,
+    queryFn: async () => {
+      const out: any[] = [];
+      for (let i = 0; i < adjustIds.length; i += 300) {
+        const chunk = adjustIds.slice(i, i + 300);
+        const { data, error } = await (supabase as any)
+          .from("products")
+          .select("*, categories(name)")
+          .in("id", chunk);
+        if (error) throw error;
+        out.push(...(data || []));
+      }
+      return out;
+    },
+    staleTime: 60_000,
+  });
+
   // Local-only refinement for "low stock" (needs minimum_stock comparison)
   const filtered = useMemo(() => {
+    if (isAdjustFilter) {
+      const term = search.trim().toLowerCase();
+      return adjustedRows.filter((p: any) => {
+        const adj = (trierAdjust as Record<string, any>)[p.id];
+        if (!adj) return false;
+        const diff = Number(adj.new_price ?? 0) - Number(adj.old_price ?? 0);
+        if (statusFilter === "readjusted_up" && diff <= 0) return false;
+        if (statusFilter === "readjusted_down" && diff >= 0) return false;
+        if (catFilter !== "all" && p.category_id !== catFilter) return false;
+        if (manuFilter !== "all" && p.manufacturer !== manuFilter) return false;
+        if (term && !`${p.name ?? ""} ${p.barcode ?? ""} ${p.sku ?? ""}`.toLowerCase().includes(term)) return false;
+        return true;
+      });
+    }
     if (statusFilter !== "low") return products;
     return products.filter((p: any) => p.stock <= (p.minimum_stock ?? 5));
-  }, [products, statusFilter]);
+  }, [products, statusFilter, isAdjustFilter, adjustedRows, trierAdjust, search, catFilter, manuFilter]);
+
 
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
