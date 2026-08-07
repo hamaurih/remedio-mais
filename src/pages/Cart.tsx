@@ -90,7 +90,9 @@ export default function Cart() {
                   <GenericLine key={`${i.id}-${tick}`} item={i} onSwapped={() => setTick((t) => t + 1)} />
                 </div>
               ))}
+              </div>
             </div>
+
 
             <aside className="bg-card border rounded-xl p-5 h-fit shadow-card space-y-4">
               <div className="flex justify-between text-lg">
