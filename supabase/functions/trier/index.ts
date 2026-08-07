@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { shouldProductBeActive } from "../_shared/availability.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -564,9 +565,9 @@ function mapProduct(t: any, stockSource: StockSource = "loja") {
     is_active: isActive,
     trier_active: isActive,
     ecommerce_enabled: ecomEnabled,
-    // Regra: produto fica ativo no site apenas se ativo na Trier E tem estoque > 0.
-    // (manual_disabled é aplicado no upsert, após ler o registro existente.)
-    active: isActive && stockSite > 0,
+    // Regra única (shouldProductBeActive): estoque > 0 e sem bloqueio.
+    // manual_disabled/archived_at são aplicados no upsert, ao ler o registro existente.
+    active: shouldProductBeActive({ stock_quantity: stockSite, trier_active: isActive }),
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
@@ -744,8 +745,8 @@ async function upsertProductFromTrier(
   delete mapped._stock_ecom;
   delete mapped.discount_percentage;
 
-  // Aplica manual_disabled: nunca exibe no site se o admin desativou manualmente.
-  if (existing?.manual_disabled === true) {
+  // Bloqueios do registro existente (manual_disabled / arquivado / inativo no Trier).
+  if (existing && !shouldProductBeActive({ ...existing, stock_quantity: mapped.stock_quantity ?? mapped.stock, trier_active: mapped.trier_active })) {
     mapped.active = false;
   }
 
@@ -1063,7 +1064,7 @@ async function applyStockPage(items: any[]) {
 
   const { data: existingRows, error: existingErr } = await supabase
     .from("products")
-    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock")
+    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, lock_manual_stock")
     .is("archived_at", null)
     .in("trier_product_id", codes);
 
@@ -1098,7 +1099,7 @@ async function applyStockPage(items: any[]) {
 
     const stockReal = pickStoreStockOnly(item);
     const stockSite = stockReal ?? 0;
-    const nextActive = existing.manual_disabled === true ? false : (existing.trier_active !== false && stockSite > 0);
+    const nextActive = shouldProductBeActive({ ...existing, stock_quantity: stockSite });
 
     const changed =
       existing.stock !== stockSite ||
@@ -1157,7 +1158,7 @@ async function actionLiveCheck(productIds: string[]) {
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, archived_at, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
     .in("id", ids);
   if (error) return { ok: false, error: error.message };
 
@@ -1191,7 +1192,7 @@ async function actionLiveCheck(productIds: string[]) {
         patch.stock = stock;
         patch.stock_quantity = stock;
         patch.trier_stock_quantity = stockReal;
-        patch.active = prod.manual_disabled === true ? false : (prod.trier_active !== false && stock > 0);
+        patch.active = shouldProductBeActive({ ...prod, stock_quantity: stock });
         patch.last_stock_sync_at = now;
       }
       if (prod.lock_base_price !== true) {
@@ -1227,7 +1228,7 @@ async function actionSyncStockSingle(productId: string) {
 
   const { data: prod, error: prodErr } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at")
     .eq("id", productId)
     .maybeSingle();
   if (prodErr) return { ok: false, error: `Erro ao ler produto: ${prodErr.message}` };
@@ -1263,7 +1264,7 @@ async function actionSyncStockSingle(productId: string) {
   const trierId = pickCode(match);
   const stockReal = pickStoreStockOnly(match);
   const stockSite = stockReal ?? 0;
-  const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+  const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
   const now = new Date().toISOString();
 
   // Manual: sobrescreve lock_manual_stock — o admin pediu atualização explícita.
@@ -1310,7 +1311,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, last_stock_sync_at")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, last_stock_sync_at")
     .eq("active", true)
     .is("archived_at", null)
     .or("barcode.not.is.null,trier_barcode.not.is.null")
@@ -1346,7 +1347,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
       const trierId = pickCode(match);
       const stockReal = pickStoreStockOnly(match);
       const stockSite = stockReal ?? 0;
-      const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+      const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
       const patch: any = {
         stock: stockSite,
         stock_quantity: stockSite,
@@ -1454,7 +1455,7 @@ async function syncLocalStockBatch(s: Settings, products: any[], start: number, 
 
       const stockReal = pickStoreStockOnly(found.item);
       const stockSite = stockReal ?? 0;
-      const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+      const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
       const now = new Date().toISOString();
       const changed =
         Number(prod.stock ?? 0) !== stockSite ||
@@ -2038,7 +2039,7 @@ async function actionSyncStock(trigger = "manual") {
 
       const { data: rows, count, error } = await supabase
         .from("products")
-        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock", { count: "exact" })
+        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, lock_manual_stock", { count: "exact" })
         .is("archived_at", null)
         .not("trier_product_id", "is", null)
         .order("id", { ascending: true })
