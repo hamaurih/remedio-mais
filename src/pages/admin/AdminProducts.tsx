@@ -326,7 +326,14 @@ export default function AdminProducts() {
                     {low && <AlertTriangle className="inline h-3 w-3 mr-1" />}{p.stock}
                   </td>
                   <td className="p-3 text-xs">{(p.shelves || []).length} {onSale && <span className="ml-1 bg-primary text-primary-foreground px-1.5 py-0.5 rounded text-[10px]">OFERTA</span>}</td>
-                  <td className="p-3">{p.active ? <span className="text-whatsapp text-xs font-semibold">Ativo</span> : <span className="text-muted-foreground text-xs">Inativo</span>}</td>
+                  <td className="p-3">
+                    {(() => {
+                      const st = productAvailabilityStatus(p);
+                      return st.available
+                        ? <span className="text-whatsapp text-xs font-semibold">Disponível</span>
+                        : <span className="text-muted-foreground text-xs">{st.label}</span>;
+                    })()}
+                  </td>
                   <td className="p-3 text-right whitespace-nowrap">
                     <Button size="icon" variant="ghost" onClick={() => toggleActive(p)} title={p.active ? "Desativar" : "Ativar"}><Power className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => openEdit(p)}><Edit className="h-4 w-4" /></Button>
