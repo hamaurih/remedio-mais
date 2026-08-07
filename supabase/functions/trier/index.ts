@@ -1228,7 +1228,7 @@ async function actionSyncStockSingle(productId: string) {
 
   const { data: prod, error: prodErr } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at")
     .eq("id", productId)
     .maybeSingle();
   if (prodErr) return { ok: false, error: `Erro ao ler produto: ${prodErr.message}` };
