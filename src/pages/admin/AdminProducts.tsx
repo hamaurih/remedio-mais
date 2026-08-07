@@ -177,6 +177,10 @@ export default function AdminProducts() {
     return products.filter((p: any) => p.stock <= (p.minimum_stock ?? 5));
   }, [products, statusFilter, isAdjustFilter, adjustedRows, trierAdjust, search, catFilter, manuFilter]);
 
+  const effTotal = isAdjustFilter ? filtered.length : totalCount;
+  const effTotalPages = Math.max(1, Math.ceil(effTotal / pageSize));
+  const pageRows = isAdjustFilter ? filtered.slice((page - 1) * pageSize, page * pageSize) : filtered;
+
 
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
