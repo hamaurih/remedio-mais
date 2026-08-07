@@ -7,6 +7,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
+import { CartLiveAlert } from "@/components/CartLiveAlert";
 import { toast } from "sonner";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
