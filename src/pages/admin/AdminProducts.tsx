@@ -335,14 +335,28 @@ export default function AdminProducts() {
             {filtered.map((p: any) => {
               const low = p.stock <= (p.minimum_stock ?? 5);
               const onSale = p.on_sale || p.promo_price;
+              const adj = (trierAdjust as Record<string, any>)[p.id];
+              const adjDiff = adj ? Number(adj.new_price ?? 0) - Number(adj.old_price ?? 0) : 0;
+              const adjPct = adj && Number(adj.old_price ?? 0) > 0 ? (adjDiff / Number(adj.old_price)) * 100 : 0;
               return (
-                <tr key={p.id} className="border-t hover:bg-secondary/40">
+                <tr key={p.id} className={`border-t hover:bg-secondary/40 ${adj ? "bg-amber-50/60 dark:bg-amber-500/5" : ""}`}>
                   <td className="p-2">{p.image_url ? <img src={p.image_url} alt="" className="w-10 h-10 object-contain rounded border" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
-                  <td className="p-3 font-medium max-w-[220px]">{p.name}</td>
+                  <td className="p-3 font-medium max-w-[220px]">
+                    {p.name}
+                    {adj && (
+                      <span
+                        title={`Reajuste do Trier em ${new Date(adj.changed_at).toLocaleString("pt-BR")}: ${formatBRL(adj.old_price)} → ${formatBRL(adj.new_price)}`}
+                        className="ml-2 inline-flex items-center gap-1 rounded bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 align-middle"
+                      >
+                        REAJUSTE {adjDiff > 0 ? "▲" : "▼"} {Math.abs(adjPct).toFixed(0)}%
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3 text-muted-foreground">{p.categories?.name || "—"}</td>
                   <td className="p-3 text-muted-foreground">{p.manufacturer || "—"}</td>
                   <td className="p-3">{formatBRL(p.price)}</td>
                   <td className="p-3">{p.promo_price ? <span className="text-primary font-bold">{formatBRL(p.promo_price)}</span> : "—"}</td>
+
                   <td className={`p-3 font-semibold ${low ? "text-primary" : ""}`}>
                     {low && <AlertTriangle className="inline h-3 w-3 mr-1" />}{p.stock}
                   </td>
