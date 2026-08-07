@@ -12,6 +12,7 @@ const sb = supabase as any;
 
 type TabKey =
   | "all"
+  | "trier_adjust"
   | "decrease"
   | "increase"
   | "promotion_started"
@@ -25,6 +26,7 @@ type TabKey =
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "Todos" },
+  { key: "trier_adjust", label: "Reajustes do Trier (7d)" },
   { key: "decrease", label: "Preço reduzido" },
   { key: "increase", label: "Preço aumentado" },
   { key: "promotion_started", label: "Entraram em oferta" },
@@ -36,6 +38,14 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "inconsistent_offer", label: "Ofertas inconsistentes" },
   { key: "locked_base_price", label: "Preço normal travado" },
 ];
+
+const SEVEN_DAYS = 7 * 86400000;
+const isTrierAdjust = (h: any, sinceMs = SEVEN_DAYS) =>
+  h?.source === "trier" &&
+  (h.change_type === "increase" || h.change_type === "decrease") &&
+  h.changed_at != null &&
+  Date.now() - new Date(h.changed_at).getTime() <= sinceMs;
+
 
 const isInconsistent = (p: any) =>
   p?.promo_price != null && Number(p.price ?? 0) > 0 && Number(p.promo_price) >= Number(p.price);
