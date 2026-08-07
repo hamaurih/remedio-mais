@@ -136,7 +136,9 @@ export default function AdminPriceMonitor() {
     const prods = offers.data || [];
     return {
       all: hist.length,
+      trier_adjust: hist.filter((h) => isTrierAdjust(h)).length,
       decrease: hist.filter((h) => h.change_type === "decrease").length,
+
       increase: hist.filter((h) => h.change_type === "increase").length,
       promotion_started: hist.filter((h) => h.change_type === "promotion_started").length,
       promotion_ended: hist.filter((h) => h.change_type === "promotion_ended").length,
