@@ -7,6 +7,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
+import { CartLiveAlert } from "@/components/CartLiveAlert";
 import { toast } from "sonner";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
@@ -65,7 +66,9 @@ export default function Cart() {
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_360px] gap-6">
-            <div className="space-y-3">
+            <div>
+              <CartLiveAlert items={items} />
+              <div className="space-y-3">
               {items.map((i) => (
                 <div key={i.id} className="bg-card border rounded-xl p-3 shadow-card">
                   <div className="flex gap-3 items-center">
@@ -87,7 +90,9 @@ export default function Cart() {
                   <GenericLine key={`${i.id}-${tick}`} item={i} onSwapped={() => setTick((t) => t + 1)} />
                 </div>
               ))}
+              </div>
             </div>
+
 
             <aside className="bg-card border rounded-xl p-5 h-fit shadow-card space-y-4">
               <div className="flex justify-between text-lg">
