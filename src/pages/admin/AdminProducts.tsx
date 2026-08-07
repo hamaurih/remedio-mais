@@ -96,7 +96,6 @@ export default function AdminProducts() {
   });
   const products = productsResp?.rows || [];
   const totalCount = productsResp?.count || 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const { data: cats } = useQuery({
     queryKey: ["admin_cats_list"],
