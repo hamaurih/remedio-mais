@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS force_active boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_products_force_active ON public.products(force_active) WHERE force_active = true;
