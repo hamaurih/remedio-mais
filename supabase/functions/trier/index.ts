@@ -745,8 +745,8 @@ async function upsertProductFromTrier(
   delete mapped._stock_ecom;
   delete mapped.discount_percentage;
 
-  // Aplica manual_disabled: nunca exibe no site se o admin desativou manualmente.
-  if (existing?.manual_disabled === true) {
+  // Bloqueios do registro existente (manual_disabled / arquivado / inativo no Trier).
+  if (existing && !shouldProductBeActive({ ...existing, stock_quantity: mapped.stock_quantity ?? mapped.stock, trier_active: mapped.trier_active })) {
     mapped.active = false;
   }
 
