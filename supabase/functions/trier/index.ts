@@ -1064,7 +1064,7 @@ async function applyStockPage(items: any[]) {
 
   const { data: existingRows, error: existingErr } = await supabase
     .from("products")
-    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock")
+    .select("id, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, lock_manual_stock")
     .is("archived_at", null)
     .in("trier_product_id", codes);
 
@@ -1158,7 +1158,7 @@ async function actionLiveCheck(productIds: string[]) {
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, price, promo_price, active, manual_disabled, trier_active, archived_at, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock")
     .in("id", ids);
   if (error) return { ok: false, error: error.message };
 
@@ -1311,7 +1311,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
 
   const { data: rows, error } = await supabase
     .from("products")
-    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, last_stock_sync_at")
+    .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, last_stock_sync_at")
     .eq("active", true)
     .is("archived_at", null)
     .or("barcode.not.is.null,trier_barcode.not.is.null")
@@ -2039,7 +2039,7 @@ async function actionSyncStock(trigger = "manual") {
 
       const { data: rows, count, error } = await supabase
         .from("products")
-        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, lock_manual_stock", { count: "exact" })
+        .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, archived_at, lock_manual_stock", { count: "exact" })
         .is("archived_at", null)
         .not("trier_product_id", "is", null)
         .order("id", { ascending: true })
