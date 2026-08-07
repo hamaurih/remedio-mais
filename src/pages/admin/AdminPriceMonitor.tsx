@@ -103,9 +103,11 @@ export default function AdminPriceMonitor() {
     });
 
     if (tab === "all") return hist;
+    if (tab === "trier_adjust") return hist.filter((h) => isTrierAdjust(h));
     if (tab === "decrease" || tab === "increase" || tab === "promotion_started" || tab === "promotion_ended") {
       return hist.filter((h) => h.change_type === tab);
     }
+
     if (tab === "active_offers") return prods.filter((p) => hasActiveOffer(p)).map((p) => fromProduct(p, "active_offer"));
     if (tab === "expired_offers")
       return prods
