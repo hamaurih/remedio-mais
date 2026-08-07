@@ -158,6 +158,12 @@ export default function AdminPriceMonitor() {
       ? "price"
       : "price";
 
+  const trier24h = useMemo(
+    () => (history.data || []).filter((h) => isTrierAdjust(h, 86400000)),
+    [history.data],
+  );
+  const trier7d = counts.trier_adjust ?? 0;
+
   const loading = history.isLoading || offers.isLoading;
 
   return (
@@ -170,6 +176,21 @@ export default function AdminPriceMonitor() {
           o preço normal continua sincronizando, salvo travas explícitas.
         </p>
       </div>
+
+      {trier7d > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-400/60 bg-amber-50 dark:bg-amber-500/10 p-3">
+          <span className="rounded bg-amber-500 text-white text-[10px] font-bold px-2 py-1">REAJUSTE TRIER</span>
+          <p className="text-sm">
+            <strong>{trier24h.length}</strong> produto(s) tiveram reajuste de preço pelo Trier nas últimas 24h ·{" "}
+            <strong>{trier7d}</strong> nos últimos 7 dias.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setTab("trier_adjust")}>
+            Ver produtos reajustados
+          </Button>
+        </div>
+      )}
+
+
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <TabsList className="flex flex-wrap h-auto">
