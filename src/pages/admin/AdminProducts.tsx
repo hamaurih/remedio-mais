@@ -114,6 +114,26 @@ export default function AdminProducts() {
     },
   });
 
+  // Reajustes de preço vindos do Trier nos últimos 7 dias (para sinalizar na lista)
+  const { data: trierAdjust = {} } = useQuery({
+    queryKey: ["recent_trier_price_changes"],
+    queryFn: async () => {
+      const since = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { data } = await (supabase as any)
+        .from("product_price_history")
+        .select("product_id,old_price,new_price,changed_at,change_type,source")
+        .eq("source", "trier")
+        .gte("changed_at", since)
+        .order("changed_at", { ascending: false })
+        .limit(3000);
+      const map: Record<string, any> = {};
+      (data || []).forEach((r: any) => { if (r.product_id && !map[r.product_id]) map[r.product_id] = r; });
+      return map as Record<string, any>;
+    },
+    staleTime: 60_000,
+  });
+
+
   // Local-only refinement for "low stock" (needs minimum_stock comparison)
   const filtered = useMemo(() => {
     if (statusFilter !== "low") return products;
