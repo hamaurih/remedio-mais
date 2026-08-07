@@ -472,6 +472,16 @@ function pickActive(t: any): boolean {
   return true;
 }
 
+// Igual a pickActive, mas devolve null quando o payload NÃO traz o campo "ativo".
+// Usado nos syncs rápidos (estoque/live-check) para atualizar trier_active sem
+// congelar o produto num "Inativo no Trier" antigo quando a Trier já reativou.
+function pickActiveMaybe(t: any): boolean | null {
+  const raw = t?.ativo ?? t?.situacao ?? t?.produtoAtivo;
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (raw === false || raw === "false" || raw === 0 || raw === "0" || raw === "N" || raw === "n") return false;
+  return true;
+}
+
 function mapProduct(t: any, stockSource: StockSource = "loja") {
   const code = pickCode(t);
   const name = pickName(t);
@@ -1099,12 +1109,15 @@ async function applyStockPage(items: any[]) {
 
     const stockReal = pickStoreStockOnly(item);
     const stockSite = stockReal ?? 0;
-    const nextActive = shouldProductBeActive({ ...existing, stock_quantity: stockSite });
+    const freshTrierActive = pickActiveMaybe(item);
+    const trierActive = freshTrierActive ?? existing.trier_active;
+    const nextActive = shouldProductBeActive({ ...existing, stock_quantity: stockSite, trier_active: trierActive });
 
     const changed =
       existing.stock !== stockSite ||
       existing.stock_quantity !== stockSite ||
       existing.trier_stock_quantity !== stockReal ||
+      (freshTrierActive !== null && existing.trier_active !== freshTrierActive) ||
       existing.active !== nextActive;
 
     if (!changed) {
@@ -1118,6 +1131,7 @@ async function applyStockPage(items: any[]) {
       stock: stockSite,
       stock_quantity: stockSite,
       trier_stock_quantity: stockReal,
+      trier_active: trierActive,
       active: nextActive,
       last_stock_sync_at: now,
       last_trier_sync_at: now,
@@ -1186,14 +1200,19 @@ async function actionLiveCheck(productIds: string[]) {
       let stock = base.stock;
       let price = base.price;
 
+      const freshTrierActive = pickActiveMaybe(t);
+      const trierActive = freshTrierActive ?? prod.trier_active;
+      if (freshTrierActive !== null) patch.trier_active = freshTrierActive;
       if (!prod.lock_manual_stock) {
         const stockReal = pickStoreStockOnly(t);
         stock = stockReal ?? 0;
         patch.stock = stock;
         patch.stock_quantity = stock;
         patch.trier_stock_quantity = stockReal;
-        patch.active = shouldProductBeActive({ ...prod, stock_quantity: stock });
+        patch.active = shouldProductBeActive({ ...prod, stock_quantity: stock, trier_active: trierActive });
         patch.last_stock_sync_at = now;
+      } else if (freshTrierActive !== null) {
+        patch.active = shouldProductBeActive({ ...prod, trier_active: trierActive });
       }
       if (prod.lock_base_price !== true) {
         const basePrice = pickPriceNum(t);
@@ -1264,7 +1283,9 @@ async function actionSyncStockSingle(productId: string) {
   const trierId = pickCode(match);
   const stockReal = pickStoreStockOnly(match);
   const stockSite = stockReal ?? 0;
-  const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
+  const freshTrierActive = pickActiveMaybe(match);
+  const trierActive = freshTrierActive ?? prod.trier_active;
+  const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite, trier_active: trierActive });
   const now = new Date().toISOString();
 
   // Manual: sobrescreve lock_manual_stock — o admin pediu atualização explícita.
@@ -1272,6 +1293,7 @@ async function actionSyncStockSingle(productId: string) {
     stock: stockSite,
     stock_quantity: stockSite,
     trier_stock_quantity: stockReal,
+    trier_active: trierActive,
     active: nextActive,
     last_stock_sync_at: now,
     last_trier_sync_at: now,
@@ -1347,11 +1369,14 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
       const trierId = pickCode(match);
       const stockReal = pickStoreStockOnly(match);
       const stockSite = stockReal ?? 0;
-      const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
+      const freshTrierActive = pickActiveMaybe(match);
+      const trierActive = freshTrierActive ?? prod.trier_active;
+      const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite, trier_active: trierActive });
       const patch: any = {
         stock: stockSite,
         stock_quantity: stockSite,
         trier_stock_quantity: stockReal,
+        trier_active: trierActive,
         active: nextActive,
         last_stock_sync_at: now(),
         last_trier_sync_at: now(),
