@@ -390,6 +390,7 @@ export default function AdminProducts() {
             <SelectItem value="inactive">Inativos</SelectItem>
             <SelectItem value="sale">Em oferta</SelectItem>
             <SelectItem value="low">Estoque baixo</SelectItem>
+            <SelectItem value="negative_stock">Estoque negativo (&lt; 0)</SelectItem>
             <SelectItem value="stock_inactive">Stock&gt;0 mas inativos</SelectItem>
             <SelectItem value="no_barcode_stock">Sem EAN + stock&gt;0</SelectItem>
             <SelectItem value="no_image_stock">Sem imagem + stock&gt;0</SelectItem>
