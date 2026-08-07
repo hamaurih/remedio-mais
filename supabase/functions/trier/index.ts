@@ -565,9 +565,9 @@ function mapProduct(t: any, stockSource: StockSource = "loja") {
     is_active: isActive,
     trier_active: isActive,
     ecommerce_enabled: ecomEnabled,
-    // Regra: produto fica ativo no site apenas se ativo na Trier E tem estoque > 0.
-    // (manual_disabled é aplicado no upsert, após ler o registro existente.)
-    active: isActive && stockSite > 0,
+    // Regra única (shouldProductBeActive): estoque > 0 e sem bloqueio.
+    // manual_disabled/archived_at são aplicados no upsert, ao ler o registro existente.
+    active: shouldProductBeActive({ stock_quantity: stockSite, trier_active: isActive }),
     max_discount_percentage: t.percentualDescontoMax != null ? Number(t.percentualDescontoMax) : null,
     sale_observation: [t.observacaoVenda, ...obs].filter(Boolean).join(" · ") || null,
     medicine_list_type: tarja,
