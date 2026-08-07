@@ -66,7 +66,9 @@ export default function Cart() {
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_360px] gap-6">
-            <div className="space-y-3">
+            <div>
+              <CartLiveAlert items={items} />
+              <div className="space-y-3">
               {items.map((i) => (
                 <div key={i.id} className="bg-card border rounded-xl p-3 shadow-card">
                   <div className="flex gap-3 items-center">
