@@ -1098,7 +1098,7 @@ async function applyStockPage(items: any[]) {
 
     const stockReal = pickStoreStockOnly(item);
     const stockSite = stockReal ?? 0;
-    const nextActive = existing.manual_disabled === true ? false : (existing.trier_active !== false && stockSite > 0);
+    const nextActive = shouldProductBeActive({ ...existing, stock_quantity: stockSite });
 
     const changed =
       existing.stock !== stockSite ||
@@ -1191,7 +1191,7 @@ async function actionLiveCheck(productIds: string[]) {
         patch.stock = stock;
         patch.stock_quantity = stock;
         patch.trier_stock_quantity = stockReal;
-        patch.active = prod.manual_disabled === true ? false : (prod.trier_active !== false && stock > 0);
+        patch.active = shouldProductBeActive({ ...prod, stock_quantity: stock });
         patch.last_stock_sync_at = now;
       }
       if (prod.lock_base_price !== true) {
@@ -1263,7 +1263,7 @@ async function actionSyncStockSingle(productId: string) {
   const trierId = pickCode(match);
   const stockReal = pickStoreStockOnly(match);
   const stockSite = stockReal ?? 0;
-  const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+  const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
   const now = new Date().toISOString();
 
   // Manual: sobrescreve lock_manual_stock — o admin pediu atualização explícita.
@@ -1346,7 +1346,7 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
       const trierId = pickCode(match);
       const stockReal = pickStoreStockOnly(match);
       const stockSite = stockReal ?? 0;
-      const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+      const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
       const patch: any = {
         stock: stockSite,
         stock_quantity: stockSite,
@@ -1454,7 +1454,7 @@ async function syncLocalStockBatch(s: Settings, products: any[], start: number, 
 
       const stockReal = pickStoreStockOnly(found.item);
       const stockSite = stockReal ?? 0;
-      const nextActive = prod.manual_disabled === true ? false : (prod.trier_active !== false && stockSite > 0);
+      const nextActive = shouldProductBeActive({ ...prod, stock_quantity: stockSite });
       const now = new Date().toISOString();
       const changed =
         Number(prod.stock ?? 0) !== stockSite ||
