@@ -96,7 +96,6 @@ export default function AdminProducts() {
   });
   const products = productsResp?.rows || [];
   const totalCount = productsResp?.count || 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const { data: cats } = useQuery({
     queryKey: ["admin_cats_list"],
@@ -134,11 +133,53 @@ export default function AdminProducts() {
   });
 
 
+  const isAdjustFilter = statusFilter.startsWith("readjusted");
+  const adjustIds = useMemo(() => Object.keys(trierAdjust || {}), [trierAdjust]);
+
+  // Produtos reajustados pelo Trier (7d) — filtro dedicado, paginado no cliente
+  const { data: adjustedRows = [] } = useQuery({
+    queryKey: ["admin_products_readjusted", adjustIds.length, statusFilter],
+    enabled: isAdjustFilter && adjustIds.length > 0,
+    queryFn: async () => {
+      const out: any[] = [];
+      for (let i = 0; i < adjustIds.length; i += 300) {
+        const chunk = adjustIds.slice(i, i + 300);
+        const { data, error } = await (supabase as any)
+          .from("products")
+          .select("*, categories(name)")
+          .in("id", chunk);
+        if (error) throw error;
+        out.push(...(data || []));
+      }
+      return out;
+    },
+    staleTime: 60_000,
+  });
+
   // Local-only refinement for "low stock" (needs minimum_stock comparison)
   const filtered = useMemo(() => {
+    if (isAdjustFilter) {
+      const term = search.trim().toLowerCase();
+      return adjustedRows.filter((p: any) => {
+        const adj = (trierAdjust as Record<string, any>)[p.id];
+        if (!adj) return false;
+        const diff = Number(adj.new_price ?? 0) - Number(adj.old_price ?? 0);
+        if (statusFilter === "readjusted_up" && diff <= 0) return false;
+        if (statusFilter === "readjusted_down" && diff >= 0) return false;
+        if (catFilter !== "all" && p.category_id !== catFilter) return false;
+        if (manuFilter !== "all" && p.manufacturer !== manuFilter) return false;
+        if (term && !`${p.name ?? ""} ${p.barcode ?? ""} ${p.sku ?? ""}`.toLowerCase().includes(term)) return false;
+        return true;
+      });
+    }
     if (statusFilter !== "low") return products;
     return products.filter((p: any) => p.stock <= (p.minimum_stock ?? 5));
-  }, [products, statusFilter]);
+  }, [products, statusFilter, isAdjustFilter, adjustedRows, trierAdjust, search, catFilter, manuFilter]);
+
+  const effTotal = isAdjustFilter ? filtered.length : totalCount;
+  const effTotalPages = Math.max(1, Math.ceil(effTotal / pageSize));
+  const pageRows = isAdjustFilter ? filtered.slice((page - 1) * pageSize, page * pageSize) : filtered;
+
 
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
@@ -318,6 +359,9 @@ export default function AdminProducts() {
             <SelectItem value="stock_inactive">Stock&gt;0 mas inativos</SelectItem>
             <SelectItem value="no_barcode_stock">Sem EAN + stock&gt;0</SelectItem>
             <SelectItem value="no_image_stock">Sem imagem + stock&gt;0</SelectItem>
+            <SelectItem value="readjusted">Reajuste do Trier (7d)</SelectItem>
+            <SelectItem value="readjusted_up">Reajuste ▲ (aumentou)</SelectItem>
+            <SelectItem value="readjusted_down">Reajuste ▼ (baixou)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -332,7 +376,7 @@ export default function AdminProducts() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p: any) => {
+            {pageRows.map((p: any) => {
               const low = p.stock <= (p.minimum_stock ?? 5);
               const onSale = p.on_sale || p.promo_price;
               const adj = (trierAdjust as Record<string, any>)[p.id];
@@ -377,15 +421,15 @@ export default function AdminProducts() {
                 </tr>
               );
             })}
-            {filtered.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nenhum produto encontrado.</td></tr>}
+            {pageRows.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nenhum produto encontrado.</td></tr>}
           </tbody>
         </table>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
         <div className="text-sm text-muted-foreground">
-          {totalCount > 0 ? (
-            <>Mostrando <strong>{(page - 1) * pageSize + 1}</strong>–<strong>{Math.min(page * pageSize, totalCount)}</strong> de <strong>{totalCount}</strong> produtos</>
+          {effTotal > 0 ? (
+            <>Mostrando <strong>{(page - 1) * pageSize + 1}</strong>–<strong>{Math.min(page * pageSize, effTotal)}</strong> de <strong>{effTotal}</strong> produtos</>
           ) : "Sem resultados"}
         </div>
         <div className="flex items-center gap-2">
@@ -398,9 +442,9 @@ export default function AdminProducts() {
           </Select>
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
-          <span className="text-sm px-2">Página <strong>{page}</strong> de <strong>{totalPages}</strong></span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Próxima</Button>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
+          <span className="text-sm px-2">Página <strong>{page}</strong> de <strong>{effTotalPages}</strong></span>
+          <Button variant="outline" size="sm" disabled={page >= effTotalPages} onClick={() => setPage((p) => Math.min(effTotalPages, p + 1))}>Próxima</Button>
+          <Button variant="outline" size="sm" disabled={page >= effTotalPages} onClick={() => setPage(effTotalPages)}>»</Button>
         </div>
       </div>
 
