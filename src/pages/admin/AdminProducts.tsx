@@ -360,6 +360,9 @@ export default function AdminProducts() {
             <SelectItem value="stock_inactive">Stock&gt;0 mas inativos</SelectItem>
             <SelectItem value="no_barcode_stock">Sem EAN + stock&gt;0</SelectItem>
             <SelectItem value="no_image_stock">Sem imagem + stock&gt;0</SelectItem>
+            <SelectItem value="readjusted">Reajuste do Trier (7d)</SelectItem>
+            <SelectItem value="readjusted_up">Reajuste ▲ (aumentou)</SelectItem>
+            <SelectItem value="readjusted_down">Reajuste ▼ (baixou)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -374,7 +377,7 @@ export default function AdminProducts() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p: any) => {
+            {pageRows.map((p: any) => {
               const low = p.stock <= (p.minimum_stock ?? 5);
               const onSale = p.on_sale || p.promo_price;
               const adj = (trierAdjust as Record<string, any>)[p.id];
@@ -419,15 +422,15 @@ export default function AdminProducts() {
                 </tr>
               );
             })}
-            {filtered.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nenhum produto encontrado.</td></tr>}
+            {pageRows.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nenhum produto encontrado.</td></tr>}
           </tbody>
         </table>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
         <div className="text-sm text-muted-foreground">
-          {totalCount > 0 ? (
-            <>Mostrando <strong>{(page - 1) * pageSize + 1}</strong>–<strong>{Math.min(page * pageSize, totalCount)}</strong> de <strong>{totalCount}</strong> produtos</>
+          {effTotal > 0 ? (
+            <>Mostrando <strong>{(page - 1) * pageSize + 1}</strong>–<strong>{Math.min(page * pageSize, effTotal)}</strong> de <strong>{effTotal}</strong> produtos</>
           ) : "Sem resultados"}
         </div>
         <div className="flex items-center gap-2">
@@ -440,9 +443,9 @@ export default function AdminProducts() {
           </Select>
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>«</Button>
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
-          <span className="text-sm px-2">Página <strong>{page}</strong> de <strong>{totalPages}</strong></span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Próxima</Button>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
+          <span className="text-sm px-2">Página <strong>{page}</strong> de <strong>{effTotalPages}</strong></span>
+          <Button variant="outline" size="sm" disabled={page >= effTotalPages} onClick={() => setPage((p) => Math.min(effTotalPages, p + 1))}>Próxima</Button>
+          <Button variant="outline" size="sm" disabled={page >= effTotalPages} onClick={() => setPage(effTotalPages)}>»</Button>
         </div>
       </div>
 
