@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload, Star } from "lucide-react";
+import { Plus, Edit, Trash2, X, Power, AlertTriangle, Search, Upload, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
@@ -354,6 +354,7 @@ export default function AdminProducts() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-extrabold">Produtos</h1>
         <div className="flex gap-2">
+          <Button variant="outline" disabled={bulkBusy} onClick={forceActivateAllTrierInactive}><Zap className="h-4 w-4 mr-2" /> {bulkBusy ? "Ativando..." : "Ativar inativos no Trier"}</Button>
           <Button variant="outline" onClick={() => setReorderOpen(true)}><Star className="h-4 w-4 mr-2" /> Organizar Mais Vendidos</Button>
           <Button variant="outline" asChild><a href="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</a></Button>
           <Button variant="outline" asChild><a href="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</a></Button>
@@ -445,8 +446,19 @@ export default function AdminProducts() {
                         ? <span className="text-whatsapp text-xs font-semibold">Disponível</span>
                         : <span className="text-muted-foreground text-xs">{st.label}</span>;
                     })()}
+                    {p.force_active && <span className="block text-[10px] font-bold text-highlight-foreground bg-highlight rounded px-1 mt-1 w-fit">ATIVAÇÃO FORÇADA</span>}
                   </td>
                   <td className="p-3 text-right whitespace-nowrap">
+                    {(p.trier_active === false || p.force_active) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => toggleForceActive(p)}
+                        title={p.force_active ? "Remover ativação forçada" : "Forçar ativação (ignorar inativo no Trier)"}
+                      >
+                        <Zap className={`h-4 w-4 ${p.force_active ? "text-highlight" : "text-amber-500"}`} />
+                      </Button>
+                    )}
                     <Button size="icon" variant="ghost" onClick={() => toggleActive(p)} title={p.active ? "Desativar" : "Ativar"}><Power className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => openEdit(p)}><Edit className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
