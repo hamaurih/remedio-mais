@@ -303,6 +303,39 @@ export default function AdminProducts() {
     else { toast.success(p.active ? "Desativado" : "Ativado"); qc.invalidateQueries({ queryKey: ["admin_products"] }); }
   };
 
+  // Override do admin: mantém o produto disponível mesmo se o Trier marcar como inativo.
+  const toggleForceActive = async (p: any) => {
+    const next = !p.force_active;
+    const stock = Number(p.stock_quantity ?? p.stock ?? 0);
+    const { error } = await supabase
+      .from("products")
+      .update({ force_active: next, active: next ? stock > 0 && !p.manual_disabled && !p.archived_at : false })
+      .eq("id", p.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(next ? "Ativação forçada — o Trier não vai mais desativar este produto" : "Ativação forçada removida");
+      qc.invalidateQueries({ queryKey: ["admin_products"] });
+    }
+  };
+
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const forceActivateAllTrierInactive = async () => {
+    if (!confirm("Forçar ativação de TODOS os produtos com estoque que estão inativos no Trier?")) return;
+    setBulkBusy(true);
+    const { data, error } = await supabase
+      .from("products")
+      .update({ force_active: true, active: true })
+      .eq("trier_active", false)
+      .eq("manual_disabled", false)
+      .is("archived_at", null)
+      .gt("stock", 0)
+      .select("id");
+    setBulkBusy(false);
+    if (error) toast.error(error.message);
+    else { toast.success(`${data?.length ?? 0} produto(s) ativados`); qc.invalidateQueries({ queryKey: ["admin_products"] }); }
+  };
+
+
   const remove = async (id: string) => {
     if (!confirm("Excluir produto definitivamente?")) return;
     const { error } = await supabase.from("products").delete().eq("id", id);
