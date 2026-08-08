@@ -58,8 +58,7 @@ const nonEmpty = (v: unknown) =>
 const PLACEHOLDER_RE = /placeholder|no-image|sem-imagem/i;
 
 export function effectiveStock(p: QualityProduct): number {
-  const s = p.stock_quantity ?? p.stock ?? 0;
-  return Number(s) || 0;
+  return productStock(p);
 }
 
 /** Imagem própria do produto (não é o placeholder padrão). */
