@@ -269,35 +269,10 @@ export default function Checkout() {
     }
     setSubmitting(true);
     try {
-      // Confere estoque e preço direto no sistema da farmácia antes de cobrar.
-      const liveResult = await liveCheckProductsDetailed(items.map((i) => i.product_id || i.id));
-      const live = liveResult.items;
-      if (!liveResult.ok) {
-        toast.error("Não foi possível confirmar preço e estoque no sistema da farmácia. Por segurança, o pagamento não foi realizado. Aguarde um momento e tente novamente.", { duration: 12000 });
-        setSubmitting(false);
-        return;
-      }
-      if (live.length > 0) {
-        const problems: string[] = [];
-        for (const i of items) {
-          const l = live.find((x) => x.product_id === (i.product_id || i.id));
-          if (!l || !l.fresh || i.variant_id) continue;
-          if (!l.active || l.stock <= 0) {
-            problems.push(`${i.name}: sem estoque na loja`);
-          } else if (l.stock < i.quantity) {
-            problems.push(`${i.name}: restam apenas ${l.stock} un.`);
-          } else if (Math.abs(l.price - i.price) > 0.009) {
-            problems.push(`${i.name}: preço atualizado para ${formatBRL(l.price)}`);
-          }
-        }
-        if (problems.length > 0) {
-          toast.error(`Itens do carrinho mudaram no sistema da farmácia:\n${problems.join("\n")}\nRevise o carrinho antes de pagar.`, { duration: 12000 });
-          setSubmitting(false);
-          nav("/carrinho");
-          return;
-        }
-      }
+      // A conferência de estoque/preço na farmácia é feita no carrinho.
+      // Aqui o servidor ainda valida estoque e preço esperado (rápido, sem chamar a Trier).
       await persistCustomerData();
+
       const commonBody = {
         items: items.map((i) => ({
           id: i.product_id || i.id,
