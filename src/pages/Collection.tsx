@@ -48,7 +48,7 @@ export default function Collection({ slug: fixedSlug }: CollectionPageProps) {
 
   return (
     <Layout>
-      <Seo title={title} description={description} path={def.path ?? `/colecao/${slug}`} />
+      <Seo title={title} description={description} path={def.route ?? `/colecao/${slug}`} />
       <section className={COLLECTION_THEME_CLASS[theme] ?? COLLECTION_THEME_CLASS.neutral}>
         <div className="container py-8">
           <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>
