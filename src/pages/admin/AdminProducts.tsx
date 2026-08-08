@@ -45,6 +45,7 @@ const empty: any = {
   price_base: null, site_price: null, whatsapp_price: null,
   site_promo_price: null, whatsapp_promo_price: null,
   use_channel_pricing: false, channel_price_notes: "",
+  site_discount_percentage: null, whatsapp_discount_percentage: null, lock_channel_discount: false,
 };
 
 const slugify = (s: string) =>
@@ -264,6 +265,9 @@ export default function AdminProducts() {
         site_promo_price: toNumOrNull(editing.site_promo_price),
         whatsapp_promo_price: toNumOrNull(editing.whatsapp_promo_price),
         use_channel_pricing: !!editing.use_channel_pricing,
+        lock_channel_discount: !!editing.lock_channel_discount,
+        site_discount_percentage: toNumOrNull(editing.site_discount_percentage),
+        whatsapp_discount_percentage: toNumOrNull(editing.whatsapp_discount_percentage),
         channel_price_notes: editing.channel_price_notes || null,
         // Travas separadas: a promoção é protegida contra o Trier; o preço normal
         // continua sincronizando, exceto se o admin travar explicitamente.
@@ -619,14 +623,70 @@ export default function AdminProducts() {
                     <Label className="text-xs">Usar preço por canal</Label>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Preço base (Trier) R$</Label><Input type="number" step="0.01" value={editing.price_base ?? ""} onChange={(e) => setEditing({ ...editing, price_base: e.target.value || null })} placeholder="ex: vindo da Trier" /></div>
-                  <div className="space-y-1"><Label>Preço do site R$</Label><Input type="number" step="0.01" value={editing.site_price ?? ""} onChange={(e) => setEditing({ ...editing, site_price: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Preço promo do site R$</Label><Input type="number" step="0.01" value={editing.site_promo_price ?? ""} onChange={(e) => setEditing({ ...editing, site_promo_price: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Preço WhatsApp/loja R$</Label><Input type="number" step="0.01" value={editing.whatsapp_price ?? ""} onChange={(e) => setEditing({ ...editing, whatsapp_price: e.target.value || null })} /></div>
-                  <div className="space-y-1"><Label>Preço promo WhatsApp R$</Label><Input type="number" step="0.01" value={editing.whatsapp_promo_price ?? ""} onChange={(e) => setEditing({ ...editing, whatsapp_promo_price: e.target.value || null })} /></div>
-                  <div className="col-span-2 space-y-1"><Label>Observação interna de preço</Label><Input value={editing.channel_price_notes || ""} onChange={(e) => setEditing({ ...editing, channel_price_notes: e.target.value })} placeholder="visível apenas no admin" /></div>
-                </div>
+
+                <label className="flex items-start gap-2 text-sm border rounded-lg p-3 bg-secondary/40">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={!!editing.lock_channel_discount}
+                    onChange={(e) => setEditing({ ...editing, lock_channel_discount: e.target.checked })}
+                  />
+                  <span>
+                    <span className="font-medium">Travar desconto (%) por canal</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Com a trava ativa, o que vale é o <strong>percentual</strong>: sempre que o preço normal mudar (inclusive pelo sistema da farmácia), os preços do site e do WhatsApp/loja são recalculados automaticamente com o mesmo desconto.
+                    </span>
+                  </span>
+                </label>
+
+                {(() => {
+                  const base = Number(editing.price_base || editing.price || 0);
+                  const setPct = (pctField: string, priceField: string, raw: string) => {
+                    if (!raw) { setEditing({ ...editing, [pctField]: null }); return; }
+                    const pct = Number(raw);
+                    const next: any = { ...editing, [pctField]: raw };
+                    if (base > 0 && pct > 0 && pct < 100) {
+                      next[priceField] = +(base * (1 - pct / 100)).toFixed(2);
+                    }
+                    setEditing(next);
+                  };
+                  const setPrice = (pctField: string, priceField: string, raw: string) => {
+                    const next: any = { ...editing, [priceField]: raw || null };
+                    const val = Number(raw);
+                    if (base > 0 && val > 0 && val < base) {
+                      next[pctField] = +((1 - val / base) * 100).toFixed(2);
+                    } else if (!raw) {
+                      next[pctField] = null;
+                    }
+                    setEditing(next);
+                  };
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1"><Label>Preço base (Trier) R$</Label><Input type="number" step="0.01" value={editing.price_base ?? ""} onChange={(e) => setEditing({ ...editing, price_base: e.target.value || null })} placeholder="ex: vindo da Trier" /></div>
+                      <div className="hidden sm:block" />
+                      <div className="space-y-1">
+                        <Label>Desconto do site (%)</Label>
+                        <Input type="number" step="0.01" min="0" max="100" placeholder="ex.: 10" value={editing.site_discount_percentage ?? ""} onChange={(e) => setPct("site_discount_percentage", "site_price", e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Preço do site R$</Label>
+                        <Input type="number" step="0.01" value={editing.site_price ?? ""} onChange={(e) => setPrice("site_discount_percentage", "site_price", e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Desconto WhatsApp/loja (%)</Label>
+                        <Input type="number" step="0.01" min="0" max="100" placeholder="ex.: 15" value={editing.whatsapp_discount_percentage ?? ""} onChange={(e) => setPct("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Preço WhatsApp/loja R$</Label>
+                        <Input type="number" step="0.01" value={editing.whatsapp_price ?? ""} onChange={(e) => setPrice("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} />
+                      </div>
+                      <div className="space-y-1"><Label>Preço promo do site R$</Label><Input type="number" step="0.01" value={editing.site_promo_price ?? ""} onChange={(e) => setEditing({ ...editing, site_promo_price: e.target.value || null })} /></div>
+                      <div className="space-y-1"><Label>Preço promo WhatsApp R$</Label><Input type="number" step="0.01" value={editing.whatsapp_promo_price ?? ""} onChange={(e) => setEditing({ ...editing, whatsapp_promo_price: e.target.value || null })} /></div>
+                      <div className="col-span-2 space-y-1"><Label>Observação interna de preço</Label><Input value={editing.channel_price_notes || ""} onChange={(e) => setEditing({ ...editing, channel_price_notes: e.target.value })} placeholder="visível apenas no admin" /></div>
+                    </div>
+                  );
+                })()}
+
                 {(() => {
                   const num = (v: any) => { const n = Number(v); return isFinite(n) && n > 0 ? n : null; };
                   const base = num(editing.price_base) ?? num(editing.price);
