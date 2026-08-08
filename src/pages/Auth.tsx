@@ -56,6 +56,8 @@ export default function Auth() {
       const msg = String(e?.message || "");
       if (/weak|pwned|known to be|leaked|compromised/i.test(msg)) {
         toast.error("Essa senha apareceu em vazamentos conhecidos ou é muito comum. Tente uma combinação diferente de letras e números.");
+      } else if (/email not confirmed|not confirmed/i.test(msg)) {
+        toast.error("Seu e-mail ainda não estava confirmado. Já liberamos o acesso — tente entrar novamente.");
       } else if (/invalid login|invalid credentials/i.test(msg)) {
         toast.error("E-mail ou senha incorretos.");
       } else if (/already registered|already exists|user already/i.test(msg)) {
