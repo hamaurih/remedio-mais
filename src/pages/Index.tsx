@@ -301,6 +301,11 @@ export default function Index() {
 
   return (
     <Layout>
+      <Seo
+        title="Atacadão dos Medicamentos | Farmácia em Campina Grande - PB"
+        description="Farmácia Atacadão dos Medicamentos em Campina Grande - PB. Preço baixo todo dia, entrega local e atendimento pelo WhatsApp."
+        path="/"
+      />
       {order.map((key) => (
         <div key={key}>{SECTIONS[key] ?? null}</div>
       ))}
