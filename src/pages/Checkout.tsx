@@ -297,8 +297,8 @@ export default function Checkout() {
           expires_at: data.expires_at,
           total: data.total,
         }));
+        // O carrinho só é limpo quando o Pix for confirmado (tela do Pix).
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
-        setTimeout(() => clearCart(), 100);
         return;
       }
 
