@@ -88,7 +88,7 @@ const slugify = (s: string) =>
 const parseNumber = (v: any): number | null => {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") return v;
-  const s = String(v).trim().replace(/[^\d,.\-]/g, "");
+  const s = String(v).trim().replace(/[^\d,.-]/g, "");
   if (!s) return null;
   // assume BR format if there's both . and , -> . thousand sep
   const cleaned = s.includes(",") && s.includes(".")
