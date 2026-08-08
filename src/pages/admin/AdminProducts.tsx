@@ -350,8 +350,10 @@ export default function AdminProducts() {
   const discountPct = useMemo(() => {
     const p = Number(editing.price), pp = Number(editing.promo_price);
     if (!p || !pp || pp >= p) return 0;
-    return Math.round((1 - pp / p) * 100);
+    // mantém casas decimais (ex.: 14,5% / 14,25%) sem arredondar para inteiro
+    return Number(((1 - pp / p) * 100).toFixed(2));
   }, [editing.price, editing.promo_price]);
+
 
   return (
     <div className="p-6">
