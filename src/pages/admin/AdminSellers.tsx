@@ -99,7 +99,7 @@ export default function AdminSellers() {
         ) : !sellers?.length ? (
           <div className="p-6 text-center text-muted-foreground text-sm">Nenhum vendedor cadastrado ainda.</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
             <thead className="bg-muted/50 text-left">
               <tr>
                 <th className="p-3">Vendedor</th>
@@ -153,7 +153,7 @@ export default function AdminSellers() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </Card>
     </div>

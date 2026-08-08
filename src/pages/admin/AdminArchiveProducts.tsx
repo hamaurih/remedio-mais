@@ -158,7 +158,7 @@ export default function AdminArchiveProducts() {
             <div className="mt-6">
               <h3 className="font-semibold text-sm mb-2">Amostra (primeiros 50):</h3>
               <div className="border rounded-lg max-h-80 overflow-y-auto text-sm">
-                <table className="w-full">
+                <div className="overflow-x-auto -mx-2 px-2"><table className="w-full">
                   <thead className="sticky top-0 bg-muted">
                     <tr>
                       <th className="text-left p-2">Produto</th>
@@ -175,7 +175,7 @@ export default function AdminArchiveProducts() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             </div>
           )}
