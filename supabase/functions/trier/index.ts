@@ -2756,7 +2756,7 @@ Deno.serve(async (req) => {
         try { await fn(); }
         catch (e: any) { await log(syncType, "error", `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
       })();
-      // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
+      // @ts-expect-error EdgeRuntime só existe no runtime das Edge Functions
       if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime.waitUntil === "function") {
         EdgeRuntime.waitUntil(p);
       }
