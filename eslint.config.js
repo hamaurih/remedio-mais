@@ -21,6 +21,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // O projeto usa `as any` de propósito nas consultas ao banco (tipos gerados
+      // não cobrem todas as colunas). Mantemos como aviso para que erros de lint
+      // reais fiquem visíveis em vez de afogados em ~900 ocorrências.
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 );
