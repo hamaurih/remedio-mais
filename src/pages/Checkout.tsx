@@ -16,7 +16,6 @@ import { Loader2, CreditCard, QrCode, AlertTriangle, Lock } from "lucide-react";
 import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
-import { liveCheckProductsDetailed } from "@/lib/liveStock";
 
 
 
