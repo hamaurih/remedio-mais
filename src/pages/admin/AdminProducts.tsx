@@ -45,6 +45,7 @@ const empty: any = {
   price_base: null, site_price: null, whatsapp_price: null,
   site_promo_price: null, whatsapp_promo_price: null,
   use_channel_pricing: false, channel_price_notes: "",
+  site_discount_percentage: null, whatsapp_discount_percentage: null, lock_channel_discount: false,
 };
 
 const slugify = (s: string) =>
@@ -264,6 +265,9 @@ export default function AdminProducts() {
         site_promo_price: toNumOrNull(editing.site_promo_price),
         whatsapp_promo_price: toNumOrNull(editing.whatsapp_promo_price),
         use_channel_pricing: !!editing.use_channel_pricing,
+        lock_channel_discount: !!editing.lock_channel_discount,
+        site_discount_percentage: toNumOrNull(editing.site_discount_percentage),
+        whatsapp_discount_percentage: toNumOrNull(editing.whatsapp_discount_percentage),
         channel_price_notes: editing.channel_price_notes || null,
         // Travas separadas: a promoção é protegida contra o Trier; o preço normal
         // continua sincronizando, exceto se o admin travar explicitamente.
