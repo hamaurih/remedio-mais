@@ -1,3 +1,4 @@
+import { productStock } from "@/lib/availability";
 // Central helper for product data quality, publication status and score.
 // Focused on SELLABLE products (com estoque, ativos). Sem estoque = fora do site
 // e fora da análise principal de qualidade.
