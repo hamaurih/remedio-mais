@@ -1,0 +1,2 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS trier_sending_at timestamptz;
+CREATE INDEX IF NOT EXISTS idx_orders_trier_sending_at ON public.orders (trier_sending_at) WHERE trier_sending_at IS NOT NULL;
