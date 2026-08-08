@@ -21,6 +21,8 @@ type Order = {
   total: number;
   payment_status: string;
   mercado_pago_payment_id: string | null;
+  cielo_payment_id?: string | null;
+  payment_gateway?: string | null;
 };
 
 const RR_LABEL: Record<string, { l: string; v: any }> = {
@@ -61,11 +63,13 @@ export function RefundPanel({ order }: { order: Order }) {
   const canRequest = isAdmin || !!perm?.can_request_refund;
 
   const refundable = ["approved", "partially_refunded"].includes(order.payment_status);
-  const hasPaymentId = !!order.mercado_pago_payment_id;
+  const isCielo = !!order.cielo_payment_id;
+  const gatewayLabel = isCielo ? "Cielo" : "Mercado Pago";
+  const hasPaymentId = isCielo || !!order.mercado_pago_payment_id;
 
   const submit = async () => {
     if (!refundable) { toast.error("Pedido não está em estado reembolsável"); return; }
-    if (!hasPaymentId) { toast.error("Pedido sem ID de pagamento Mercado Pago"); return; }
+    if (!hasPaymentId) { toast.error(`Pedido sem ID de pagamento (${gatewayLabel})`); return; }
     let amt: number | undefined;
     if (type === "partial") {
       const n = parseFloat(amount.replace(",", "."));
@@ -74,7 +78,7 @@ export function RefundPanel({ order }: { order: Order }) {
       amt = Math.round(n * 100) / 100;
     }
     setSubmitting(true);
-    const { data, error } = await supabase.functions.invoke("refund-mercado-pago", {
+    const { data, error } = await supabase.functions.invoke(isCielo ? "refund-cielo" : "refund-mercado-pago", {
       body: {
         order_id: order.id,
         amount: amt,
@@ -101,7 +105,7 @@ export function RefundPanel({ order }: { order: Order }) {
     <div className="space-y-4 pt-3">
       {!hasPaymentId && (
         <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-          Este pedido não tem ID de pagamento Mercado Pago — reembolso automático indisponível.
+          Este pedido não tem ID de pagamento da Cielo nem do Mercado Pago — reembolso automático indisponível.
         </div>
       )}
       {!refundable && (
@@ -140,7 +144,7 @@ export function RefundPanel({ order }: { order: Order }) {
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground">
-            {canExecute ? "Será processado no Mercado Pago imediatamente." : "Solicitação registrada para aprovação do admin."}
+            {canExecute ? `Será processado na ${gatewayLabel} imediatamente.` : "Solicitação registrada para aprovação do admin."}
           </div>
           <Button
             onClick={() => setConfirmOpen(true)}
@@ -170,6 +174,9 @@ export function RefundPanel({ order }: { order: Order }) {
                 </div>
                 {r.reason && <div className="mt-1">Motivo: {r.reason}</div>}
                 {r.error_message && <div className="mt-1 text-destructive">Erro: {r.error_message}</div>}
+                {r.cielo_refund_id && (
+                  <div className="mt-1 text-muted-foreground">Cielo: <span className="font-mono">{r.cielo_refund_id}</span></div>
+                )}
                 {r.mercado_pago_refund_id && (
                   <div className="mt-1 text-muted-foreground">MP refund: <span className="font-mono">{r.mercado_pago_refund_id}</span></div>
                 )}
@@ -187,7 +194,7 @@ export function RefundPanel({ order }: { order: Order }) {
               {type === "total"
                 ? <>Reembolsar o valor total de <strong>{formatBRL(order.total)}</strong>?</>
                 : <>Reembolsar <strong>{formatBRL(parseFloat((amount || "0").replace(",", ".")) || 0)}</strong> deste pedido?</>}
-              {canExecute && " Esta ação não pode ser desfeita no Mercado Pago."}
+              {canExecute && ` Esta ação não pode ser desfeita na ${gatewayLabel}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
