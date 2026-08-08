@@ -49,7 +49,7 @@ export default function OrderReturn({ status }: { status: Status }) {
   };
 
   useEffect(() => {
-    refresh(); /* eslint-disable-next-line */
+    refresh();  
     if (!orderId) return;
     const ch = supabase
       .channel(`order_${orderId}`)

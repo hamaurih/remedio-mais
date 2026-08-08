@@ -356,7 +356,7 @@ export default function AdminProductsImport() {
         }
 
         // Match in order
-        let matched =
+        const matched =
           (n.trier_product_id && matches[`trier_product_id:${n.trier_product_id}`]) ||
           (n.barcode && matches[`barcode:${n.barcode}`]) ||
           (n.sku && matches[`sku:${n.sku}`]);

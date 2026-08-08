@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       pending: "pending", in_process: "pending", in_mediation: "pending",
       rejected: "rejected", cancelled: "cancelled", refunded: "refunded", charged_back: "refunded",
     };
-    let newPaymentStatus = map[pay.status] ?? "pending";
+    const newPaymentStatus = map[pay.status] ?? "pending";
     const valid = Number(pay.transaction_amount ?? 0);
     const amountMismatch = newPaymentStatus === "approved" && Math.abs(valid - Number(order.total)) > 0.5;
 

@@ -1043,7 +1043,7 @@ function DiagnosticoPanel({ call, busy }: { call: (a: string, b?: any, l?: strin
     const r = await call("diag-last-products-job", {}, "Último job de produtos");
     if (r) setLastJob(r.job);
   };
-  useEffect(() => { refreshDb(); refreshLastJob(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { refreshDb(); refreshLastJob();   }, []);
 
   return (
     <div className="space-y-6">
