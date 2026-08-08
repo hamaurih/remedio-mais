@@ -429,9 +429,9 @@ export default function AdminDashboard() {
             <HealthRow label="Clientes cadastrados" value={k?.customers ?? 0} ok={(k?.customers ?? 0) > 0} />
             <div className="pt-2 grid grid-cols-2 gap-2">
               <Button asChild size="sm" variant="outline"><Link to="/admin/produtos">Produtos</Link></Button>
-              <Button asChild size="sm" variant="outline"><Link to="/admin/trier">Trier</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/admin/integrations/trier">Trier</Link></Button>
               <Button asChild size="sm" variant="outline"><Link to="/admin/ofertas">Ofertas</Link></Button>
-              <Button asChild size="sm" variant="outline"><Link to="/admin/home">Diagnóstico</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/admin/diagnostico-home">Diagnóstico</Link></Button>
             </div>
           </CardContent>
         </Card>
