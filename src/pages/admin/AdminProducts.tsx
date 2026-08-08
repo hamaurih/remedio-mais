@@ -186,10 +186,10 @@ export default function AdminProducts() {
 
 
 
-  const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
+  const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setPctInput(null); setOpen(true); };
   const openEdit = (p: any, tab: string = "basic") => {
     setEditing({ ...empty, ...p, category_id: p.category_id || "", shelves: p.shelves || [], gallery_images: p.gallery_images || [] });
-    setMainFile(null); setGalleryFiles([]);
+    setMainFile(null); setGalleryFiles([]); setPctInput(null);
     setActiveTab(tab);
     setOpen(true);
   };
@@ -675,7 +675,7 @@ export default function AdminProducts() {
                       <div className="hidden sm:block" />
                       <div className="space-y-1">
                         <Label>Desconto do site (%)</Label>
-                        <Input type="number" step="0.01" min="0" max="100" placeholder="ex.: 10" value={editing.site_discount_percentage ?? ""} onChange={(e) => setPct("site_discount_percentage", "site_price", e.target.value)} />
+                        <Input type="text" inputMode="decimal" placeholder="ex.: 10,5" value={editing.site_discount_percentage ?? ""} onChange={(e) => setPct("site_discount_percentage", "site_price", e.target.value)} />
                       </div>
                       <div className="space-y-1">
                         <Label>Preço do site R$</Label>
@@ -683,7 +683,7 @@ export default function AdminProducts() {
                       </div>
                       <div className="space-y-1">
                         <Label>Desconto WhatsApp/loja (%)</Label>
-                        <Input type="number" step="0.01" min="0" max="100" placeholder="ex.: 15" value={editing.whatsapp_discount_percentage ?? ""} onChange={(e) => setPct("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} />
+                        <Input type="text" inputMode="decimal" placeholder="ex.: 15,25" value={editing.whatsapp_discount_percentage ?? ""} onChange={(e) => setPct("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} />
                       </div>
                       <div className="space-y-1">
                         <Label>Preço WhatsApp/loja R$</Label>
