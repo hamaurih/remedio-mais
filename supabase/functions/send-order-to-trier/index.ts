@@ -698,6 +698,7 @@ Deno.serve(async (req) => {
         trier_numero_nota: trierNumeroNota ? String(trierNumeroNota) : null,
         trier_last_error: null,
         trier_error_message: null,
+        trier_sending_at: null,
       }).eq("id", orderId);
       await admin.from("order_items").update({ trier_item_sent: true }).eq("order_id", orderId);
       await admin.from("admin_notifications").insert({
@@ -715,6 +716,8 @@ Deno.serve(async (req) => {
         trier_status_code: httpStatus || null,
         trier_last_error: friendly.slice(0, 500),
         trier_error_message: friendly.slice(0, 1200),
+        trier_sending_at: null,
+
       }).eq("id", orderId);
       if (shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
         await admin.from("admin_notifications").insert({
