@@ -49,8 +49,8 @@ export function CommercialClassificationTab({ productId }: Props) {
     queryKey: ["cc_existing", productId],
     queryFn: async () => {
       if (!productId) return null;
-      const { data } = await sb.from("product_taxonomy").select("*").eq("product_id", productId).eq("is_primary", true).maybeSingle();
-      return data;
+      const { data } = await sb.rpc("admin_taxonomy_rows", { _product_ids: [productId], _primary_only: true });
+      return (data as any[] | null)?.[0] ?? null;
     },
     enabled: !!productId,
   });
