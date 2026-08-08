@@ -49,9 +49,15 @@ Deno.serve(async (req) => {
 
     safeLog("[cielo-webhook] fetched", { paymentId: maskId(paymentId), statusCode, newStatus, amount });
 
-    // Localiza o pedido pelo MerchantOrderId (uuid) ou pelo cielo_payment_id gravado
+    // Localiza o pedido pelo MerchantOrderId (uuid) ou pelo cielo_payment_id gravado.
+    // MerchantOrderId só entra no filtro se for um uuid válido — senão o `.or()` recebe
+    // "id.eq.undefined" e a query inteira falha.
+    const isUuid = (v: unknown) =>
+      typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const filters = [`cielo_payment_id.eq.${paymentId}`];
+    if (isUuid(merchantOrderId)) filters.unshift(`id.eq.${merchantOrderId}`);
     const { data: order } = await admin.from("orders").select("*")
-      .or(`id.eq.${merchantOrderId},cielo_payment_id.eq.${paymentId}`)
+      .or(filters.join(","))
       .maybeSingle();
     if (!order) {
       await admin.from("payment_events").update({ processed: true }).eq("external_id", externalId);
