@@ -944,6 +944,29 @@ async function upsertProductFromTrier(
     }
   }
 
+  // Preços por canal com percentual travado: quando o admin trava o desconto (%)
+  // por canal, os preços de site/WhatsApp são recalculados a partir do preço normal.
+  if (existing.lock_channel_discount === true) {
+    const newBase = Number(candidate.price ?? existing.price ?? 0);
+    const applyChannel = (pctField: string, priceField: string) => {
+      const pct = Number((existing as any)[pctField] ?? 0);
+      if (!(Number.isFinite(newBase) && newBase > 0)) return;
+      if (!(pct > 0 && pct < 100)) return;
+      const value = Math.round(newBase * (1 - pct / 100) * 100) / 100;
+      if (!(value > 0)) return;
+      candidate[priceField] = value;
+      if (Number((existing as any)[priceField]) !== value) {
+        fields_updated.push(priceField);
+        oldValues[priceField] = (existing as any)[priceField];
+        newValues[priceField] = value;
+      }
+      fields_protected.push(`${priceField}:desconto_canal_${pct.toFixed(2)}%_recalculado`);
+    };
+    applyChannel("site_discount_percentage", "site_price");
+    applyChannel("whatsapp_discount_percentage", "whatsapp_price");
+  }
+
+
   // Desarquivamento automático: produto arquivado voltou a ter estoque.
   if (unarchived) {
     candidate.archived_at = null;
