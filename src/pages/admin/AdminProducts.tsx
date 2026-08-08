@@ -592,24 +592,27 @@ export default function AdminProducts() {
                 <div className="space-y-1">
                   <Label>Desconto (%)</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="ex.: 15"
-                    value={discountPct || ""}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="ex.: 14,5"
+                    value={pctInput ?? (discountPct ? String(discountPct).replace(".", ",") : "")}
                     onChange={(e) => {
-                      const pct = Number(e.target.value);
+                      const raw = e.target.value;
+                      setPctInput(raw);
+                      const pct = Number(raw.replace(",", "."));
                       const base = Number(editing.price);
-                      if (!e.target.value) {
+                      if (!raw.trim()) {
                         setEditing({ ...editing, promo_price: null });
                       } else if (!isNaN(pct) && pct > 0 && pct < 100 && base > 0) {
                         const promo = +(base * (1 - pct / 100)).toFixed(2);
                         setEditing({ ...editing, promo_price: promo, on_sale: true });
                       }
                     }}
+                    onBlur={() => setPctInput(null)}
                   />
+                  <p className="text-[11px] text-muted-foreground">Aceita casas decimais (ex.: 14,5% ou 14,25%).</p>
                 </div>
+
                 <div className="flex items-center gap-2 mt-6"><Switch checked={editing.on_sale} onCheckedChange={(v) => setEditing({ ...editing, on_sale: v })} /><Label>Em promoção</Label></div>
                 <div className="space-y-1"><Label>Início da promoção</Label><Input type="datetime-local" value={editing.promotion_start?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_start: e.target.value || null })} /></div>
                 <div className="space-y-1"><Label>Fim da promoção</Label><Input type="datetime-local" value={editing.promotion_end?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_end: e.target.value || null })} /></div>
