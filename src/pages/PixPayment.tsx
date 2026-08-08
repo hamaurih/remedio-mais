@@ -24,19 +24,40 @@ export default function PixPayment() {
   const [now, setNow] = useState(Date.now());
   const pollRef = useRef<number | null>(null);
 
-  // Carregar dados Pix do sessionStorage (gravado pelo Checkout)
+  // Carrega dados do Pix: sessionStorage (rápido) com fallback no banco,
+  // para o QR não sumir em recarregamento/retorno do app do banco.
   useEffect(() => {
     if (!orderId) return;
+    let active = true;
     const raw = sessionStorage.getItem(`pix:${orderId}`);
-    if (!raw) {
-      toast.error("Sessão Pix expirada. Refaça o pedido.");
-      nav("/carrinho", { replace: true });
-      return;
+    if (raw) {
+      try {
+        setPix(JSON.parse(raw) as PixData);
+        return;
+      } catch { /* cai no fallback */ }
     }
-    try { setPix(JSON.parse(raw) as PixData); }
-    catch {
-      nav("/carrinho", { replace: true });
-    }
+    (async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("pix_qr_code, pix_qr_code_base64, pix_expires_at, total")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (!active) return;
+      if (data?.pix_qr_code && data?.pix_qr_code_base64) {
+        const parsed: PixData = {
+          qr_code: data.pix_qr_code as string,
+          qr_code_base64: data.pix_qr_code_base64 as string,
+          expires_at: (data.pix_expires_at as string) || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          total: Number(data.total ?? 0),
+        };
+        sessionStorage.setItem(`pix:${orderId}`, JSON.stringify(parsed));
+        setPix(parsed);
+      } else {
+        toast.error("Não encontramos o Pix deste pedido. Veja em Meus pedidos ou refaça a compra.");
+        nav("/minha-conta", { replace: true });
+      }
+    })();
+    return () => { active = false; };
   }, [orderId, nav]);
 
   // Polling do status do pedido (consulta DB + força sync com Mercado Pago)
