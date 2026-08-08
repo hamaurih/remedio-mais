@@ -1179,6 +1179,7 @@ export type Database = {
           trier_order_id: string | null
           trier_payload_hash: string | null
           trier_sale_id: string | null
+          trier_sending_at: string | null
           trier_sent: boolean
           trier_sent_at: string | null
           trier_status: string | null
@@ -1243,6 +1244,7 @@ export type Database = {
           trier_order_id?: string | null
           trier_payload_hash?: string | null
           trier_sale_id?: string | null
+          trier_sending_at?: string | null
           trier_sent?: boolean
           trier_sent_at?: string | null
           trier_status?: string | null
@@ -1307,6 +1309,7 @@ export type Database = {
           trier_order_id?: string | null
           trier_payload_hash?: string | null
           trier_sale_id?: string | null
+          trier_sending_at?: string | null
           trier_sent?: boolean
           trier_sent_at?: string | null
           trier_status?: string | null

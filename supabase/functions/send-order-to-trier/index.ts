@@ -585,10 +585,29 @@ Deno.serve(async (req) => {
     }
 
 
-    // 6) Idempotência por hash (somente envio real)
+    // 6) Idempotência (somente envio real)
     const payloadHash = await sha256Hex(JSON.stringify(payload));
-    if (!isTest && order.trier_payload_hash === payloadHash && order.trier_sent && !force) {
-      return json({ skipped: true, reason: "same_hash_already_sent" }, 200);
+    if (!isTest && order.trier_sent && !force) {
+      return json({ skipped: true, reason: "already_sent" }, 200);
+    }
+
+    // 6.1) Trava atômica: impede que dois gatilhos simultâneos (webhook, retorno do
+    // cartão, verificação de status, robô de retentativa) gerem notas duplicadas.
+    const LOCK_TTL_MS = 5 * 60 * 1000;
+    if (!isTest) {
+      const staleBefore = new Date(Date.now() - LOCK_TTL_MS).toISOString();
+      let claimQ = admin
+        .from("orders")
+        .update({ trier_sending_at: new Date().toISOString() })
+        .eq("id", orderId);
+      if (!force) claimQ = claimQ.eq("trier_sent", false);
+      const { data: claimed, error: claimErr } = await claimQ
+        .or(`trier_sending_at.is.null,trier_sending_at.lt.${staleBefore}`)
+        .select("id");
+      if (claimErr) return json({ error: claimErr.message }, 500);
+      if (!claimed || claimed.length === 0) {
+        return json({ skipped: true, reason: "send_in_progress_or_already_sent" }, 200);
+      }
     }
 
 
@@ -602,6 +621,7 @@ Deno.serve(async (req) => {
         trier_payload_hash: payloadHash,
       }).eq("id", orderId);
     }
+
 
     let httpStatus = 0;
     let responseBody: any = null;
@@ -678,6 +698,7 @@ Deno.serve(async (req) => {
         trier_numero_nota: trierNumeroNota ? String(trierNumeroNota) : null,
         trier_last_error: null,
         trier_error_message: null,
+        trier_sending_at: null,
       }).eq("id", orderId);
       await admin.from("order_items").update({ trier_item_sent: true }).eq("order_id", orderId);
       await admin.from("admin_notifications").insert({
@@ -695,6 +716,8 @@ Deno.serve(async (req) => {
         trier_status_code: httpStatus || null,
         trier_last_error: friendly.slice(0, 500),
         trier_error_message: friendly.slice(0, 1200),
+        trier_sending_at: null,
+
       }).eq("id", orderId);
       if (shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
         await admin.from("admin_notifications").insert({
