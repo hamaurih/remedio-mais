@@ -289,7 +289,7 @@ function ItemRow({ item, onStatus, onNotes }: { item: any; onStatus: (id: string
     <div className="border rounded-lg p-3">
       <div className="flex items-start gap-3">
         {item.product_image_url && (
-          <img src={item.product_image_url} alt="" className="w-12 h-12 rounded object-cover border" />
+          <img src={item.product_image_url} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded object-cover border" />
         )}
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>

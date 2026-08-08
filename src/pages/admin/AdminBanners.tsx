@@ -250,7 +250,7 @@ export default function AdminBanners() {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {data?.map((b: any) => (
           <div key={b.id} className="bg-card border rounded-xl p-4 shadow-card">
-            {b.image_url && <img src={b.image_url} alt={b.title} className="w-full h-32 object-cover rounded-md mb-3" />}
+            {b.image_url && <img src={b.image_url} alt={b.title} loading="lazy" decoding="async" className="w-full h-32 object-cover rounded-md mb-3" />}
             <div className="text-[10px] uppercase font-bold text-primary mb-1 flex items-center gap-2">
               <span>{PLACEMENTS.find((p) => p.v === b.placement)?.l || b.placement}</span>
               <span className="text-muted-foreground">·</span>

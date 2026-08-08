@@ -365,8 +365,8 @@ export default function AdminProducts() {
         <div className="flex gap-2">
           <Button variant="outline" disabled={bulkBusy} onClick={forceActivateAllTrierInactive}><Zap className="h-4 w-4 mr-2" /> {bulkBusy ? "Ativando..." : "Ativar inativos no Trier"}</Button>
           <Button variant="outline" onClick={() => setReorderOpen(true)}><Star className="h-4 w-4 mr-2" /> Organizar Mais Vendidos</Button>
-          <Button variant="outline" asChild><a href="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</a></Button>
-          <Button variant="outline" asChild><a href="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</a></Button>
+          <Button variant="outline" asChild><Link to="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</Link></Button>
+          <Button variant="outline" asChild><Link to="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</Link></Button>
           <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
         </div>
       </div>
@@ -428,7 +428,7 @@ export default function AdminProducts() {
               const adjPct = adj && Number(adj.old_price ?? 0) > 0 ? (adjDiff / Number(adj.old_price)) * 100 : 0;
               return (
                 <tr key={p.id} className={`border-t hover:bg-secondary/40 ${adj ? "bg-amber-50/60 dark:bg-amber-500/5" : ""}`}>
-                  <td className="p-2">{p.image_url ? <img src={p.image_url} alt="" className="w-10 h-10 object-contain rounded border" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
+                  <td className="p-2">{p.image_url ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="w-10 h-10 object-contain rounded border" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
                   <td className="p-3 font-medium max-w-[220px]">
                     {p.name}
                     {adj && (

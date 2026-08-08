@@ -125,7 +125,7 @@ export default function Product() {
         </nav>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-secondary/40 rounded-2xl p-8 flex items-center justify-center">
-            <img src={displayImage} alt={p.name} className="max-h-[420px] object-contain" />
+            <img src={displayImage} alt={p.name} width={420} height={420} decoding="async" className="max-h-[420px] object-contain" />
           </div>
           <div>
             {(p as any).manufacturer && <div className="text-sm text-muted-foreground">{(p as any).manufacturer}</div>}

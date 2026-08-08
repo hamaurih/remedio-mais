@@ -384,7 +384,7 @@ export default function AdminDataQuality() {
                       <tr key={e.p.id} className="border-b hover:bg-muted/30">
                         <td className="py-2 pr-2">
                           {hasOwnImage(e.p) ? (
-                            <img src={e.p.image_url!} alt="" className="w-10 h-10 object-contain rounded border" />
+                            <img src={e.p.image_url!} alt="" loading="lazy" decoding="async" className="w-10 h-10 object-contain rounded border" />
                           ) : (
                             <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center" title="Sem imagem própria — usa placeholder">
                               <EyeOff className="h-4 w-4 text-muted-foreground" />

@@ -104,7 +104,7 @@ export default function AdminOffers() {
               return (
                 <tr key={p.id} className="border-t">
                   <td className="p-2 flex items-center gap-2">
-                    {p.image_url && <img src={p.image_url} className="w-8 h-8 object-contain border rounded" />}
+                    {p.image_url && <img src={p.image_url} loading="lazy" decoding="async" className="w-8 h-8 object-contain border rounded" />}
                     <span className="font-medium">{p.name}</span>
                   </td>
                   <td className="p-3 line-through text-muted-foreground">{formatBRL(p.price)}</td>

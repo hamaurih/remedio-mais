@@ -158,13 +158,13 @@ export function ProductQuickView() {
           {/* Gallery */}
           <div>
             <div className="bg-secondary/40 rounded-xl border aspect-square flex items-center justify-center overflow-hidden group">
-              <img src={displayImage} alt={p.name} className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
+              <img src={displayImage} alt={p.name} loading="lazy" decoding="async" className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
             </div>
             {gallery.length > 1 && (
               <div className="mt-3 flex gap-2 overflow-x-auto">
                 {gallery.map((g) => (
                   <button key={g} onClick={() => setActiveImage(g)} className={`shrink-0 h-16 w-16 rounded-lg border-2 bg-background overflow-hidden ${activeImage === g ? "border-primary" : "border-border"}`}>
-                    <img src={g} alt="" className="h-full w-full object-contain p-1" />
+                    <img src={g} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
                   </button>
                 ))}
               </div>
