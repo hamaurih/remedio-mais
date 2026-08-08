@@ -239,7 +239,7 @@ export default function AdminProducts() {
       const slug = editing.slug || slugify(editing.name);
       let image_url = editing.image_url;
       if (mainFile) image_url = await uploadOne(mainFile);
-      let gallery_images = [...(editing.gallery_images || [])];
+      const gallery_images = [...(editing.gallery_images || [])];
       for (const f of galleryFiles) gallery_images.push(await uploadOne(f));
 
       const shelvesArr: string[] = editing.shelves || [];

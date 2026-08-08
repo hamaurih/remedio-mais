@@ -58,7 +58,7 @@ export function maskSensitiveData(input: unknown, depth = 0): unknown {
     s = s.replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, (m) => maskCpf(m));
     s = s.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, (m) => maskEmail(m));
     s = s.replace(/\b(?:\+?55)?\s?\(?\d{2}\)?\s?9?\d{4}-?\d{4}\b/g, (m) => maskPhone(m));
-    s = s.replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer ***");
+    s = s.replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer ***");
     return s;
   }
   if (Array.isArray(input)) return input.map((v) => maskSensitiveData(v, depth + 1));

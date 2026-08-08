@@ -131,7 +131,7 @@ function sanitizeLogDetails(details: any): any {
     const out: Record<string, any> = {};
     for (const [k, v] of Object.entries(details)) {
       if (v == null) { out[k] = v; continue; }
-      if (/authorization/i.test(k)) { out[k] = `Bearer ${maskToken(String(v))}` || "Bearer [masked]"; continue; }
+      if (/authorization/i.test(k)) { out[k] = `Bearer ${maskToken(String(v)) || "[masked]"}`; continue; }
       if (/(bearer_)?token/i.test(k)) { out[k] = maskToken(String(v)) || "[masked]"; continue; }
       out[k] = sanitizeLogDetails(v);
     }
@@ -2756,7 +2756,7 @@ Deno.serve(async (req) => {
         try { await fn(); }
         catch (e: any) { await log(syncType, "error", `Async ${syncType} falhou`, { error: String(e?.message || e) }); }
       })();
-      // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
+      // @ts-expect-error EdgeRuntime só existe no runtime das Edge Functions
       if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime.waitUntil === "function") {
         EdgeRuntime.waitUntil(p);
       }

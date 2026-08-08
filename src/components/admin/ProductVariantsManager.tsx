@@ -48,7 +48,7 @@ export function ProductVariantsManager({ productId, onChangeSummary }: { product
     });
   };
 
-  useEffect(() => { if (productId) load(); /* eslint-disable-next-line */ }, [productId]);
+  useEffect(() => { if (productId) load();   }, [productId]);
 
   const importFromProduct = async (picked: PickedEntity | null) => {
     if (!picked) return;

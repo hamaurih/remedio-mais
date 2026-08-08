@@ -88,7 +88,7 @@ const slugify = (s: string) =>
 const parseNumber = (v: any): number | null => {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") return v;
-  const s = String(v).trim().replace(/[^\d,.\-]/g, "");
+  const s = String(v).trim().replace(/[^\d,.-]/g, "");
   if (!s) return null;
   // assume BR format if there's both . and , -> . thousand sep
   const cleaned = s.includes(",") && s.includes(".")
@@ -356,7 +356,7 @@ export default function AdminProductsImport() {
         }
 
         // Match in order
-        let matched =
+        const matched =
           (n.trier_product_id && matches[`trier_product_id:${n.trier_product_id}`]) ||
           (n.barcode && matches[`barcode:${n.barcode}`]) ||
           (n.sku && matches[`sku:${n.sku}`]);
@@ -449,7 +449,7 @@ export default function AdminProductsImport() {
     setConfirming(true);
     try {
       // save mapping for next time
-      try { localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mapping)); } catch {}
+      try { localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mapping)); } catch { /* storage indisponível */ }
 
       const { data: job, error: jobErr } = await supabase.from("import_jobs").insert({
         file_name: file?.name || "manual.csv",

@@ -37,6 +37,40 @@ function Reveal({ children }: { children: React.ReactNode }) {
 }
 
 
+/**
+ * Vitrine simples por categoria: curadoria manual → produtos marcados na
+ * prateleira → fallback pela categoria. Hook de verdade (não fábrica dentro do
+ * componente) para não violar as regras de hooks do React.
+ */
+function useShelfQuery(slug: string, shelf: string) {
+  return useQuery({
+    queryKey: [`shelf_${shelf}`],
+    queryFn: async () => {
+      const { data: curated } = await (supabase as any)
+        .from("home_shelf_items")
+        .select(`position, products:product_id(${PUBLIC_PRODUCT_SELECT})`)
+        .eq("shelf_key", shelf)
+        .order("position");
+      const manual = ((curated || []) as any[])
+        .map((r) => r.products)
+        .filter((p) => p && p.active && Number(p.stock ?? 0) > 0);
+      if (manual.length > 0) return manual as Product[];
+
+      const { data: tagged } = await (supabase as any)
+        .from("products").select(PUBLIC_PRODUCT_SELECT)
+        .eq("active", true).gt("stock", 0).contains("shelves", [shelf]).limit(12);
+      if (tagged && tagged.length > 0) return tagged as Product[];
+
+      const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
+      if (!cat) return [] as Product[];
+      const { data } = await (supabase as any)
+        .from("products").select(PUBLIC_PRODUCT_SELECT)
+        .eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      return (data || []) as Product[];
+    },
+  });
+}
+
 export default function Index() {
   const { data: settings } = useStoreSettings();
 
@@ -165,22 +199,9 @@ export default function Index() {
       return (data || []) as Product[];
     },
   });
-  const buildShelf = (slug: string, shelf: string) =>
-    useQuery({
-      queryKey: [`shelf_${shelf}`],
-      queryFn: async () => {
-        const manual = await manualShelf(shelf);
-        if (manual) return manual;
-        const t = await shelfBy(shelf)();
-        if (t) return t;
-        const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
-        if (!cat) return [];
-        const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
-        return (data || []) as Product[];
-      },
-    });
-  const vitamins = buildShelf("vitaminas", "vitaminas-e-suplementos");
-  const firstaid = buildShelf("primeiros-socorros", "primeiros-socorros");
+  const vitamins = useShelfQuery("vitaminas", "vitaminas-e-suplementos");
+  const firstaid = useShelfQuery("primeiros-socorros", "primeiros-socorros");
+
 
   const { data: layout } = useQuery({
     queryKey: ["home_layout"],
