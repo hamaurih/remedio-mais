@@ -101,10 +101,13 @@ export default function AdminDataQuality() {
     queryFn: async () => {
       const rows: QualityProduct[] = [];
       const pageSize = 1000;
-      for (let from = 0; ; from += pageSize) {
+      // Só produtos vivos (não arquivados). Arquivados não vão ao site e não
+      // entram na análise de qualidade — evita varrer o catálogo histórico inteiro.
+      for (let from = 0; from < 20_000; from += pageSize) {
         const { data, error } = await (supabase as any)
           .from("products")
           .select(SELECT_FIELDS)
+          .is("archived_at", null)
           .order("updated_at", { ascending: false })
           .range(from, from + pageSize - 1);
         if (error) throw error;
