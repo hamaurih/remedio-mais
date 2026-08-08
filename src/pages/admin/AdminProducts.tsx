@@ -64,6 +64,9 @@ export default function AdminProducts() {
   const [reorderOpen, setReorderOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const [activeTab, setActiveTab] = useState<string>("basic");
+  // valor digitado do desconto (%) — permite decimais como 14,5 / 14,25
+  const [pctInput, setPctInput] = useState<string | null>(null);
+
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [search, setSearch] = useState(searchParams.get("search") || "");
