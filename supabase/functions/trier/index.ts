@@ -944,6 +944,19 @@ async function upsertProductFromTrier(
     }
   }
 
+  // Desarquivamento automático: produto arquivado voltou a ter estoque.
+  if (unarchived) {
+    candidate.archived_at = null;
+    candidate.archived_by = null;
+    candidate.archive_reason = null;
+    candidate.active = mapped.active;
+    if (!fields_updated.includes("archived_at")) {
+      fields_updated.push("archived_at");
+      oldValues.archived_at = existing.archived_at;
+      newValues.archived_at = null;
+    }
+  }
+
   // Sempre atualizar last_trier_sync_at
   candidate.last_trier_sync_at = mapped.last_trier_sync_at;
 
