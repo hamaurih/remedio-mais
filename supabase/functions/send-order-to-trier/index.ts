@@ -585,12 +585,29 @@ Deno.serve(async (req) => {
     }
 
 
-    // 6) Idempotência por hash (somente envio real)
+    // 6) Idempotência (somente envio real)
     const payloadHash = await sha256Hex(JSON.stringify(payload));
-    if (!isTest && order.trier_payload_hash === payloadHash && order.trier_sent && !force) {
-      return json({ skipped: true, reason: "same_hash_already_sent" }, 200);
+    if (!isTest && order.trier_sent && !force) {
+      return json({ skipped: true, reason: "already_sent" }, 200);
     }
 
+    // 6.1) Trava atômica: impede que dois gatilhos simultâneos (webhook, retorno do
+    // cartão, verificação de status, robô de retentativa) gerem notas duplicadas.
+    const LOCK_TTL_MS = 5 * 60 * 1000;
+    if (!isTest) {
+      const staleBefore = new Date(Date.now() - LOCK_TTL_MS).toISOString();
+      const { data: claimed, error: claimErr } = await admin
+        .from("orders")
+        .update({ trier_sending_at: new Date().toISOString() })
+        .eq("id", orderId)
+        .eq("trier_sent", false)
+        .or(`trier_sending_at.is.null,trier_sending_at.lt.${staleBefore}`)
+        .select("id");
+      if (claimErr) return json({ error: claimErr.message }, 500);
+      if (!claimed || claimed.length === 0) {
+        return json({ skipped: true, reason: "send_in_progress_or_already_sent" }, 200);
+      }
+    }
 
     // 7) Envia
     const url = `${salesBaseUrl}${SEND_PATH}`;
@@ -602,6 +619,7 @@ Deno.serve(async (req) => {
         trier_payload_hash: payloadHash,
       }).eq("id", orderId);
     }
+
 
     let httpStatus = 0;
     let responseBody: any = null;
