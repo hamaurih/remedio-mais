@@ -546,8 +546,8 @@ function DiagnosticsTab() {
         sb.from("categories").select("id,name,active,department_id"),
         sb.from("subcategories").select("id,name,active,category_id"),
         sb.from("products").select("id,active", { count: "exact", head: true }),
-        sb.from("product_taxonomy").select("product_id,department_id,category_id,is_manual"),
-        sb.from("product_taxonomy").select("product_id", { count: "exact", head: true }).eq("is_manual", true),
+        sb.rpc("admin_taxonomy_rows", { _product_ids: null, _primary_only: false }),
+        Promise.resolve({ data: null, count: null }),
       ]);
 
       const totalProducts = prods.count || 0;
