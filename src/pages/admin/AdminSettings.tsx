@@ -135,7 +135,7 @@ export default function AdminSettings() {
                 <Button size="sm" variant="outline" onClick={addZone}><Plus className="h-3 w-3 mr-1" /> Adicionar faixa</Button>
               </div>
               <div className="border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
+                <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-muted/40 text-xs">
                     <tr>
                       <th className="text-left p-2">De (km)</th>

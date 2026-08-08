@@ -83,7 +83,7 @@ export default function AdminCategories() {
         <Button onClick={() => { setEditing(empty); setFile(null); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova</Button>
       </div>
       <div className="bg-card border rounded-xl shadow-card overflow-hidden">
-        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">Imagem</th><th className="p-3">Nome</th><th className="p-3">Slug</th>
             <th className="p-3">Grupo (mega menu)</th>

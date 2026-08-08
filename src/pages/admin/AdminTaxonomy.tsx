@@ -84,7 +84,7 @@ function DepartmentsTab() {
         </Button>
       </div>
       <div className="bg-card border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-left">
             <tr>
               <th className="p-3">Cor</th><th className="p-3">Nome</th><th className="p-3">Slug</th>
@@ -192,7 +192,7 @@ function CategoriesTab() {
         Vincule cada categoria existente a um departamento comercial. Edição completa (nome, imagem etc.) continua em <strong>Admin &gt; Categorias</strong>.
       </p>
       <div className="bg-card border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-left">
             <tr>
               <th className="p-3">Categoria</th><th className="p-3">Slug</th>
@@ -294,7 +294,7 @@ function SubcategoriesTab() {
         </Button>
       </div>
       <div className="bg-card border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">Subcategoria</th><th className="p-3">Slug</th><th className="p-3">Categoria pai</th>
             <th className="p-3">Ordem</th><th className="p-3">Menu</th><th className="p-3">Ativa</th><th></th>
@@ -425,7 +425,7 @@ function TrierMappingsTab() {
         </Button>
       </div>
       <div className="bg-card border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
           <thead className="bg-secondary text-left"><tr>
             <th className="p-3">Prioridade</th><th className="p-3">Campo</th><th className="p-3">Condição</th>
             <th className="p-3">Valor</th><th className="p-3">Destino</th><th className="p-3">Ativa</th><th></th>
