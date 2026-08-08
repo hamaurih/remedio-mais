@@ -16,6 +16,7 @@ import { openGenericCheck } from "@/lib/genericSuggestion";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { liveCheckProducts } from "@/lib/liveStock";
 import { notifyCartAddition } from "@/lib/cartLiveNotify";
+import { Seo } from "@/components/Seo";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
@@ -94,6 +95,30 @@ export default function Product() {
 
   return (
     <Layout>
+      <Seo
+        title={p.name}
+        description={`${p.name}${(p as any).manufacturer ? " - " + (p as any).manufacturer : ""}. Compre na farmácia Atacadão dos Medicamentos com preço baixo e entrega em Campina Grande - PB.`}
+        path={`/produto/${p.slug}`}
+        image={typeof p.image_url === "string" && p.image_url.startsWith("http") ? p.image_url : null}
+        type="product"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: p.name,
+          image: p.image_url || undefined,
+          brand: (p as any).manufacturer || undefined,
+          sku: (p as any).sku || p.id,
+          offers: {
+            "@type": "Offer",
+            price: Number((p as any).promo_price ?? p.price ?? 0),
+            priceCurrency: "BRL",
+            availability: Math.max(Number(p.stock ?? 0), Number((p as any).stock_quantity ?? 0)) > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+            url: `https://atacadaodosmedicamentos.com.br/produto/${p.slug}`,
+          },
+        }}
+      />
       <div className="container py-6">
         <nav className="text-xs text-muted-foreground mb-4">
           <Link to="/" className="hover:text-primary">Início</Link> / <span>{p.name}</span>
