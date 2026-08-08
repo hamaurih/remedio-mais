@@ -540,14 +540,13 @@ function DiagnosticsTab() {
     queryKey: ["taxonomy_diag"],
     queryFn: async () => {
       const [
-        depts, cats, subs, prods, taxAll, taxManual,
+        depts, cats, subs, prods, taxAll,
       ] = await Promise.all([
         sb.from("departments").select("id,name,active"),
         sb.from("categories").select("id,name,active,department_id"),
         sb.from("subcategories").select("id,name,active,category_id"),
         sb.from("products").select("id,active", { count: "exact", head: true }),
         sb.rpc("admin_taxonomy_rows", { _product_ids: null, _primary_only: false }),
-        Promise.resolve({ data: null, count: null }),
       ]);
 
       const totalProducts = prods.count || 0;
@@ -656,10 +655,10 @@ function ApplyTrierMapping() {
 
         const productIds = products.map((p: any) => p.id);
         // Existing primary taxonomy rows for these products
-        const { data: existingTax } = await sb.from("product_taxonomy")
-          .select("product_id, is_manual, id")
-          .eq("is_primary", true)
-          .in("product_id", productIds);
+        const { data: existingTax } = await sb.rpc("admin_taxonomy_rows", {
+          _product_ids: productIds,
+          _primary_only: true,
+        });
         const existingMap = new Map<string, any>();
         (existingTax || []).forEach((t: any) => existingMap.set(t.product_id, t));
 
