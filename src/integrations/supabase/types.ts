@@ -1806,6 +1806,7 @@ export type Database = {
           last_synced_at: string | null
           last_trier_sync_at: string | null
           lock_base_price: boolean
+          lock_channel_discount: boolean
           lock_manual_price: boolean
           lock_manual_stock: boolean
           lock_promotion: boolean
@@ -1846,6 +1847,7 @@ export type Database = {
           short_description: string | null
           show_in_filters: boolean
           show_in_menu: boolean
+          site_discount_percentage: number | null
           site_price: number | null
           site_promo_price: number | null
           sku: string | null
@@ -1864,6 +1866,7 @@ export type Database = {
           updated_at: string
           use_channel_pricing: boolean
           variation_type: string | null
+          whatsapp_discount_percentage: number | null
           whatsapp_price: number | null
           whatsapp_promo_price: number | null
         }
@@ -1910,6 +1913,7 @@ export type Database = {
           last_synced_at?: string | null
           last_trier_sync_at?: string | null
           lock_base_price?: boolean
+          lock_channel_discount?: boolean
           lock_manual_price?: boolean
           lock_manual_stock?: boolean
           lock_promotion?: boolean
@@ -1950,6 +1954,7 @@ export type Database = {
           short_description?: string | null
           show_in_filters?: boolean
           show_in_menu?: boolean
+          site_discount_percentage?: number | null
           site_price?: number | null
           site_promo_price?: number | null
           sku?: string | null
@@ -1968,6 +1973,7 @@ export type Database = {
           updated_at?: string
           use_channel_pricing?: boolean
           variation_type?: string | null
+          whatsapp_discount_percentage?: number | null
           whatsapp_price?: number | null
           whatsapp_promo_price?: number | null
         }
@@ -2014,6 +2020,7 @@ export type Database = {
           last_synced_at?: string | null
           last_trier_sync_at?: string | null
           lock_base_price?: boolean
+          lock_channel_discount?: boolean
           lock_manual_price?: boolean
           lock_manual_stock?: boolean
           lock_promotion?: boolean
@@ -2054,6 +2061,7 @@ export type Database = {
           short_description?: string | null
           show_in_filters?: boolean
           show_in_menu?: boolean
+          site_discount_percentage?: number | null
           site_price?: number | null
           site_promo_price?: number | null
           sku?: string | null
@@ -2072,6 +2080,7 @@ export type Database = {
           updated_at?: string
           use_channel_pricing?: boolean
           variation_type?: string | null
+          whatsapp_discount_percentage?: number | null
           whatsapp_price?: number | null
           whatsapp_promo_price?: number | null
         }
