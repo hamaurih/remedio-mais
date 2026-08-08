@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
+import { Seo } from "@/components/Seo";
 import { Product } from "@/components/ProductCard";
 import { ProductShelf, type ShelfBg } from "@/components/ProductShelf";
 import { customShelfSectionKey, type CustomShelf } from "@/hooks/useCustomShelves";
@@ -301,6 +302,11 @@ export default function Index() {
 
   return (
     <Layout>
+      <Seo
+        title="Atacadão dos Medicamentos | Farmácia em Campina Grande - PB"
+        description="Farmácia Atacadão dos Medicamentos em Campina Grande - PB. Preço baixo todo dia, entrega local e atendimento pelo WhatsApp."
+        path="/"
+      />
       {order.map((key) => (
         <div key={key}>{SECTIONS[key] ?? null}</div>
       ))}

@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
+import { Seo } from "@/components/Seo";
 import { ProductCard, Product } from "@/components/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { COLLECTIONS, CollectionTheme, fetchCollectionProducts, getCollection } from "@/lib/collections";
@@ -47,6 +48,7 @@ export default function Collection({ slug: fixedSlug }: CollectionPageProps) {
 
   return (
     <Layout>
+      <Seo title={title} description={description} path={def.route ?? `/colecao/${slug}`} />
       <section className={COLLECTION_THEME_CLASS[theme] ?? COLLECTION_THEME_CLASS.neutral}>
         <div className="container py-8">
           <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>

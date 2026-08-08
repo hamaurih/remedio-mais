@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://atacadaodosmedicamentos.com.br/sitemap.xml

@@ -72,7 +72,7 @@ export default function Cart() {
               {items.map((i) => (
                 <div key={i.id} className="bg-card border rounded-xl p-3 shadow-card">
                   <div className="flex gap-3 items-center">
-                    <img src={i.image_url || productPlaceholder} alt={i.name} className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
+                    <img src={i.image_url || productPlaceholder} alt={i.name} loading="lazy" decoding="async" className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
                     <div className="flex-1">
                       <div className="font-medium text-sm line-clamp-2">{i.name}</div>
                       {i.variant_label && (

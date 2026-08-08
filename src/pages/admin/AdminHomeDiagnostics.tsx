@@ -242,6 +242,7 @@ function ExportNoBarcodeButton({ onlyStockPositive = false, priority = false }: 
           .from("products")
           .select("trier_product_id,sku,name,stock,price,category_id,active")
           .or("barcode.is.null,barcode.eq.")
+          .is("archived_at", null)
           .order("stock", { ascending: false })
           .range(from, from + pageSize - 1);
         if (onlyStockPositive) q = q.gt("stock", 0);

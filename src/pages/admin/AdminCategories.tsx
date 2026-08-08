@@ -92,7 +92,7 @@ export default function AdminCategories() {
           <tbody>
             {data?.map((c: any) => (
               <tr key={c.id} className="border-t">
-                <td className="p-2">{c.image_url ? <img src={c.image_url} alt="" className="w-10 h-10 object-cover rounded" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
+                <td className="p-2">{c.image_url ? <img src={c.image_url} alt="" loading="lazy" decoding="async" className="w-10 h-10 object-cover rounded" /> : <div className="w-10 h-10 bg-secondary rounded" />}</td>
                 <td className="p-3 font-medium">{c.name}</td>
                 <td className="p-3 text-muted-foreground">{c.slug}</td>
                 <td className="p-3 text-muted-foreground">{c.macro_group || <span className="opacity-50">—</span>}</td>

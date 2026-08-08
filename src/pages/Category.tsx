@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
+import { Seo } from "@/components/Seo";
 import { ProductCard, Product } from "@/components/ProductCard";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -111,6 +112,11 @@ export default function Category() {
 
   return (
     <Layout>
+      <Seo
+        title={subcategory ? `${subcategory.name} - ${cat?.name ?? ""}` : title}
+        description={`${title} com preço baixo na farmácia Atacadão dos Medicamentos. ${count} produtos disponíveis com entrega em Campina Grande - PB.`}
+        path={sub && cat ? `/categoria/${cat.slug}/${sub}` : `/categoria/${slug}`}
+      />
       <div className="container py-6 flex items-end justify-between gap-3">
         <div>
           {subcategory && cat && (
