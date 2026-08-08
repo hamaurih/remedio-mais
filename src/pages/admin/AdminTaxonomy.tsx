@@ -580,7 +580,7 @@ function DiagnosticsTab() {
         productsWithoutTax: totalProducts - productsWithTax,
         productsWithoutDept: totalProducts - productsWithDept,
         productsWithoutCat: totalProducts - productsWithCat,
-        productsManual: taxManual.count || 0,
+        productsManual: new Set(tax.filter((t: any) => t.is_manual).map((t: any) => t.product_id)).size,
         catsWithDept,
         catsWithoutDept,
         subsEmpty,
