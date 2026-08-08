@@ -85,11 +85,15 @@ async function main() {
   const departments = await fetchRows("departments", "select=slug&active=eq.true&limit=200");
   for (const d of departments) if (d?.slug) entries.push({ path: `/departamento/${d.slug}`, changefreq: "weekly", priority: "0.7" });
 
-  const products = await fetchRows(
-    "products",
-    "select=slug&active=eq.true&archived_at=is.null&stock=gt.0&order=updated_at.desc&limit=5000",
-  );
-  for (const p of products) if (p?.slug) entries.push({ path: `/produto/${p.slug}`, changefreq: "daily", priority: "0.7" });
+  // PostgREST limita a 1000 linhas por requisição — paginamos.
+  for (let page = 0; page < 12; page++) {
+    const products = await fetchRows(
+      "products",
+      `select=slug&active=eq.true&archived_at=is.null&stock=gt.0&order=updated_at.desc&limit=1000&offset=${page * 1000}`,
+    );
+    for (const p of products) if (p?.slug) entries.push({ path: `/produto/${p.slug}`, changefreq: "daily", priority: "0.7" });
+    if (products.length < 1000) break;
+  }
 
   writeFileSync(resolve("public/sitemap.xml"), generateSitemap(entries));
   console.log(`sitemap.xml gerado (${entries.length} URLs)`);
