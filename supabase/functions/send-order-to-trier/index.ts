@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
       }
       produtos.push({
         codigoProduto: Number(trierCode) || trierCode,
-        nomeProduto: it.product_name,
+        nomeProduto: String(it.product_name || "").trim().slice(0, 30),
         quantidade: Number(it.quantity),
         valorUnitario: Number(it.unit_price),
         valorDesconto: 0,
@@ -454,7 +454,7 @@ Deno.serve(async (req) => {
     if (!isTest && isDelivery && deliveryFee > 0 && settings.delivery_fee_product_code) {
       produtos.push({
         codigoProduto: Number(settings.delivery_fee_product_code) || settings.delivery_fee_product_code,
-        nomeProduto: settings.delivery_fee_product_name || "Taxa de Entrega",
+        nomeProduto: String(settings.delivery_fee_product_name || "Taxa de Entrega").trim().slice(0, 30),
         quantidade: 1,
         valorUnitario: deliveryFee,
         valorDesconto: 0,
