@@ -755,9 +755,14 @@ async function upsertProductFromTrier(
   delete mapped._stock_ecom;
   delete mapped.discount_percentage;
 
-  // Bloqueios do registro existente (manual_disabled / arquivado / inativo no Trier).
-  if (existing && !shouldProductBeActive({ ...existing, stock_quantity: mapped.stock_quantity ?? mapped.stock, trier_active: mapped.trier_active })) {
-    mapped.active = false;
+  // Regra única aplicada com o registro existente (respeita manual_disabled /
+  // arquivado / inativo no Trier E o override force_active do admin).
+  if (existing) {
+    mapped.active = shouldProductBeActive({
+      ...existing,
+      stock_quantity: mapped.stock_quantity ?? mapped.stock,
+      trier_active: mapped.trier_active,
+    });
   }
 
   // Em sincronização de estoque, sempre marcar last_stock_sync_at
