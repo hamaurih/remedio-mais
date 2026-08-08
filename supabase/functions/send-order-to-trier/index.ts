@@ -596,11 +596,12 @@ Deno.serve(async (req) => {
     const LOCK_TTL_MS = 5 * 60 * 1000;
     if (!isTest) {
       const staleBefore = new Date(Date.now() - LOCK_TTL_MS).toISOString();
-      const { data: claimed, error: claimErr } = await admin
+      let claimQ = admin
         .from("orders")
         .update({ trier_sending_at: new Date().toISOString() })
-        .eq("id", orderId)
-        .eq("trier_sent", false)
+        .eq("id", orderId);
+      if (!force) claimQ = claimQ.eq("trier_sent", false);
+      const { data: claimed, error: claimErr } = await claimQ
         .or(`trier_sending_at.is.null,trier_sending_at.lt.${staleBefore}`)
         .select("id");
       if (claimErr) return json({ error: claimErr.message }, 500);
@@ -608,6 +609,7 @@ Deno.serve(async (req) => {
         return json({ skipped: true, reason: "send_in_progress_or_already_sent" }, 200);
       }
     }
+
 
     // 7) Envia
     const url = `${salesBaseUrl}${SEND_PATH}`;
