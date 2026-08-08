@@ -64,6 +64,9 @@ export default function AdminProducts() {
   const [reorderOpen, setReorderOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const [activeTab, setActiveTab] = useState<string>("basic");
+  // valor digitado do desconto (%) — permite decimais como 14,5 / 14,25
+  const [pctInput, setPctInput] = useState<string | null>(null);
+
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -183,10 +186,10 @@ export default function AdminProducts() {
 
 
 
-  const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setOpen(true); };
+  const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setPctInput(null); setOpen(true); };
   const openEdit = (p: any, tab: string = "basic") => {
     setEditing({ ...empty, ...p, category_id: p.category_id || "", shelves: p.shelves || [], gallery_images: p.gallery_images || [] });
-    setMainFile(null); setGalleryFiles([]);
+    setMainFile(null); setGalleryFiles([]); setPctInput(null);
     setActiveTab(tab);
     setOpen(true);
   };
@@ -350,8 +353,10 @@ export default function AdminProducts() {
   const discountPct = useMemo(() => {
     const p = Number(editing.price), pp = Number(editing.promo_price);
     if (!p || !pp || pp >= p) return 0;
-    return Math.round((1 - pp / p) * 100);
+    // mantém casas decimais (ex.: 14,5% / 14,25%) sem arredondar para inteiro
+    return Number(((1 - pp / p) * 100).toFixed(2));
   }, [editing.price, editing.promo_price]);
+
 
   return (
     <div className="p-6">
@@ -587,24 +592,27 @@ export default function AdminProducts() {
                 <div className="space-y-1">
                   <Label>Desconto (%)</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="ex.: 15"
-                    value={discountPct || ""}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="ex.: 14,5"
+                    value={pctInput ?? (discountPct ? String(discountPct).replace(".", ",") : "")}
                     onChange={(e) => {
-                      const pct = Number(e.target.value);
+                      const raw = e.target.value;
+                      setPctInput(raw);
+                      const pct = Number(raw.replace(",", "."));
                       const base = Number(editing.price);
-                      if (!e.target.value) {
+                      if (!raw.trim()) {
                         setEditing({ ...editing, promo_price: null });
                       } else if (!isNaN(pct) && pct > 0 && pct < 100 && base > 0) {
                         const promo = +(base * (1 - pct / 100)).toFixed(2);
                         setEditing({ ...editing, promo_price: promo, on_sale: true });
                       }
                     }}
+                    onBlur={() => setPctInput(null)}
                   />
+                  <p className="text-[11px] text-muted-foreground">Aceita casas decimais (ex.: 14,5% ou 14,25%).</p>
                 </div>
+
                 <div className="flex items-center gap-2 mt-6"><Switch checked={editing.on_sale} onCheckedChange={(v) => setEditing({ ...editing, on_sale: v })} /><Label>Em promoção</Label></div>
                 <div className="space-y-1"><Label>Início da promoção</Label><Input type="datetime-local" value={editing.promotion_start?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_start: e.target.value || null })} /></div>
                 <div className="space-y-1"><Label>Fim da promoção</Label><Input type="datetime-local" value={editing.promotion_end?.slice(0, 16) || ""} onChange={(e) => setEditing({ ...editing, promotion_end: e.target.value || null })} /></div>
@@ -643,13 +651,14 @@ export default function AdminProducts() {
                   const base = Number(editing.price_base || editing.price || 0);
                   const setPct = (pctField: string, priceField: string, raw: string) => {
                     if (!raw) { setEditing({ ...editing, [pctField]: null }); return; }
-                    const pct = Number(raw);
-                    const next: any = { ...editing, [pctField]: raw };
+                    const pct = Number(raw.replace(",", "."));
+                    const next: any = { ...editing, [pctField]: raw.replace(",", ".") };
                     if (base > 0 && pct > 0 && pct < 100) {
                       next[priceField] = +(base * (1 - pct / 100)).toFixed(2);
                     }
                     setEditing(next);
                   };
+
                   const setPrice = (pctField: string, priceField: string, raw: string) => {
                     const next: any = { ...editing, [priceField]: raw || null };
                     const val = Number(raw);
@@ -666,7 +675,7 @@ export default function AdminProducts() {
                       <div className="hidden sm:block" />
                       <div className="space-y-1">
                         <Label>Desconto do site (%)</Label>
-                        <Input type="number" step="0.01" min="0" max="100" placeholder="ex.: 10" value={editing.site_discount_percentage ?? ""} onChange={(e) => setPct("site_discount_percentage", "site_price", e.target.value)} />
+                        <Input type="text" inputMode="decimal" placeholder="ex.: 10,5" value={editing.site_discount_percentage ?? ""} onChange={(e) => setPct("site_discount_percentage", "site_price", e.target.value)} />
                       </div>
                       <div className="space-y-1">
                         <Label>Preço do site R$</Label>
@@ -674,7 +683,7 @@ export default function AdminProducts() {
                       </div>
                       <div className="space-y-1">
                         <Label>Desconto WhatsApp/loja (%)</Label>
-                        <Input type="number" step="0.01" min="0" max="100" placeholder="ex.: 15" value={editing.whatsapp_discount_percentage ?? ""} onChange={(e) => setPct("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} />
+                        <Input type="text" inputMode="decimal" placeholder="ex.: 15,25" value={editing.whatsapp_discount_percentage ?? ""} onChange={(e) => setPct("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} />
                       </div>
                       <div className="space-y-1">
                         <Label>Preço WhatsApp/loja R$</Label>
