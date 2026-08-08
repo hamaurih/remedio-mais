@@ -15,9 +15,19 @@ export type ProductAvailabilityInput = {
   force_active?: boolean | null;
 };
 
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Usa o MAIOR valor entre stock e stock_quantity: edições manuais atualizam só
+// `stock` e syncs antigos deixaram `stock_quantity` defasado.
 export function productStock(p: ProductAvailabilityInput): number {
-  const n = Number(p?.stock_quantity ?? p?.stock ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  const a = toNum(p?.stock);
+  const b = toNum(p?.stock_quantity);
+  if (a === null && b === null) return 0;
+  return Math.max(a ?? Number.NEGATIVE_INFINITY, b ?? Number.NEGATIVE_INFINITY);
 }
 
 export function isProductBlocked(p: ProductAvailabilityInput): boolean {

@@ -1,3 +1,4 @@
+import { productStock } from "@/lib/availability";
 // Central helper for product data quality, publication status and score.
 // Focused on SELLABLE products (com estoque, ativos). Sem estoque = fora do site
 // e fora da análise principal de qualidade.
@@ -58,8 +59,7 @@ const nonEmpty = (v: unknown) =>
 const PLACEHOLDER_RE = /placeholder|no-image|sem-imagem/i;
 
 export function effectiveStock(p: QualityProduct): number {
-  const s = p.stock_quantity ?? p.stock ?? 0;
-  return Number(s) || 0;
+  return productStock(p);
 }
 
 /** Imagem própria do produto (não é o placeholder padrão). */
