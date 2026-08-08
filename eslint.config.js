@@ -27,4 +27,15 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
     },
   },
+  {
+    // Arquivos gerados (tipos do backend, config do Tailwind) e primitivos
+    // shadcn/ui seguem convenções próprias que não devemos reescrever.
+    files: ["src/components/ui/**", "src/integrations/**", "tailwind.config.ts"],
+    rules: {
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 );
+
