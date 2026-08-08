@@ -2287,6 +2287,7 @@ export type Database = {
       refund_requests: {
         Row: {
           amount: number | null
+          cielo_refund_id: string | null
           created_at: string
           error_message: string | null
           id: string
@@ -2304,6 +2305,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          cielo_refund_id?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
@@ -2321,6 +2323,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          cielo_refund_id?: string | null
           created_at?: string
           error_message?: string | null
           id?: string

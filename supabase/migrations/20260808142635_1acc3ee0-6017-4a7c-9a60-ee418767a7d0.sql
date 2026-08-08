@@ -1,0 +1,1 @@
+ALTER TABLE public.refund_requests ADD COLUMN IF NOT EXISTS cielo_refund_id text;
