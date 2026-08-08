@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
+import { Seo } from "@/components/Seo";
 import { Product } from "@/components/ProductCard";
 import { ProductShelf, type ShelfBg } from "@/components/ProductShelf";
 import { customShelfSectionKey, type CustomShelf } from "@/hooks/useCustomShelves";
