@@ -68,6 +68,8 @@ const queryClient = new QueryClient({
     queries: {
       // Storefront should pick up admin changes quickly without manual refresh
       staleTime: 30_000,
+      gcTime: 10 * 60_000,
+      retry: 1,
       refetchOnWindowFocus: "always",
       refetchOnReconnect: "always",
     },

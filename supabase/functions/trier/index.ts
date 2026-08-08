@@ -743,7 +743,6 @@ async function upsertProductFromTrier(
     .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, discount_percentage, on_sale, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, force_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
-  if (existing?.archived_at) return { skipped: true, reason: "archived", trier_id: trierId, name };
 
   const mapped: any = mapProduct(t, opts.stockSource || "loja");
   const autoShelves: string[] = mapped._shelves || [];
@@ -755,11 +754,26 @@ async function upsertProductFromTrier(
   delete mapped._stock_ecom;
   delete mapped.discount_percentage;
 
+  const incomingStock = Number(mapped.stock_quantity ?? mapped.stock ?? 0);
+  // Produto arquivado que voltou a ter estoque na Trier é desarquivado automaticamente.
+  let unarchived = false;
+  if (existing?.archived_at) {
+    if (incomingStock > 0) {
+      unarchived = true;
+      mapped.archived_at = null;
+      mapped.archived_by = null;
+      mapped.archive_reason = null;
+    } else {
+      return { skipped: true, reason: "archived", trier_id: trierId, name };
+    }
+  }
+
   // Regra única aplicada com o registro existente (respeita manual_disabled /
   // arquivado / inativo no Trier E o override force_active do admin).
   if (existing) {
     mapped.active = shouldProductBeActive({
       ...existing,
+      archived_at: unarchived ? null : existing.archived_at,
       stock_quantity: mapped.stock_quantity ?? mapped.stock,
       trier_active: mapped.trier_active,
     });
@@ -927,6 +941,19 @@ async function upsertProductFromTrier(
           metadata: { product_id: existing.id, promo_price: promo, new_price: newBase, trier_product_id: trierId },
         });
       }
+    }
+  }
+
+  // Desarquivamento automático: produto arquivado voltou a ter estoque.
+  if (unarchived) {
+    candidate.archived_at = null;
+    candidate.archived_by = null;
+    candidate.archive_reason = null;
+    candidate.active = mapped.active;
+    if (!fields_updated.includes("archived_at")) {
+      fields_updated.push("archived_at");
+      oldValues.archived_at = existing.archived_at;
+      newValues.archived_at = null;
     }
   }
 
