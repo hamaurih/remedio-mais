@@ -165,22 +165,9 @@ export default function Index() {
       return (data || []) as Product[];
     },
   });
-  const buildShelf = (slug: string, shelf: string) =>
-    useQuery({
-      queryKey: [`shelf_${shelf}`],
-      queryFn: async () => {
-        const manual = await manualShelf(shelf);
-        if (manual) return manual;
-        const t = await shelfBy(shelf)();
-        if (t) return t;
-        const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
-        if (!cat) return [];
-        const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
-        return (data || []) as Product[];
-      },
-    });
-  const vitamins = buildShelf("vitaminas", "vitaminas-e-suplementos");
-  const firstaid = buildShelf("primeiros-socorros", "primeiros-socorros");
+  const vitamins = useShelfQuery("vitaminas", "vitaminas-e-suplementos");
+  const firstaid = useShelfQuery("primeiros-socorros", "primeiros-socorros");
+
 
   const { data: layout } = useQuery({
     queryKey: ["home_layout"],
