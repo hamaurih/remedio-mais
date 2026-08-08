@@ -15,6 +15,7 @@ import { ProductShelf } from "@/components/ProductShelf";
 import { openGenericCheck } from "@/lib/genericSuggestion";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { liveCheckProducts } from "@/lib/liveStock";
+import { notifyCartAddition } from "@/lib/cartLiveNotify";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
@@ -80,6 +81,7 @@ export default function Product() {
         addToCart({ id: p.id, product_id: p.id, name: p.name, price: Number(finalPrice), image_url: p.image_url });
       }
       toast.success("Adicionado ao carrinho");
+      if (!(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
     };
 
     // Se for variação, pula a checagem de genérico (variação é específica)
