@@ -6,6 +6,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
 import { fetchGenericSuggestion, onGenericCheck, type GenericSuggestion } from "@/lib/genericSuggestion";
 import { toast } from "sonner";
+import { notifyCartAddition } from "@/lib/cartLiveNotify";
 
 export function GenericSuggestionDialog() {
   const [open, setOpen] = useState(false);
@@ -50,6 +51,7 @@ export function GenericSuggestionDialog() {
       image_url: c.image_url,
     });
     toast.success(`Genérico adicionado! Você economizou ${formatBRL(suggestion.savings)}`);
+    void notifyCartAddition(c.id, c.id);
     setOpen(false);
   };
 

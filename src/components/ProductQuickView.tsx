@@ -15,6 +15,7 @@ import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { ProductCard, type Product } from "./ProductCard";
 import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "./VariantSelector";
 import { toast } from "sonner";
+import { notifyCartAddition } from "@/lib/cartLiveNotify";
 
 export function ProductQuickView() {
   const [product, setProduct] = useState<Product | null>(null);
@@ -143,6 +144,7 @@ export function ProductQuickView() {
       addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url }, qty);
     }
     toast.success(`${qty}x adicionado ao carrinho`);
+    if (!(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
   };
 
   const content = (

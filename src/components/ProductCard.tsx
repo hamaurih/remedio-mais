@@ -6,6 +6,7 @@ import { addToCart, formatBRL } from "@/lib/store";
 import { toast } from "sonner";
 import { openQuickView } from "@/lib/quickview";
 import { openGenericCheck } from "@/lib/genericSuggestion";
+import { notifyCartAddition } from "@/lib/cartLiveNotify";
 
 export type Product = {
   id: string; name: string; slug: string;
@@ -62,6 +63,7 @@ export function ProductCard({ p }: { p: Product }) {
     const doAdd = () => {
       addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url });
       toast.success("Adicionado ao carrinho");
+      void notifyCartAddition(p.id, p.id);
     };
     // Checa se existe genérico equivalente (modal abre se houver, senão adiciona direto)
     openGenericCheck({ product: p, onAddOriginal: doAdd });
