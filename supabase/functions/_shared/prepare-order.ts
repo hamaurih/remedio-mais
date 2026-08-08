@@ -163,7 +163,27 @@ export async function prepareOrder(
   const total = Number((subtotal + deliveryFee).toFixed(2));
   if (!Number.isFinite(total) || total <= 0) return { ok: false, status: 400, body: { success: false, error: "Total inválido." } };
 
+  // Rate limit: evita que um mesmo usuário abra dezenas de cobranças em sequência
+  // (retentativa nervosa no checkout ou abuso). Janela curta, limite generoso.
+  {
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { count } = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", since);
+    if ((count ?? 0) >= 8) {
+      safeError("[prepare-order] rate limited", { userId, count });
+      return {
+        ok: false,
+        status: 429,
+        body: { success: false, error: "Muitas tentativas de pagamento em sequência. Aguarde um minuto e tente novamente." },
+      };
+    }
+  }
+
   // Cria pedido pendente
+
   const { data: order, error: orderErr } = await admin.from("orders").insert({
     user_id: userId,
     customer_name: body.customer.name,
