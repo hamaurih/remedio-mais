@@ -651,13 +651,14 @@ export default function AdminProducts() {
                   const base = Number(editing.price_base || editing.price || 0);
                   const setPct = (pctField: string, priceField: string, raw: string) => {
                     if (!raw) { setEditing({ ...editing, [pctField]: null }); return; }
-                    const pct = Number(raw);
-                    const next: any = { ...editing, [pctField]: raw };
+                    const pct = Number(raw.replace(",", "."));
+                    const next: any = { ...editing, [pctField]: raw.replace(",", ".") };
                     if (base > 0 && pct > 0 && pct < 100) {
                       next[priceField] = +(base * (1 - pct / 100)).toFixed(2);
                     }
                     setEditing(next);
                   };
+
                   const setPrice = (pctField: string, priceField: string, raw: string) => {
                     const next: any = { ...editing, [priceField]: raw || null };
                     const val = Number(raw);
