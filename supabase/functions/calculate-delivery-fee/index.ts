@@ -45,7 +45,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    let { lat, lng, address } = body as { lat?: number; lng?: number; address?: string };
+    let { lat, lng } = body as { lat?: number; lng?: number };
+    const { address } = body as { lat?: number; lng?: number; address?: string };
 
     if ((typeof lat !== "number" || typeof lng !== "number") && typeof address === "string" && address.trim()) {
       const geo = await geocodeAddress(address);

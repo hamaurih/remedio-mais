@@ -449,7 +449,7 @@ export default function AdminProductsImport() {
     setConfirming(true);
     try {
       // save mapping for next time
-      try { localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mapping)); } catch {}
+      try { localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mapping)); } catch { /* storage indisponível */ }
 
       const { data: job, error: jobErr } = await supabase.from("import_jobs").insert({
         file_name: file?.name || "manual.csv",

@@ -373,7 +373,7 @@ export const SORT_OPTIONS = [
   { v: "name_desc", l: "Nome Z-A" },
 ];
 
-export function applyClientFilters<T extends any>(rows: T[], f: ProductFiltersState): T[] {
+export function applyClientFilters<T>(rows: T[], f: ProductFiltersState): T[] {
   return rows.filter((p: any) => {
     if (f.generic) {
       const t = `${p.name ?? ""} ${p.manufacturer ?? ""}`.toLowerCase();

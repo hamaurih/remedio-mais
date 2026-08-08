@@ -40,7 +40,9 @@ export default function OrderReturn({ status }: { status: Status }) {
     setLoading(true);
     try {
       await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } });
-    } catch {}
+    } catch {
+      // status opcional: segue com os dados já salvos
+    }
     const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
     setOrder(data);
     const { data: evs } = await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
