@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
+import { Seo } from "@/components/Seo";
 import { ProductCard, Product } from "@/components/ProductCard";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -104,6 +105,11 @@ export default function Department() {
 
   return (
     <Layout>
+      <Seo
+        title={dept?.name || "Departamento"}
+        description={dept?.description || `Produtos do departamento ${dept?.name || ""} na farmácia Atacadão dos Medicamentos, em Campina Grande - PB.`}
+        path={`/departamento/${slug}`}
+      />
       <div className="container py-6">
         <div className="flex items-end justify-between gap-3 mb-4">
           <div>
