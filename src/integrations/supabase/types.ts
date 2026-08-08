@@ -3283,6 +3283,19 @@ export type Database = {
         Returns: Json
       }
       admin_revoke_seller: { Args: { _user_id: string }; Returns: undefined }
+      admin_taxonomy_rows: {
+        Args: { _primary_only?: boolean; _product_ids?: string[] }
+        Returns: {
+          category_id: string
+          department_id: string
+          id: string
+          is_manual: boolean
+          is_primary: boolean
+          product_id: string
+          source: string
+          subcategory_id: string
+        }[]
+      }
       admin_unarchive_product: { Args: { _id: string }; Returns: undefined }
       has_role: {
         Args: {
