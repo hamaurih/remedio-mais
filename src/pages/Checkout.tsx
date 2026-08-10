@@ -481,12 +481,17 @@ export default function Checkout() {
                 ) : deliveryBlocked ? (
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 mt-0.5" />
-                    <div>{deliveryQuote?.message || "Endereço fora da área de entrega."}</div>
+                    <div>{deliveryBlockMessage}</div>
                   </div>
                 ) : (
                   <div>
                     Frete: <strong>{formatBRL(Number(deliveryQuote?.fee ?? 0))}</strong>
                     {deliveryQuote?.distance_km != null && <span className="text-muted-foreground"> · {deliveryQuote.distance_km} km {deliveryQuote.zone_label ? `(${deliveryQuote.zone_label})` : ""}</span>}
+                    {deliveryQuote?.distance_source === "haversine" && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Distância aproximada — pode variar um pouco no trajeto real.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
