@@ -297,7 +297,9 @@ export default function Checkout() {
           expires_at: data.expires_at,
           total: data.total,
         }));
-        // O carrinho só é limpo quando o Pix for confirmado (tela do Pix).
+        // O carrinho só é limpo quando o Pix for confirmado. Guardamos o pedido
+        // pendente para reconciliar mesmo se o cliente fechar a página.
+        setPendingPixOrder(data.order_id);
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         return;
       }
