@@ -162,12 +162,24 @@ export default function Checkout() {
     }).then(({ data, error }) => {
       if (cancelled) return;
       if (error || !data?.ok) {
-        setDeliveryQuote({ allowed: false, fee: null, distance_km: null, message: (data as any)?.error || error?.message || "Não foi possível calcular o frete." });
+        setDeliveryQuote({
+          ok: false,
+          mode: null,
+          allowed: false,
+          fee: null,
+          distance_km: null,
+          distance_source: null,
+          message: "Não conseguimos validar seu endereço para calcular a entrega. Confira o endereço e tente novamente.",
+        });
       } else {
         setDeliveryQuote({
+          ok: true,
+          mode: (data.mode as "flat" | "distance") ?? null,
           allowed: !!data.allowed,
           fee: data.fee ?? null,
           distance_km: data.distance_km ?? null,
+          distance_source: (data.distance_source as "route" | "haversine") ?? null,
+          distance_warning: data.distance_warning ?? undefined,
           zone_label: data.zone_label,
           message: data.message,
         });
