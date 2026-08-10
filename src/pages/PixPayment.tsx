@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { clearCart, formatBRL } from "@/lib/store";
+import { clearCart, clearPendingPixOrder, formatBRL } from "@/lib/store";
 import { Copy, Check, Loader2, QrCode, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
