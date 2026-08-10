@@ -4,6 +4,7 @@ import { Footer } from "./Footer";
 import { WhatsAppFab } from "./WhatsAppFab";
 import { ProductQuickView } from "./ProductQuickView";
 import { GenericSuggestionDialog } from "./GenericSuggestionDialog";
+import { PixCartReconciler } from "./PixCartReconciler";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
