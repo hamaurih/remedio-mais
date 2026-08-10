@@ -42,6 +42,7 @@ export function useStoreSettings() {
           instagram: null,
           hours: null,
           delivery_fee: 0,
+          delivery_mode: "distance",
           hero_title: null,
           hero_subtitle: null,
           store_name: null,
