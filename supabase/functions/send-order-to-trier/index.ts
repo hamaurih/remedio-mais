@@ -99,32 +99,42 @@ const DIAGNOSTIC_PRESETS: DiagnosticPreset[] = [
   "official_payload",
 ];
 
-const FALLBACK_ADDRESS = {
-  logradouro: "RETIRADA NA LOJA",
-  numero: "0",
+// Endereço da própria loja — usado quando o pedido é RETIRADA NA LOJA.
+// Antes enviávamos "RETIRADA NA LOJA / CENTRO" como logradouro, o que aparecia
+// no ERP como um segundo endereço fictício e confundia a separação.
+const STORE_ADDRESS = {
+  logradouro: "Av. Mal. Floriano Peixoto",
+  numero: "4050",
   complemento: "",
-  referencia: "",
-  bairro: "CENTRO",
-  cidade: "CAMPINA GRANDE",
+  referencia: "RETIRADA NA LOJA",
+  bairro: "Malvinas",
+  cidade: "Campina Grande",
   estado: "PB",
-  cep: "58400000",
+  cep: "58428111",
 };
 
 // enderecoEntrega é sempre enviado (mesmo em retirada) — o backend Trier
 // dispara NullPointerException quando o objeto está ausente.
+// Um único endereço por pedido: entrega => endereço do cliente; retirada => endereço da loja.
 function buildEnderecoEntrega(order: any, minimal = false): Record<string, string> {
-  if (minimal) return { ...FALLBACK_ADDRESS };
+  const contato = onlyDigits(order.customer_phone);
+  if (minimal) {
+    return { ...STORE_ADDRESS, referencia: contato ? `RETIRADA NA LOJA - Contato: ${contato}` : "RETIRADA NA LOJA" };
+  }
+  const ref = [order.delivery_reference, contato ? `Contato: ${contato}` : ""]
+    .filter(Boolean).join(" - ").slice(0, 100);
   return {
-    logradouro: String(order.delivery_street || FALLBACK_ADDRESS.logradouro),
+    logradouro: String(order.delivery_street || STORE_ADDRESS.logradouro),
     numero: String(order.delivery_number || "0"),
     complemento: String(order.delivery_complement || ""),
-    referencia: String(order.delivery_reference || ""),
-    bairro: String(order.delivery_neighborhood || FALLBACK_ADDRESS.bairro),
-    cidade: String(order.delivery_city || FALLBACK_ADDRESS.cidade),
-    estado: String(order.delivery_state || FALLBACK_ADDRESS.estado),
-    cep: onlyDigits(order.delivery_cep) || FALLBACK_ADDRESS.cep,
+    referencia: ref,
+    bairro: String(order.delivery_neighborhood || STORE_ADDRESS.bairro),
+    cidade: String(order.delivery_city || STORE_ADDRESS.cidade),
+    estado: String(order.delivery_state || STORE_ADDRESS.estado),
+    cep: onlyDigits(order.delivery_cep) || STORE_ADDRESS.cep,
   };
 }
+
 
 // Cliente no formato oficial da coleção Trier 1.5.23
 function buildClienteOficial(order: any, codigo: string | number | null): Record<string, unknown> {

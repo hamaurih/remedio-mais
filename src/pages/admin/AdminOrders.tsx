@@ -130,13 +130,24 @@ export default function AdminOrders() {
 
   const filtered = (data || []).filter((o: any) => TABS.find((t) => t.key === tab)!.match(o));
 
+  // Fonte única de verdade do endereço: campos delivery_* (customer_address é só um
+  // resumo textual legado e gerava a impressão de "dois endereços" no pedido).
+  const deliveryAddress = (o: any) => {
+    const line = [o.delivery_street, o.delivery_number, o.delivery_complement, o.delivery_neighborhood]
+      .filter(Boolean).join(", ");
+    const cityLine = [o.delivery_city, o.delivery_state].filter(Boolean).join(" - ");
+    const cep = o.delivery_cep ? `CEP ${o.delivery_cep}` : "";
+    return [line, cityLine, cep].filter(Boolean).join(" • ") || o.customer_address || "-";
+  };
+
   const orderMessage = (o: any) => {
     const items = (o.order_items || [])
       .filter((it: any) => it.item_status !== "removido")
       .map((it: any) => `• ${it.quantity}x ${it.product_name} - ${formatBRL(it.unit_price * it.quantity)}`)
       .join("\n");
-    return `Olá ${o.customer_name}, sobre seu pedido:\n\n${items}\n\nTotal: ${formatBRL(o.total)}\n${o.delivery_method === "pickup" ? "Retirada na loja" : `Entrega: ${o.customer_address}`}`;
+    return `Olá ${o.customer_name}, sobre seu pedido:\n\n${items}\n\nTotal: ${formatBRL(o.total)}\n${o.delivery_method === "pickup" ? "Retirada na loja" : `Entrega: ${deliveryAddress(o)}`}`;
   };
+
 
   return (
     <div className="p-6">
@@ -242,7 +253,19 @@ export default function AdminOrders() {
                     <Badge variant="outline">Separação: {FULFILL_LABEL[view.fulfillment_status] || view.fulfillment_status}</Badge>
                   </div>
                 )}
-                <div><strong>Entrega:</strong> {view.delivery_method === "pickup" ? "Retirar na loja" : `Entrega - ${view.customer_address}`}</div>
+                {view.delivery_method === "pickup" ? (
+                  <div><strong>Entrega:</strong> Retirar na loja</div>
+                ) : (
+                  <div className="rounded-md border p-2 space-y-0.5">
+                    <div className="font-semibold">Endereço de entrega</div>
+                    <div>{deliveryAddress(view)}</div>
+                    {view.delivery_reference && (
+                      <div className="text-xs text-muted-foreground">Referência: {view.delivery_reference}</div>
+                    )}
+                    <div className="text-xs text-muted-foreground">Contato: {view.customer_phone || "-"}</div>
+                  </div>
+                )}
+
                 {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
                 <div className="border-t pt-2 mt-2">
                   {view.order_items?.map((it: any) => (
