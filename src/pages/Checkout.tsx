@@ -413,7 +413,11 @@ export default function Checkout() {
               <label className={`border rounded-lg p-3 cursor-pointer ${deliveryType === "delivery" ? "border-primary bg-primary/5" : ""}`}>
                 <RadioGroupItem value="delivery" className="sr-only" />
                 <div className="font-bold">Entrega</div>
-                <div className="text-xs text-muted-foreground mt-1">Taxa: {formatBRL(Number((settings as any)?.delivery_fee ?? 0))}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {deliveryMode === "distance"
+                    ? "Calculada pelo endereço"
+                    : `Taxa: ${formatBRL(Number((settings as any)?.delivery_fee ?? 0))}`}
+                </div>
               </label>
             </RadioGroup>
 
