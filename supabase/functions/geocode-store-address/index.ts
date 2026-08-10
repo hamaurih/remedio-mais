@@ -9,6 +9,18 @@ const corsHeaders = {
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 
+// Traduz 403 do Google em mensagem administrativa clara (sem expor chave/headers).
+function describeKeyError(details: Array<{ reason?: string }>): string {
+  const reason = details.find((d) => d.reason)?.reason;
+  if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
+    return "A chave do Google Maps usada no servidor está com restrição de site (HTTP referrer) e por isso é recusada em chamadas server-side. Cadastre uma chave de servidor sem restrição de aplicativo (ou restrita por endereço IP).";
+  }
+  if (reason === "API_KEY_SERVICE_BLOCKED") {
+    return "A chave do Google Maps não permite esta API. Habilite/permita a Geocoding API na lista de APIs da chave de servidor.";
+  }
+  return "O Google recusou a requisição (403). Verifique as restrições da chave de servidor no Google Cloud Console.";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -76,6 +88,23 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey },
       }
     );
+    if (r.status === 403) {
+      const body = await r.json().catch(() => ({}));
+      const msg = describeKeyError(body?.error?.details ?? []);
+      console.error("Geocode 403:", msg);
+      return new Response(
+        JSON.stringify({ error: "maps_key_denied", message: msg }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!r.ok) {
+      const text = await r.text();
+      console.error(`Geocode falhou [${r.status}]: ${text}`);
+      return new Response(
+        JSON.stringify({ error: "geocode_request_failed", status: r.status, message: "O Google recusou a requisição de geocodificação." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const j = await r.json();
     const loc = j?.results?.[0]?.geometry?.location;
     const formatted = j?.results?.[0]?.formatted_address;

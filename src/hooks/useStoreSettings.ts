@@ -7,6 +7,7 @@ export type StoreSettings = {
   instagram: string | null;
   hours: string | null;
   delivery_fee: number | null;
+  delivery_mode: "flat" | "distance" | null;
   hero_title: string | null;
   hero_subtitle: string | null;
   store_name: string | null;
@@ -41,6 +42,7 @@ export function useStoreSettings() {
           instagram: null,
           hours: null,
           delivery_fee: 0,
+          delivery_mode: "distance",
           hero_title: null,
           hero_subtitle: null,
           store_name: null,

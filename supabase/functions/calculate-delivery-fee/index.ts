@@ -183,13 +183,20 @@ Deno.serve(async (req) => {
     const maxKm = Number(s.delivery_max_km || 0);
     const distanceRounded = Math.round(distance * 10) / 10;
 
+    // Nunca mascarar o fallback: toda resposta de distância informa a origem.
+    const distanceMeta = {
+      distance_km: distanceRounded,
+      distance_source: distanceSource,
+      distance_warning: route.km == null ? route.error : undefined,
+    };
+
     if (maxKm > 0 && distance > maxKm) {
       return new Response(
         JSON.stringify({
           ok: true,
           mode: "distance",
           allowed: false,
-          distance_km: distanceRounded,
+          ...distanceMeta,
           fee: null,
           reason: "out_of_range",
           message: `Endereço a ${distanceRounded} km da loja — fora da área de entrega (máx. ${maxKm} km).`,
@@ -207,7 +214,7 @@ Deno.serve(async (req) => {
           ok: true,
           mode: "distance",
           allowed: false,
-          distance_km: distanceRounded,
+          ...distanceMeta,
           fee: null,
           reason: "no_zone_match",
           message: `Nenhuma faixa de frete cobre ${distanceRounded} km.`,
@@ -215,6 +222,7 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     return new Response(
       JSON.stringify({

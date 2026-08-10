@@ -55,9 +55,13 @@ export default function Checkout() {
   const [lng, setLng] = useState<number | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [deliveryQuote, setDeliveryQuote] = useState<{
+    ok: boolean;
+    mode: "flat" | "distance" | null;
     allowed: boolean;
     fee: number | null;
     distance_km: number | null;
+    distance_source?: "route" | "haversine" | null;
+    distance_warning?: string;
     zone_label?: string;
     message?: string;
   } | null>(null);
@@ -74,13 +78,30 @@ export default function Checkout() {
 
 
   const subtotal = cartTotal(items);
+  const deliveryMode: "flat" | "distance" =
+    ((settings as any)?.delivery_mode as "flat" | "distance") ?? "distance";
   const deliveryFee = useMemo(() => {
     if (deliveryType !== "delivery") return 0;
-    if (deliveryQuote?.allowed && deliveryQuote.fee != null) return deliveryQuote.fee;
-    return Number((settings as any)?.delivery_fee ?? 0);
-  }, [deliveryType, deliveryQuote, settings]);
+    // Modo taxa fixa: usa a taxa configurada.
+    if (deliveryMode === "flat") return Number((settings as any)?.delivery_fee ?? 0);
+    // Modo distância: SOMENTE a cotação válida define o frete. Nunca cai para taxa fixa.
+    if (deliveryQuote?.ok && deliveryQuote.allowed && deliveryQuote.fee != null) return deliveryQuote.fee;
+    return 0;
+  }, [deliveryType, deliveryMode, deliveryQuote, settings]);
   const total = subtotal + deliveryFee;
-  const deliveryBlocked = deliveryType === "delivery" && deliveryQuote != null && !deliveryQuote.allowed;
+  // Bloqueia avanço: cotação recusada/erro, ou (modo distância) sem cotação válida.
+  const hasValidQuote =
+    deliveryQuote?.ok === true && deliveryQuote.allowed === true && deliveryQuote.fee != null;
+  const deliveryBlocked =
+    deliveryType === "delivery" &&
+    (deliveryMode === "distance"
+      ? !hasValidQuote
+      : deliveryQuote != null && deliveryQuote.ok && !deliveryQuote.allowed);
+  const deliveryBlockMessage =
+    deliveryQuote?.ok && deliveryQuote.message
+      ? deliveryQuote.message
+      : "Não conseguimos validar seu endereço para calcular a entrega. Confira o endereço e tente novamente.";
+
 
   // Carrega profile + endereços salvos
   useEffect(() => {
@@ -158,12 +179,24 @@ export default function Checkout() {
     }).then(({ data, error }) => {
       if (cancelled) return;
       if (error || !data?.ok) {
-        setDeliveryQuote({ allowed: false, fee: null, distance_km: null, message: (data as any)?.error || error?.message || "Não foi possível calcular o frete." });
+        setDeliveryQuote({
+          ok: false,
+          mode: null,
+          allowed: false,
+          fee: null,
+          distance_km: null,
+          distance_source: null,
+          message: "Não conseguimos validar seu endereço para calcular a entrega. Confira o endereço e tente novamente.",
+        });
       } else {
         setDeliveryQuote({
+          ok: true,
+          mode: (data.mode as "flat" | "distance") ?? null,
           allowed: !!data.allowed,
           fee: data.fee ?? null,
           distance_km: data.distance_km ?? null,
+          distance_source: (data.distance_source as "route" | "haversine") ?? null,
+          distance_warning: data.distance_warning ?? undefined,
           zone_label: data.zone_label,
           message: data.message,
         });
@@ -380,7 +413,11 @@ export default function Checkout() {
               <label className={`border rounded-lg p-3 cursor-pointer ${deliveryType === "delivery" ? "border-primary bg-primary/5" : ""}`}>
                 <RadioGroupItem value="delivery" className="sr-only" />
                 <div className="font-bold">Entrega</div>
-                <div className="text-xs text-muted-foreground mt-1">Taxa: {formatBRL(Number((settings as any)?.delivery_fee ?? 0))}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {deliveryMode === "distance"
+                    ? "Calculada pelo endereço"
+                    : `Taxa: ${formatBRL(Number((settings as any)?.delivery_fee ?? 0))}`}
+                </div>
               </label>
             </RadioGroup>
 
@@ -448,12 +485,17 @@ export default function Checkout() {
                 ) : deliveryBlocked ? (
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 mt-0.5" />
-                    <div>{deliveryQuote?.message || "Endereço fora da área de entrega."}</div>
+                    <div>{deliveryBlockMessage}</div>
                   </div>
                 ) : (
                   <div>
                     Frete: <strong>{formatBRL(Number(deliveryQuote?.fee ?? 0))}</strong>
                     {deliveryQuote?.distance_km != null && <span className="text-muted-foreground"> · {deliveryQuote.distance_km} km {deliveryQuote.zone_label ? `(${deliveryQuote.zone_label})` : ""}</span>}
+                    {deliveryQuote?.distance_source === "haversine" && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Distância aproximada — pode variar um pouco no trajeto real.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

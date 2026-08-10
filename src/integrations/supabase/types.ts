@@ -3160,6 +3160,7 @@ export type Database = {
           contact_email: string | null
           crf: string | null
           delivery_fee: number | null
+          delivery_mode: string | null
           facebook: string | null
           footer_text: string | null
           hero_subtitle: string | null
@@ -3186,6 +3187,7 @@ export type Database = {
           contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          delivery_mode?: string | null
           facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
@@ -3212,6 +3214,7 @@ export type Database = {
           contact_email?: string | null
           crf?: string | null
           delivery_fee?: number | null
+          delivery_mode?: string | null
           facebook?: string | null
           footer_text?: string | null
           hero_subtitle?: string | null
