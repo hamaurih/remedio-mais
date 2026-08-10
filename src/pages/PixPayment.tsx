@@ -81,8 +81,11 @@ export default function PixPayment() {
       setStatus(data.payment_status || "pending");
       if (data.payment_status === "approved") {
         sessionStorage.removeItem(`pix:${orderId}`);
+        clearPendingPixOrder();
         clearCart();
         setTimeout(() => nav(`/pedido/sucesso?order=${orderId}`, { replace: true }), 1500);
+      } else if (data.payment_status === "rejected" || data.payment_status === "cancelled") {
+        clearPendingPixOrder();
       }
     };
     check();
