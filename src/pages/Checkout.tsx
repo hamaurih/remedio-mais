@@ -78,13 +78,30 @@ export default function Checkout() {
 
 
   const subtotal = cartTotal(items);
+  const deliveryMode: "flat" | "distance" =
+    ((settings as any)?.delivery_mode as "flat" | "distance") ?? "distance";
   const deliveryFee = useMemo(() => {
     if (deliveryType !== "delivery") return 0;
-    if (deliveryQuote?.allowed && deliveryQuote.fee != null) return deliveryQuote.fee;
-    return Number((settings as any)?.delivery_fee ?? 0);
-  }, [deliveryType, deliveryQuote, settings]);
+    // Modo taxa fixa: usa a taxa configurada.
+    if (deliveryMode === "flat") return Number((settings as any)?.delivery_fee ?? 0);
+    // Modo distância: SOMENTE a cotação válida define o frete. Nunca cai para taxa fixa.
+    if (deliveryQuote?.ok && deliveryQuote.allowed && deliveryQuote.fee != null) return deliveryQuote.fee;
+    return 0;
+  }, [deliveryType, deliveryMode, deliveryQuote, settings]);
   const total = subtotal + deliveryFee;
-  const deliveryBlocked = deliveryType === "delivery" && deliveryQuote != null && !deliveryQuote.allowed;
+  // Bloqueia avanço: cotação recusada/erro, ou (modo distância) sem cotação válida.
+  const hasValidQuote =
+    deliveryQuote?.ok === true && deliveryQuote.allowed === true && deliveryQuote.fee != null;
+  const deliveryBlocked =
+    deliveryType === "delivery" &&
+    (deliveryMode === "distance"
+      ? !hasValidQuote
+      : deliveryQuote != null && deliveryQuote.ok && !deliveryQuote.allowed);
+  const deliveryBlockMessage =
+    deliveryQuote?.ok && deliveryQuote.message
+      ? deliveryQuote.message
+      : "Não conseguimos validar seu endereço para calcular a entrega. Confira o endereço e tente novamente.";
+
 
   // Carrega profile + endereços salvos
   useEffect(() => {
