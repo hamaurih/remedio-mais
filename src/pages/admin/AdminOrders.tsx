@@ -130,13 +130,24 @@ export default function AdminOrders() {
 
   const filtered = (data || []).filter((o: any) => TABS.find((t) => t.key === tab)!.match(o));
 
+  // Fonte única de verdade do endereço: campos delivery_* (customer_address é só um
+  // resumo textual legado e gerava a impressão de "dois endereços" no pedido).
+  const deliveryAddress = (o: any) => {
+    const line = [o.delivery_street, o.delivery_number, o.delivery_complement, o.delivery_neighborhood]
+      .filter(Boolean).join(", ");
+    const cityLine = [o.delivery_city, o.delivery_state].filter(Boolean).join(" - ");
+    const cep = o.delivery_cep ? `CEP ${o.delivery_cep}` : "";
+    return [line, cityLine, cep].filter(Boolean).join(" • ") || o.customer_address || "-";
+  };
+
   const orderMessage = (o: any) => {
     const items = (o.order_items || [])
       .filter((it: any) => it.item_status !== "removido")
       .map((it: any) => `• ${it.quantity}x ${it.product_name} - ${formatBRL(it.unit_price * it.quantity)}`)
       .join("\n");
-    return `Olá ${o.customer_name}, sobre seu pedido:\n\n${items}\n\nTotal: ${formatBRL(o.total)}\n${o.delivery_method === "pickup" ? "Retirada na loja" : `Entrega: ${o.customer_address}`}`;
+    return `Olá ${o.customer_name}, sobre seu pedido:\n\n${items}\n\nTotal: ${formatBRL(o.total)}\n${o.delivery_method === "pickup" ? "Retirada na loja" : `Entrega: ${deliveryAddress(o)}`}`;
   };
+
 
   return (
     <div className="p-6">
