@@ -908,14 +908,25 @@ async function upsertProductFromTrier(
     const oldBase = Number(existing.price ?? 0);
     const promo = Number(existing.promo_price);
 
-    // Percentual protegido: o cadastrado no site ou, na falta dele, o derivado
-    // do preço normal anterior.
-    let pct = Number(existing.discount_percentage ?? 0);
-    if (!(pct > 0 && pct < 100) && oldBase > 0 && promo > 0 && promo < oldBase) {
+    // Preço base NÃO mudou => nada a recalcular. Antes recalculávamos sempre a
+    // partir do percentual arredondado e a promoção voltava com centavos a mais.
+    const baseChanged = Number.isFinite(newBase) && Number.isFinite(oldBase)
+      && Math.abs(newBase - oldBase) > 0.004;
+
+    // Percentual protegido: preferimos a razão exata do preço anterior
+    // (sem arredondamento) e só caímos no % cadastrado se ela não existir.
+    let pct = 0;
+    if (oldBase > 0 && promo > 0 && promo < oldBase) {
       pct = ((oldBase - promo) / oldBase) * 100;
+    } else {
+      pct = Number(existing.discount_percentage ?? 0);
     }
 
-    if (Number.isFinite(newBase) && newBase > 0 && pct > 0 && pct < 100) {
+    if (!baseChanged) {
+      candidate.promo_price = promo;
+      candidate.on_sale = true;
+      fields_protected.push("promo_price:preco_base_inalterado");
+    } else if (Number.isFinite(newBase) && newBase > 0 && pct > 0 && pct < 100) {
       const recalculated = Math.round(newBase * (1 - pct / 100) * 100) / 100;
       if (recalculated > 0 && recalculated < newBase) {
         candidate.promo_price = recalculated;
@@ -925,23 +936,10 @@ async function upsertProductFromTrier(
           oldValues.promo_price = promo;
           newValues.promo_price = recalculated;
         }
-        fields_protected.push(`promo_price:desconto_${pct.toFixed(2)}%_recalculado`);
-      }
-    } else if (Number.isFinite(newBase) && newBase > 0 && promo >= newBase) {
-      // Sem percentual utilizável e promoção acima do novo preço normal: avisa o admin.
-      promotionInconsistent = true;
-      fields_protected.push("promo_price:inconsistente_preco_base_menor");
-      if (!opts.simulate) {
-        await supabase.from("admin_notifications").insert({
-          type: "promotion_inconsistent",
-          title: "Oferta ficou inconsistente",
-          message: `${name || existing.name}: preço promocional (R$ ${promo.toFixed(2)}) ficou maior ou igual ao preço normal atualizado pelo sistema da farmácia (R$ ${newBase.toFixed(2)}). Revise a oferta.`,
-          priority: "high",
-          role_target: "admin",
-          metadata: { product_id: existing.id, promo_price: promo, new_price: newBase, trier_product_id: trierId },
-        });
+        fields_protected.push(`promo_price:desconto_${pct.toFixed(3)}%_recalculado`);
       }
     }
+
   }
 
   // Preços por canal com percentual travado: quando o admin trava o desconto (%)
