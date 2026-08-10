@@ -273,11 +273,11 @@ export default function Account() {
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label>Rua</Label>
-                    <Input value={newAddr.street} onChange={(e) => setNewAddr({ ...newAddr, street: e.target.value })} />
+                    <Input value={newAddr.street} onChange={(e) => editGeoField("street", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Número</Label>
-                    <Input value={newAddr.number} onChange={(e) => setNewAddr({ ...newAddr, number: e.target.value })} />
+                    <Input value={newAddr.number} onChange={(e) => editGeoField("number", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Complemento</Label>
@@ -285,19 +285,19 @@ export default function Account() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>Bairro</Label>
-                    <Input value={newAddr.neighborhood} onChange={(e) => setNewAddr({ ...newAddr, neighborhood: e.target.value })} />
+                    <Input value={newAddr.neighborhood} onChange={(e) => editGeoField("neighborhood", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>CEP</Label>
-                    <Input value={newAddr.cep} onChange={(e) => setNewAddr({ ...newAddr, cep: e.target.value })} />
+                    <Input value={newAddr.cep} onChange={(e) => editGeoField("cep", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Cidade</Label>
-                    <Input value={newAddr.city} onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })} />
+                    <Input value={newAddr.city} onChange={(e) => editGeoField("city", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Estado</Label>
-                    <Input value={newAddr.state} onChange={(e) => setNewAddr({ ...newAddr, state: e.target.value })} maxLength={2} />
+                    <Input value={newAddr.state} onChange={(e) => editGeoField("state", e.target.value)} maxLength={2} />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label>Ponto de referência</Label>
