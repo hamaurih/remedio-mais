@@ -55,9 +55,13 @@ export default function Checkout() {
   const [lng, setLng] = useState<number | null>(null);
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [deliveryQuote, setDeliveryQuote] = useState<{
+    ok: boolean;
+    mode: "flat" | "distance" | null;
     allowed: boolean;
     fee: number | null;
     distance_km: number | null;
+    distance_source?: "route" | "haversine" | null;
+    distance_warning?: string;
     zone_label?: string;
     message?: string;
   } | null>(null);
