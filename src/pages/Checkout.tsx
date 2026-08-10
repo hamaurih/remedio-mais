@@ -124,6 +124,12 @@ export default function Checkout() {
     setPlaceId(a.place_id ?? null);
   };
 
+  // Qualquer edição manual de campo de endereço invalida as coordenadas
+  // obtidas anteriormente (Google/geocode), evitando frete do ponto antigo.
+  const invalidateCoords = () => {
+    setLat(null); setLng(null); setPlaceId(null); setDeliveryQuote(null);
+  };
+
   const pickSavedAddress = (id: string) => {
     setSelectedAddressId(id);
     setDeliveryQuote(null);
