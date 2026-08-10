@@ -124,6 +124,12 @@ export default function Checkout() {
     setPlaceId(a.place_id ?? null);
   };
 
+  // Qualquer edição manual de campo de endereço invalida as coordenadas
+  // obtidas anteriormente (Google/geocode), evitando frete do ponto antigo.
+  const invalidateCoords = () => {
+    setLat(null); setLng(null); setPlaceId(null); setDeliveryQuote(null);
+  };
+
   const pickSavedAddress = (id: string) => {
     setSelectedAddressId(id);
     setDeliveryQuote(null);
@@ -195,6 +201,8 @@ export default function Checkout() {
   const lookupCep = async (value: string) => {
     const c = value.replace(/\D/g, "");
     setCep(c);
+    // CEP alterado: coordenadas antigas não valem mais
+    invalidateCoords();
     if (c.length === 8) {
       try {
         const r = await fetch(`https://viacep.com.br/ws/${c}/json/`);
@@ -418,12 +426,12 @@ export default function Checkout() {
                   <Field label="CEP" className="col-span-2 sm:col-span-1">
                     <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
                   </Field>
-                  <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => setStreet(e.target.value)} /></Field>
-                  <Field label="Número"><Input value={number} onChange={(e) => setNumber(e.target.value)} /></Field>
+                  <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => { setStreet(e.target.value); invalidateCoords(); }} /></Field>
+                  <Field label="Número"><Input value={number} onChange={(e) => { setNumber(e.target.value); invalidateCoords(); }} /></Field>
                   <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
-                  <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} /></Field>
-                  <Field label="Cidade"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
-                  <Field label="UF"><Input value={state} onChange={(e) => setState(e.target.value.toUpperCase())} maxLength={2} /></Field>
+                  <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => { setNeighborhood(e.target.value); invalidateCoords(); }} /></Field>
+                  <Field label="Cidade"><Input value={city} onChange={(e) => { setCity(e.target.value); invalidateCoords(); }} /></Field>
+                  <Field label="UF"><Input value={state} onChange={(e) => { setState(e.target.value.toUpperCase()); invalidateCoords(); }} maxLength={2} /></Field>
                   <Field label="Referência" className="col-span-2"><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={2} /></Field>
                   <label className="col-span-2 flex items-center gap-2 text-xs">
                     <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
