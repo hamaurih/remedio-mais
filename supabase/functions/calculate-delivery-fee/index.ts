@@ -24,7 +24,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
+  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
   if (!lovableKey || !mapsKey) return null;
   const url = `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=br`;
   const r = await fetch(url, {
