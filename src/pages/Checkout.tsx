@@ -201,6 +201,8 @@ export default function Checkout() {
   const lookupCep = async (value: string) => {
     const c = value.replace(/\D/g, "");
     setCep(c);
+    // CEP alterado: coordenadas antigas não valem mais
+    invalidateCoords();
     if (c.length === 8) {
       try {
         const r = await fetch(`https://viacep.com.br/ws/${c}/json/`);
