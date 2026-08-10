@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { cartTotal, clearCart, formatBRL } from "@/lib/store";
+import { cartTotal, clearCart, formatBRL, setPendingPixOrder } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
