@@ -85,6 +85,7 @@ export default function Account() {
     setNewAddr((p) => ({
       ...p,
       street: a.street || p.street,
+      number: a.number || p.number,
       neighborhood: a.neighborhood || p.neighborhood,
       city: a.city || p.city,
       state: a.state || p.state,
@@ -93,6 +94,12 @@ export default function Account() {
       lng: a.lng,
       place_id: a.place_id,
     }));
+  };
+
+  // Edição manual de campos de endereço invalida coordenadas do Google
+  // (evita calcular frete para o ponto antigo).
+  const editGeoField = (field: "street" | "number" | "neighborhood" | "city" | "state" | "cep", value: string) => {
+    setNewAddr((p) => ({ ...p, [field]: value, lat: null, lng: null, place_id: null }));
   };
 
   const saveAddress = async () => {
