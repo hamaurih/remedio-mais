@@ -1,4 +1,5 @@
-// Calcula taxa de entrega por distância (Haversine) baseado em store_settings.
+// Calcula taxa de entrega por distância. Usa a Routes API (distância real por
+// rota de carro) e cai para Haversine (linha reta) se a rota não estiver disponível.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -11,6 +12,27 @@ const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 
 type Zone = { min_km: number; max_km: number; fee: number; label?: string };
 
+function mapsHeaders() {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
+  if (!lovableKey || !mapsKey) return null;
+  return {
+    Authorization: `Bearer ${lovableKey}`,
+    "X-Connection-Api-Key": mapsKey,
+  } as Record<string, string>;
+}
+
+function describeKeyError(details: Array<{ reason?: string }>): string {
+  const reason = details.find((d) => d.reason)?.reason;
+  if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
+    return "A chave do Google Maps usada no servidor tem restrição de site (HTTP referrer). No Google Cloud Console, use uma chave sem restrição de aplicativo (ou restrita por IP) para o servidor.";
+  }
+  if (reason === "API_KEY_SERVICE_BLOCKED") {
+    return "A chave do Google Maps não permite esta API. Adicione Geocoding API e Routes API à lista de APIs permitidas da chave de servidor.";
+  }
+  return "O Google recusou a requisição (403). Verifique as restrições da chave de servidor no Google Cloud Console.";
+}
+
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const toRad = (x: number) => (x * Math.PI) / 180;
@@ -22,18 +44,64 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Distância real por rota (carro). Retorna null se indisponível.
+async function routeDistanceKm(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<{ km: number | null; error?: string }> {
+  const headers = mapsHeaders();
+  if (!headers) return { km: null, error: "missing_maps_credentials" };
+  try {
+    const r = await fetch(`${GATEWAY_URL}/routes/directions/v2:computeRoutes`, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        "X-Goog-FieldMask": "routes.distanceMeters,routes.duration",
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
+        destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_UNAWARE",
+        regionCode: "BR",
+      }),
+    });
+    if (r.status === 403) {
+      const body = await r.json().catch(() => ({}));
+      return { km: null, error: describeKeyError(body?.error?.details ?? []) };
+    }
+    if (!r.ok) {
+      const text = await r.text();
+      console.error(`Routes API falhou [${r.status}]: ${text}`);
+      return { km: null, error: `routes_${r.status}` };
+    }
+    const j = await r.json();
+    const meters = j?.routes?.[0]?.distanceMeters;
+    if (typeof meters !== "number") return { km: null, error: "no_route" };
+    return { km: meters / 1000 };
+  } catch (e: any) {
+    console.error("Routes API erro:", e?.message);
+    return { km: null, error: e?.message || "routes_error" };
+  }
+}
+
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
-  if (!lovableKey || !mapsKey) return null;
+  const headers = mapsHeaders();
+  if (!headers) return null;
   const url = `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=br`;
-  const r = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": mapsKey,
-    },
-  });
-  if (!r.ok) return null;
+  const r = await fetch(url, { headers });
+  if (r.status === 403) {
+    const body = await r.json().catch(() => ({}));
+    console.error("Geocode 403:", describeKeyError(body?.error?.details ?? []));
+    return null;
+  }
+  if (!r.ok) {
+    console.error(`Geocode falhou [${r.status}]: ${await r.text()}`);
+    return null;
+  }
   const j = await r.json();
   const loc = j?.results?.[0]?.geometry?.location;
   if (!loc) return null;
