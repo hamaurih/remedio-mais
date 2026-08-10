@@ -253,7 +253,19 @@ export default function AdminOrders() {
                     <Badge variant="outline">Separação: {FULFILL_LABEL[view.fulfillment_status] || view.fulfillment_status}</Badge>
                   </div>
                 )}
-                <div><strong>Entrega:</strong> {view.delivery_method === "pickup" ? "Retirar na loja" : `Entrega - ${view.customer_address}`}</div>
+                {view.delivery_method === "pickup" ? (
+                  <div><strong>Entrega:</strong> Retirar na loja</div>
+                ) : (
+                  <div className="rounded-md border p-2 space-y-0.5">
+                    <div className="font-semibold">Endereço de entrega</div>
+                    <div>{deliveryAddress(view)}</div>
+                    {view.delivery_reference && (
+                      <div className="text-xs text-muted-foreground">Referência: {view.delivery_reference}</div>
+                    )}
+                    <div className="text-xs text-muted-foreground">Contato: {view.customer_phone || "-"}</div>
+                  </div>
+                )}
+
                 {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
                 <div className="border-t pt-2 mt-2">
                   {view.order_items?.map((it: any) => (
