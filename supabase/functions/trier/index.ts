@@ -938,9 +938,23 @@ async function upsertProductFromTrier(
         }
         fields_protected.push(`promo_price:desconto_${pct.toFixed(3)}%_recalculado`);
       }
+    } else if (Number.isFinite(newBase) && newBase > 0 && promo >= newBase) {
+      // Sem percentual utilizável e promoção acima do novo preço normal: avisa o admin.
+      promotionInconsistent = true;
+      fields_protected.push("promo_price:inconsistente_preco_base_menor");
+      if (!opts.simulate) {
+        await supabase.from("admin_notifications").insert({
+          type: "promotion_inconsistent",
+          title: "Oferta ficou inconsistente",
+          message: `${name || existing.name}: preço promocional (R$ ${promo.toFixed(2)}) ficou maior ou igual ao preço normal atualizado pelo sistema da farmácia (R$ ${newBase.toFixed(2)}). Revise a oferta.`,
+          priority: "high",
+          role_target: "admin",
+          metadata: { product_id: existing.id, promo_price: promo, new_price: newBase, trier_product_id: trierId },
+        });
+      }
     }
-
   }
+
 
   // Preços por canal com percentual travado: quando o admin trava o desconto (%)
   // por canal, os preços de site/WhatsApp são recalculados a partir do preço normal.
