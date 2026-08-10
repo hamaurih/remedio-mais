@@ -1,113 +1,44 @@
-## Refatoração do Banner Principal da Home
+# Auditoria (somente leitura) — Geolocalização / Google Maps
 
-Escopo isolado: apenas componente do hero, admin de banners e schema da tabela `banners`. Nada de checkout, Mercado Pago, Trier, produtos, estoque, pedidos ou menus.
+Nenhum arquivo, banco, secret ou configuração foi alterado. Todos os testes abaixo foram leituras/chamadas seguras.
 
-### 1. Migration segura (aditiva) — tabela `banners`
+## Resumo executivo
 
-Adicionar colunas novas sem remover nenhuma existente (banners atuais continuam funcionando). Defaults preenchidos para linhas antigas.
+O recurso de endereço/frete está **quebrado em produção**. Existem duas chaves Google no projeto:
 
-Novas colunas:
-- `visual_model` text default `'auto'` — modelos: `oferta-semana`, `genericos`, `mundo-infantil`, `mundo-dermo`, `vitaminas`, `higiene-beleza`, `conveniencia`, `primeiros-socorros`, `campanha-vermelha`, `campanha-azul`, `campanha-verde`, `campanha-rosa`, `campanha-escura`
-- `size_variant` text default `'hero-grande'` — `hero-grande`, `hero-medio`, `hero-compacto`, `full-width`, `container`, `banner-categoria`, `mobile-otimizado`
-- `desktop_image_url` text (migra de `image_url`/`background_image_url` para nome canônico; mantém os antigos como fallback)
-- `tablet_image_url` text
-- `image_focus` text default `'center'` — `center`, `left`, `right`, `top`, `bottom`, `product-right`, `text-left`
-- `image_alt` text
-- `badge` text
-- `highlight_price` numeric
-- `secondary_image_url` text
-- `autoplay_delay` int default 4000
-- `transition_type` text default `'slide'` — `slide` | `fade`
-- `linked_product_id` uuid (fk products, on delete set null)
-- `linked_campaign_id` uuid (fk campaigns, on delete set null)
-- `linked_category_id` uuid (fk categories, on delete set null)
-- Renomeações lógicas via views/aliases no código: `sort_order` = `position` existente, `starts_at` = `start_date`, `ends_at` = `end_date`, `cta_url` = `link`
+- Chave própria do cliente (GCP projeto `195834065747`) — usada hoje no navegador **e** preferida pelas Edge Functions.
+- Chave gerenciada pela Lovable — só funciona em `*.lovable.app`, mas funciona no servidor.
 
-`banner_type` passa a aceitar: `auto` (produto/campanha montado no frontend), `image` (imagem pronta), `category`, `institutional`, `offer-price`, `offer-percent`.
+A chave própria está com **faturamento (Billing) desativado** no Google Cloud e com **Places API (New) não habilitada**, além de estar **restrita por HTTP referrer** (o que bloqueia chamadas de servidor). Resultado: autocomplete não sugere nada e o frete não calcula quando não há coordenadas salvas.
 
-RLS existente preservada. GRANTs revalidados.
+## Resultados por item
 
-### 2. Novo componente `HeroPromoCarousel`
+| # | Verificação | Resultado | Gravidade |
+|---|---|---|---|
+| 1 | Chave/browser connector configurada e carregando | Configurada (`VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY = AIzaSyC7d0…`), presente no build publicado (`assets/AddressAutocomplete-*.js`); o script Maps JS carrega | OK parcial |
+| 2 | Places Autocomplete funcional | **NÃO.** `places.googleapis.com/v1/places:autocomplete` com essa chave retorna `403 PERMISSION_DENIED / API_KEY_SERVICE_BLOCKED` + aviso de **Billing desativado** no projeto GCP `195834065747`. Testado com Referer do domínio próprio e do `remedio-mais.lovable.app` — falha nos dois | **Crítica** |
+| 3 | Extração de street/number/bairro/cidade/UF/CEP/lat/lng/place_id | Código correto (`extractComponents` cobre route, street_number, sublocality_level_1, admin_area_2/locality, admin_area_1, postal_code; place_id e location vindos de `fetchFields`). Não pôde ser exercitado ponta a ponta porque o autocomplete está bloqueado. Geocodificação equivalente com a chave gerenciada devolveu dados corretos para "Rua Vigário Calixto, 1000, Catolé, Campina Grande-PB" → `-7.2343822, -35.8797458`, CEP 58410-340 | Bloqueado pelo item 2 |
+| 4 | ViaCEP conflita/sobrescreve coordenadas | `lookupCep` sobrescreve rua, bairro, cidade e UF, mas **não limpa `lat`/`lng`/`place_id`**. Com coordenadas antigas em memória, o frete continua sendo cotado no ponto antigo | **Alta** |
+| 5 | Edição manual após selecionar no Google deixa lat/lng obsoletos | **Confirmado.** No efeito de cotação (`Checkout.tsx`), quando `hasCoords` é verdadeiro o corpo enviado é sempre `{ lat, lng }`; alterar rua/número/bairro/cidade não invalida as coordenadas. O frete pode ser calculado (e cobrado) para o endereço anterior | **Alta** |
+| 6 | Endereços salvos sem coordenadas são geocodificados | Fluxo existe (envia `address`, recebe `lat/lng` e persiste em `customer_addresses`), porém **falha hoje** porque a geocodificação de servidor está negada. Base atual: 6 endereços, **4 sem `lat`**, 0 com `place_id` | **Crítica** (efeito do item 9) |
+| 7 | Distância: rota ou linha reta | **Linha reta (Haversine)** em `calculate-delivery-fee`. Em Campina Grande isso subestima a distância real de trajeto (tipicamente 20–40%), podendo aplicar faixa de frete menor ou aceitar endereço fora da área de 18 km | Média (regra de negócio) |
+| 8 | Endereço e coordenadas da loja | Configurados: "Av. Mal. Floriano Peixoto, 4050 - Malvinas, Campina Grande - PB, 58428-111", `store_lat -7.236629`, `store_lng -35.922702`, geocodificado em 26/06/2026. Modo `distance`, máx. 18 km, 5 faixas (R$ 5 a R$ 24) | OK |
+| 9 | APIs/Edge Functions Google no ambiente publicado | `POST /calculate-delivery-fee` com endereço textual responde `200 { ok: false, reason: "geocode_failed" }`. Causa: as funções usam `GOOGLE_MAPS_API_KEY_1` (chave própria) e o gateway devolve `REQUEST_DENIED — "API keys with referer restrictions cannot be used with this API"`. A mesma chamada com a conexão gerenciada retorna `status: OK` | **Crítica** |
 
-Arquivo: `src/components/HeroPromoCarousel.tsx` (substitui uso de `HeroSlider` só em `Index.tsx`; `HeroSlider` fica no repositório mas sem consumidores).
+## Detalhes técnicos das evidências
 
-Base técnica:
-- `embla-carousel-react` + `embla-carousel-autoplay` (já disponíveis via shadcn carousel; instalar autoplay se faltar)
-- Autoplay 4000ms (configurável por banner, usa menor delay entre slides como fallback global)
-- Loop infinito, swipe mobile, setas + dots
-- Pausa em hover, foco de teclado e enquanto o usuário interage com controles
-- Transição slide ou fade (className condicional)
-- `aria-label` em setas, dots, "Pausar/Retomar" toggle
-- Primeira slide com `loading="eager"` + `fetchpriority="high"`, demais com `loading="lazy"`
-- `aspect-ratio` no wrapper conforme `size_variant` para evitar layout shift
+- Gateway com a conexão "Amauri's Google Maps Platform": `REQUEST_DENIED` (referrer restriction).
+- Gateway com a conexão gerenciada "localização": `OK`, resultado completo com `address_components`, `place_id` e coordenadas.
+- Chave do navegador sem Referer, em Geocoding: erro de **Billing não habilitado** no projeto `195834065747` — indica que a chave própria não tem faturamento ativo, o que derruba Places API (New) e futuras chamadas.
+- Segredos existentes: `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_API_KEY_1`, `GOOGLE_MAPS_BROWSER_KEY`, `GOOGLE_MAPS_BROWSER_KEY_1`, `GOOGLE_MAPS_TRACKING_ID` (todos gerenciados por conector). As Edge Functions dão preferência ao sufixo `_1`.
+- Observação secundária: o CSP em `vercel.json` não libera `maps.googleapis.com`, `places.googleapis.com` nem `fonts` do Maps em `script-src`/`connect-src`. Não afeta a hospedagem atual da Lovable, mas quebraria um deploy na Vercel.
 
-Cada slide delega a um sub-renderer:
-- `<HeroSlideAuto />` — layout profissional com título, subtítulo, badge, preço/desconto, CTA, imagem do produto/campanha, aplicando `visual_model` (paleta + tipografia + composição) e `text_position` / `product_position`
-- `<HeroSlideImage />` — apenas imagem pronta com `object-fit` conforme `image_fit` e `object-position` conforme `image_focus`; usa `mobile_image_url` no mobile, `tablet_image_url` no tablet, `desktop_image_url` no desktop
-- `<HeroSlideCategory />` / `<HeroSlideOffer />` — variantes do auto com composições fixas
+## Ações necessárias (não executadas)
 
-Responsividade: composições separadas para mobile (produto centralizado, título reduzido, CTA cheio de largura) e desktop; nunca só reduzir escala.
+1. No Google Cloud (projeto `195834065747`): habilitar **Billing**, habilitar **Places API (New)**, **Geocoding API** e **Maps JavaScript API**.
+2. Criar/ajustar duas chaves: navegador (restrita aos domínios) e servidor (sem restrição de referrer), e revincular no conector.
+3. Invalidar `lat`/`lng`/`place_id` quando o CEP for consultado ou qualquer campo de endereço for editado manualmente.
+4. Decidir entre manter Haversine ou migrar para distância por rota (Routes API) nas faixas de frete.
+5. Reprocessar os 4 endereços salvos sem coordenadas após a chave voltar a funcionar.
 
-### 3. Modelos visuais (`src/lib/heroVisualModels.ts`)
-
-Tabela declarativa mapeando `visual_model` → tokens: `background`, `accent`, `titleClass`, `subtitleClass`, `buttonClass`, `decor` (shapes SVG discretos). Todos usam design tokens do `index.css` — sem cores hardcoded.
-
-13 modelos listados no pedido, cada um com paleta pronta (vermelho campanha, azul saúde, verde natural, rosa infantil, dark fitness, etc.).
-
-### 4. Tamanhos (`src/lib/heroSizes.ts`)
-
-Mapeia `size_variant` → `{ desktopAspect, minH, maxH, mobileAspect, container }`. Aplicado via classes Tailwind e style inline para `aspect-ratio`.
-
-### 5. Admin — `AdminBanners.tsx`
-
-Reformar o formulário existente adicionando:
-- Select "Tipo de banner" (6 opções)
-- Select "Modelo visual" (13 opções, com swatch de cor)
-- Select "Tamanho do banner" (7 opções, com preview de proporção)
-- Upload separado desktop / tablet / mobile (bucket `banners` já existe), com aviso de peso do arquivo (>1.5MB desktop, >800KB mobile)
-- Recomendação de dimensões visível ao lado de cada upload
-- Select "Encaixe da imagem" e "Foco da imagem"
-- Campos de autoplay (delay, transição) por banner
-- Datas início/fim, ordem, ativo, publicado (já existem — reorganizar)
-- Campos condicionais: modo `image` esconde título/preço/CTA construído; modo `auto` esconde encaixe/foco
-
-Novo `<HeroBannerPreview />`:
-- Toggle Desktop / Tablet / Mobile
-- Renderiza o mesmo `HeroSlideAuto` / `HeroSlideImage` do frontend com os valores do form em tempo real
-- Mostra proporção real do `size_variant` escolhido
-
-### 6. Acessibilidade & performance
-
-- `alt` obrigatório para modo imagem (input `image_alt`)
-- Navegação por teclado (setas ←/→, Espaço pausa)
-- Botão "Pausar autoplay" visível em foco
-- `prefers-reduced-motion` desativa autoplay
-- Primeira imagem preload; resto lazy
-- Aspect-ratio fixo por `size_variant` evita CLS
-
-### 7. Arquivos afetados
-
-**Criados:**
-- `src/components/HeroPromoCarousel.tsx`
-- `src/components/hero/HeroSlideAuto.tsx`
-- `src/components/hero/HeroSlideImage.tsx`
-- `src/components/hero/HeroBannerPreview.tsx`
-- `src/lib/heroVisualModels.ts`
-- `src/lib/heroSizes.ts`
-- `supabase/migrations/<timestamp>_banner_pro_refactor.sql`
-
-**Editados:**
-- `src/pages/Index.tsx` (troca `HeroSlider` por `HeroPromoCarousel`)
-- `src/pages/admin/AdminBanners.tsx` (novo form + preview)
-
-**Intocados:** checkout, MP, Trier, produtos, estoque, pedidos, menus, header, footer.
-
-### 8. Compatibilidade
-
-Banners existentes carregam com `visual_model='auto'` e `size_variant='hero-grande'` por default; `desktop_image_url` recebe fallback de `image_url`/`background_image_url` via COALESCE no SELECT do componente. Nenhum banner atual quebra.
-
-### Perguntas antes de executar
-
-1. Instalo `embla-carousel-autoplay` (pequena dep, ~2KB) ou implemento autoplay manual com `setInterval` sobre o carousel do shadcn já presente?
-2. Aplico defaults nas linhas existentes (todos viram `hero-grande` + `auto`) ou deixo `NULL` e trato no frontend?
-3. Mantenho `HeroSlider.tsx` no repo como legado, ou removo já que ninguém mais usa?
+Aprovar este plano significa apenas confirmar o diagnóstico — nenhuma correção será feita sem uma nova instrução sua.
