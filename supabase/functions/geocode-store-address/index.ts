@@ -9,6 +9,18 @@ const corsHeaders = {
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 
+// Traduz 403 do Google em mensagem administrativa clara (sem expor chave/headers).
+function describeKeyError(details: Array<{ reason?: string }>): string {
+  const reason = details.find((d) => d.reason)?.reason;
+  if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
+    return "A chave do Google Maps usada no servidor está com restrição de site (HTTP referrer) e por isso é recusada em chamadas server-side. Cadastre uma chave de servidor sem restrição de aplicativo (ou restrita por endereço IP).";
+  }
+  if (reason === "API_KEY_SERVICE_BLOCKED") {
+    return "A chave do Google Maps não permite esta API. Habilite/permita a Geocoding API na lista de APIs da chave de servidor.";
+  }
+  return "O Google recusou a requisição (403). Verifique as restrições da chave de servidor no Google Cloud Console.";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
