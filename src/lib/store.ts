@@ -45,6 +45,22 @@ export function removeFromCart(id: string) {
 
 export function clearCart() { save([]); }
 
+// Pedido Pix aguardando confirmação — usado para limpar o carrinho
+// mesmo se o cliente pagar no app do banco e não voltar para a tela do Pix.
+const PENDING_PIX_KEY = "atacadao_pending_pix_order";
+
+export function setPendingPixOrder(orderId: string) {
+  try { localStorage.setItem(PENDING_PIX_KEY, orderId); } catch { /* ignore */ }
+}
+
+export function getPendingPixOrder(): string | null {
+  try { return localStorage.getItem(PENDING_PIX_KEY); } catch { return null; }
+}
+
+export function clearPendingPixOrder() {
+  try { localStorage.removeItem(PENDING_PIX_KEY); } catch { /* ignore */ }
+}
+
 export function cartTotal(items: CartItem[]) {
   return items.reduce((s, i) => s + i.price * i.quantity, 0);
 }
