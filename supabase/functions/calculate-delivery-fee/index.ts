@@ -222,6 +222,8 @@ Deno.serve(async (req) => {
         mode: "distance",
         allowed: true,
         distance_km: distanceRounded,
+        distance_source: distanceSource,
+        distance_warning: route.km == null ? route.error : undefined,
         fee: Number(zone.fee),
         zone_label: zone.label || `${zone.min_km}–${zone.max_km} km`,
         lat,
