@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { cartTotal, clearCart, formatBRL } from "@/lib/store";
+import { cartTotal, clearCart, formatBRL, setPendingPixOrder } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -297,7 +297,9 @@ export default function Checkout() {
           expires_at: data.expires_at,
           total: data.total,
         }));
-        // O carrinho só é limpo quando o Pix for confirmado (tela do Pix).
+        // O carrinho só é limpo quando o Pix for confirmado. Guardamos o pedido
+        // pendente para reconciliar mesmo se o cliente fechar a página.
+        setPendingPixOrder(data.order_id);
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         return;
       }
