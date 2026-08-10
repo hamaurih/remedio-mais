@@ -15,6 +15,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <WhatsAppFab />
       <ProductQuickView />
       <GenericSuggestionDialog />
+      <PixCartReconciler />
     </div>
   );
 }
