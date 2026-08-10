@@ -176,7 +176,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const distance = haversineKm(Number(s.store_lat), Number(s.store_lng), lat, lng);
+    // Prioriza distância real por rota; se indisponível, usa linha reta.
+    const route = await routeDistanceKm(Number(s.store_lat), Number(s.store_lng), lat, lng);
+    const distanceSource = route.km != null ? "route" : "haversine";
+    const distance = route.km ?? haversineKm(Number(s.store_lat), Number(s.store_lng), lat, lng);
     const maxKm = Number(s.delivery_max_km || 0);
     const distanceRounded = Math.round(distance * 10) / 10;
 
