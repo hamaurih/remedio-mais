@@ -88,6 +88,23 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey },
       }
     );
+    if (r.status === 403) {
+      const body = await r.json().catch(() => ({}));
+      const msg = describeKeyError(body?.error?.details ?? []);
+      console.error("Geocode 403:", msg);
+      return new Response(
+        JSON.stringify({ error: "maps_key_denied", message: msg }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!r.ok) {
+      const text = await r.text();
+      console.error(`Geocode falhou [${r.status}]: ${text}`);
+      return new Response(
+        JSON.stringify({ error: "geocode_request_failed", status: r.status, message: "O Google recusou a requisição de geocodificação." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const j = await r.json();
     const loc = j?.results?.[0]?.geometry?.location;
     const formatted = j?.results?.[0]?.formatted_address;
