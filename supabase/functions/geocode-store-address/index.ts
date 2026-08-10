@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     }
 
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
+    const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
     if (!lovableKey || !mapsKey) {
       return new Response(JSON.stringify({ error: "maps_not_configured" }), {
         status: 500,
