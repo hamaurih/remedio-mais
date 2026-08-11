@@ -74,6 +74,12 @@ Deno.serve(async (req) => {
           }).catch(() => {});
         }
       } catch { /* ignore */ }
+      // Meta Purchase server-side (CAPI). Idempotente por event_id no backend.
+      fetch(`${SUPABASE_URL}/functions/v1/meta-conversions-api`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE}`, "x-internal-source": "check-cielo-status" },
+        body: JSON.stringify({ action: "purchase", order_id: order.id }),
+      }).catch(() => {});
     }
     if ((status === "cancelled" || status === "rejected") && !order.cancelled_at) {
       update.cancelled_at = new Date().toISOString();

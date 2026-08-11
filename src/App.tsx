@@ -4,6 +4,7 @@ import { Suspense, lazy } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { MetaPixelProvider } from "@/components/MetaPixelProvider";
 
 // Rotas críticas da loja: carregadas no bundle inicial
 import Index from "./pages/Index.tsx";
@@ -64,6 +65,7 @@ const AdminTrierEcommerceSales = lazy(() => import("./pages/admin/AdminTrierEcom
 const AdminWhatsAppAgent = lazy(() => import("./pages/admin/AdminWhatsAppAgent.tsx"));
 const Pdv = lazy(() => import("./pages/admin/Pdv.tsx"));
 const PdvDashboard = lazy(() => import("./pages/admin/PdvDashboard.tsx"));
+const AdminMetaAds = lazy(() => import("./pages/admin/AdminMetaAds.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +99,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <MetaPixelProvider />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -156,6 +159,7 @@ const App = () => (
               <Route path="pagamentos" element={<AdminPayments />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
               <Route path="config" element={<AdminSettings />} />
+              <Route path="integrations/meta-ads" element={<AdminMetaAds />} />
               <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
               <Route path="menus" element={<AdminMenus />} />
               <Route path="qualidade-dados" element={<AdminDataQuality />} />

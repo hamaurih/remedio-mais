@@ -28,7 +28,12 @@ export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
   if (existing) existing.quantity += qty;
   else items.push({ ...item, product_id: item.product_id || item.id, quantity: qty });
   save(items);
+  // Mensuração centralizada (Meta Pixel + CAPI). Nunca lança erro no fluxo do carrinho.
+  void import("./metaEvents").then((m) => m.trackAddToCart({
+    id: item.id, product_id: item.product_id, name: item.name, price: item.price, quantity: qty,
+  })).catch(() => {});
 }
+
 
 export function updateQty(id: string, qty: number) {
   const items = getCart().map((i) => (i.id === id ? { ...i, quantity: Math.max(1, qty) } : i));
