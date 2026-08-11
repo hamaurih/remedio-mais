@@ -88,13 +88,14 @@ export function brl(n: number) {
   return (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+// manual_barcode é uma FLAG booleana ("código digitado à mão"), nunca um EAN.
 const PRODUCT_FIELDS =
-  "id,name,manufacturer,trier_product_id,barcode,trier_barcode,manual_barcode,sku,image_url,price,promo_price,promotion_start,promotion_end,stock";
+  "id,name,manufacturer,trier_product_id,barcode,trier_barcode,sku,image_url,price,promo_price,promotion_start,promotion_end,stock";
 
 function normalize(row: any): PosProduct {
   return {
     ...row,
-    barcode: row.barcode || row.trier_barcode || row.manual_barcode || null,
+    barcode: row.barcode || row.trier_barcode || null,
   } as PosProduct;
 }
 
@@ -110,13 +111,13 @@ export async function posSearchProducts(term: string): Promise<PosProduct[]> {
       [
         `barcode.eq.${code}`,
         `trier_barcode.eq.${code}`,
-        `manual_barcode.eq.${code}`,
         `sku.eq.${code}`,
         `trier_product_id.eq.${code}`,
       ].join(","),
     )
     .limit(10);
-  if (!exact.error && (exact.data?.length ?? 0) > 0) return (exact.data as any[]).map(normalize);
+  if (exact.error) throw exact.error;
+  if ((exact.data?.length ?? 0) > 0) return (exact.data as any[]).map(normalize);
 
   const byName = await db
     .from("products")
