@@ -17,6 +17,7 @@ import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { liveCheckProducts } from "@/lib/liveStock";
 import { notifyCartAddition } from "@/lib/cartLiveNotify";
 import { Seo } from "@/components/Seo";
+import { trackViewContent } from "@/lib/metaEvents";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
@@ -41,6 +42,16 @@ export default function Product() {
     });
     return () => { cancelled = true; };
   }, [productId, refetch]);
+
+  // Meta ViewContent: só IDs técnicos, nome comercial e valor (sem dado clínico).
+  useEffect(() => {
+    if (!p?.id) return;
+    trackViewContent({
+      id: p.id,
+      name: p.name,
+      price: Number((p as any).promo_price ?? p.price ?? 0),
+    });
+  }, [p?.id]);
 
   const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && (p as any)?.has_variants);
   const { data: related = [], isLoading: relatedLoading } = useRelatedProducts(p);

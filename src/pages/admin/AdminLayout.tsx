@@ -33,6 +33,7 @@ const items: Item[] = [
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug, roles: ["admin"] },
   { to: "/admin/trier/vendas-ecommerce", label: "Trier — Vendas E-commerce", icon: ShoppingBag, roles: ["admin"] },
   { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Plug, roles: ["admin"] },
+  { to: "/admin/integrations/meta-ads", label: "Meta Ads (Pixel + CAPI)", icon: Megaphone, roles: ["admin"] },
 
   { to: "/admin/auditoria", label: "Auditoria do Site", icon: Stethoscope, roles: ["admin"] },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity, roles: ["admin"] },

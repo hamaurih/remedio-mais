@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useSearchParams } from "react-router-dom";
 import { ProductCard, Product } from "@/components/ProductCard";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
   SORT_OPTIONS,
 } from "@/components/ProductFilters";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
+import { trackSearch } from "@/lib/metaEvents";
 
 function rankRow(name: string, term: string) {
   const n = (name || "").toLowerCase();
@@ -33,6 +34,9 @@ export default function Search() {
   const q = (params.get("q") || "").trim();
   const [sort, setSort] = useState("popular");
   const [filters, setFilters] = useState<ProductFiltersState>(defaultFilters);
+
+  // Meta Search: apenas o termo digitado pelo cliente.
+  useEffect(() => { if (q) trackSearch(q); }, [q]);
 
   const { data: products } = useQuery({
     queryKey: ["search", q, sort, filters],
