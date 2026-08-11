@@ -133,6 +133,8 @@ const App = () => (
             <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="pdv" element={<Pdv />} />
+              <Route path="pdv/indicadores" element={<PdvDashboard />} />
               <Route path="produtos" element={<AdminProducts />} />
               <Route path="produtos/importar" element={<AdminProductsImport />} />
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
