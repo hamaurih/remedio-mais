@@ -13,6 +13,8 @@ export type OrderBody = {
     neighborhood?: string; city?: string; state?: string; reference?: string;
     lat?: number; lng?: number; place_id?: string;
   };
+  // Identificadores Meta (não sensíveis) para deduplicação do Purchase na CAPI.
+  meta?: { fbp?: string | null; fbc?: string | null };
 };
 
 export type PrepareResult =
@@ -207,6 +209,8 @@ export async function prepareOrder(
     status: "novo", payment_gateway: "cielo", payment_method: paymentMethod,
     payment_status: "pending", order_status: "aguardando_pagamento", trier_sent: false,
     external_reference: null,
+    meta_fbp: typeof body.meta?.fbp === "string" ? body.meta.fbp.slice(0, 128) : null,
+    meta_fbc: typeof body.meta?.fbc === "string" ? body.meta.fbc.slice(0, 256) : null,
   }).select().single();
   if (orderErr || !order) {
     safeError("[prepareOrder] order insert failed", { msg: orderErr?.message });

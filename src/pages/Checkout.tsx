@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { cartTotal, clearCart, formatBRL, setPendingPixOrder } from "@/lib/store
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { trackAddPaymentInfo, trackInitiateCheckout } from "@/lib/metaEvents";
+import { getFbc, getFbp } from "@/lib/metaPixel";
 import { Loader2, CreditCard, QrCode, AlertTriangle, Lock } from "lucide-react";
 import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -231,6 +233,14 @@ export default function Checkout() {
     if (items.length === 0) nav("/carrinho", { replace: true });
   }, [items.length, nav]);
 
+  // Meta InitiateCheckout: uma vez, com carrinho não vazio.
+  const icSent = useRef(false);
+  useEffect(() => {
+    if (icSent.current || items.length === 0) return;
+    icSent.current = true;
+    trackInitiateCheckout(items, cartTotal(items));
+  }, [items]);
+
   const lookupCep = async (value: string) => {
     const c = value.replace(/\D/g, "");
     setCep(c);
@@ -308,6 +318,8 @@ export default function Checkout() {
       }
     }
     setSubmitting(true);
+    // Meta AddPaymentInfo: apenas o tipo de meio de pagamento e o valor.
+    trackAddPaymentInfo(paymentMethod, total);
     try {
       // A conferência de estoque/preço na farmácia é feita no carrinho.
       // Aqui o servidor ainda valida estoque e preço esperado (rápido, sem chamar a Trier).
@@ -325,6 +337,8 @@ export default function Checkout() {
         delivery: deliveryType === "delivery"
           ? { cep, street, number, complement, neighborhood, city, state, reference, lat: lat ?? undefined, lng: lng ?? undefined, place_id: placeId ?? undefined }
           : undefined,
+        // Identificadores Meta do navegador, para o Purchase server-side (CAPI).
+        meta: { fbp: getFbp(), fbc: getFbc() },
       };
 
       if (paymentMethod === "pix") {

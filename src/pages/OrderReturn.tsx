@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/store";
+import { trackPurchase } from "@/lib/metaEvents";
 import { CheckCircle2, Clock, XCircle, Loader2, Package, Truck, Store } from "lucide-react";
 
 type Status = "success" | "pending" | "failure";
@@ -62,6 +63,21 @@ export default function OrderReturn({ status }: { status: Status }) {
   }, [orderId]);
 
   const isPaid = order?.payment_status === "approved";
+
+  // Meta Purchase (browser) SOMENTE com pagamento aprovado. O mesmo event_id
+  // (purchase:<order_id>) é usado pelo servidor, então a Meta deduplica.
+  useEffect(() => {
+    if (!isPaid || !order?.id) return;
+    trackPurchase({
+      id: order.id,
+      total: Number(order.total ?? 0),
+      items: (order.order_items || []).map((i: any) => ({
+        id: String(i.product_id),
+        quantity: Number(i.quantity) || 1,
+        item_price: Number(i.unit_price) || 0,
+      })),
+    });
+  }, [isPaid, order?.id]);
   const effective: Status = isPaid ? "success" : status;
 
   const icon = effective === "success" ? <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" />
