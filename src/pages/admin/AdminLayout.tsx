@@ -10,6 +10,8 @@ type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array
 
 const items: Item[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["admin"] },
+  { to: "/admin/pdv", label: "PDV — Ponto de Venda", icon: CreditCard, roles: ["admin", "seller"] },
+  { to: "/admin/pdv/indicadores", label: "PDV — Indicadores", icon: Activity, roles: ["admin", "seller"] },
   { to: "/admin/produtos", label: "Produtos", icon: Package, roles: ["admin"] },
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, roles: ["admin"] },
   { to: "/admin/categorias", label: "Categorias", icon: Tags, roles: ["admin"] },
