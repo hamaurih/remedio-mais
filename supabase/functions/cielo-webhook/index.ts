@@ -120,6 +120,12 @@ Deno.serve(async (req) => {
           }).catch(() => {});
         }
       } catch { /* ignore */ }
+      // Meta Purchase server-side (CAPI). Idempotente por event_id no backend.
+      fetch(`${SUPABASE_URL}/functions/v1/meta-conversions-api`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE}`, "x-internal-source": "cielo-webhook" },
+        body: JSON.stringify({ action: "purchase", order_id: order.id }),
+      }).catch(() => {});
     }
 
     return new Response("ok", { headers: corsHeaders });
