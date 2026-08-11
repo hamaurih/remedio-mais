@@ -1056,6 +1056,39 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_settings: {
+        Row: {
+          created_at: string
+          id: number
+          meta_capi_enabled: boolean
+          meta_consent_required: boolean
+          meta_enabled: boolean
+          meta_pixel_id: string | null
+          meta_test_event_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          meta_capi_enabled?: boolean
+          meta_consent_required?: boolean
+          meta_enabled?: boolean
+          meta_pixel_id?: string | null
+          meta_test_event_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          meta_capi_enabled?: boolean
+          meta_consent_required?: boolean
+          meta_enabled?: boolean
+          meta_pixel_id?: string | null
+          meta_test_event_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           active: boolean
@@ -1156,6 +1189,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meta_event_logs: {
+        Row: {
+          created_at: string
+          event_id: string
+          event_name: string
+          http_status: number | null
+          id: string
+          order_id: string | null
+          product_id: string | null
+          response_masked: string | null
+          retry_count: number
+          sent_at: string | null
+          source: string
+          status: string
+          test_mode: boolean
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          event_name: string
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          response_masked?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          source?: string
+          status?: string
+          test_mode?: boolean
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          event_name?: string
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          response_masked?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          source?: string
+          status?: string
+          test_mode?: boolean
+          value?: number | null
+        }
+        Relationships: []
       }
       order_events: {
         Row: {
@@ -1323,6 +1407,10 @@ export type Database = {
           mercado_pago_order_id: string | null
           mercado_pago_payment_id: string | null
           mercado_pago_preference_id: string | null
+          meta_fbc: string | null
+          meta_fbp: string | null
+          meta_purchase_event_id: string | null
+          meta_purchase_sent_at: string | null
           notes: string | null
           order_status: string
           paid_at: string | null
@@ -1388,6 +1476,10 @@ export type Database = {
           mercado_pago_order_id?: string | null
           mercado_pago_payment_id?: string | null
           mercado_pago_preference_id?: string | null
+          meta_fbc?: string | null
+          meta_fbp?: string | null
+          meta_purchase_event_id?: string | null
+          meta_purchase_sent_at?: string | null
           notes?: string | null
           order_status?: string
           paid_at?: string | null
@@ -1453,6 +1545,10 @@ export type Database = {
           mercado_pago_order_id?: string | null
           mercado_pago_payment_id?: string | null
           mercado_pago_preference_id?: string | null
+          meta_fbc?: string | null
+          meta_fbp?: string | null
+          meta_purchase_event_id?: string | null
+          meta_purchase_sent_at?: string | null
           notes?: string | null
           order_status?: string
           paid_at?: string | null
@@ -3925,6 +4021,7 @@ export type Database = {
           units: number
         }[]
       }
+      public_meta_config: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user" | "seller"
