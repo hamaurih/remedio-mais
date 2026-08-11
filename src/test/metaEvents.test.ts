@@ -130,10 +130,14 @@ describe("Segurança", () => {
     });
 
   it("nenhum arquivo do frontend referencia o token da CAPI ou a Graph API", () => {
-    const files = walk("src").filter((f) => /\.(ts|tsx)$/.test(f));
+    const files = walk("src").filter((f) => /\.(ts|tsx)$/.test(f) && !f.includes("test"));
     const offenders = files.filter((f) => {
       const src = readFileSync(f, "utf8");
-      return src.includes("META_CAPI_ACCESS_TOKEN") || src.includes("graph.facebook.com");
+      // Menção em texto de instrução no Admin é permitida; leitura/uso do token não.
+      return /env[^\n]*META_CAPI_ACCESS_TOKEN/.test(src)
+        || src.includes("Deno.env")
+        || src.includes("graph.facebook.com")
+        || /access_token\s*[:=]/.test(src);
     });
     expect(offenders).toEqual([]);
   });
