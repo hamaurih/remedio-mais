@@ -62,6 +62,8 @@ const AdminArchiveProducts = lazy(() => import("./pages/admin/AdminArchiveProduc
 const AdminTrier = lazy(() => import("./pages/admin/AdminTrier.tsx"));
 const AdminTrierEcommerceSales = lazy(() => import("./pages/admin/AdminTrierEcommerceSales.tsx"));
 const AdminWhatsAppAgent = lazy(() => import("./pages/admin/AdminWhatsAppAgent.tsx"));
+const Pdv = lazy(() => import("./pages/admin/Pdv.tsx"));
+const PdvDashboard = lazy(() => import("./pages/admin/PdvDashboard.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,6 +133,8 @@ const App = () => (
             <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
+              <Route path="pdv" element={<Pdv />} />
+              <Route path="pdv/indicadores" element={<PdvDashboard />} />
               <Route path="produtos" element={<AdminProducts />} />
               <Route path="produtos/importar" element={<AdminProductsImport />} />
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
