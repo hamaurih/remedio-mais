@@ -62,6 +62,8 @@ const AdminArchiveProducts = lazy(() => import("./pages/admin/AdminArchiveProduc
 const AdminTrier = lazy(() => import("./pages/admin/AdminTrier.tsx"));
 const AdminTrierEcommerceSales = lazy(() => import("./pages/admin/AdminTrierEcommerceSales.tsx"));
 const AdminWhatsAppAgent = lazy(() => import("./pages/admin/AdminWhatsAppAgent.tsx"));
+const Pdv = lazy(() => import("./pages/admin/Pdv.tsx"));
+const PdvDashboard = lazy(() => import("./pages/admin/PdvDashboard.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
