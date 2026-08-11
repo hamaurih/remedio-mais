@@ -417,6 +417,171 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_movements: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          metadata: Json | null
+          operator_id: string
+          payment_method:
+            | Database["public"]["Enums"]["pos_payment_method"]
+            | null
+          reason: string | null
+          sale_id: string | null
+          session_id: string
+          store_id: string
+          tenant_id: string
+          terminal_id: string
+          type: Database["public"]["Enums"]["pos_movement_type"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          operator_id: string
+          payment_method?:
+            | Database["public"]["Enums"]["pos_payment_method"]
+            | null
+          reason?: string | null
+          sale_id?: string | null
+          session_id: string
+          store_id: string
+          tenant_id: string
+          terminal_id: string
+          type: Database["public"]["Enums"]["pos_movement_type"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          operator_id?: string
+          payment_method?:
+            | Database["public"]["Enums"]["pos_payment_method"]
+            | null
+          reason?: string | null
+          sale_id?: string | null
+          session_id?: string
+          store_id?: string
+          tenant_id?: string
+          terminal_id?: string
+          type?: Database["public"]["Enums"]["pos_movement_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_register_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "pos_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_register_sessions: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          counted_cash: number | null
+          created_at: string
+          difference: number | null
+          expected_cash: number | null
+          id: string
+          notes: string | null
+          opened_at: string
+          opening_amount: number
+          operator_id: string
+          status: Database["public"]["Enums"]["pos_session_status"]
+          store_id: string
+          tenant_id: string
+          terminal_id: string
+          totals: Json | null
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          counted_cash?: number | null
+          created_at?: string
+          difference?: number | null
+          expected_cash?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_amount?: number
+          operator_id: string
+          status?: Database["public"]["Enums"]["pos_session_status"]
+          store_id: string
+          tenant_id: string
+          terminal_id: string
+          totals?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          counted_cash?: number | null
+          created_at?: string
+          difference?: number | null
+          expected_cash?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_amount?: number
+          operator_id?: string
+          status?: Database["public"]["Enums"]["pos_session_status"]
+          store_id?: string
+          tenant_id?: string
+          terminal_id?: string
+          totals?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_register_sessions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_sessions_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "pos_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           active: boolean
@@ -1441,6 +1606,342 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pos_operators: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          max_discount_percent: number
+          pos_role: Database["public"]["Enums"]["pos_role"]
+          store_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          max_discount_percent?: number
+          pos_role?: Database["public"]["Enums"]["pos_role"]
+          store_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          max_discount_percent?: number
+          pos_role?: Database["public"]["Enums"]["pos_role"]
+          store_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_operators_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_sale_items: {
+        Row: {
+          barcode: string | null
+          base_price: number
+          created_at: string
+          discount: number
+          id: string
+          image_url: string | null
+          product_id: string | null
+          product_name: string
+          promo_applied: boolean
+          quantity: number
+          sale_id: string
+          sku: string | null
+          total: number
+          trier_product_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          barcode?: string | null
+          base_price?: number
+          created_at?: string
+          discount?: number
+          id?: string
+          image_url?: string | null
+          product_id?: string | null
+          product_name: string
+          promo_applied?: boolean
+          quantity: number
+          sale_id: string
+          sku?: string | null
+          total?: number
+          trier_product_id?: string | null
+          unit_price?: number
+        }
+        Update: {
+          barcode?: string | null
+          base_price?: number
+          created_at?: string
+          discount?: number
+          id?: string
+          image_url?: string | null
+          product_id?: string | null
+          product_name?: string
+          promo_applied?: boolean
+          quantity?: number
+          sale_id?: string
+          sku?: string | null
+          total?: number
+          trier_product_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_sale_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          installments: number | null
+          method: Database["public"]["Enums"]["pos_payment_method"]
+          received_amount: number | null
+          sale_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          installments?: number | null
+          method: Database["public"]["Enums"]["pos_payment_method"]
+          received_amount?: number | null
+          sale_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          installments?: number | null
+          method?: Database["public"]["Enums"]["pos_payment_method"]
+          received_amount?: number | null
+          sale_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sale_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_sales: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          change_amount: number
+          client_request_id: string | null
+          created_at: string
+          customer_cpf: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          discount: number
+          discount_authorized_by: string | null
+          fiscal_access_key: string | null
+          fiscal_issued_at: string | null
+          fiscal_model: string | null
+          fiscal_number: string | null
+          fiscal_protocol: string | null
+          fiscal_series: string | null
+          fiscal_status: string | null
+          fiscal_xml: string | null
+          id: string
+          notes: string | null
+          operator_id: string
+          order_id: string | null
+          sale_number: number
+          session_id: string
+          status: Database["public"]["Enums"]["pos_sale_status"]
+          store_id: string
+          subtotal: number
+          tenant_id: string
+          terminal_id: string
+          total: number
+          trier_error_message: string | null
+          trier_sent_at: string | null
+          trier_status: string
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          change_amount?: number
+          client_request_id?: string | null
+          created_at?: string
+          customer_cpf?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          discount?: number
+          discount_authorized_by?: string | null
+          fiscal_access_key?: string | null
+          fiscal_issued_at?: string | null
+          fiscal_model?: string | null
+          fiscal_number?: string | null
+          fiscal_protocol?: string | null
+          fiscal_series?: string | null
+          fiscal_status?: string | null
+          fiscal_xml?: string | null
+          id?: string
+          notes?: string | null
+          operator_id: string
+          order_id?: string | null
+          sale_number?: number
+          session_id: string
+          status?: Database["public"]["Enums"]["pos_sale_status"]
+          store_id: string
+          subtotal?: number
+          tenant_id: string
+          terminal_id: string
+          total?: number
+          trier_error_message?: string | null
+          trier_sent_at?: string | null
+          trier_status?: string
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          change_amount?: number
+          client_request_id?: string | null
+          created_at?: string
+          customer_cpf?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          discount?: number
+          discount_authorized_by?: string | null
+          fiscal_access_key?: string | null
+          fiscal_issued_at?: string | null
+          fiscal_model?: string | null
+          fiscal_number?: string | null
+          fiscal_protocol?: string | null
+          fiscal_series?: string | null
+          fiscal_status?: string | null
+          fiscal_xml?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string
+          order_id?: string | null
+          sale_number?: number
+          session_id?: string
+          status?: Database["public"]["Enums"]["pos_sale_status"]
+          store_id?: string
+          subtotal?: number
+          tenant_id?: string
+          terminal_id?: string
+          total?: number
+          trier_error_message?: string | null
+          trier_sent_at?: string | null
+          trier_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sales_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sales_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_register_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sales_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sales_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sales_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "pos_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_terminals: {
+        Row: {
+          active: boolean
+          code: string | null
+          created_at: string
+          id: string
+          name: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_terminals_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prescriptions: {
         Row: {
@@ -2565,6 +3066,53 @@ export type Database = {
         }
         Relationships: []
       }
+      stores: {
+        Row: {
+          active: boolean
+          address: string | null
+          cnpj: string | null
+          code: string | null
+          created_at: string
+          id: string
+          legal_name: string | null
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          cnpj?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          legal_name?: string | null
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          cnpj?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          legal_name?: string | null
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subcategories: {
         Row: {
           active: boolean
@@ -2614,6 +3162,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tenants: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       trier_barcode_divergences: {
         Row: {
@@ -3310,6 +3885,36 @@ export type Database = {
         }
         Returns: boolean
       }
+      pos_cash_movement: {
+        Args: {
+          _amount: number
+          _reason?: string
+          _session_id: string
+          _type: Database["public"]["Enums"]["pos_movement_type"]
+        }
+        Returns: string
+      }
+      pos_close_session: {
+        Args: { _counted_cash: number; _notes?: string; _session_id: string }
+        Returns: Json
+      }
+      pos_effective_role: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["pos_role"]
+      }
+      pos_finalize_sale: { Args: { _payload: Json }; Returns: Json }
+      pos_is_operator: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: boolean
+      }
+      pos_max_discount: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: number
+      }
+      pos_open_session: {
+        Args: { _opening_amount?: number; _terminal_id: string }
+        Returns: string
+      }
       public_bestsellers: {
         Args: { _days?: number; _limit?: number }
         Returns: {
@@ -3323,6 +3928,27 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "seller"
+      pos_movement_type:
+        | "opening"
+        | "sale"
+        | "withdrawal"
+        | "deposit"
+        | "refund"
+        | "cancellation"
+        | "closing"
+      pos_payment_method: "cash" | "pix" | "debit" | "credit"
+      pos_role: "operator" | "supervisor" | "manager" | "admin"
+      pos_sale_status:
+        | "draft"
+        | "awaiting_payment"
+        | "paid"
+        | "completed"
+        | "cancelled"
+        | "refunded"
+        | "trier_pending"
+        | "trier_sent"
+        | "trier_error"
+      pos_session_status: "open" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3451,6 +4077,29 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "seller"],
+      pos_movement_type: [
+        "opening",
+        "sale",
+        "withdrawal",
+        "deposit",
+        "refund",
+        "cancellation",
+        "closing",
+      ],
+      pos_payment_method: ["cash", "pix", "debit", "credit"],
+      pos_role: ["operator", "supervisor", "manager", "admin"],
+      pos_sale_status: [
+        "draft",
+        "awaiting_payment",
+        "paid",
+        "completed",
+        "cancelled",
+        "refunded",
+        "trier_pending",
+        "trier_sent",
+        "trier_error",
+      ],
+      pos_session_status: ["open", "closed"],
     },
   },
 } as const
