@@ -1,0 +1,1 @@
+UPDATE public.marketing_settings SET meta_capi_enabled = false, updated_at = now() WHERE id = 1;
