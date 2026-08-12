@@ -48,6 +48,13 @@ export function ProductShelf({
     el.scrollBy({ left: dir * step * 2, behavior: "smooth" });
   };
 
+  // Garante que a vitrine sempre inicia alinhada no primeiro card
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !products || products.length === 0) return;
+    el.scrollLeft = 0;
+  }, [products]);
+
   useEffect(() => {
     if (!autoplay || !products || products.length === 0) return;
     const el = ref.current;
@@ -104,13 +111,13 @@ export function ProductShelf({
           <div className="relative group">
             <div
               ref={ref}
-              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1"
+              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth pb-2 px-0"
             >
               {products.map((p) => (
                 <div
                   key={p.id}
                   data-card
-                  className="snap-start shrink-0 w-[46%] sm:w-[32%] md:w-[24%] lg:w-[19%]"
+                  className="snap-start snap-always shrink-0 w-[46%] sm:w-[32%] md:w-[24%] lg:w-[19%]"
                 >
                   <ProductCard p={p} />
                 </div>
