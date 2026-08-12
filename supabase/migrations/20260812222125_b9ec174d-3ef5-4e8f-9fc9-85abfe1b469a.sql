@@ -1,0 +1,1 @@
+UPDATE public.marketing_settings SET meta_enabled = true, meta_capi_enabled = true, meta_pixel_id = '1408673987862846', updated_at = now() WHERE id = 1;
