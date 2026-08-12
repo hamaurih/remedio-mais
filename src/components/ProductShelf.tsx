@@ -48,6 +48,13 @@ export function ProductShelf({
     el.scrollBy({ left: dir * step * 2, behavior: "smooth" });
   };
 
+  // Garante que a vitrine sempre inicia alinhada no primeiro card
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !products || products.length === 0) return;
+    el.scrollLeft = 0;
+  }, [products]);
+
   useEffect(() => {
     if (!autoplay || !products || products.length === 0) return;
     const el = ref.current;
