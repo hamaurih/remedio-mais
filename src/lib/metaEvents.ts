@@ -62,7 +62,8 @@ function mirrorToCapi(eventName: string, eventId: string, customData: Record<str
     action: "track",
     event_name: eventName,
     event_id: eventId,
-    event_source_url: typeof window !== "undefined" ? window.location.href : undefined,
+    // Só a origem: caminhos de produto/categoria podem sugerir condição de saúde.
+    event_source_url: typeof window !== "undefined" ? window.location.origin : undefined,
     custom_data: customData,
     fbp: getFbp(),
     fbc: getFbc(),
@@ -97,7 +98,6 @@ export function trackViewContent(p: { id: string; name: string; price: number; t
   return track("ViewContent", {
     content_type: "product",
     content_ids: [contentId(p)],
-    content_name: p.name,
     value: Number(p.price) || 0,
   }, newEventId("vc"));
 }
@@ -106,7 +106,9 @@ export function trackViewContent(p: { id: string; name: string; price: number; t
 export function trackSearch(term: string) {
   const q = (term || "").trim();
   if (q.length < 2) return;
-  return track("Search", { search_string: q }, newEventId("se"));
+  // Nunca enviamos o termo digitado: buscas em farmácia podem revelar condição
+  // de saúde (política de Ferramentas da Meta para Empresas).
+  return track("Search", {}, newEventId("se"));
 }
 
 // --------------------------------------------------------------- AddToCart
@@ -117,7 +119,6 @@ export function trackAddToCart(item: { id: string; product_id?: string | null; n
     content_type: "product",
     content_ids: [id],
     contents,
-    content_name: item.name,
     value: (Number(item.price) || 0) * item.quantity,
   }, newEventId("atc"));
 }
