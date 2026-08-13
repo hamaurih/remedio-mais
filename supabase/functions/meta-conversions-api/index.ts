@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
 
       const custom: Record<string, unknown> = { currency: CURRENCY };
       if (eventName === "ViewContent") {
-        Object.assign(custom, { content_type: "product", content_ids: ["TEST-PRODUCT"], content_name: "Produto de teste", value: 1 });
+        Object.assign(custom, { content_type: "product", content_ids: ["TEST-PRODUCT"], value: 1 });
       }
       if (eventName === "Purchase") {
         // Valor fictício explícito — não altera nenhum pedido real.
@@ -234,8 +234,10 @@ Deno.serve(async (req) => {
 /** Mantém só campos comerciais permitidos — bloqueia qualquer dado sensível/saúde. */
 function sanitizeCustomData(input: unknown): Record<string, unknown> {
   const allowed = new Set([
-    "currency", "value", "content_type", "content_ids", "contents", "content_name",
-    "num_items", "search_string", "order_id", "payment_method",
+    // Sem content_name/search_string: nomes de medicamentos e termos de busca
+    // podem sugerir condição de saúde e bloqueiam o domínio na Meta.
+    "currency", "value", "content_type", "content_ids", "contents",
+    "num_items", "order_id", "payment_method",
   ]);
   const out: Record<string, unknown> = { currency: CURRENCY };
   if (!input || typeof input !== "object") return out;
@@ -249,6 +251,6 @@ function safeUrl(v: unknown): string | undefined {
   if (typeof v !== "string") return undefined;
   try {
     const u = new URL(v);
-    return `${u.origin}${u.pathname}`; // sem query string (pode conter dados pessoais)
+    return u.origin; // apenas origem: caminhos podem sugerir condição de saúde
   } catch { return undefined; }
 }
