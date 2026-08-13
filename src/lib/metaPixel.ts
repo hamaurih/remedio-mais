@@ -10,10 +10,18 @@ declare global {
 
 let loadedPixelId: string | null = null;
 
-/** Injeta o fbevents.js uma única vez e inicializa o Pixel. Idempotente. */
+/** Aceita um ou vários IDs separados por vírgula (ex.: "111,222"). */
+function parseIds(pixelId: string): string[] {
+  return Array.from(new Set(pixelId.split(",").map((v) => v.trim()).filter(Boolean)));
+}
+
+/** Injeta o fbevents.js uma única vez e inicializa o(s) Pixel(s). Idempotente. */
 export function loadMetaPixel(pixelId: string) {
   if (typeof window === "undefined" || !pixelId) return;
-  if (loadedPixelId === pixelId) return;
+  const ids = parseIds(pixelId);
+  if (!ids.length) return;
+  const key = ids.join(",");
+  if (loadedPixelId === key) return;
 
   if (!window.fbq) {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -33,9 +41,13 @@ export function loadMetaPixel(pixelId: string) {
     /* eslint-enable @typescript-eslint/no-explicit-any */
   }
 
-  window.fbq?.("init", pixelId);
-  loadedPixelId = pixelId;
+  const already = loadedPixelId ? parseIds(loadedPixelId) : [];
+  for (const id of ids) {
+    if (!already.includes(id)) window.fbq?.("init", id);
+  }
+  loadedPixelId = key;
 }
+
 
 export function isPixelLoaded() {
   return !!loadedPixelId;
