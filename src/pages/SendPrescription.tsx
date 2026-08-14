@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
 import { FileText } from "lucide-react";
+import { Seo } from "@/components/Seo";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -51,6 +52,7 @@ export default function SendPrescription() {
 
   return (
     <Layout>
+      <Seo title="Envie sua receita" description="Envie a foto da sua receita médica e nossa equipe farmacêutica retorna com orçamento e disponibilidade." path="/enviar-receita" />
       <div className="container py-10 max-w-2xl">
         <div className="flex items-center gap-3 mb-2">
           <div className="bg-accent text-accent-foreground rounded-full p-2"><FileText className="h-5 w-5" /></div>

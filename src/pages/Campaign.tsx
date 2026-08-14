@@ -7,6 +7,7 @@ import { CampaignAutoBanner } from "@/components/CampaignAutoBanner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Product } from "@/components/ProductCard";
+import { Seo } from "@/components/Seo";
 
 export default function Campaign() {
   const { slug } = useParams();
@@ -44,6 +45,7 @@ export default function Campaign() {
   if (isLoading) {
     return (
       <Layout>
+      <Seo title={campaign.name} description={campaign.subtitle || `Confira as ofertas da campanha ${campaign.name} na Farmácia Atacadão dos Medicamentos.`} path={`/campanha/${slug}`} />
         <div className="container py-10">
           <Skeleton className="h-64 w-full rounded-2xl" />
         </div>

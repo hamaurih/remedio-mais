@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import { Seo } from "@/components/Seo";
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -79,6 +80,7 @@ export default function Auth() {
 
   return (
     <Layout>
+      <Seo title={mode === "login" ? "Entrar" : "Criar conta"} description="Acesse sua conta na Farmácia Atacadão dos Medicamentos para acompanhar pedidos e endereços." path="/auth" noindex />
       <div className="container max-w-md py-10">
         <div className="bg-card border rounded-xl p-6 shadow-card">
           <h1 className="text-2xl font-extrabold mb-1">{mode === "login" ? "Entrar" : "Criar conta"}</h1>

@@ -9,6 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
 import { CartLiveAlert } from "@/components/CartLiveAlert";
 import { toast } from "sonner";
+import { Seo } from "@/components/Seo";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
   const [sug, setSug] = useState<GenericSuggestion | null>(null);
@@ -56,6 +57,7 @@ export default function Cart() {
 
   return (
     <Layout>
+      <Seo title="Seu carrinho" description="Revise os itens do seu carrinho e finalize a compra com segurança na Farmácia Atacadão dos Medicamentos." path="/carrinho" noindex />
       <div className="container py-8">
         <h1 className="text-2xl md:text-3xl font-extrabold mb-6">Seu carrinho</h1>
         {items.length === 0 ? (
