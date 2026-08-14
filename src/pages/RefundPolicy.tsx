@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/LegalPage";
 
 export default function RefundPolicy() {
   return (
-    <LegalPage title="Política de Reembolso">
+    <LegalPage title="Política de Reembolso" description="Prazos e formas de reembolso para pedidos cancelados ou devolvidos na Farmácia Atacadão dos Medicamentos." path="/politica-de-reembolso">
       <p>
         Esta política descreve como tratamos cancelamentos e reembolsos quando algum produto comprado pelo site não puder ser
         entregue, total ou parcialmente.

@@ -17,7 +17,7 @@ export default function Contact() {
   const waRaw = s?.whatsapp || "5583999286000";
   const waLink = buildWhatsAppLink(waRaw, "Olá! Vim pelo site.");
   return (
-    <LegalPage title="Fale Conosco">
+    <LegalPage title="Fale Conosco" description="Fale com a Farmácia Atacadão dos Medicamentos por WhatsApp, e-mail ou telefone. Atendimento sobre pedidos, receitas e produtos." path="/fale-conosco">
       <p>
         Nossa equipe está pronta para esclarecer dúvidas sobre produtos, pedidos, receitas e disponibilidade de medicamentos.
       </p>
