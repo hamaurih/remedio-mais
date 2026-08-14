@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/LegalPage";
 
 export default function Terms() {
   return (
-    <LegalPage title="Termos de Uso">
+    <LegalPage title="Termos de Uso" description="Termos de uso do site da Farmácia Atacadão dos Medicamentos: condições de compra, entrega e responsabilidades." path="/termos-de-uso">
       <p>
         Estes Termos regulam o uso do site da Farmácia Atacadão dos Medicamentos. Ao utilizar o site, você concorda com as
         condições abaixo.

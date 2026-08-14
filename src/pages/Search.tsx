@@ -19,6 +19,7 @@ import {
 } from "@/components/ProductFilters";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { trackSearch } from "@/lib/metaEvents";
+import { Seo } from "@/components/Seo";
 
 function rankRow(name: string, term: string) {
   const n = (name || "").toLowerCase();
@@ -84,6 +85,7 @@ export default function Search() {
 
   return (
     <Layout>
+      <Seo title={q ? `Busca: ${q}` : "Buscar produtos"} description="Encontre medicamentos, genéricos, higiene e beleza com os melhores preços na Farmácia Atacadão dos Medicamentos." path="/buscar" noindex />
       <div className="container py-6 flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold">Buscar: "{q}"</h1>

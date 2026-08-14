@@ -7,6 +7,7 @@ import { CampaignAutoBanner } from "@/components/CampaignAutoBanner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Product } from "@/components/ProductCard";
+import { Seo } from "@/components/Seo";
 
 export default function Campaign() {
   const { slug } = useParams();
@@ -69,6 +70,7 @@ export default function Campaign() {
 
   return (
     <Layout>
+      <Seo title={campaign.name} description={campaign.subtitle || `Confira as ofertas da campanha ${campaign.name} na Farmácia Atacadão dos Medicamentos.`} path={`/campanha/${campaign.slug || slug}`} />
       <section className="container mt-6 md:mt-8">
         {mode === "auto_products" && (
           <CampaignAutoBanner

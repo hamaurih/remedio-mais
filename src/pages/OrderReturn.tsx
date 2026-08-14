@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/store";
 import { trackPurchase } from "@/lib/metaEvents";
 import { CheckCircle2, Clock, XCircle, Loader2, Package, Truck, Store } from "lucide-react";
+import { Seo } from "@/components/Seo";
 
 type Status = "success" | "pending" | "failure";
 
@@ -91,6 +92,7 @@ export default function OrderReturn({ status }: { status: Status }) {
 
   return (
     <Layout>
+      <Seo title="Status do pedido" description="Acompanhe a confirmação do seu pedido na Farmácia Atacadão dos Medicamentos." noindex />
       <div className="container py-10 max-w-xl">
         <div className="bg-card border rounded-xl p-6 shadow-card text-center space-y-4">
           {icon}

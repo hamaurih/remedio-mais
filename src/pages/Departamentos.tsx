@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Package2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Seo } from "@/components/Seo";
 
 type Dept = {
   id: string;
@@ -29,6 +30,7 @@ export default function Departamentos() {
 
   return (
     <Layout>
+      <Seo title="Departamentos" description="Navegue por todos os departamentos da Farmácia Atacadão dos Medicamentos: medicamentos, higiene, beleza, infantil e mais." path="/departamentos" />
       <div className="container py-8 md:py-12">
         <div className="flex items-center gap-3 mb-6">
           <Button variant="outline" size="icon" asChild className="rounded-full">

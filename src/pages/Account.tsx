@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 import { Loader2, Plus, Trash2, Star, LogOut, MapPin } from "lucide-react";
+import { Seo } from "@/components/Seo";
 
 export default function Account() {
   const { user, profile, loading } = useAuth();
@@ -158,6 +159,7 @@ export default function Account() {
   if (loading || !user) {
     return (
       <Layout>
+      <Seo title="Minha conta" description="Gerencie seus dados, endereços e pedidos." path="/minha-conta" noindex />
         <div className="container py-16 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>

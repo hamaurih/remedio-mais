@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/LegalPage";
 
 export default function PrivacyPolicy() {
   return (
-    <LegalPage title="Política de Privacidade">
+    <LegalPage title="Política de Privacidade" description="Como a Farmácia Atacadão dos Medicamentos coleta, usa e protege seus dados pessoais, conforme a LGPD." path="/politica-de-privacidade">
       <p>
         A Farmácia Atacadão dos Medicamentos respeita a sua privacidade e está comprometida com a proteção dos dados pessoais
         que coleta, em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).

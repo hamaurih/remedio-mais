@@ -8,7 +8,9 @@ import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles } from "lucide-r
 import { Link, useNavigate } from "react-router-dom";
 import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
 import { CartLiveAlert } from "@/components/CartLiveAlert";
+import { SecureBadge } from "@/components/SecureBadge";
 import { toast } from "sonner";
+import { Seo } from "@/components/Seo";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
   const [sug, setSug] = useState<GenericSuggestion | null>(null);
@@ -56,6 +58,7 @@ export default function Cart() {
 
   return (
     <Layout>
+      <Seo title="Seu carrinho" description="Revise os itens do seu carrinho e finalize a compra com segurança na Farmácia Atacadão dos Medicamentos." path="/carrinho" noindex />
       <div className="container py-8">
         <h1 className="text-2xl md:text-3xl font-extrabold mb-6">Seu carrinho</h1>
         {items.length === 0 ? (
@@ -111,7 +114,8 @@ export default function Cart() {
               <Button asChild variant="outline" className="w-full">
                 <Link to="/">Continuar comprando</Link>
               </Button>
-              <p className="text-[11px] text-muted-foreground text-center">Pagamento seguro via Mercado Pago — Pix ou cartão de crédito.</p>
+              <div className="flex justify-center"><SecureBadge /></div>
+              <p className="text-[11px] text-muted-foreground text-center">Pagamento seguro via Cielo — Pix ou cartão de crédito.</p>
             </aside>
           </div>
         )}

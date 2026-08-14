@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearCart, clearPendingPixOrder, formatBRL } from "@/lib/store";
 import { Copy, Check, Loader2, QrCode, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Seo } from "@/components/Seo";
 
 type PixData = {
   qr_code: string;
@@ -132,6 +133,7 @@ export default function PixPayment() {
   if (status === "approved") {
     return (
       <Layout>
+      <Seo title="Pagamento via Pix" description="Finalize o pagamento do seu pedido via Pix em ambiente seguro." path="/pedido/pix" noindex />
         <div className="container py-16 max-w-md text-center">
           <CheckCircle2 className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
           <h1 className="text-2xl font-extrabold mb-2">Pagamento aprovado!</h1>

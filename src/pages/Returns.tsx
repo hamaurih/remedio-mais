@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/LegalPage";
 
 export default function Returns() {
   return (
-    <LegalPage title="Trocas e Devoluções">
+    <LegalPage title="Trocas e Devoluções" description="Regras de troca e devolução da Farmácia Atacadão dos Medicamentos conforme o CDC e a ANVISA." path="/trocas-e-devolucoes">
       <p>
         Em conformidade com o Código de Defesa do Consumidor e com a regulamentação sanitária da ANVISA, as trocas e
         devoluções na Farmácia Atacadão dos Medicamentos seguem as regras abaixo.
