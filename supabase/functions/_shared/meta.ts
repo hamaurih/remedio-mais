@@ -69,6 +69,11 @@ export type MetaEvent = {
 
 export type MetaSettings = { pixel_id: string; test_event_code: string | null; capi_enabled: boolean; enabled: boolean };
 
+/** meta_pixel_id pode conter vários IDs separados por vírgula. */
+export function parsePixelIds(value: string): string[] {
+  return value.split(",").map((s) => s.trim()).filter((s) => /^\d+$/.test(s));
+}
+
 export async function loadMetaSettings(admin: SupabaseClient): Promise<MetaSettings | null> {
   const { data } = await admin.from("marketing_settings")
     .select("meta_enabled, meta_pixel_id, meta_test_event_code, meta_capi_enabled")
