@@ -45,7 +45,6 @@ export default function Campaign() {
   if (isLoading) {
     return (
       <Layout>
-      <Seo title={campaign.name} description={campaign.subtitle || `Confira as ofertas da campanha ${campaign.name} na Farmácia Atacadão dos Medicamentos.`} path={`/campanha/${slug}`} />
         <div className="container py-10">
           <Skeleton className="h-64 w-full rounded-2xl" />
         </div>
@@ -71,6 +70,7 @@ export default function Campaign() {
 
   return (
     <Layout>
+      <Seo title={campaign.name} description={campaign.subtitle || `Confira as ofertas da campanha ${campaign.name} na Farmácia Atacadão dos Medicamentos.`} path={`/campanha/${campaign.slug || slug}`} />
       <section className="container mt-6 md:mt-8">
         {mode === "auto_products" && (
           <CampaignAutoBanner

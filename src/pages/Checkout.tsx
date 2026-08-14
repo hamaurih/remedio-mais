@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -401,6 +402,7 @@ export default function Checkout() {
 
   return (
     <Layout>
+      <Seo title="Checkout" description="Finalize seu pedido com pagamento seguro por cartão ou Pix." path="/checkout" noindex />
       <div className="container py-8 max-w-3xl">
         <h1 className="text-2xl md:text-3xl font-extrabold mb-6">Finalizar compra</h1>
 
