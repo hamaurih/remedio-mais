@@ -65,8 +65,10 @@ Deno.serve(async (req) => {
     if (!settings || !settings.enabled) return json({ skipped: "meta_disabled" });
     if (!settings.capi_enabled) return json({ skipped: "capi_disabled" });
     if (!TOKEN) {
+      // Sem token o envio server-side simplesmente não acontece (Pixel do navegador
+      // continua funcionando). Respondemos 200/skipped para não poluir o console.
       safeError("[meta-capi] token ausente");
-      return json({ error: "META_CAPI_ACCESS_TOKEN não configurado" }, 400);
+      return json({ skipped: "token_missing" });
     }
 
     const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || null;
