@@ -405,7 +405,10 @@ export default function Checkout() {
     <Layout>
       <Seo title="Checkout" description="Finalize seu pedido com pagamento seguro por cartão ou Pix." path="/checkout" noindex />
       <div className="container py-8 max-w-3xl">
-        <h1 className="text-2xl md:text-3xl font-extrabold mb-6">Finalizar compra</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold mb-3">Finalizar compra</h1>
+
+        <SecureBadge variant="card" className="mb-6" />
+
 
         <Stepper step={step} />
 
