@@ -69,6 +69,11 @@ export type MetaEvent = {
 
 export type MetaSettings = { pixel_id: string; test_event_code: string | null; capi_enabled: boolean; enabled: boolean };
 
+/** meta_pixel_id pode conter vários IDs separados por vírgula. */
+export function parsePixelIds(value: string): string[] {
+  return value.split(",").map((s) => s.trim()).filter((s) => /^\d+$/.test(s));
+}
+
 export async function loadMetaSettings(admin: SupabaseClient): Promise<MetaSettings | null> {
   const { data } = await admin.from("marketing_settings")
     .select("meta_enabled, meta_pixel_id, meta_test_event_code, meta_capi_enabled")
@@ -101,13 +106,27 @@ export async function sendToMeta(
 ): Promise<SendResult> {
   const payload: Record<string, unknown> = { data: events };
   if (useTestCode && settings.test_event_code) payload.test_event_code = settings.test_event_code;
+  const body = JSON.stringify(payload);
 
-  const res = await fetch(
-    `https://graph.facebook.com/${GRAPH_VERSION}/${settings.pixel_id}/events?access_token=${encodeURIComponent(token)}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) },
-  );
-  const text = await res.text();
-  return { ok: res.ok, http_status: res.status, response: maskResponse(text) };
+  const ids = parsePixelIds(settings.pixel_id);
+  if (ids.length === 0) return { ok: false, http_status: 400, response: "pixel_id inválido" };
+
+  const results: { id: string; ok: boolean; status: number; text: string }[] = [];
+  for (const id of ids) {
+    const res = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/${id}/events?access_token=${encodeURIComponent(token)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body },
+    );
+    results.push({ id, ok: res.ok, status: res.status, text: maskResponse(await res.text()) });
+  }
+
+  // ok apenas se todos os pixels aceitaram o lote.
+  const allOk = results.every((r) => r.ok);
+  const first = results.find((r) => !r.ok) ?? results[0];
+  const response = results.length === 1
+    ? first.text
+    : maskResponse(results.map((r) => `${r.id}:${r.status} ${r.text}`).join(" | "));
+  return { ok: allOk, http_status: first.status, response };
 }
 
 export async function logEvent(
