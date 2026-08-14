@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { buildWhatsAppLink } from "@/lib/store";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import logoRed from "@/assets/logo-red.webp";
+import { SecureBadge } from "@/components/SecureBadge";
 
 function renderFooterLinks(items: MenuItem[], fallback: { label: string; href: string }[]) {
   const list = items.length > 0
@@ -181,6 +182,10 @@ export function Footer() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="border-t py-3 flex justify-center">
+        <SecureBadge />
       </div>
 
       <div className="border-t py-4 text-center text-xs text-muted-foreground">
