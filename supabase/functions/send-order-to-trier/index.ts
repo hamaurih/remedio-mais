@@ -121,19 +121,27 @@ function buildEnderecoEntrega(order: any, minimal = false): Record<string, strin
   if (minimal) {
     return { ...STORE_ADDRESS, referencia: contato ? `RETIRADA NA LOJA - Contato: ${contato}` : "RETIRADA NA LOJA" };
   }
-  const ref = [order.delivery_reference, contato ? `Contato: ${contato}` : ""]
+  // Trier valida tamanho máximo dos campos (numero = 5 caracteres).
+  const clean = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
+  const rawNumero = clean(order.delivery_number).replace(/\s+/g, "");
+  const numero = (rawNumero || "0").slice(0, 5);
+  const numeroSobra = rawNumero.length > 5 ? rawNumero.slice(5) : "";
+  const complemento = [clean(order.delivery_complement), numeroSobra ? `Nº ${rawNumero}` : ""]
+    .filter(Boolean).join(" - ").slice(0, 60);
+  const ref = [clean(order.delivery_reference), contato ? `Contato: ${contato}` : ""]
     .filter(Boolean).join(" - ").slice(0, 100);
   return {
-    logradouro: String(order.delivery_street || STORE_ADDRESS.logradouro),
-    numero: String(order.delivery_number || "0"),
-    complemento: String(order.delivery_complement || ""),
+    logradouro: (clean(order.delivery_street) || STORE_ADDRESS.logradouro).slice(0, 60),
+    numero,
+    complemento,
     referencia: ref,
-    bairro: String(order.delivery_neighborhood || STORE_ADDRESS.bairro),
-    cidade: String(order.delivery_city || STORE_ADDRESS.cidade),
-    estado: String(order.delivery_state || STORE_ADDRESS.estado),
+    bairro: (clean(order.delivery_neighborhood) || STORE_ADDRESS.bairro).slice(0, 40),
+    cidade: (clean(order.delivery_city) || STORE_ADDRESS.cidade).slice(0, 40),
+    estado: (clean(order.delivery_state) || STORE_ADDRESS.estado).slice(0, 2).toUpperCase(),
     cep: onlyDigits(order.delivery_cep) || STORE_ADDRESS.cep,
   };
 }
+
 
 
 // Cliente no formato oficial da coleção Trier 1.5.23
