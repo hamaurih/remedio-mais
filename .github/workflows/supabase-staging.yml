@@ -1,0 +1,56 @@
+name: Supabase Staging Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Validate only or apply pending migrations"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-staging-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Validate and deploy staging migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.STAGING_PROJECT_ID }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_DB_PASSWORD"
+          test -n "$SUPABASE_PROJECT_ID"
+
+      - name: Link staging project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Preview pending migrations
+        run: supabase db push --linked --dry-run
+
+      - name: Apply pending migrations
+        if: ${{ inputs.mode == 'apply' }}
+        run: supabase db push --linked
