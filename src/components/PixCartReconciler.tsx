@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { clearCart, clearPendingPixOrder, getPendingPixOrder } from "@/lib/store";
+import { clearCart, clearPendingPixOrder, getPendingPixCartItemIds, getPendingPixOrder, removeCartItems } from "@/lib/store";
 
 /**
  * Ao abrir o site, verifica se existe um Pix pendente já pago.
@@ -22,7 +22,9 @@ export function PixCartReconciler() {
       if (!data) { clearPendingPixOrder(); return; }
       const st = data.payment_status;
       if (st === "approved") {
-        clearCart();
+        const purchasedIds = getPendingPixCartItemIds();
+        if (purchasedIds.length) removeCartItems(purchasedIds);
+        else clearCart();
         clearPendingPixOrder();
         sessionStorage.removeItem(`pix:${orderId}`);
       } else if (st === "rejected" || st === "cancelled" || st === "refunded") {
