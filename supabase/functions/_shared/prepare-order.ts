@@ -3,7 +3,13 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { safeError } from "./mask.ts";
 
-export type CartItem = { id: string; variant_id?: string | null; quantity: number; expected_unit_price?: number };
+export type CartItem = {
+  id: string;
+  variant_id?: string | null;
+  quantity: number;
+  expected_unit_price?: number;
+  prescription_id?: string | null;
+};
 export type OrderBody = {
   items: CartItem[];
   delivery_type: "pickup" | "delivery";
@@ -103,10 +109,20 @@ export async function prepareOrder(
     const stock = variant ? (variant.stock ?? 0) : (p.stock ?? 0);
     if (stock <= 0) return { ok: false, status: 400, body: { success: false, error: `Sem estoque: ${p.name}.` } };
     if (p.controlled || p.requires_prescription) {
-      const { data: rx } = await admin.from("prescriptions").select("id")
-        .eq("user_id", userId).eq("product_id", p.id).eq("status", "aprovada")
-        .limit(1).maybeSingle();
-      if (!rx) return { ok: false, status: 400, body: { success: false, error: `Receita aprovada necessária: ${p.name}.` } };
+      if (!ci.prescription_id) {
+        return { ok: false, status: 400, body: { success: false, error: `Receita aprovada necessária: ${p.name}.` } };
+      }
+      const { data: rx } = await admin.from("prescriptions")
+        .select("id,product_id,product_ids")
+        .eq("id", ci.prescription_id)
+        .eq("user_id", userId)
+        .eq("status", "aprovada")
+        .maybeSingle();
+      const coveredProducts = Array.isArray((rx as any)?.product_ids) ? (rx as any).product_ids : [];
+      const coversProduct = !!rx && ((rx as any).product_id === p.id || coveredProducts.includes(p.id));
+      if (!coversProduct) {
+        return { ok: false, status: 400, body: { success: false, error: `A receita aprovada não corresponde a: ${p.name}.` } };
+      }
     }
     const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, stock));
     const unit = Number(variant ? (variant.promo_price ?? variant.price ?? p.promo_price ?? p.price) : (p.promo_price ?? p.price));
