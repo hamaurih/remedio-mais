@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Activity, BarChart3, Boxes, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
+import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
 type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller">; requiresPrescriptionPermission?: boolean };
 const items: Item[] = [
@@ -46,6 +47,7 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   });
 
   return <div className="min-h-screen flex">
+    <CieloPendingReconciler enabled={isAdmin} />
     <aside className="w-60 bg-card border-r flex flex-col">
       <div className="p-4 border-b"><div className="flex items-center gap-2"><div className="w-9 h-9 bg-gradient-hero rounded-lg flex items-center justify-center text-primary-foreground font-extrabold">A+</div><div><div className="font-extrabold text-sm">{isAdmin ? "Administração" : "Vendedor"}</div><div className="text-[11px] text-muted-foreground">Atacadão dos Medicamentos</div></div></div></div>
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">{visible.map(item => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}><item.icon className="h-4 w-4" /> {item.label}</NavLink>)}</nav>
