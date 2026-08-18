@@ -1,4 +1,6 @@
 // Lightweight cart store using localStorage + custom events
+export type PrescriptionStatus = "not_sent" | "recebida" | "em_analise" | "aprovada" | "recusada" | "finalizada";
+
 export type CartItem = {
   id: string;            // unique line key (variant.id when variant, otherwise product.id)
   product_id?: string;   // parent product id (always set for new items)
@@ -8,6 +10,10 @@ export type CartItem = {
   price: number;
   image_url?: string | null;
   quantity: number;
+  requires_prescription?: boolean;
+  controlled?: boolean;
+  prescription_id?: string | null;
+  prescription_status?: PrescriptionStatus | null;
 };
 
 const KEY = "atacadao_cart_v1";
@@ -25,15 +31,57 @@ function save(items: CartItem[]) {
 export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
   const items = getCart();
   const existing = items.find((i) => i.id === item.id);
-  if (existing) existing.quantity += qty;
-  else items.push({ ...item, product_id: item.product_id || item.id, quantity: qty });
+  if (existing) {
+    const nextQuantity = existing.quantity + qty;
+    Object.assign(existing, item, { quantity: nextQuantity });
+  } else {
+    items.push({ ...item, product_id: item.product_id || item.id, quantity: qty });
+  }
   save(items);
-  // Mensuração centralizada (Meta Pixel + CAPI). Nunca lança erro no fluxo do carrinho.
-  void import("./metaEvents").then((m) => m.trackAddToCart({
-    id: item.id, product_id: item.product_id, name: item.name, price: item.price, quantity: qty,
-  })).catch(() => {});
+
+  // Medicamentos sujeitos a receita não são enviados ao Pixel/CAPI.
+  // Isso evita usar informação potencialmente sensível para publicidade.
+  if (!item.requires_prescription && !item.controlled) {
+    void import("./metaEvents").then((m) => m.trackAddToCart({
+      id: item.id, product_id: item.product_id, name: item.name, price: item.price, quantity: qty,
+    })).catch(() => {});
+  }
 }
 
+export function isPrescriptionCartItem(item: CartItem) {
+  return item.requires_prescription === true || item.controlled === true;
+}
+
+export function isCartItemPayable(item: CartItem) {
+  return !isPrescriptionCartItem(item) || item.prescription_status === "aprovada";
+}
+
+export function attachPrescriptionToCart(
+  productIds: string[],
+  prescriptionId: string,
+  status: PrescriptionStatus = "recebida",
+) {
+  const wanted = new Set(productIds);
+  save(getCart().map((item) =>
+    wanted.has(item.product_id || item.id)
+      ? { ...item, prescription_id: prescriptionId, prescription_status: status }
+      : item
+  ));
+}
+
+export function updateCartPrescriptionStatuses(rows: Array<{ id: string; status: string }>) {
+  if (!rows.length) return;
+  const byId = new Map(rows.map((row) => [row.id, row.status as PrescriptionStatus]));
+  let changed = false;
+  const next = getCart().map((item) => {
+    if (!item.prescription_id) return item;
+    const status = byId.get(item.prescription_id);
+    if (!status || status === item.prescription_status) return item;
+    changed = true;
+    return { ...item, prescription_status: status };
+  });
+  if (changed) save(next);
+}
 
 export function updateQty(id: string, qty: number) {
   const items = getCart().map((i) => (i.id === id ? { ...i, quantity: Math.max(1, qty) } : i));
@@ -48,18 +96,40 @@ export function removeFromCart(id: string) {
   save(getCart().filter((i) => i.id !== id));
 }
 
+export function removeCartItems(ids: string[]) {
+  const purchased = new Set(ids);
+  save(getCart().filter((item) => !purchased.has(item.id)));
+}
+
 export function clearCart() { save([]); }
 
-// Pedido Pix aguardando confirmação — usado para limpar o carrinho
-// mesmo se o cliente pagar no app do banco e não voltar para a tela do Pix.
+// Pedido Pix aguardando confirmação — preserva quais linhas foram compradas,
+// para não apagar medicamentos ainda aguardando análise da receita.
 const PENDING_PIX_KEY = "atacadao_pending_pix_order";
 
-export function setPendingPixOrder(orderId: string) {
-  try { localStorage.setItem(PENDING_PIX_KEY, orderId); } catch { /* ignore */ }
+export function setPendingPixOrder(orderId: string, cartItemIds: string[] = []) {
+  try { localStorage.setItem(PENDING_PIX_KEY, JSON.stringify({ order_id: orderId, cart_item_ids: cartItemIds })); } catch { /* ignore */ }
+}
+
+function readPendingPix(): { order_id: string; cart_item_ids: string[] } | null {
+  try {
+    const raw = localStorage.getItem(PENDING_PIX_KEY);
+    if (!raw) return null;
+    if (!raw.trim().startsWith("{")) return { order_id: raw, cart_item_ids: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      order_id: String(parsed.order_id || ""),
+      cart_item_ids: Array.isArray(parsed.cart_item_ids) ? parsed.cart_item_ids.map(String) : [],
+    };
+  } catch { return null; }
 }
 
 export function getPendingPixOrder(): string | null {
-  try { return localStorage.getItem(PENDING_PIX_KEY); } catch { return null; }
+  return readPendingPix()?.order_id || null;
+}
+
+export function getPendingPixCartItemIds(): string[] {
+  return readPendingPix()?.cart_item_ids || [];
 }
 
 export function clearPendingPixOrder() {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -21,6 +21,7 @@ import { trackViewContent } from "@/lib/metaEvents";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
+  const nav = useNavigate();
   const { data: _settings } = useStoreSettings();
   
   const { data: p, isLoading, refetch } = useQuery({
@@ -104,6 +105,39 @@ export default function Product() {
     });
   };
 
+  const handlePrescriptionAdd = () => {
+    if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
+    if (outOfStock) { toast.error("Sem estoque para esta opção"); return; }
+
+    if (hasVariants && selectedVariant) {
+      addToCart({
+        id: selectedVariant.id,
+        product_id: p.id,
+        variant_id: selectedVariant.id,
+        variant_label: buildVariantLabel(selectedVariant),
+        name: p.name,
+        price: Number(finalPrice),
+        image_url: displayImage,
+        requires_prescription: true,
+        controlled: !!(p as any).controlled,
+        prescription_status: "not_sent",
+      });
+    } else {
+      addToCart({
+        id: p.id,
+        product_id: p.id,
+        name: p.name,
+        price: Number(finalPrice),
+        image_url: p.image_url,
+        requires_prescription: true,
+        controlled: !!(p as any).controlled,
+        prescription_status: "not_sent",
+      });
+    }
+    toast.success("Produto adicionado. Envie a receita para liberar o pagamento.");
+    nav(`/enviar-receita?product=${p.id}`);
+  };
+
   return (
     <Layout>
       <Seo
@@ -176,8 +210,10 @@ export default function Product() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {(p as any).controlled ? (
-                <Button asChild size="lg"><Link to="/enviar-receita"><FileText className="h-5 w-5 mr-2" /> Enviar receita para análise</Link></Button>
+              {(p as any).controlled || (p as any).requires_prescription ? (
+                <Button size="lg" onClick={handlePrescriptionAdd} disabled={outOfStock}>
+                  <FileText className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : "Adicionar e enviar receita"}
+                </Button>
               ) : (
                 <Button size="lg" onClick={handleAdd} disabled={outOfStock}>
                   <ShoppingCart className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : "Adicionar ao carrinho"}

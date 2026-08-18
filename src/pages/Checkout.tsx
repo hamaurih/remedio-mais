@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { cartTotal, clearCart, formatBRL, setPendingPixOrder } from "@/lib/store";
+import { cartTotal, formatBRL, isCartItemPayable, isPrescriptionCartItem, removeCartItems, setPendingPixOrder } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,7 +26,12 @@ import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installm
 type Step = 1 | 2 | 3 | 4;
 
 export default function Checkout() {
-  const items = useCart();
+  const allItems = useCart();
+  const items = useMemo(() => allItems.filter(isCartItemPayable), [allItems]);
+  const pendingPrescriptionItems = useMemo(
+    () => allItems.filter((item) => isPrescriptionCartItem(item) && !isCartItemPayable(item)),
+    [allItems],
+  );
   const { user, loading } = useAuth();
   const { data: settings } = useStoreSettings();
   const nav = useNavigate();
@@ -333,6 +338,7 @@ export default function Checkout() {
           variant_id: i.variant_id || null,
           quantity: i.quantity,
           expected_unit_price: i.price,
+          prescription_id: i.prescription_id || null,
         })),
         delivery_type: deliveryType,
         customer: { name, email, phone, cpf: cpf || undefined },
@@ -356,7 +362,7 @@ export default function Checkout() {
         }));
         // O carrinho só é limpo quando o Pix for confirmado. Guardamos o pedido
         // pendente para reconciliar mesmo se o cliente fechar a página.
-        setPendingPixOrder(data.order_id);
+        setPendingPixOrder(data.order_id, items.map((item) => item.id));
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         return;
       }
@@ -383,7 +389,7 @@ export default function Checkout() {
       await parseInvokeError(error, data);
       if (data?.status === "approved") {
         const orderId = data.order_id;
-        clearCart();
+        removeCartItems(items.map((item) => item.id));
         toast.success("Pagamento aprovado!");
         nav(`/pedido/sucesso?order=${orderId}`, { replace: true });
         return;
@@ -409,6 +415,17 @@ export default function Checkout() {
 
         <SecureBadge variant="card" className="mb-6" />
 
+        {pendingPrescriptionItems.length > 0 && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-extrabold">Compra parcial do carrinho</div>
+              <p className="text-sm mt-1">
+                {pendingPrescriptionItems.length} item(ns) aguardando receita permanecerão no carrinho e não serão incluídos neste pagamento.
+              </p>
+            </div>
+          </div>
+        )}
 
         <Stepper step={step} />
 

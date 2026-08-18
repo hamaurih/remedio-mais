@@ -138,19 +138,37 @@ export function ProductCard({ p }: { p: Product }) {
           </div>
         </div>
 
-        {p.controlled || p.requires_prescription ? (
-          <Button asChild size="sm" variant="outline" className="mt-3 rounded-full h-10">
-            <Link to="/enviar-receita">
-              <FileText className="h-4 w-4 mr-1" /> Enviar receita
+        {outOfStock ? (
+          <Button disabled className="mt-3 w-full h-10 rounded-full font-bold opacity-60">
+            Indisponível
+          </Button>
+        ) : p.controlled || p.requires_prescription ? (
+          <Button asChild size="sm" className="mt-3 rounded-full h-10">
+            <Link
+              to={`/enviar-receita?product=${p.id}`}
+              onClick={() => {
+                addToCart({
+                  id: p.id,
+                  product_id: p.id,
+                  name: p.name,
+                  price: finalPrice,
+                  image_url: p.image_url,
+                  requires_prescription: true,
+                  controlled: p.controlled,
+                  prescription_status: "not_sent",
+                });
+                toast.success("Produto adicionado. Envie a receita para liberar o pagamento.");
+              }}
+            >
+              <FileText className="h-4 w-4 mr-1" /> Adicionar e enviar receita
             </Link>
           </Button>
         ) : (
           <Button
             onClick={handleAdd}
-            disabled={outOfStock}
-            className="mt-3 w-full h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-60"
+            className="mt-3 w-full h-10 rounded-full font-bold bg-primary hover:bg-primary-dark active:scale-95 transition-all"
           >
-            <ShoppingCart className="h-4 w-4 mr-1" /> {outOfStock ? "Indisponível" : (p.has_variants ? "Escolher opção" : "Adicionar")}
+            <ShoppingCart className="h-4 w-4 mr-1" /> {p.has_variants ? "Escolher opção" : "Adicionar"}
           </Button>
         )}
       </div>

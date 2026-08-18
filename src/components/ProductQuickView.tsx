@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { notifyCartAddition } from "@/lib/cartLiveNotify";
 
 export function ProductQuickView() {
+  const nav = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -147,6 +148,40 @@ export function ProductQuickView() {
     if (!(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
   };
 
+  const handlePrescriptionAdd = () => {
+    if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
+    if (outOfStock) { toast.error("Sem estoque para esta opção."); return; }
+
+    if (hasVariants && selectedVariant) {
+      addToCart({
+        id: selectedVariant.id,
+        product_id: p.id,
+        variant_id: selectedVariant.id,
+        variant_label: buildVariantLabel(selectedVariant),
+        name: p.name,
+        price: Number(finalPrice),
+        image_url: selectedVariant.image_url || p.image_url,
+        requires_prescription: true,
+        controlled: !!p.controlled,
+        prescription_status: "not_sent",
+      }, qty);
+    } else {
+      addToCart({
+        id: p.id,
+        product_id: p.id,
+        name: p.name,
+        price: finalPrice,
+        image_url: p.image_url,
+        requires_prescription: true,
+        controlled: !!p.controlled,
+        prescription_status: "not_sent",
+      }, qty);
+    }
+    toast.success("Produto adicionado. Envie a receita para liberar o pagamento.");
+    setOpen(false);
+    nav(`/enviar-receita?product=${p.id}`);
+  };
+
   const content = (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b shrink-0">
@@ -236,7 +271,7 @@ export function ProductQuickView() {
 
             {/* Qty + actions */}
             <div className="mt-5 space-y-3">
-              {!p.controlled && !outOfStock && (
+              {!outOfStock && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">Quantidade</span>
                   <div className="inline-flex items-center border rounded-full">
@@ -256,9 +291,9 @@ export function ProductQuickView() {
                 </div>
               ) : p.controlled || p.requires_prescription ? (
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Venda sujeita à apresentação e conferência de receita.</div>
-                  <Button asChild className="w-full h-12 rounded-full font-bold" onClick={() => setOpen(false)}>
-                    <Link to="/enviar-receita"><FileText className="h-5 w-5 mr-2" /> Enviar receita</Link>
+                  <div className="text-xs text-muted-foreground">O produto ficará no carrinho aguardando a aprovação da receita.</div>
+                  <Button onClick={handlePrescriptionAdd} className="w-full h-12 rounded-full font-bold">
+                    <FileText className="h-5 w-5 mr-2" /> Adicionar e enviar receita
                   </Button>
                   <Button asChild variant="outline" className="w-full h-11 rounded-full">
                     <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-2" /> Falar com atendente</a>

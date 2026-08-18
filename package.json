@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vitest run && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "predev": "bunx tsx scripts/generate-sitemap.ts",
-    "prebuild": "bunx tsx scripts/generate-sitemap.ts"
+    "prebuild": "bunx tsx scripts/validate-deployment-env.ts && bunx tsx scripts/generate-sitemap.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

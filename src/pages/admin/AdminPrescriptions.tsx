@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,6 +22,20 @@ export default function AdminPrescriptions() {
     queryKey: ["admin_presc"],
     queryFn: async () => (await supabase.from("prescriptions").select("*").order("created_at", { ascending: false })).data || [],
   });
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin_prescriptions_live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "prescriptions" }, () => {
+        qc.invalidateQueries({ queryKey: ["admin_presc"] });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "prescriptions" }, () => {
+        qc.invalidateQueries({ queryKey: ["admin_presc"] });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("prescriptions").update({ status }).eq("id", id);
