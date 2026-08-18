@@ -7,6 +7,11 @@ const DEFAULT_BASE="https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
 const RETRYABLE=new Set([429,500,502,503,504,545,554,556]);
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 function extractList(j:any):any[]{if(Array.isArray(j))return j;return j?.content||j?.data||j?.items||j?.estoques||j?.list||[];}
+function toTrierDate(value:string|Date){
+  const d=value instanceof Date?value:new Date(value);
+  const local=new Date(d.getTime()-3*60*60*1000);
+  return `${local.toISOString().slice(0,19)}-0300`;
+}
 async function fetchPage(url:string,token:string){let lastStatus=0;for(let attempt=1;attempt<=4;attempt++){try{const r=await fetch(url,{headers:{Authorization:token.toLowerCase().startsWith("bearer ")?token:`Bearer ${token}`,Accept:"application/json"}});lastStatus=r.status;const text=await r.text();if(r.ok){try{return{ok:true,status:r.status,json:JSON.parse(text)}}catch{return{ok:false,status:r.status,error:"invalid_json"}}}if(!RETRYABLE.has(r.status)||attempt===4)return{ok:false,status:r.status,error:`http_${r.status}`};}catch(e:any){if(attempt===4)return{ok:false,status:lastStatus,error:String(e?.message||e)};}await sleep(350*attempt*attempt);}return{ok:false,status:lastStatus,error:"retry_exhausted"};}
 
 Deno.serve(async(req)=>{
@@ -38,8 +43,8 @@ Deno.serve(async(req)=>{
 
   for(let page=0;page<maxPages;page++){
     const qs=new URLSearchParams({
-      dataInicial:new Date(state.window_start).toISOString(),
-      dataFinal:new Date(state.window_end).toISOString(),
+      dataInicial:toTrierDate(state.window_start),
+      dataFinal:toTrierDate(state.window_end),
       primeiroRegistro:String(offset),
       quantidadeRegistros:String(pageSize),
     });
