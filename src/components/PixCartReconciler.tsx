@@ -3,33 +3,62 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearCart, clearPendingPixOrder, getPendingPixOrder } from "@/lib/store";
 
 /**
- * Ao abrir o site, verifica se existe um Pix pendente já pago.
- * Se o pedido foi aprovado (webhook Cielo) enquanto o cliente estava fora
- * da tela do Pix, limpa o carrinho para evitar compra duplicada.
+ * Ao abrir/retomar o site, reconcilia ativamente um Pix pendente com a Cielo.
+ * Assim, se o cliente sair da tela do QR para pagar no app do banco e depois
+ * voltar ao site, o pedido não depende exclusivamente do webhook.
  */
 export function PixCartReconciler() {
   useEffect(() => {
-    const orderId = getPendingPixOrder();
-    if (!orderId) return;
     let active = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("payment_status")
-        .eq("id", orderId)
-        .maybeSingle();
-      if (!active || error) return;
-      if (!data) { clearPendingPixOrder(); return; }
-      const st = data.payment_status;
-      if (st === "approved") {
-        clearCart();
-        clearPendingPixOrder();
-        sessionStorage.removeItem(`pix:${orderId}`);
-      } else if (st === "rejected" || st === "cancelled" || st === "refunded") {
-        clearPendingPixOrder();
+    let running = false;
+
+    const reconcile = async () => {
+      const orderId = getPendingPixOrder();
+      if (!orderId || !active || running) return;
+      running = true;
+      try {
+        // A Edge Function consulta a Query API da Cielo e atualiza o pedido
+        // somente quando a fonte oficial retornar o novo status.
+        try {
+          await supabase.functions.invoke("check-cielo-status", {
+            body: { order_id: orderId },
+          });
+        } catch {
+          // Fallback abaixo continua lendo o estado já persistido.
+        }
+
+        const { data, error } = await supabase
+          .from("orders")
+          .select("payment_status")
+          .eq("id", orderId)
+          .maybeSingle();
+        if (!active || error) return;
+        if (!data) { clearPendingPixOrder(); return; }
+        const st = data.payment_status;
+        if (st === "approved") {
+          clearCart();
+          clearPendingPixOrder();
+          sessionStorage.removeItem(`pix:${orderId}`);
+        } else if (st === "rejected" || st === "cancelled" || st === "refunded") {
+          clearPendingPixOrder();
+        }
+      } finally {
+        running = false;
       }
-    })();
-    return () => { active = false; };
+    };
+
+    void reconcile();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void reconcile();
+    };
+    window.addEventListener("focus", reconcile);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", reconcile);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   return null;
