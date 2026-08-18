@@ -6,15 +6,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetaPixelProvider } from "@/components/MetaPixelProvider";
 import { useAuth } from "@/hooks/useAuth";
-
-// Rotas críticas da loja: carregadas no bundle inicial
 import Index from "./pages/Index.tsx";
 import Category from "./pages/Category.tsx";
 import Product from "./pages/Product.tsx";
 import Collection from "./pages/Collection.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
-// Rotas secundárias: carregadas sob demanda (code splitting)
 const Cart = lazy(() => import("./pages/Cart.tsx"));
 const Checkout = lazy(() => import("./pages/Checkout.tsx"));
 const PixPayment = lazy(() => import("./pages/PixPayment.tsx"));
@@ -32,9 +29,11 @@ const Returns = lazy(() => import("./pages/Returns.tsx"));
 const RefundPolicy = lazy(() => import("./pages/RefundPolicy.tsx"));
 const Contact = lazy(() => import("./pages/Contact.tsx"));
 
-// Painel administrativo: nunca entra no bundle do visitante
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
+const AdminHome = lazy(() => import("./pages/admin/AdminHome.tsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx"));
+const AdminCurveABC = lazy(() => import("./pages/admin/AdminCurveABC.tsx"));
+const AdminSiteHub = lazy(() => import("./pages/admin/AdminSiteHub.tsx"));
 const SellerDashboard = lazy(() => import("./pages/admin/SellerDashboard.tsx"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.tsx"));
 const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport.tsx"));
@@ -69,45 +68,23 @@ const Pdv = lazy(() => import("./pages/admin/Pdv.tsx"));
 const PdvDashboard = lazy(() => import("./pages/admin/PdvDashboard.tsx"));
 const AdminMetaAds = lazy(() => import("./pages/admin/AdminMetaAds.tsx"));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Storefront should pick up admin changes quickly without manual refresh
-      staleTime: 30_000,
-      gcTime: 10 * 60_000,
-      retry: 1,
-      refetchOnWindowFocus: "always",
-      refetchOnReconnect: "always",
-    },
-  },
-});
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, gcTime: 10 * 60_000, retry: 1, refetchOnWindowFocus: "always", refetchOnReconnect: "always" } } });
 
 function RouteFallback() {
-  return (
-    <div className="container py-16">
-      <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-56 bg-muted rounded-xl animate-pulse" />
-        ))}
-      </div>
-    </div>
-  );
+  return <div className="container py-16"><div className="h-8 w-48 bg-muted rounded animate-pulse" /><div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-56 bg-muted rounded-xl animate-pulse" />)}</div></div>;
 }
 
 function AdminEntry() {
   const { isAdmin, isSeller, loading } = useAuth();
-
   if (loading) return <div className="p-10 text-center">Carregando...</div>;
   if (isSeller && !isAdmin) return <Navigate to="/admin/vendedor" replace />;
-  return <AdminDashboard />;
+  return <AdminHome />;
 }
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      <Toaster /><Sonner />
       <BrowserRouter>
         <MetaPixelProvider />
         <Suspense fallback={<RouteFallback />}>
@@ -137,7 +114,6 @@ const App = () => (
             <Route path="/departamentos" element={<Departamentos />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/minha-conta" element={<Account />} />
-
             <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos-de-uso" element={<Terms />} />
             <Route path="/trocas-e-devolucoes" element={<Returns />} />
@@ -146,6 +122,9 @@ const App = () => (
             <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminEntry />} />
+              <Route path="bi" element={<AdminDashboard />} />
+              <Route path="curva-abc" element={<AdminCurveABC />} />
+              <Route path="site" element={<AdminSiteHub />} />
               <Route path="vendedor" element={<SellerDashboard />} />
               <Route path="pdv" element={<Pdv />} />
               <Route path="pdv/indicadores" element={<PdvDashboard />} />
@@ -188,5 +167,4 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
-
 export default App;
