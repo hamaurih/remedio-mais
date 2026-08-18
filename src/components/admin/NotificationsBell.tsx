@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Bell, CheckCheck, PartyPopper, FileCheck2, Volume2, VolumeX } from "lucide-react";
+import { Bell, CheckCheck, PartyPopper, FileCheck2, History, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +84,7 @@ export function NotificationsBell() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [alertQueue, setAlertQueue] = useState<Notif[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -188,6 +189,7 @@ export function NotificationsBell() {
   }, [currentAlert?.id, isPrescriptionAlert]);
 
   const unread = items.filter((i) => !i.read).length;
+  const visibleItems = showHistory ? items : items.filter((i) => !i.read);
 
   const markAllRead = async () => {
     const ids = items.filter((i) => !i.read).map((i) => i.id);
@@ -222,7 +224,7 @@ export function NotificationsBell() {
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setShowHistory(false); }}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className={`relative ${unread > 0 ? "animate-pulse" : ""}`}>
             <Bell className="h-5 w-5" />
@@ -234,9 +236,20 @@ export function NotificationsBell() {
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-96 p-0">
-          <div className="flex items-center justify-between px-3 py-2 border-b">
-            <div className="text-sm font-semibold">Notificações</div>
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between px-3 py-2 border-b gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">{showHistory ? "Histórico" : "Notificações pendentes"}</div>
+              {!showHistory && <div className="text-[10px] text-muted-foreground">Somente itens que ainda exigem atenção</div>}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                size="sm"
+                variant={showHistory ? "secondary" : "ghost"}
+                onClick={() => setShowHistory((v) => !v)}
+                title={showHistory ? "Voltar para pendentes" : "Ver histórico"}
+              >
+                <History className="h-3.5 w-3.5 mr-1" /> {showHistory ? "Pendentes" : "Histórico"}
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -245,19 +258,23 @@ export function NotificationsBell() {
               >
                 {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
               </Button>
-              <Button size="sm" variant="ghost" onClick={markAllRead} disabled={!unread}>
-                <CheckCheck className="h-3.5 w-3.5 mr-1" /> Marcar todas
-              </Button>
+              {!showHistory && (
+                <Button size="sm" variant="ghost" onClick={markAllRead} disabled={!unread} title="Marcar todas como lidas">
+                  <CheckCheck className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </div>
           <div className="max-h-[420px] overflow-y-auto">
-            {!items.length ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">Nenhuma notificação.</div>
-            ) : items.map((n) => (
+            {!visibleItems.length ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                {showHistory ? "Nenhuma notificação no histórico." : "Nenhuma notificação pendente."}
+              </div>
+            ) : visibleItems.map((n) => (
               <Link
                 key={n.id}
                 to={destinationFor(n)}
-                onClick={() => { void markRead(n.id); setOpen(false); }}
+                onClick={() => { void markRead(n.id); setOpen(false); setShowHistory(false); }}
                 className={`block px-3 py-2 border-b hover:bg-accent transition-colors ${!n.read ? "bg-primary/5" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2">
