@@ -10,9 +10,32 @@ import logoRed from "@/assets/logo-red.webp";
 export function Header() {
   const cart = useCart();
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, isSeller } = useAuth();
   const firstName = (profile?.full_name || user?.user_metadata?.full_name || user?.email || "").toString().trim().split(/\s+/)[0] || "";
 
+  const accountPath = user
+    ? isAdmin
+      ? "/admin"
+      : isSeller
+        ? "/admin/vendedor"
+        : "/minha-conta"
+    : "/auth";
+
+  const accountEyebrow = !user
+    ? "Olá, faça seu"
+    : isAdmin
+      ? "Bem-vindo"
+      : isSeller
+        ? `Olá, ${firstName || "vendedor"}`
+        : `Olá, ${firstName || "cliente"}`;
+
+  const accountLabel = !user
+    ? null
+    : isAdmin
+      ? "Admin"
+      : isSeller
+        ? "Painel do vendedor"
+        : "Minha conta";
 
   return (
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
@@ -44,7 +67,7 @@ export function Header() {
           <div className="flex items-center gap-2 ml-auto">
             {/* Login / conta */}
             <Link
-              to={user ? (isAdmin ? "/admin" : "/minha-conta") : "/auth"}
+              to={accountPath}
               className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
             >
               <span className="rounded-full bg-accent text-primary p-2">
@@ -54,9 +77,9 @@ export function Header() {
                 {user ? (
                   <>
                     <span className="block text-xs uppercase tracking-wide text-muted-foreground font-bold">
-                      {isAdmin ? "Bem-vindo" : `Olá, ${firstName || "cliente"}`}
+                      {accountEyebrow}
                     </span>
-                    <span className="block text-base font-bold text-foreground">{isAdmin ? "Admin" : "Minha conta"}</span>
+                    <span className="block text-base font-bold text-foreground">{accountLabel}</span>
                   </>
                 ) : (
                   <>
@@ -69,8 +92,8 @@ export function Header() {
 
 
             {/* Mobile login icon */}
-            <Button asChild size="icon" variant="ghost" className="md:hidden" aria-label="Entrar">
-              <Link to={user ? "/minha-conta" : "/auth"}><User className="h-5 w-5" /></Link>
+            <Button asChild size="icon" variant="ghost" className="md:hidden" aria-label={isSeller ? "Painel do vendedor" : "Entrar"}>
+              <Link to={accountPath}><User className="h-5 w-5" /></Link>
             </Button>
 
 
