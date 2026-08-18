@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetaPixelProvider } from "@/components/MetaPixelProvider";
+import { useAuth } from "@/hooks/useAuth";
 
 // Rotas críticas da loja: carregadas no bundle inicial
 import Index from "./pages/Index.tsx";
@@ -34,6 +35,7 @@ const Contact = lazy(() => import("./pages/Contact.tsx"));
 // Painel administrativo: nunca entra no bundle do visitante
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx"));
+const SellerDashboard = lazy(() => import("./pages/admin/SellerDashboard.tsx"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.tsx"));
 const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport.tsx"));
 const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
@@ -93,6 +95,14 @@ function RouteFallback() {
   );
 }
 
+function AdminEntry() {
+  const { isAdmin, isSeller, loading } = useAuth();
+
+  if (loading) return <div className="p-10 text-center">Carregando...</div>;
+  if (isSeller && !isAdmin) return <Navigate to="/admin/vendedor" replace />;
+  return <AdminDashboard />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -135,7 +145,8 @@ const App = () => (
             <Route path="/fale-conosco" element={<Contact />} />
             <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
             <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
+              <Route index element={<AdminEntry />} />
+              <Route path="vendedor" element={<SellerDashboard />} />
               <Route path="pdv" element={<Pdv />} />
               <Route path="pdv/indicadores" element={<PdvDashboard />} />
               <Route path="produtos" element={<AdminProducts />} />
