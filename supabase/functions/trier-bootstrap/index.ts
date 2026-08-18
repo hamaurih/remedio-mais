@@ -2,18 +2,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const BOOTSTRAP_KEY_SHA256 = "c49439dcf1f8ca9cbac3d28f375ed71254501bcc7e5e189865f6d15692744841";
 const DEFAULT_BASE = "https://api-sgf-gateway.triersistemas.com.br/sgfpod1";
 const RETRYABLE = new Set([429, 500, 502, 503, 504, 545, 554, 556]);
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function sha256(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 async function trierFetch(url: string, token: string) {
   let lastStatus = 0;
@@ -43,7 +36,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return Response.json({ error: "method_not_allowed" }, { status: 405 });
 
   const supplied = req.headers.get("x-bootstrap-key") || "";
-  if (!supplied || (await sha256(supplied)) !== BOOTSTRAP_KEY_SHA256) {
+  const { data: expectedKey, error: keyError } = await supabase.rpc("get_trier_bootstrap_key_secret");
+  if (keyError || !expectedKey || !supplied || supplied !== expectedKey) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -87,14 +81,7 @@ Deno.serve(async (req) => {
     const url = `${baseUrl}/rest/integracao/produto/obter-todos-v1?${qs}`;
     const response = await trierFetch(url, String(token));
     if (!response.ok) {
-      return Response.json({
-        error: "trier_http_error",
-        status: response.status,
-        offset,
-        pagesProcessed,
-        rowsSeen,
-        nextOffset: offset,
-      }, { status: 502 });
+      return Response.json({ error: "trier_http_error", status: response.status, offset, pagesProcessed, rowsSeen, nextOffset: offset }, { status: 502 });
     }
 
     let json: any;
@@ -108,9 +95,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: ingest, error: ingestError } = await supabase.rpc("bootstrap_ingest_trier_products", { _payload: products });
-    if (ingestError) {
-      return Response.json({ error: "ingest_failed", detail: ingestError.message, offset, nextOffset: offset }, { status: 500 });
-    }
+    if (ingestError) return Response.json({ error: "ingest_failed", detail: ingestError.message, offset, nextOffset: offset }, { status: 500 });
 
     pagesProcessed++;
     rowsSeen += products.length;
@@ -124,15 +109,5 @@ Deno.serve(async (req) => {
     await sleep(400);
   }
 
-  return Response.json({
-    ok: true,
-    mode: "create_only",
-    startOffset,
-    pagesProcessed,
-    rowsSeen,
-    nextOffset: offset,
-    done,
-    pageSize,
-    pageResults,
-  });
+  return Response.json({ ok: true, mode: "create_only", startOffset, pagesProcessed, rowsSeen, nextOffset: offset, done, pageSize, pageResults });
 });
