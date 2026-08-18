@@ -54,7 +54,7 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
     title: "Gestão e inteligência",
     subtitle: "Controle do negócio, desempenho e decisões de compra e preço.",
     modules: [
-      { title: "BI e Curva ABC", description: "Vendas, giro, ranking, ticket, estoque e análise ABC.", to: "/admin/bi", icon: BarChart3, status: "ready" },
+      { title: "Curva ABC", description: "Produtos A, B e C por faturamento, giro e participação acumulada.", to: "/admin/curva-abc", icon: BarChart3, status: "ready" },
       { title: "Produtos e Cadastro", description: "Catálogo, EAN, categorias, descrição e publicação.", to: "/admin/produtos", icon: Package, status: "ready" },
       { title: "Preços e Ofertas", description: "Preço base, promoções, descontos e monitoramento.", to: "/admin/monitor-precos", icon: Tags, status: "ready" },
       { title: "Financeiro", description: "Pagamentos, recebimentos e conciliação das vendas.", to: "/admin/pagamentos", icon: WalletCards, status: "ready" },
