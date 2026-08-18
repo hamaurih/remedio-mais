@@ -22,7 +22,10 @@ type Seller = {
   can_request_refund: boolean;
   can_execute_refund: boolean;
   can_view_prescriptions: boolean;
+  can_approve_prescriptions: boolean;
 };
+
+type PermissionField = "can_request_refund" | "can_execute_refund" | "can_view_prescriptions" | "can_approve_prescriptions";
 
 export default function AdminSellers() {
   const qc = useQueryClient();
@@ -39,14 +42,14 @@ export default function AdminSellers() {
   });
 
   const invite = async () => {
-    const e = email.trim();
-    if (!e) { toast.error("Informe um email"); return; }
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) { toast.error("Informe um email"); return; }
     setInviting(true);
-    const { data, error } = await supabase.rpc("admin_invite_seller", { _email: e });
+    const { data, error } = await supabase.rpc("admin_invite_seller", { _email: normalizedEmail });
     setInviting(false);
     if (error) { toast.error(error.message); return; }
-    const res = data as any;
-    if (!res?.ok) { toast.error(res?.message || "Não foi possível convidar"); return; }
+    const result = data as any;
+    if (!result?.ok) { toast.error(result?.message || "Não foi possível convidar"); return; }
     toast.success("Vendedor adicionado");
     setEmail("");
     qc.invalidateQueries({ queryKey: ["admin_sellers"] });
@@ -59,20 +62,25 @@ export default function AdminSellers() {
     qc.invalidateQueries({ queryKey: ["admin_sellers"] });
   };
 
-  const togglePerm = async (s: Seller, field: keyof Seller, value: boolean) => {
+  const togglePerm = async (seller: Seller, field: PermissionField, value: boolean) => {
+    const patch: Record<string, unknown> = { user_id: seller.user_id, [field]: value };
+    // Quem aprova precisa conseguir abrir a receita. Ao desligar visualização,
+    // também desligamos aprovação para não deixar uma permissão invisível ativa.
+    if (field === "can_approve_prescriptions" && value) patch.can_view_prescriptions = true;
+    if (field === "can_view_prescriptions" && !value) patch.can_approve_prescriptions = false;
+
     const { error } = await supabase
       .from("seller_permissions")
-      .upsert({ user_id: s.user_id, [field]: value } as any, { onConflict: "user_id" });
+      .upsert(patch as any, { onConflict: "user_id" });
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["admin_sellers"] });
   };
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-6xl">
       <h1 className="text-2xl font-extrabold mb-2">Vendedores</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Vendedores acessam apenas pedidos e itens — não veem financeiro, produtos, banners ou configurações.
-        A pessoa deve criar conta em <code>/auth</code> primeiro; depois você libera o acesso por email.
+        Vendedores recebem alertas operacionais de vendas. O acesso e a aprovação de receitas são permissões sensíveis e podem ser controladas por conta.
       </p>
 
       <Card className="p-4 mb-6">
@@ -99,61 +107,68 @@ export default function AdminSellers() {
         ) : !sellers?.length ? (
           <div className="p-6 text-center text-muted-foreground text-sm">Nenhum vendedor cadastrado ainda.</div>
         ) : (
-          <div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-3">Vendedor</th>
-                <th className="p-3">Pode pedir reembolso</th>
-                <th className="p-3">Pode executar reembolso</th>
-                <th className="p-3">Ver receitas</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sellers.map((s) => (
-                <tr key={s.user_id} className="border-t">
-                  <td className="p-3">
-                    <div className="font-medium">{s.full_name || "—"}</div>
-                    <div className="text-xs text-muted-foreground">{s.email}</div>
-                    <Badge variant="outline" className="mt-1 text-[10px]">Vendedor</Badge>
-                  </td>
-                  <td className="p-3">
-                    <Switch checked={s.can_request_refund}
-                      onCheckedChange={(v) => togglePerm(s, "can_request_refund", v)} />
-                  </td>
-                  <td className="p-3">
-                    <Switch checked={s.can_execute_refund}
-                      onCheckedChange={(v) => togglePerm(s, "can_execute_refund", v)} />
-                  </td>
-                  <td className="p-3">
-                    <Switch checked={s.can_view_prescriptions}
-                      onCheckedChange={(v) => togglePerm(s, "can_view_prescriptions", v)} />
-                  </td>
-                  <td className="p-3 text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="ghost" className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Revogar acesso?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {s.email} deixará de ver pedidos. A conta de cliente continua existindo.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => revoke(s.user_id)}>Revogar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </td>
+          <div className="overflow-x-auto -mx-2 px-2">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="bg-muted/50 text-left">
+                <tr>
+                  <th className="p-3">Vendedor</th>
+                  <th className="p-3">Pedir reembolso</th>
+                  <th className="p-3">Executar reembolso</th>
+                  <th className="p-3">Ver receitas</th>
+                  <th className="p-3">Aprovar receitas</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody>
+                {sellers.map((seller) => (
+                  <tr key={seller.user_id} className="border-t">
+                    <td className="p-3">
+                      <div className="font-medium">{seller.full_name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{seller.email}</div>
+                      <Badge variant="outline" className="mt-1 text-[10px]">Vendedor</Badge>
+                    </td>
+                    <td className="p-3">
+                      <Switch checked={seller.can_request_refund}
+                        onCheckedChange={(value) => void togglePerm(seller, "can_request_refund", value)} />
+                    </td>
+                    <td className="p-3">
+                      <Switch checked={seller.can_execute_refund}
+                        onCheckedChange={(value) => void togglePerm(seller, "can_execute_refund", value)} />
+                    </td>
+                    <td className="p-3">
+                      <Switch checked={seller.can_view_prescriptions}
+                        onCheckedChange={(value) => void togglePerm(seller, "can_view_prescriptions", value)} />
+                    </td>
+                    <td className="p-3">
+                      <Switch checked={seller.can_approve_prescriptions}
+                        onCheckedChange={(value) => void togglePerm(seller, "can_approve_prescriptions", value)} />
+                    </td>
+                    <td className="p-3 text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="ghost" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Revogar acesso?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {seller.email} deixará de acessar a área do vendedor. A conta de cliente continua existindo.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => void revoke(seller.user_id)}>Revogar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>
