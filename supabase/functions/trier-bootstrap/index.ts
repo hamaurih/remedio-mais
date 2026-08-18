@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
   const baseUrl = String(settings.base_url || DEFAULT_BASE).replace(/\/+$/, "");
   const branchCode = String(settings.branch_code || "1");
-  const pageSize = Math.min(150, Math.max(1, Number(settings.page_size || 150)));
+  const pageSize = Math.min(500, Math.max(1, Number(settings.page_size || 150)));
 
   let offset = startOffset;
   let pagesProcessed = 0;
