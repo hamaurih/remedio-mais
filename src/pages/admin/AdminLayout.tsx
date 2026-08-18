@@ -39,7 +39,7 @@ const items: Item[] = [
   { to: "/admin/pedidos", label: "Vendas e Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, roles: ["admin"] },
   { to: "/admin/produtos", label: "Produtos e Preços", icon: Package, roles: ["admin"] },
-  { to: "/admin/layout-home", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
+  { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
