@@ -19,11 +19,28 @@ export default function Auth() {
   const nav = useNavigate();
   const [search] = useSearchParams();
   const next = search.get("next");
-  const { user, isAdmin, isSeller } = useAuth();
+  const { user, isAdmin, isSeller, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (user) nav(next || (isAdmin || isSeller ? "/admin" : "/"));
-  }, [user, isAdmin, isSeller, nav, next]);
+    if (!user || authLoading) return;
+
+    if (next) {
+      nav(next, { replace: true });
+      return;
+    }
+
+    if (isAdmin) {
+      nav("/admin", { replace: true });
+      return;
+    }
+
+    if (isSeller) {
+      nav("/admin/vendedor", { replace: true });
+      return;
+    }
+
+    nav("/", { replace: true });
+  }, [user, isAdmin, isSeller, authLoading, nav, next]);
 
   // Critério simples e amigável: mínimo 8 caracteres, com pelo menos 1 letra e 1 número.
   const pwChecks = {
