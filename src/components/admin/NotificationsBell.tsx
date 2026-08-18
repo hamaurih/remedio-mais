@@ -17,7 +17,7 @@ function playSaleChime() {
     if (!AC) return;
     const ctx = new AC();
     const now = ctx.currentTime;
-    const notes = [880, 1175, 1568]; // A5, D6, G6
+    const notes = [880, 1175, 1568];
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -46,6 +46,12 @@ type Notif = {
   priority: string | null;
   created_at: string;
 };
+
+function notificationTarget(n: Notif) {
+  if (n.type === "prescription_received") return "/admin/receitas";
+  if (n.order_id) return "/admin/pedidos";
+  return "/admin";
+}
 
 export function NotificationsBell() {
   const { user, isAdmin, isSeller } = useAuth();
@@ -88,8 +94,8 @@ export function NotificationsBell() {
         if (seenIds.current.has(n.id)) return;
         seenIds.current.add(n.id);
         setItems((prev) => [n, ...prev].slice(0, 30));
-        const isSale = n.type === "order_paid";
-        if (isSale) {
+        const needsImmediateAttention = n.type === "order_paid" || n.type === "prescription_received";
+        if (needsImmediateAttention) {
           setAlertNotif(n);
           if (soundEnabled) playSaleChime();
         } else {
@@ -141,12 +147,7 @@ export function NotificationsBell() {
           <div className="flex items-center justify-between px-3 py-2 border-b">
             <div className="text-sm font-semibold">Notificações</div>
             <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={toggleSound}
-                title={soundEnabled ? "Som de venda ativado" : "Som de venda desativado"}
-              >
+              <Button size="sm" variant="ghost" onClick={toggleSound} title={soundEnabled ? "Som de alertas ativado" : "Som de alertas desativado"}>
                 {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
               </Button>
               <Button size="sm" variant="ghost" onClick={markAllRead} disabled={!unread}>
@@ -160,7 +161,7 @@ export function NotificationsBell() {
             ) : items.map((n) => (
               <Link
                 key={n.id}
-                to={n.order_id ? `/admin/pedidos` : "/admin"}
+                to={notificationTarget(n)}
                 onClick={() => { markRead(n.id); setOpen(false); }}
                 className={`block px-3 py-2 border-b hover:bg-accent transition-colors ${!n.read ? "bg-primary/5" : ""}`}
               >
@@ -182,11 +183,9 @@ export function NotificationsBell() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-2 animate-pulse">
               <PartyPopper className="h-8 w-8 text-primary" />
             </div>
-            <DialogTitle className="text-center text-2xl">
-              {alertNotif?.title || "Venda realizada!"}
-            </DialogTitle>
+            <DialogTitle className="text-center text-2xl">{alertNotif?.title || "Novo alerta"}</DialogTitle>
             <DialogDescription className="text-center text-base pt-2">
-              {alertNotif?.message || "Um novo pedido foi pago."}
+              {alertNotif?.message || "Há uma nova ocorrência aguardando atendimento."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center gap-2">
@@ -195,12 +194,14 @@ export function NotificationsBell() {
             </Button>
             <Button
               onClick={() => {
-                if (alertNotif) markRead(alertNotif.id);
+                if (!alertNotif) return;
+                markRead(alertNotif.id);
+                const target = notificationTarget(alertNotif);
                 setAlertNotif(null);
-                navigate("/admin/pedidos");
+                navigate(target);
               }}
             >
-              Ver pedido
+              {alertNotif?.type === "prescription_received" ? "Ver receita" : "Ver pedido"}
             </Button>
           </DialogFooter>
         </DialogContent>
