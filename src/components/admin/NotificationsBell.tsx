@@ -89,7 +89,6 @@ export function NotificationsBell() {
     if (typeof window === "undefined") return true;
     const current = localStorage.getItem(SOUND_PREF_KEY);
     if (current !== null) return current !== "0";
-    // Compatibilidade com a preferência antiga de som de venda.
     return localStorage.getItem("atacadao:sale-sound-enabled") !== "0";
   });
   const seenIds = useRef<Set<string>>(new Set());
@@ -107,11 +106,18 @@ export function NotificationsBell() {
   };
 
   const fetchAll = async () => {
-    const { data } = await supabase
+    if (!user?.id) return;
+    let query = supabase
       .from("admin_notifications")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(30);
+
+    query = isAdmin
+      ? query.eq("role_target", "admin")
+      : query.eq("target_user_id", user.id);
+
+    const { data } = await query;
     const list = (data || []) as Notif[];
     setItems(list);
     list.forEach((n) => seenIds.current.add(n.id));
@@ -126,11 +132,20 @@ export function NotificationsBell() {
 
   useEffect(() => {
     if (!user || (!isAdmin && !isSeller)) return;
-    fetchAll();
+    void fetchAll();
+
+    const realtimeFilter = isAdmin
+      ? "role_target=eq.admin"
+      : `target_user_id=eq.${user.id}`;
 
     const ch = supabase
-      .channel(`admin_notifications_live:${user.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_notifications" }, (payload) => {
+      .channel(`admin_notifications_live:${user.id}:${isAdmin ? "admin" : "seller"}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "admin_notifications",
+        filter: realtimeFilter,
+      }, (payload) => {
         const n = payload.new as Notif;
         if (seenIds.current.has(n.id)) return;
         seenIds.current.add(n.id);
@@ -142,7 +157,12 @@ export function NotificationsBell() {
           toast.message(n.title, { description: n.message || undefined });
         }
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "admin_notifications" }, (payload) => {
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "admin_notifications",
+        filter: realtimeFilter,
+      }, (payload) => {
         const n = payload.new as Notif;
         setItems((prev) => prev.map((x) => (x.id === n.id ? n : x)));
       })
@@ -151,7 +171,6 @@ export function NotificationsBell() {
     return () => { supabase.removeChannel(ch); };
   }, [user?.id, isAdmin, isSeller, soundEnabled]);
 
-  // Deixa evidente até em outra aba que existe uma ação operacional aguardando.
   useEffect(() => {
     if (!currentAlert) return;
     const original = document.title;
