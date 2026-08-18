@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog, Stethoscope, Archive } from "lucide-react";
+import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog, Stethoscope, Archive, Building2 } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 
 type Item = {
@@ -17,6 +17,7 @@ type Item = {
 
 const items: Item[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["admin"] },
+  { to: "/admin/erp", label: "ERP Farmacêutico", icon: Building2, roles: ["admin"] },
   { to: "/admin/vendedor", label: "Início", icon: LayoutDashboard, end: true, roles: ["seller"] },
   { to: "/admin/pdv", label: "PDV — Ponto de Venda", icon: CreditCard, roles: ["admin", "seller"] },
   { to: "/admin/pdv/indicadores", label: "PDV — Indicadores", icon: Activity, roles: ["admin", "seller"] },
