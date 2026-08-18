@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Download, MessageCircle, Eye, CheckCircle2 } from "lucide-react";
+import { Download, MessageCircle, Eye, CheckCircle2, Pill } from "lucide-react";
 import { buildWhatsAppLink } from "@/lib/store";
 
 const STATUSES = ["recebida", "em_analise", "aprovada", "recusada", "finalizada"];
@@ -33,9 +33,32 @@ export default function AdminPrescriptions() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return rows || [];
+
+      const list = rows || [];
+      const productIds = Array.from(new Set(list.map((row: any) => row.product_id).filter(Boolean))) as string[];
+      if (!productIds.length) return list;
+
+      const { data: products } = await (supabase as any)
+        .from("products")
+        .select("id,name,slug")
+        .in("id", productIds);
+      const byId = new Map((products || []).map((p: any) => [p.id, p]));
+      return list.map((row: any) => ({ ...row, product: row.product_id ? byId.get(row.product_id) || null : null }));
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-prescriptions-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "prescriptions" }, () => {
+        void qc.invalidateQueries({ queryKey: ["admin_presc"] });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "prescriptions" }, () => {
+        void qc.invalidateQueries({ queryKey: ["admin_presc"] });
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [qc]);
 
   const reviewPrescription = async (id: string, status: string, note?: string | null) => {
     const { data: result, error } = await (supabase as any).rpc("seller_review_prescription", {
@@ -51,7 +74,7 @@ export default function AdminPrescriptions() {
     try {
       setSaving(true);
       await reviewPrescription(id, status);
-      toast.success(status === "aprovada" ? "Receita aprovada" : "Status atualizado");
+      toast.success(status === "aprovada" ? "Receita aprovada — medicamento liberado no carrinho do cliente" : "Status atualizado");
       if (view?.id === id) setView((current: any) => current ? { ...current, status } : current);
       await qc.invalidateQueries({ queryKey: ["admin_presc"] });
     } catch (error: any) {
@@ -97,16 +120,17 @@ export default function AdminPrescriptions() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">Receitas recebidas</h1>
-          <p className="text-sm text-muted-foreground mt-1">Analise a receita e altere o status para liberar ou recusar a compra.</p>
+          <p className="text-sm text-muted-foreground mt-1">Confira a receita e o medicamento vinculado antes de liberar ou recusar a compra.</p>
         </div>
       </div>
 
       <div className="bg-card border rounded-xl shadow-card overflow-x-auto">
-        <table className="w-full text-sm min-w-[760px]">
+        <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-secondary text-left">
             <tr>
               <th className="p-3">Data</th>
               <th className="p-3">Cliente</th>
+              <th className="p-3">Medicamento</th>
               <th className="p-3">Telefone</th>
               <th className="p-3">Observação</th>
               <th className="p-3">Status</th>
@@ -118,8 +142,16 @@ export default function AdminPrescriptions() {
               <tr key={p.id} className={`border-t align-top ${p.status === "recebida" ? "bg-amber-50/60" : ""}`}>
                 <td className="p-3 text-xs">{new Date(p.created_at).toLocaleString("pt-BR")}</td>
                 <td className="p-3 font-medium">{p.customer_name}</td>
+                <td className="p-3 max-w-[260px]">
+                  {p.product ? (
+                    <div className="flex gap-2 items-start">
+                      <Pill className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <span className="font-semibold text-xs">{p.product.name}</span>
+                    </div>
+                  ) : <span className="text-xs text-muted-foreground">Envio geral / sem produto vinculado</span>}
+                </td>
                 <td className="p-3">{p.customer_phone}</td>
-                <td className="p-3 text-xs max-w-[260px] truncate">{p.notes || "—"}</td>
+                <td className="p-3 text-xs max-w-[220px] truncate">{p.notes || "—"}</td>
                 <td className="p-3">
                   <Select value={p.status} onValueChange={(value) => void updateStatus(p.id, value)} disabled={saving}>
                     <SelectTrigger className="h-8 w-[145px]"><SelectValue /></SelectTrigger>
@@ -136,7 +168,7 @@ export default function AdminPrescriptions() {
               </tr>
             ))}
             {data?.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhuma receita.</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma receita.</td></tr>
             )}
           </tbody>
         </table>
@@ -151,6 +183,12 @@ export default function AdminPrescriptions() {
                 <div><strong>Telefone:</strong> {view.customer_phone}</div>
                 <div><strong>Status:</strong> {LABEL[view.status] || view.status}</div>
               </div>
+
+              <div className={`rounded-lg border px-3 py-2 ${view.product ? "bg-primary/5 border-primary/20" : "bg-muted"}`}>
+                <div className="text-xs text-muted-foreground">Medicamento vinculado</div>
+                <div className="font-bold mt-0.5">{view.product?.name || "Sem produto específico"}</div>
+              </div>
+
               <div><strong>Observação do cliente:</strong> {view.notes || "—"}</div>
 
               {signedUrl && (
