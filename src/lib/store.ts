@@ -62,7 +62,6 @@ export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
   const existing = items.find((i) => i.id === item.id);
   if (existing) {
     existing.quantity += qty;
-    // Keep prescription metadata if the product was first added by an older build.
     existing.requires_prescription = item.requires_prescription ?? existing.requires_prescription;
     existing.controlled = item.controlled ?? existing.controlled;
   } else {
@@ -70,8 +69,8 @@ export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
   }
   save(items);
 
-  // Mensuração centralizada (Meta Pixel + CAPI). Itens sujeitos a receita are
-  // deliberately excluded from AddToCart tracking to avoid sensitive signals.
+  // Prescription/controlled products are deliberately excluded from Meta
+  // AddToCart tracking to avoid sensitive health-related signals.
   if (!item.requires_prescription && !item.controlled) {
     void import("./metaEvents").then((m) => m.trackAddToCart({
       id: item.id, product_id: item.product_id, name: item.name, price: item.price, quantity: qty,
@@ -129,7 +128,12 @@ export function removeCartItems(ids: string[]) {
   save(getCart().filter((i) => !set.has(i.id)));
 }
 
-export function clearCart() { save([]); }
+// Payment completion must remove what was payable without deleting medicine
+// still waiting for prescription approval. Approved prescription items are
+// payable and are therefore removed normally after their own successful order.
+export function clearCart() {
+  save(getCart().filter((item) => !isCartItemPayable(item)));
+}
 
 // Pedido Pix aguardando confirmação — usado para limpar o carrinho
 // mesmo se o cliente pagar no app do banco e não voltar para a tela do Pix.
