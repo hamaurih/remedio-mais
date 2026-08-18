@@ -36,6 +36,7 @@ const Contact = lazy(() => import("./pages/Contact.tsx"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx"));
 const SellerDashboard = lazy(() => import("./pages/admin/SellerDashboard.tsx"));
+const AdminPharmacyErp = lazy(() => import("./pages/admin/AdminPharmacyErp.tsx"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.tsx"));
 const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport.tsx"));
 const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
@@ -147,6 +148,7 @@ const App = () => (
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminEntry />} />
               <Route path="vendedor" element={<SellerDashboard />} />
+              <Route path="erp" element={<AdminPharmacyErp />} />
               <Route path="pdv" element={<Pdv />} />
               <Route path="pdv/indicadores" element={<PdvDashboard />} />
               <Route path="produtos" element={<AdminProducts />} />
