@@ -74,7 +74,7 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
     title: "E-commerce e relacionamento",
     subtitle: "Tudo que controla a loja digital, clientes e aquisição.",
     modules: [
-      { title: "Site e E-commerce", description: "Home, vitrines, banners, menus e experiência da loja.", to: "/admin/layout-home", icon: Globe2, status: "ready" },
+      { title: "Site e E-commerce", description: "Home, vitrines, banners, menus e experiência da loja.", to: "/admin/site", icon: Globe2, status: "ready" },
       { title: "Clientes", description: "Cadastro, histórico e relacionamento com clientes.", to: "/admin/clientes", icon: Users, status: "ready" },
       { title: "Marketing", description: "Campanhas, ofertas, Meta Ads e conversões.", to: "/admin/campanhas", icon: Megaphone, status: "ready" },
       { title: "Configurações", description: "Empresa, integrações, pagamentos e parâmetros do sistema.", to: "/admin/config", icon: Settings, status: "ready" },
