@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { ShoppingCart, FileText, AlertCircle } from "lucide-react";
+import { ShoppingCart, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "@/components/VariantSelector";
 import { useRelatedProducts } from "@/hooks/useRelatedProducts";
@@ -32,7 +32,6 @@ export default function Product() {
     enabled: !!slug,
   });
 
-  // Ao abrir a página, confere estoque/preço reais no sistema da farmácia e recarrega.
   const productId = (p as any)?.id as string | undefined;
   useEffect(() => {
     if (!productId) return;
@@ -43,9 +42,11 @@ export default function Product() {
     return () => { cancelled = true; };
   }, [productId, refetch]);
 
-  // Meta ViewContent: só IDs técnicos, nome comercial e valor (sem dado clínico).
+  // Prescription/controlled products are deliberately excluded from Meta
+  // ViewContent to avoid sending sensitive health-related signals.
   useEffect(() => {
     if (!p?.id) return;
+    if ((p as any).requires_prescription || (p as any).controlled) return;
     trackViewContent({
       id: p.id,
       name: p.name,
@@ -72,13 +73,21 @@ export default function Product() {
   const displayImage = (hasVariants && selectedVariant?.image_url) || p.image_url || productPlaceholder;
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : ((p as any).stock ?? 0);
   const outOfStock = variantStock <= 0;
+  const requiresPrescription = !!((p as any).requires_prescription || (p as any).controlled);
 
   const handleAdd = () => {
-    if ((p as any).controlled) { toast.error("Medicamento controlado. Envie sua receita."); return; }
     if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
     if (outOfStock) { toast.error("Sem estoque para esta opção"); return; }
 
     const doAdd = () => {
+      const commonPrescription = {
+        requires_prescription: requiresPrescription,
+        controlled: !!(p as any).controlled,
+        prescription_id: null,
+        prescription_status: null,
+        prescription_approved_at: null,
+      };
+
       if (hasVariants && selectedVariant) {
         addToCart({
           id: selectedVariant.id,
@@ -88,16 +97,29 @@ export default function Product() {
           name: p.name,
           price: Number(finalPrice),
           image_url: displayImage,
+          ...commonPrescription,
         });
       } else {
-        addToCart({ id: p.id, product_id: p.id, name: p.name, price: Number(finalPrice), image_url: p.image_url });
+        addToCart({
+          id: p.id,
+          product_id: p.id,
+          name: p.name,
+          price: Number(finalPrice),
+          image_url: p.image_url,
+          ...commonPrescription,
+        });
       }
-      toast.success("Adicionado ao carrinho");
-      if (!(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
+
+      toast.success(requiresPrescription
+        ? "Produto adicionado. Envie a receita pelo carrinho para liberar a compra."
+        : "Adicionado ao carrinho");
+      if (!requiresPrescription && !(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
     };
 
-    // Se for variação, pula a checagem de genérico (variação é específica)
-    if (hasVariants) { doAdd(); return; }
+    // Prescription items should go straight to the cart flow, not to generic
+    // suggestions or the upload page. The cart owns the approval experience.
+    if (requiresPrescription || hasVariants) { doAdd(); return; }
+
     openGenericCheck({
       product: { ...(p as any), id: p.id, name: p.name, slug: p.slug, price: p.price, promo_price: (p as any).promo_price, image_url: p.image_url, manufacturer: (p as any).manufacturer, on_sale: (p as any).on_sale, requires_prescription: (p as any).requires_prescription, controlled: (p as any).controlled, has_variants: (p as any).has_variants },
       onAddOriginal: doAdd,
@@ -142,9 +164,9 @@ export default function Product() {
             {(p as any).manufacturer && <div className="text-sm text-muted-foreground">{(p as any).manufacturer}</div>}
             <h1 className="text-2xl md:text-3xl font-extrabold mt-1">{p.name}</h1>
 
-            {(p as any).requires_prescription && (
-              <div className="mt-3 inline-flex items-center gap-2 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded-full">
-                <AlertCircle className="h-3.5 w-3.5" /> Venda sujeita à apresentação e conferência da receita
+            {requiresPrescription && (
+              <div className="mt-3 inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold px-3 py-1.5 rounded-full">
+                <AlertCircle className="h-3.5 w-3.5" /> Receita obrigatória — você poderá enviá-la no carrinho
               </div>
             )}
 
@@ -176,14 +198,16 @@ export default function Product() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {(p as any).controlled ? (
-                <Button asChild size="lg"><Link to="/enviar-receita"><FileText className="h-5 w-5 mr-2" /> Enviar receita para análise</Link></Button>
-              ) : (
-                <Button size="lg" onClick={handleAdd} disabled={outOfStock}>
-                  <ShoppingCart className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : "Adicionar ao carrinho"}
-                </Button>
-              )}
+              <Button size="lg" onClick={handleAdd} disabled={outOfStock}>
+                <ShoppingCart className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : "Adicionar ao carrinho"}
+              </Button>
             </div>
+
+            {requiresPrescription && (
+              <p className="mt-2 text-xs text-muted-foreground max-w-lg">
+                O medicamento ficará no carrinho aguardando a análise. Outros produtos poderão ser comprados normalmente enquanto a receita é conferida.
+              </p>
+            )}
 
             {(p as any).description && (
               <div className="mt-8">
