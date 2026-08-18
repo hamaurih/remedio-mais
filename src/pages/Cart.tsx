@@ -1,16 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { addToCart, cartTotal, formatBRL, removeFromCart, updateQty } from "@/lib/store";
+import {
+  addToCart,
+  cartPayableItems,
+  cartPayableTotal,
+  cartPendingPrescriptionItems,
+  cartTotal,
+  formatBRL,
+  isPrescriptionCartItem,
+  removeFromCart,
+  syncCartPrescriptionById,
+  updateQty,
+} from "@/lib/store";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles, FileText, Clock3, CheckCircle2, XCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
 import { CartLiveAlert } from "@/components/CartLiveAlert";
 import { SecureBadge } from "@/components/SecureBadge";
 import { toast } from "sonner";
 import { Seo } from "@/components/Seo";
+import { supabase } from "@/integrations/supabase/client";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
   const [sug, setSug] = useState<GenericSuggestion | null>(null);
@@ -50,11 +63,123 @@ function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) 
   );
 }
 
+function normalizedStatus(status?: string | null) {
+  return String(status || "").trim().toLowerCase();
+}
+
+function PrescriptionState({ item }: { item: any }) {
+  const status = normalizedStatus(item.prescription_status);
+  const productId = item.product_id || item.id;
+  const uploadLink = `/enviar-receita?product_id=${encodeURIComponent(productId)}&return_to=${encodeURIComponent("/carrinho")}`;
+
+  if (!item.prescription_id) {
+    return (
+      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex gap-2">
+          <FileText className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+          <div>
+            <div className="text-sm font-bold text-amber-950">Receita necessária</div>
+            <div className="text-xs text-amber-900/80">Este item fica no carrinho e não entra no pagamento até a receita ser aprovada.</div>
+          </div>
+        </div>
+        <Button asChild size="sm" className="shrink-0">
+          <Link to={uploadLink}>Enviar receita</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (status === "aprovada" && item.prescription_approved_at) {
+    return (
+      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex gap-2 items-start">
+        <CheckCircle2 className="h-5 w-5 text-emerald-700 shrink-0" />
+        <div>
+          <div className="text-sm font-bold text-emerald-900">Receita aprovada — item liberado</div>
+          <div className="text-xs text-emerald-800/80">Este medicamento já pode entrar no checkout.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (["recusada", "rejeitada", "negada"].includes(status)) {
+    return (
+      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex gap-2">
+          <XCircle className="h-5 w-5 text-red-700 shrink-0" />
+          <div>
+            <div className="text-sm font-bold text-red-900">Receita não aprovada</div>
+            <div className="text-xs text-red-800/80">Envie uma nova receita para este medicamento.</div>
+          </div>
+        </div>
+        <Button asChild size="sm" variant="outline" className="shrink-0 border-red-300 text-red-800">
+          <Link to={uploadLink}>Enviar nova receita</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const underReview = ["em_analise", "em análise", "analise", "analisando"].includes(status);
+  return (
+    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 flex gap-2 items-start">
+      <Clock3 className="h-5 w-5 text-amber-700 shrink-0" />
+      <div>
+        <div className="text-sm font-bold text-amber-950">{underReview ? "Receita em análise" : "Receita recebida — aguardando análise"}</div>
+        <div className="text-xs text-amber-900/80">O item permanece bloqueado. Você pode finalizar a compra dos outros produtos normalmente.</div>
+      </div>
+    </div>
+  );
+}
+
 export default function Cart() {
   const items = useCart();
+  const { user } = useAuth();
   const total = cartTotal(items);
+  const payableItems = useMemo(() => cartPayableItems(items), [items]);
+  const pendingItems = useMemo(() => cartPendingPrescriptionItems(items), [items]);
+  const payableTotal = useMemo(() => cartPayableTotal(items), [items]);
   const nav = useNavigate();
   const [tick, setTick] = useState(0);
+
+  const prescriptionIds = useMemo(
+    () => Array.from(new Set(items.map((i) => i.prescription_id).filter(Boolean) as string[])),
+    [items],
+  );
+  const prescriptionIdsKey = prescriptionIds.join(",");
+
+  // Realtime gives instant approval feedback; polling is the fallback if the
+  // realtime connection is unavailable or the browser was suspended.
+  useEffect(() => {
+    if (!user || !prescriptionIds.length) return;
+    let alive = true;
+
+    const refresh = async () => {
+      const { data } = await (supabase as any)
+        .from("prescriptions")
+        .select("id,status,approved_at,product_id")
+        .in("id", prescriptionIds);
+      if (!alive) return;
+      for (const row of data || []) {
+        syncCartPrescriptionById(row.id, { status: row.status, approved_at: row.approved_at });
+      }
+    };
+
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 8000);
+    const channel = supabase
+      .channel(`cart-prescriptions-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "prescriptions" }, (payload: any) => {
+        const row = payload.new;
+        if (!row?.id || !prescriptionIds.includes(row.id)) return;
+        syncCartPrescriptionById(row.id, { status: row.status, approved_at: row.approved_at });
+      })
+      .subscribe();
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, prescriptionIdsKey]);
 
   return (
     <Layout>
@@ -72,44 +197,56 @@ export default function Cart() {
             <div>
               <CartLiveAlert items={items} />
               <div className="space-y-3">
-              {items.map((i) => (
-                <div key={i.id} className="bg-card border rounded-xl p-3 shadow-card">
-                  <div className="flex gap-3 items-center">
-                    <img src={i.image_url || productPlaceholder} alt={i.name} loading="lazy" decoding="async" className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm line-clamp-2">{i.name}</div>
-                      {i.variant_label && (
-                        <div className="text-[11px] text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>
-                      )}
-                      <div className="text-primary font-bold mt-1">{formatBRL(i.price)}</div>
+                {items.map((i) => (
+                  <div key={i.id} className={`bg-card border rounded-xl p-3 shadow-card ${isPrescriptionCartItem(i) && !payableItems.some((p) => p.id === i.id) ? "border-amber-200" : ""}`}>
+                    <div className="flex gap-3 items-center">
+                      <img src={i.image_url || productPlaceholder} alt={i.name} loading="lazy" decoding="async" className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm line-clamp-2">{i.name}</div>
+                        {i.variant_label && <div className="text-[11px] text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>}
+                        <div className="text-primary font-bold mt-1">{formatBRL(i.price)}</div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity - 1)}><Minus className="h-3 w-3" /></Button>
+                        <span className="w-8 text-center font-semibold">{i.quantity}</span>
+                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                      </div>
+                      <Button size="icon" variant="ghost" onClick={() => removeFromCart(i.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity - 1)}><Minus className="h-3 w-3" /></Button>
-                      <span className="w-8 text-center font-semibold">{i.quantity}</span>
-                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity + 1)}><Plus className="h-3 w-3" /></Button>
-                    </div>
-                    <Button size="icon" variant="ghost" onClick={() => removeFromCart(i.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+
+                    {isPrescriptionCartItem(i)
+                      ? <PrescriptionState item={i} />
+                      : <GenericLine key={`${i.id}-${tick}`} item={i} onSwapped={() => setTick((t) => t + 1)} />}
                   </div>
-                  <GenericLine key={`${i.id}-${tick}`} item={i} onSwapped={() => setTick((t) => t + 1)} />
-                </div>
-              ))}
+                ))}
               </div>
             </div>
 
-
             <aside className="bg-card border rounded-xl p-5 h-fit shadow-card space-y-4">
-              <div className="flex justify-between text-lg">
-                <span>Subtotal</span>
-                <span className="font-extrabold price">{formatBRL(total)}</span>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Total no carrinho</span>
+                  <span>{formatBRL(total)}</span>
+                </div>
+                <div className="flex justify-between text-lg">
+                  <span>Liberado para pagar agora</span>
+                  <span className="font-extrabold price">{formatBRL(payableTotal)}</span>
+                </div>
+                {pendingItems.length > 0 && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+                    <strong>{pendingItems.length} {pendingItems.length === 1 ? "item aguarda" : "itens aguardam"} receita.</strong> {payableItems.length > 0 ? "Eles ficarão no carrinho enquanto você compra os itens já liberados." : "Envie a receita para liberar a compra."}
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">Frete e desconto Pix são calculados no checkout.</p>
+              <p className="text-xs text-muted-foreground">Frete e desconto Pix são calculados no checkout somente para os itens liberados.</p>
 
               <Button
                 size="lg"
                 className="w-full bg-primary hover:bg-primary-dark font-bold"
                 onClick={() => nav("/checkout")}
+                disabled={payableItems.length === 0}
               >
-                Finalizar compra <ArrowRight className="h-5 w-5 ml-2" />
+                {payableItems.length > 0 ? <>Finalizar itens liberados <ArrowRight className="h-5 w-5 ml-2" /></> : "Aguardando aprovação da receita"}
               </Button>
               <Button asChild variant="outline" className="w-full">
                 <Link to="/">Continuar comprando</Link>

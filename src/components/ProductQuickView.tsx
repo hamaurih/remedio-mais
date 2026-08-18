@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, MessageCircle, FileText, Minus, Plus, AlertCircle } from "lucide-react";
+import { ShoppingCart, MessageCircle, Minus, Plus, AlertCircle } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -28,7 +28,6 @@ export function ProductQuickView() {
 
   useEffect(() => onQuickView((p) => { setProduct(p); setQty(1); setActiveImage(p.image_url || null); setSelectedVariantId(null); setOpen(true); }), []);
 
-  // Fetch full product (gallery, pix discount, etc.) — uses slug from card
   const { data: full } = useQuery({
     queryKey: ["quickview-product", product?.slug],
     queryFn: async () => {
@@ -60,28 +59,24 @@ export function ProductQuickView() {
         }
       };
 
-      // 1. Same category
       if (p.category_id) {
         const { data } = await supabase
           .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("category_id", p.category_id).limit(8);
         push(data);
       }
-      // 2. Same Trier group_code
       if (collected.length < 8 && p.group_code) {
         const { data } = await supabase
           .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("group_code", p.group_code).limit(8);
         push(data);
       }
-      // 3. Same laboratory
       if (collected.length < 8 && p.laboratory) {
         const { data } = await supabase
           .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
           .eq("laboratory", p.laboratory).limit(8);
         push(data);
       }
-      // 4. On sale fallback
       if (collected.length < 4) {
         const { data } = await supabase
           .from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).neq("id", p.id)
@@ -93,7 +88,6 @@ export function ProductQuickView() {
     enabled: !!p?.id && open,
   });
 
-  // Variants (hooks must run before any early return)
   const { data: variants = [] } = useProductVariants(p?.id, !!p?.id && open && !!p?.has_variants);
   const selectedVariant: ProductVariant | undefined = useMemo(
     () => variants.find((v) => v.id === selectedVariantId),
@@ -103,11 +97,11 @@ export function ProductQuickView() {
   if (!p) return null;
 
   const hasVariants = !!p?.has_variants && variants.length > 0;
-
   const baseStock = typeof p.stock === "number" ? p.stock : 0;
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : baseStock;
   const stock = hasVariants ? variantStock : baseStock;
   const outOfStock = stock <= 0;
+  const requiresPrescription = !!(p.controlled || p.requires_prescription);
 
   const basePrice = hasVariants && selectedVariant ? Number(selectedVariant.price ?? p.price) : Number(p.price);
   const basePromo = hasVariants && selectedVariant ? selectedVariant.promo_price : p.promo_price;
@@ -127,9 +121,17 @@ export function ProductQuickView() {
   const wa = buildWhatsAppLink(waPhone, waMsg);
 
   const handleAdd = () => {
-    if (p.controlled) { toast.error("Medicamento controlado. Envie sua receita."); return; }
     if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
     if (outOfStock) { toast.error("Sem estoque para esta opção."); return; }
+
+    const prescriptionMeta = {
+      requires_prescription: requiresPrescription,
+      controlled: !!p.controlled,
+      prescription_id: null,
+      prescription_status: null,
+      prescription_approved_at: null,
+    };
+
     if (hasVariants && selectedVariant) {
       addToCart({
         id: selectedVariant.id,
@@ -139,12 +141,23 @@ export function ProductQuickView() {
         name: p.name,
         price: Number(finalPrice),
         image_url: selectedVariant.image_url || p.image_url,
+        ...prescriptionMeta,
       }, qty);
     } else {
-      addToCart({ id: p.id, product_id: p.id, name: p.name, price: finalPrice, image_url: p.image_url }, qty);
+      addToCart({
+        id: p.id,
+        product_id: p.id,
+        name: p.name,
+        price: finalPrice,
+        image_url: p.image_url,
+        ...prescriptionMeta,
+      }, qty);
     }
-    toast.success(`${qty}x adicionado ao carrinho`);
-    if (!(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
+
+    toast.success(requiresPrescription
+      ? `${qty}x adicionado. Envie a receita no carrinho para liberar este item.`
+      : `${qty}x adicionado ao carrinho`);
+    if (!requiresPrescription && !(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
   };
 
   const content = (
@@ -155,7 +168,6 @@ export function ProductQuickView() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="grid md:grid-cols-2 gap-6 p-4 md:p-6">
-          {/* Gallery */}
           <div>
             <div className="bg-secondary/40 rounded-xl border aspect-square flex items-center justify-center overflow-hidden group">
               <img src={displayImage} alt={p.name} loading="lazy" decoding="async" className="max-h-full max-w-full object-contain p-4 group-hover:scale-105 transition-transform" />
@@ -171,7 +183,6 @@ export function ProductQuickView() {
             )}
           </div>
 
-          {/* Info */}
           <div className="flex flex-col">
             {p.manufacturer && <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{p.manufacturer || p.laboratory}</div>}
             <h2 className="text-xl md:text-2xl font-extrabold leading-tight mt-1">{p.name}</h2>
@@ -186,9 +197,9 @@ export function ProductQuickView() {
               </div>
             )}
 
-            {p.requires_prescription && (
-              <div className="mt-3 inline-flex items-center gap-2 bg-accent text-accent-foreground text-xs font-semibold px-3 py-1.5 rounded-full self-start">
-                <AlertCircle className="h-3.5 w-3.5" /> Venda sob receita
+            {requiresPrescription && (
+              <div className="mt-3 inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold px-3 py-1.5 rounded-full self-start">
+                <AlertCircle className="h-3.5 w-3.5" /> Receita obrigatória — envio pelo carrinho
               </div>
             )}
 
@@ -215,8 +226,6 @@ export function ProductQuickView() {
 
             <div className="my-4 border-t" />
 
-
-            {/* Price */}
             <div>
               {hasDiscount && (
                 <div className="flex items-center gap-2">
@@ -234,9 +243,8 @@ export function ProductQuickView() {
               )}
             </div>
 
-            {/* Qty + actions */}
             <div className="mt-5 space-y-3">
-              {!p.controlled && !outOfStock && (
+              {!outOfStock && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">Quantidade</span>
                   <div className="inline-flex items-center border rounded-full">
@@ -254,18 +262,13 @@ export function ProductQuickView() {
                     <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-5 w-5 mr-2" /> Consultar pelo WhatsApp</a>
                   </Button>
                 </div>
-              ) : p.controlled || p.requires_prescription ? (
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Venda sujeita à apresentação e conferência de receita.</div>
-                  <Button asChild className="w-full h-12 rounded-full font-bold" onClick={() => setOpen(false)}>
-                    <Link to="/enviar-receita"><FileText className="h-5 w-5 mr-2" /> Enviar receita</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full h-11 rounded-full">
-                    <a href={wa} target="_blank" rel="noopener"><MessageCircle className="h-4 w-4 mr-2" /> Falar com atendente</a>
-                  </Button>
-                </div>
               ) : (
                 <div className="space-y-2">
+                  {requiresPrescription && (
+                    <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Este item ficará aguardando aprovação da receita. Os demais produtos continuam liberados para compra.
+                    </div>
+                  )}
                   <Button onClick={handleAdd} className="w-full h-12 rounded-full font-bold text-base bg-primary hover:bg-primary-dark">
                     <ShoppingCart className="h-5 w-5 mr-2" /> Adicionar ao carrinho
                   </Button>
@@ -279,7 +282,6 @@ export function ProductQuickView() {
           </div>
         </div>
 
-        {/* Related */}
         {related && related.length > 0 && (
           <div className="border-t bg-secondary/20 p-4 md:p-6">
             <h3 className="text-base md:text-lg font-extrabold mb-3">Aproveite e compre também</h3>
