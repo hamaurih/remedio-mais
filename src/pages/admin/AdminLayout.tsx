@@ -42,7 +42,6 @@ const items: Item[] = [
   { to: "/admin/trier/vendas-ecommerce", label: "Trier — Vendas E-commerce", icon: ShoppingBag, roles: ["admin"] },
   { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Plug, roles: ["admin"] },
   { to: "/admin/integrations/meta-ads", label: "Meta Ads (Pixel + CAPI)", icon: Megaphone, roles: ["admin"] },
-
   { to: "/admin/auditoria", label: "Auditoria do Site", icon: Stethoscope, roles: ["admin"] },
   { to: "/admin/diagnostico-home", label: "Diagnóstico da Home", icon: Activity, roles: ["admin"] },
   { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldAlert, roles: ["admin"] },
@@ -52,28 +51,28 @@ const items: Item[] = [
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
   const { user, isAdmin, isSeller, loading } = useAuth();
-  const [canViewPrescriptions, setCanViewPrescriptions] = useState(false);
+  const [canAccessPrescriptions, setCanAccessPrescriptions] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     if (!user?.id || isAdmin || !isSeller) {
-      setCanViewPrescriptions(false);
+      setCanAccessPrescriptions(false);
       return;
     }
 
     (supabase as any)
       .from("seller_permissions")
-      .select("can_view_prescriptions")
+      .select("can_view_prescriptions,can_approve_prescriptions")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }: { data: any }) => {
-        if (active) setCanViewPrescriptions(Boolean(data?.can_view_prescriptions));
+        if (active) {
+          setCanAccessPrescriptions(Boolean(data?.can_view_prescriptions || data?.can_approve_prescriptions));
+        }
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [user?.id, isAdmin, isSeller]);
 
   if (loading) return <div className="p-10 text-center">Carregando...</div>;
@@ -85,11 +84,11 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
     </div>
   );
 
-  const visible = items.filter((it) => {
-    if (it.requiresPrescriptionPermission && !isAdmin && !canViewPrescriptions) return false;
-    if (!it.roles) return isAdmin;
-    if (isAdmin) return it.roles.includes("admin");
-    if (isSeller) return it.roles.includes("seller");
+  const visible = items.filter((item) => {
+    if (item.requiresPrescriptionPermission && !isAdmin && !canAccessPrescriptions) return false;
+    if (!item.roles) return isAdmin;
+    if (isAdmin) return item.roles.includes("admin");
+    if (isSeller) return item.roles.includes("seller");
     return false;
   });
 
@@ -103,16 +102,16 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {visible.map((it) => (
+          {visible.map((item) => (
             <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
+              key={item.to}
+              to={item.to}
+              end={item.end}
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`
               }
             >
-              <it.icon className="h-4 w-4" /> {it.label}
+              <item.icon className="h-4 w-4" /> {item.label}
             </NavLink>
           ))}
         </nav>
