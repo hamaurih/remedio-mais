@@ -15,6 +15,7 @@ import {
   Package,
   Settings,
   ShoppingBag,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
@@ -31,7 +32,8 @@ type Item = {
 const items: Item[] = [
   { to: "/admin", label: "Início", icon: Home, end: true, roles: ["admin"] },
   { to: "/admin/erp", label: "ERP Farmacêutico", icon: Building2, roles: ["admin"] },
-  { to: "/admin/bi", label: "BI e Curva ABC", icon: BarChart3, roles: ["admin"] },
+  { to: "/admin/bi", label: "BI Executivo", icon: BarChart3, roles: ["admin"] },
+  { to: "/admin/curva-abc", label: "Curva ABC", icon: TrendingUp, roles: ["admin"] },
   { to: "/admin/vendedor", label: "Início", icon: Home, end: true, roles: ["seller"] },
   { to: "/admin/pdv", label: "PDV", icon: CreditCard, roles: ["admin", "seller"] },
   { to: "/admin/pedidos", label: "Vendas e Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
