@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, Package, Tags, Image as ImageIcon, ShoppingBag, FileText, Settings, LogOut, Tag, Plug, LayoutGrid, Megaphone, CreditCard, Boxes, Users, Activity, Menu as MenuIcon, ShieldAlert, FolderTree, UserCog, Stethoscope, Archive } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 
-type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller"> };
+type Item = {
+  to: string;
+  label: string;
+  icon: any;
+  end?: boolean;
+  roles?: Array<"admin" | "seller">;
+  requiresPrescriptionPermission?: boolean;
+};
 
 const items: Item[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["admin"] },
+  { to: "/admin/vendedor", label: "Início", icon: LayoutDashboard, end: true, roles: ["seller"] },
   { to: "/admin/pdv", label: "PDV — Ponto de Venda", icon: CreditCard, roles: ["admin", "seller"] },
   { to: "/admin/pdv/indicadores", label: "PDV — Indicadores", icon: Activity, roles: ["admin", "seller"] },
   { to: "/admin/produtos", label: "Produtos", icon: Package, roles: ["admin"] },
@@ -29,7 +37,7 @@ const items: Item[] = [
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
   { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard, roles: ["admin"] },
-  { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"] },
+  { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
   { to: "/admin/integrations/trier", label: "Trier Drogarias", icon: Plug, roles: ["admin"] },
   { to: "/admin/trier/vendas-ecommerce", label: "Trier — Vendas E-commerce", icon: ShoppingBag, roles: ["admin"] },
   { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Plug, roles: ["admin"] },
@@ -44,6 +52,30 @@ const items: Item[] = [
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
   const { user, isAdmin, isSeller, loading } = useAuth();
+  const [canViewPrescriptions, setCanViewPrescriptions] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user?.id || isAdmin || !isSeller) {
+      setCanViewPrescriptions(false);
+      return;
+    }
+
+    (supabase as any)
+      .from("seller_permissions")
+      .select("can_view_prescriptions")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }: { data: any }) => {
+        if (active) setCanViewPrescriptions(Boolean(data?.can_view_prescriptions));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, isAdmin, isSeller]);
+
   if (loading) return <div className="p-10 text-center">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
   if (!isAdmin && !isSeller) return (
@@ -54,6 +86,7 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   );
 
   const visible = items.filter((it) => {
+    if (it.requiresPrescriptionPermission && !isAdmin && !canViewPrescriptions) return false;
     if (!it.roles) return isAdmin;
     if (isAdmin) return it.roles.includes("admin");
     if (isSeller) return it.roles.includes("seller");
