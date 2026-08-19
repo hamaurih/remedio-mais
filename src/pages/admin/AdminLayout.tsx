@@ -20,6 +20,7 @@ const items: Item[] = [
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
+  { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
 
