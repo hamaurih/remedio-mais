@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
-import { ArrowRight, BarChart3, Boxes, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, Users, WalletCards } from "lucide-react";
+import { ArrowRight, BarChart3, Boxes, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, Users, WalletCards } from "lucide-react";
 
 type Module = { title: string; description: string; to: string; icon: any };
 
