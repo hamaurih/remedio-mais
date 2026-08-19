@@ -15,6 +15,7 @@ import {
   Package,
   Settings,
   ShoppingBag,
+  Store,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -32,6 +33,7 @@ type Item = {
 const items: Item[] = [
   { to: "/admin", label: "Início", icon: Home, end: true, roles: ["admin"] },
   { to: "/admin/erp", label: "ERP Farmacêutico", icon: Building2, roles: ["admin"] },
+  { to: "/admin/unidades", label: "Matriz e Filiais", icon: Store, roles: ["admin"] },
   { to: "/admin/bi", label: "BI Executivo", icon: BarChart3, roles: ["admin"] },
   { to: "/admin/curva-abc", label: "Curva ABC", icon: TrendingUp, roles: ["admin"] },
   { to: "/admin/vendedor", label: "Início", icon: Home, end: true, roles: ["seller"] },
