@@ -251,6 +251,16 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/refri-sprite-orig-350ml-46737</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/hid-lab-nivea-f15-med-4-8g-40410</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/materna-30cp-rev-33905</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
@@ -2431,11 +2441,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/hid-lab-nivea-f15-med-4-8g-40410</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/carbamazepina-20mg-ml-liq-100m-7639</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
@@ -3112,11 +3117,6 @@
   </url>
   <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/stanglit-15mg-30cp-46753</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/refri-sprite-orig-350ml-46737</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
