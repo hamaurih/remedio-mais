@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, BarChart3, Boxes, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, Users } from "lucide-react";
+import { Activity, BarChart3, Boxes, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
@@ -20,6 +20,7 @@ const items: Item[] = [
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
+  { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
 

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
-import { ArrowRight, BarChart3, Boxes, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, Users, WalletCards } from "lucide-react";
+import { ArrowRight, BarChart3, Boxes, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, Users, WalletCards } from "lucide-react";
 
 type Module = { title: string; description: string; to: string; icon: any };
 
@@ -30,6 +30,7 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
       { title: "Preços e Ofertas", description: "Preço base, promoções, descontos e monitoramento.", to: "/admin/monitor-precos", icon: Tags },
       { title: "Financeiro", description: "Pagamentos, recebimentos e conciliação das vendas.", to: "/admin/pagamentos", icon: WalletCards },
       { title: "Clientes", description: "Cadastro, histórico e relacionamento com clientes.", to: "/admin/clientes", icon: Users },
+      { title: "Vendedores", description: "Convites, acessos e permissões da equipe de vendas.", to: "/admin/vendedores", icon: UserCog },
     ],
   },
   {

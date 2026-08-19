@@ -2951,6 +2951,7 @@ export type Database = {
       }
       seller_permissions: {
         Row: {
+          can_approve_prescriptions: boolean
           can_execute_refund: boolean
           can_request_refund: boolean
           can_view_prescriptions: boolean
@@ -2960,6 +2961,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          can_approve_prescriptions?: boolean
           can_execute_refund?: boolean
           can_request_refund?: boolean
           can_view_prescriptions?: boolean
@@ -2969,6 +2971,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          can_approve_prescriptions?: boolean
           can_execute_refund?: boolean
           can_request_refund?: boolean
           can_view_prescriptions?: boolean
@@ -3938,6 +3941,7 @@ export type Database = {
       admin_list_sellers: {
         Args: never
         Returns: {
+          can_approve_prescriptions: boolean
           can_execute_refund: boolean
           can_request_refund: boolean
           can_view_prescriptions: boolean
@@ -3974,6 +3978,15 @@ export type Database = {
         }[]
       }
       admin_unarchive_product: { Args: { _id: string }; Returns: undefined }
+      bind_latest_prescription_to_product: {
+        Args: { _created_after: string; _product_id: string }
+        Returns: {
+          approved_at: string
+          id: string
+          product_id: string
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4022,6 +4035,14 @@ export type Database = {
         }[]
       }
       public_meta_config: { Args: never; Returns: Json }
+      seller_review_prescription: {
+        Args: {
+          _internal_notes?: string
+          _prescription_id: string
+          _status: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "seller"
