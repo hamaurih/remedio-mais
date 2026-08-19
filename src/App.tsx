@@ -35,6 +35,9 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx"));
 const AdminCurveABC = lazy(() => import("./pages/admin/AdminCurveABC.tsx"));
 const AdminSiteHub = lazy(() => import("./pages/admin/AdminSiteHub.tsx"));
 const SellerDashboard = lazy(() => import("./pages/admin/SellerDashboard.tsx"));
+const AdminUnits = lazy(() => import("./pages/admin/AdminUnits.tsx"));
+const AdminBranchNew = lazy(() => import("./pages/admin/AdminBranchNew.tsx"));
+const AdminBranchCompliance = lazy(() => import("./pages/admin/AdminBranchCompliance.tsx"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.tsx"));
 const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport.tsx"));
 const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
@@ -126,6 +129,9 @@ const App = () => (
               <Route path="curva-abc" element={<AdminCurveABC />} />
               <Route path="site" element={<AdminSiteHub />} />
               <Route path="vendedor" element={<SellerDashboard />} />
+              <Route path="unidades" element={<AdminUnits />} />
+              <Route path="unidades/nova" element={<AdminBranchNew />} />
+              <Route path="unidades/:storeId/regularizacao" element={<AdminBranchCompliance />} />
               <Route path="pdv" element={<Pdv />} />
               <Route path="pdv/indicadores" element={<PdvDashboard />} />
               <Route path="produtos" element={<AdminProducts />} />

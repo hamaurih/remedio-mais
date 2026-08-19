@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
-import { ArrowRight, BarChart3, Boxes, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, Users, WalletCards } from "lucide-react";
+import { ArrowRight, BarChart3, Boxes, Building2, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, Users, WalletCards } from "lucide-react";
 
 type Module = { title: string; description: string; to: string; icon: any };
 
@@ -22,8 +22,9 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
   },
   {
     title: "Gestão e inteligência",
-    subtitle: "Decisões de compra, preço e desempenho do negócio.",
+    subtitle: "Decisões de compra, preço, estrutura e desempenho do negócio.",
     modules: [
+      { title: "Matriz e Filiais", description: "Cadastro das unidades, regularização legal, sanitária, CRF, ANVISA e fiscal.", to: "/admin/unidades", icon: Building2 },
       { title: "Curva ABC", description: "Produtos A, B e C por faturamento, giro e participação acumulada.", to: "/admin/curva-abc", icon: BarChart3 },
       { title: "BI Executivo", description: "Vendas, faturamento, ticket, estoque e indicadores operacionais.", to: "/admin/bi", icon: BarChart3 },
       { title: "Produtos e Cadastro", description: "Catálogo, EAN, categorias, descrição e publicação.", to: "/admin/produtos", icon: Package },
@@ -72,18 +73,11 @@ export default function AdminHome() {
         <section className="rounded-3xl border bg-card overflow-hidden shadow-sm">
           <div className="p-6 md:p-8 lg:p-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
             <div className="max-w-3xl">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground grid place-items-center"><Store className="h-5 w-5" /></div>
-                <Badge variant="secondary">Central Administrativa</Badge>
-              </div>
+              <div className="flex items-center gap-2 mb-3"><div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground grid place-items-center"><Store className="h-5 w-5" /></div><Badge variant="secondary">Central Administrativa</Badge></div>
               <h1 className="text-3xl md:text-4xl font-black tracking-tight">Gestão do Atacadão dos Medicamentos</h1>
               <p className="mt-2 text-muted-foreground text-sm md:text-base max-w-2xl">Escolha a área que deseja administrar. As funções do sistema ficam organizadas por módulo, sem precisar procurar em um menu extenso.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="lg"><Link to="/admin/pdv"><CreditCard className="h-4 w-4 mr-2" />Abrir PDV</Link></Button>
-              <Button asChild size="lg" variant="outline"><Link to="/admin/curva-abc"><BarChart3 className="h-4 w-4 mr-2" />Curva ABC</Link></Button>
-              <Button asChild size="lg" variant="outline"><Link to="/admin/site"><Globe2 className="h-4 w-4 mr-2" />Gerenciar Site</Link></Button>
-            </div>
+            <div className="flex flex-wrap gap-2"><Button asChild size="lg"><Link to="/admin/pdv"><CreditCard className="h-4 w-4 mr-2" />Abrir PDV</Link></Button><Button asChild size="lg" variant="outline"><Link to="/admin/curva-abc"><BarChart3 className="h-4 w-4 mr-2" />Curva ABC</Link></Button><Button asChild size="lg" variant="outline"><Link to="/admin/site"><Globe2 className="h-4 w-4 mr-2" />Gerenciar Site</Link></Button></div>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 border-t bg-muted/15">
             <QuickKpi label="Vendas hoje" value={String(k?.ordersToday ?? "—")} icon={ShoppingCart} />
@@ -94,14 +88,7 @@ export default function AdminHome() {
           </div>
         </section>
 
-        {groups.map((group) => (
-          <section key={group.title}>
-            <div className="mb-4"><h2 className="text-xl font-extrabold tracking-tight">{group.title}</h2><p className="text-sm text-muted-foreground mt-0.5">{group.subtitle}</p></div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {group.modules.map((module) => <ModuleCard key={module.title} {...module} />)}
-            </div>
-          </section>
-        ))}
+        {groups.map((group) => <section key={group.title}><div className="mb-4"><h2 className="text-xl font-extrabold tracking-tight">{group.title}</h2><p className="text-sm text-muted-foreground mt-0.5">{group.subtitle}</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{group.modules.map((module) => <ModuleCard key={module.title} {...module} />)}</div></section>)}
       </div>
     </div>
   );
