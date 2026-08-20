@@ -72,6 +72,15 @@ const Pdv = lazy(() => import("./pages/admin/Pdv.tsx"));
 const PdvDashboard = lazy(() => import("./pages/admin/PdvDashboard.tsx"));
 const AdminMetaAds = lazy(() => import("./pages/admin/AdminMetaAds.tsx"));
 
+const PlatformLogin = lazy(() => import("./pages/platform/PlatformLogin.tsx"));
+const PlatformLayout = lazy(() => import("./pages/platform/PlatformLayout.tsx"));
+const PlatformDashboard = lazy(() => import("./pages/platform/PlatformDashboard.tsx"));
+const PlatformCompanies = lazy(() => import("./pages/platform/PlatformCompanies.tsx"));
+const PlatformCompanyNew = lazy(() => import("./pages/platform/PlatformCompanyNew.tsx"));
+const PlatformCompanyDetail = lazy(() => import("./pages/platform/PlatformCompanyDetail.tsx"));
+const PlatformPlans = lazy(() => import("./pages/platform/PlatformPlans.tsx"));
+const PlatformAudit = lazy(() => import("./pages/platform/PlatformAudit.tsx"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -85,16 +94,7 @@ const queryClient = new QueryClient({
 });
 
 function RouteFallback() {
-  return (
-    <div className="container py-16">
-      <div className="h-8 w-48 bg-muted rounded animate-pulse" />
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-56 bg-muted rounded-xl animate-pulse" />
-        ))}
-      </div>
-    </div>
-  );
+  return <div className="container py-16"><div className="h-8 w-48 bg-muted rounded animate-pulse" /><div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-56 bg-muted rounded-xl animate-pulse" />)}</div></div>;
 }
 
 function AdminEntry() {
@@ -107,8 +107,7 @@ function AdminEntry() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      <Toaster /><Sonner />
       <BrowserRouter>
         <MetaPixelProvider />
         <Suspense fallback={<RouteFallback />}>
@@ -189,6 +188,17 @@ const App = () => (
               <Route path="trier/vendas-ecommerce" element={<AdminTrierEcommerceSales />} />
               <Route path="integrations/whatsapp-agent" element={<AdminWhatsAppAgent />} />
             </Route>
+
+            <Route path="/platform/login" element={<PlatformLogin />} />
+            <Route path="/platform" element={<PlatformLayout />}>
+              <Route index element={<PlatformDashboard />} />
+              <Route path="empresas" element={<PlatformCompanies />} />
+              <Route path="empresas/nova" element={<PlatformCompanyNew />} />
+              <Route path="empresas/:tenantId" element={<PlatformCompanyDetail />} />
+              <Route path="planos" element={<PlatformPlans />} />
+              <Route path="auditoria" element={<PlatformAudit />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
@@ -196,5 +206,4 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
-
 export default App;
