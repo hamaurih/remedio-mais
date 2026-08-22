@@ -3036,6 +3036,302 @@ export type Database = {
           },
         ]
       }
+      store_compliance_catalog: {
+        Row: {
+          active: boolean
+          base_required: boolean
+          category: string
+          code: string
+          condition_code: string | null
+          description: string | null
+          legal_reference: string | null
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          base_required?: boolean
+          category: string
+          code: string
+          condition_code?: string | null
+          description?: string | null
+          legal_reference?: string | null
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          active?: boolean
+          base_required?: boolean
+          category?: string
+          code?: string
+          condition_code?: string | null
+          description?: string | null
+          legal_reference?: string | null
+          sort_order?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      store_compliance_items: {
+        Row: {
+          created_at: string
+          document_number: string | null
+          expiry_date: string | null
+          file_path: string | null
+          id: string
+          inherited_from_store_id: string | null
+          issue_date: string | null
+          issuer: string | null
+          notes: string | null
+          official_url: string | null
+          protocol: string | null
+          required: boolean
+          requirement_code: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          store_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_number?: string | null
+          expiry_date?: string | null
+          file_path?: string | null
+          id?: string
+          inherited_from_store_id?: string | null
+          issue_date?: string | null
+          issuer?: string | null
+          notes?: string | null
+          official_url?: string | null
+          protocol?: string | null
+          required?: boolean
+          requirement_code: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          store_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_number?: string | null
+          expiry_date?: string | null
+          file_path?: string | null
+          id?: string
+          inherited_from_store_id?: string | null
+          issue_date?: string | null
+          issuer?: string | null
+          notes?: string | null
+          official_url?: string | null
+          protocol?: string | null
+          required?: boolean
+          requirement_code?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          store_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_compliance_items_inherited_from_store_id_fkey"
+            columns: ["inherited_from_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_compliance_items_requirement_code_fkey"
+            columns: ["requirement_code"]
+            isOneToOne: false
+            referencedRelation: "store_compliance_catalog"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "store_compliance_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_compliance_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_legal_profiles: {
+        Row: {
+          city: string | null
+          cnae_main: string | null
+          cnpj: string | null
+          complement: string | null
+          created_at: string
+          digital_certificate_expires_at: string | null
+          digital_certificate_type: string | null
+          email: string | null
+          handles_antimicrobials: boolean
+          handles_controlled_medicines: boolean
+          handles_prescription_medicines: boolean
+          handles_thermolabile: boolean
+          has_manipulation: boolean
+          ibge_code: string | null
+          junta_registration: string | null
+          legal_name: string | null
+          legal_nature: string | null
+          municipal_registration: string | null
+          neighborhood: string | null
+          nfce_credential_status: string | null
+          nfe_credential_status: string | null
+          notes: string | null
+          number: string | null
+          offers_pharmaceutical_services: boolean
+          offers_remote_service: boolean
+          offers_vaccination: boolean
+          opening_date: string | null
+          opening_hours: Json
+          pharmacist_assistance_hours: string | null
+          pharmacist_rt_cpf: string | null
+          pharmacist_rt_crf: string | null
+          pharmacist_rt_crf_state: string | null
+          pharmacist_rt_name: string | null
+          pharmacist_rt_start_date: string | null
+          phone: string | null
+          redesim_protocol: string | null
+          sefaz_status: string | null
+          state: string | null
+          state_registration: string | null
+          store_id: string
+          street: string | null
+          tax_regime: string | null
+          tenant_id: string
+          trade_name: string | null
+          updated_at: string
+          zip_code: string | null
+          zoning_viability_status: string | null
+        }
+        Insert: {
+          city?: string | null
+          cnae_main?: string | null
+          cnpj?: string | null
+          complement?: string | null
+          created_at?: string
+          digital_certificate_expires_at?: string | null
+          digital_certificate_type?: string | null
+          email?: string | null
+          handles_antimicrobials?: boolean
+          handles_controlled_medicines?: boolean
+          handles_prescription_medicines?: boolean
+          handles_thermolabile?: boolean
+          has_manipulation?: boolean
+          ibge_code?: string | null
+          junta_registration?: string | null
+          legal_name?: string | null
+          legal_nature?: string | null
+          municipal_registration?: string | null
+          neighborhood?: string | null
+          nfce_credential_status?: string | null
+          nfe_credential_status?: string | null
+          notes?: string | null
+          number?: string | null
+          offers_pharmaceutical_services?: boolean
+          offers_remote_service?: boolean
+          offers_vaccination?: boolean
+          opening_date?: string | null
+          opening_hours?: Json
+          pharmacist_assistance_hours?: string | null
+          pharmacist_rt_cpf?: string | null
+          pharmacist_rt_crf?: string | null
+          pharmacist_rt_crf_state?: string | null
+          pharmacist_rt_name?: string | null
+          pharmacist_rt_start_date?: string | null
+          phone?: string | null
+          redesim_protocol?: string | null
+          sefaz_status?: string | null
+          state?: string | null
+          state_registration?: string | null
+          store_id: string
+          street?: string | null
+          tax_regime?: string | null
+          tenant_id: string
+          trade_name?: string | null
+          updated_at?: string
+          zip_code?: string | null
+          zoning_viability_status?: string | null
+        }
+        Update: {
+          city?: string | null
+          cnae_main?: string | null
+          cnpj?: string | null
+          complement?: string | null
+          created_at?: string
+          digital_certificate_expires_at?: string | null
+          digital_certificate_type?: string | null
+          email?: string | null
+          handles_antimicrobials?: boolean
+          handles_controlled_medicines?: boolean
+          handles_prescription_medicines?: boolean
+          handles_thermolabile?: boolean
+          has_manipulation?: boolean
+          ibge_code?: string | null
+          junta_registration?: string | null
+          legal_name?: string | null
+          legal_nature?: string | null
+          municipal_registration?: string | null
+          neighborhood?: string | null
+          nfce_credential_status?: string | null
+          nfe_credential_status?: string | null
+          notes?: string | null
+          number?: string | null
+          offers_pharmaceutical_services?: boolean
+          offers_remote_service?: boolean
+          offers_vaccination?: boolean
+          opening_date?: string | null
+          opening_hours?: Json
+          pharmacist_assistance_hours?: string | null
+          pharmacist_rt_cpf?: string | null
+          pharmacist_rt_crf?: string | null
+          pharmacist_rt_crf_state?: string | null
+          pharmacist_rt_name?: string | null
+          pharmacist_rt_start_date?: string | null
+          phone?: string | null
+          redesim_protocol?: string | null
+          sefaz_status?: string | null
+          state?: string | null
+          state_registration?: string | null
+          store_id?: string
+          street?: string | null
+          tax_regime?: string | null
+          tenant_id?: string
+          trade_name?: string | null
+          updated_at?: string
+          zip_code?: string | null
+          zoning_viability_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_legal_profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_legal_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_settings: {
         Row: {
           address: string | null
@@ -3171,10 +3467,23 @@ export type Database = {
           address: string | null
           cnpj: string | null
           code: string | null
+          compliance_enforced: boolean
+          compliance_status: string
           created_at: string
+          delivery_enabled: boolean
+          ecommerce_fulfillment_enabled: boolean
           id: string
+          is_headquarters: boolean
+          latitude: number | null
           legal_name: string | null
+          longitude: number | null
           name: string
+          operation_status: string
+          phone: string | null
+          pickup_enabled: boolean
+          preparation_minutes: number
+          service_radius_km: number
+          store_type: string
           tenant_id: string
           updated_at: string
         }
@@ -3183,10 +3492,23 @@ export type Database = {
           address?: string | null
           cnpj?: string | null
           code?: string | null
+          compliance_enforced?: boolean
+          compliance_status?: string
           created_at?: string
+          delivery_enabled?: boolean
+          ecommerce_fulfillment_enabled?: boolean
           id?: string
+          is_headquarters?: boolean
+          latitude?: number | null
           legal_name?: string | null
+          longitude?: number | null
           name: string
+          operation_status?: string
+          phone?: string | null
+          pickup_enabled?: boolean
+          preparation_minutes?: number
+          service_radius_km?: number
+          store_type?: string
           tenant_id: string
           updated_at?: string
         }
@@ -3195,10 +3517,23 @@ export type Database = {
           address?: string | null
           cnpj?: string | null
           code?: string | null
+          compliance_enforced?: boolean
+          compliance_status?: string
           created_at?: string
+          delivery_enabled?: boolean
+          ecommerce_fulfillment_enabled?: boolean
           id?: string
+          is_headquarters?: boolean
+          latitude?: number | null
           legal_name?: string | null
+          longitude?: number | null
           name?: string
+          operation_status?: string
+          phone?: string | null
+          pickup_enabled?: boolean
+          preparation_minutes?: number
+          service_radius_km?: number
+          store_type?: string
           tenant_id?: string
           updated_at?: string
         }
@@ -3987,6 +4322,10 @@ export type Database = {
           status: string
         }[]
       }
+      create_branch_legal_dossier: {
+        Args: { p_payload: Json }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4035,6 +4374,14 @@ export type Database = {
         }[]
       }
       public_meta_config: { Args: never; Returns: Json }
+      recalculate_store_compliance: {
+        Args: { p_store_id: string }
+        Returns: undefined
+      }
+      refresh_store_compliance: {
+        Args: { p_store_id: string }
+        Returns: undefined
+      }
       seller_review_prescription: {
         Args: {
           _internal_notes?: string
