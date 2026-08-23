@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { formatBRL } from "@/lib/store";
 import { Loader2, Plus, Trash2, Star, LogOut, MapPin } from "lucide-react";
 import { Seo } from "@/components/Seo";
+import { CpfInput } from "@/components/CpfInput";
+import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 
 export default function Account() {
   const { user, profile, loading } = useAuth();
@@ -29,23 +31,30 @@ export default function Account() {
   const [phone, setPhone] = useState("");
   const [cpf, setCpf] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const cpfHasValue = normalizeCpf(cpf).length > 0;
+  const cpfInvalid = cpfHasValue && !isValidCpf(cpf);
 
   useEffect(() => {
     if (profile) {
       setName(profile.full_name || "");
       setPhone(profile.phone || "");
-      setCpf(profile.cpf || "");
+      setCpf(formatCpf(profile.cpf || ""));
     }
   }, [profile]);
 
   const saveProfile = async () => {
     if (!user) return;
+    const normalizedCpf = normalizeCpf(cpf);
+    if (normalizedCpf && !isValidCpf(normalizedCpf)) {
+      toast.error("CPF inválido. Confira os números antes de salvar.");
+      return;
+    }
     setSavingProfile(true);
     const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       full_name: name || null,
       phone: phone || null,
-      cpf: cpf || null,
+      cpf: normalizedCpf || null,
       email: user.email,
     }, { onConflict: "id" });
     setSavingProfile(false);
@@ -206,11 +215,11 @@ export default function Account() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>CPF</Label>
-                  <Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" />
+                  <CpfInput value={cpf} onChange={setCpf} />
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button onClick={saveProfile} disabled={savingProfile}>
+                <Button onClick={saveProfile} disabled={savingProfile || cpfInvalid}>
                   {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar alterações"}
                 </Button>
               </div>
