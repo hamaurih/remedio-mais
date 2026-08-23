@@ -43,6 +43,7 @@ export function Footer() {
   const { data: s } = useStoreSettings();
   const { data: institutional = [] } = useMenu("footer_institutional");
   const { data: support = [] } = useMenu("footer_support");
+  const { data: footerCats = [] } = useMenu("footer_categories");
   const year = new Date().getFullYear();
 
   const waRaw = s?.whatsapp || "5583999286000";
@@ -116,7 +117,7 @@ export function Footer() {
         </div>
 
         {/* Links úteis */}
-        <div className="md:col-span-4 grid grid-cols-2 gap-8 content-start">
+        <div className={`md:col-span-4 grid grid-cols-2 ${footerCats.length > 0 ? "sm:grid-cols-3" : ""} gap-8 content-start`}>
           <div>
             <h4 className="font-bold mb-3 text-foreground">Atendimento</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -137,6 +138,14 @@ export function Footer() {
               ])}
             </ul>
           </div>
+          {footerCats.length > 0 && (
+            <div>
+              <h4 className="font-bold mb-3 text-foreground">Categorias</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {renderFooterLinks(footerCats, [])}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
