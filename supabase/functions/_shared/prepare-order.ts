@@ -2,6 +2,7 @@
 // e cria o pedido pendente. Reutilizado por create-cielo-pix e create-cielo-card.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { safeError } from "./mask.ts";
+import { isValidCpf, normalizeCpf } from "./cpf.ts";
 
 export type CartItem = { id: string; variant_id?: string | null; quantity: number; expected_unit_price?: number };
 export type OrderBody = {
@@ -62,9 +63,12 @@ export async function prepareOrder(
       return { ok: false, status: 400, body: { success: false, error: "Endereço de entrega incompleto." } };
     }
   }
-  const cpfDigits = (body.customer?.cpf || "").replace(/\D/g, "");
-  if (paymentMethod === "pix" && cpfDigits.length !== 11) {
+  const cpfDigits = normalizeCpf(body.customer?.cpf || "");
+  if (paymentMethod === "pix" && !cpfDigits) {
     return { ok: false, status: 400, body: { success: false, error: "CPF é obrigatório para pagamento via Pix." } };
+  }
+  if (cpfDigits && !isValidCpf(cpfDigits)) {
+    return { ok: false, status: 400, body: { success: false, error: "CPF inválido. Confira os números informados." } };
   }
 
   // Produtos + variações
