@@ -2366,37 +2366,73 @@ async function actionSendOrder(orderId: string) {
   }
 }
 
+// numeroPedido curto e numérico (até 10 dígitos) — mesma regra do send-order-to-trier.
+// O Trier só conhece ESTE identificador; consultar pelo UUID local retorna vazio.
+function shortNumericOrderId(uuid: string): string {
+  const digits = uuid.replace(/\D/g, "");
+  if (digits.length >= 7) return digits.slice(0, 10);
+  let h = 0;
+  for (const c of uuid) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
+  return String(Math.abs(h)).slice(0, 10);
+}
+
 async function actionCheckOrderStatus(orderIds?: string[]) {
   const s = await getSettings();
-  let ids = orderIds;
-  if (!ids?.length) {
-    const { data } = await supabase.from("orders").select("id").eq("trier_sent", true).neq("trier_status", "entregue").neq("trier_status", "cancelado").limit(50);
-    ids = (data || []).map((d) => d.id);
+  let rows: { id: string; trier_order_id: string | null; delivery_method: string | null }[] = [];
+  if (orderIds?.length) {
+    const { data } = await supabase.from("orders").select("id, trier_order_id, delivery_method").in("id", orderIds);
+    rows = (data || []) as any;
+  } else {
+    const { data } = await supabase.from("orders").select("id, trier_order_id, delivery_method")
+      .eq("trier_sent", true).neq("trier_status", "entregue").neq("trier_status", "cancelado").limit(50);
+    rows = (data || []) as any;
   }
-  if (!ids.length) return { ok: true, updated: 0 };
+  if (!rows.length) return { ok: true, updated: 0 };
+
+  // Mapeia numeroPedido (o que o Trier conhece) → pedido local.
+  const byNumero = new Map<string, { id: string; delivery_method: string | null }>();
+  for (const r of rows) {
+    const numero = String(r.trier_order_id || shortNumericOrderId(r.id));
+    byNumero.set(numero, { id: r.id, delivery_method: r.delivery_method });
+  }
+  const numeros = [...byNumero.keys()];
   const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += 50) chunks.push(ids.slice(i, i + 50));
+  for (let i = 0; i < numeros.length; i += 50) chunks.push(numeros.slice(i, i + 50));
   let updated = 0;
   for (const chunk of chunks) {
-    const q = chunk.map((i) => `numerosPedidos=${encodeURIComponent(i)}`).join("&");
+    const q = `numerosPedidos=${encodeURIComponent(chunk.join(","))}`;
     try {
       const res = await trierGet(s, `/rest/integracao/venda/ecommerce/consultar-venda-v1?${q}`);
       const arr = extractList(res);
+      // Resposta pode vir como objeto único (uma venda) em vez de lista.
+      if (!arr.length && res && typeof res === "object" && (res.numeroPedido || res.numero_pedido)) arr.push(res);
+      const returned = new Set<string>();
       for (const r of arr) {
-        const code = Number(r.status ?? r.statusVenda ?? 0);
+        // Status pode vir como objeto statusPedido {codigo, descricao} (mesmo formato
+        // do efetuar-venda) ou em campos planos status/statusVenda.
+        const code = Number(r.statusPedido?.codigo ?? r.status ?? r.statusVenda ?? 0);
         const label = STATUS_MAP[code] || "indefinido";
         const numeroPedido = String(r.numeroPedido || r.numero_pedido || "");
-        const { data: localOrder } = await supabase.from("orders")
-          .select("id, delivery_method")
-          .eq("trier_order_id", numeroPedido)
-          .maybeSingle();
-        if (!localOrder) continue;
-        await supabase.from("orders").update({
-          trier_status: label, trier_status_code: code,
+        returned.add(numeroPedido);
+        const local = byNumero.get(numeroPedido);
+        if (!local) continue;
+        const patch: Record<string, unknown> = {
+          trier_status: label,
+          trier_status_code: code,
           trier_last_status_check_at: new Date().toISOString(),
-          ...localOrderPatchForTrierStatus(code, localOrder.delivery_method),
-        }).eq("id", localOrder.id);
+          ...localOrderPatchForTrierStatus(code, local.delivery_method),
+        };
+        if (r.numeroNota) patch.trier_numero_nota = String(r.numeroNota);
+        await supabase.from("orders").update(patch).eq("id", local.id);
         updated++;
+      }
+      // Marca verificação também para pedidos que o Trier ainda não retornou
+      // (ex.: venda PENDENTE aguardando importação pelo SGF da loja).
+      const missing = chunk.filter((n) => !returned.has(n)).map((n) => byNumero.get(n)!.id);
+      if (missing.length) {
+        await supabase.from("orders")
+          .update({ trier_last_status_check_at: new Date().toISOString() })
+          .in("id", missing);
       }
     } catch (e: any) {
       await log("order_status", "error", "Erro consultando status", { error: String(e.message).slice(0, 1200) });
