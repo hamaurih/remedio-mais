@@ -20,6 +20,8 @@ import { Loader2, CreditCard, QrCode, AlertTriangle, Lock } from "lucide-react";
 import { AddressAutocomplete, type SelectedAddress } from "@/components/AddressAutocomplete";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
+import { CpfInput } from "@/components/CpfInput";
+import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 
 
 
@@ -39,6 +41,9 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [cpf, setCpf] = useState("");
+  const cpfDigits = normalizeCpf(cpf);
+  const cpfValid = isValidCpf(cpf);
+  const cpfInvalid = cpfDigits.length > 0 && !cpfValid;
 
   // entrega
   const [deliveryType, setDeliveryType] = useState<"pickup" | "delivery">("pickup");
@@ -115,7 +120,7 @@ export default function Checkout() {
       if (data) {
         setName((d) => d || data.full_name || "");
         setPhone((d) => d || (data as any).phone || "");
-        setCpf((d) => d || (data as any).cpf || "");
+        setCpf((d) => d || formatCpf((data as any).cpf || ""));
       }
     });
     supabase
@@ -268,7 +273,7 @@ export default function Checkout() {
     await supabase.from("profiles").update({
       full_name: name || null,
       phone: phone || null,
-      cpf: cpf || null,
+      cpf: cpfDigits || null,
     }).eq("id", user.id);
 
     // Salva endereço novo se aplicável
@@ -310,14 +315,15 @@ export default function Checkout() {
 
   const goPay = async () => {
     if (!user) return;
-    // Pix exige CPF
-    if (paymentMethod === "pix") {
-      const onlyDigits = cpf.replace(/\D/g, "");
-      if (onlyDigits.length !== 11) {
-        toast.error("CPF é obrigatório para pagamento via Pix. Volte para a etapa 'Seus dados' e preencha.", { duration: 8000 });
-        setStep(1);
-        return;
-      }
+    if (paymentMethod === "pix" && !cpfDigits) {
+      toast.error("CPF é obrigatório para pagamento via Pix. Volte para a etapa 'Seus dados' e preencha.", { duration: 8000 });
+      setStep(1);
+      return;
+    }
+    if (cpfDigits && !cpfValid) {
+      toast.error("CPF inválido. Confira os números antes de continuar.", { duration: 8000 });
+      setStep(1);
+      return;
     }
     setSubmitting(true);
     // Meta AddPaymentInfo: apenas o tipo de meio de pagamento e o valor.
@@ -335,7 +341,7 @@ export default function Checkout() {
           expected_unit_price: i.price,
         })),
         delivery_type: deliveryType,
-        customer: { name, email, phone, cpf: cpf || undefined },
+        customer: { name, email, phone, cpf: cpfDigits || undefined },
         delivery: deliveryType === "delivery"
           ? { cep, street, number, complement, neighborhood, city, state, reference, lat: lat ?? undefined, lng: lng ?? undefined, place_id: placeId ?? undefined }
           : undefined,
@@ -417,8 +423,10 @@ export default function Checkout() {
             <Field label="Nome completo"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label="Telefone / WhatsApp"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(83) 99999-9999" /></Field>
-            <Field label={paymentMethod === "pix" ? "CPF (obrigatório para Pix)" : "CPF (opcional)"}><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" /></Field>
-            <NextBtn disabled={!name || !email || phone.length < 8} onClick={() => setStep(2)} />
+            <Field label={paymentMethod === "pix" ? "CPF (obrigatório para Pix)" : "CPF (opcional)"}>
+              <CpfInput value={cpf} onChange={setCpf} required={paymentMethod === "pix"} />
+            </Field>
+            <NextBtn disabled={!name || !email || phone.length < 8 || cpfInvalid} onClick={() => setStep(2)} />
           </Section>
         )}
 
