@@ -2378,22 +2378,22 @@ function shortNumericOrderId(uuid: string): string {
 
 async function actionCheckOrderStatus(orderIds?: string[]) {
   const s = await getSettings();
-  let rows: { id: string; trier_order_id: string | null; delivery_method: string | null }[] = [];
+  let rows: { id: string; trier_order_id: string | null; delivery_method: string | null; status: string | null }[] = [];
   if (orderIds?.length) {
-    const { data } = await supabase.from("orders").select("id, trier_order_id, delivery_method").in("id", orderIds);
+    const { data } = await supabase.from("orders").select("id, trier_order_id, delivery_method, status").in("id", orderIds);
     rows = (data || []) as any;
   } else {
-    const { data } = await supabase.from("orders").select("id, trier_order_id, delivery_method")
+    const { data } = await supabase.from("orders").select("id, trier_order_id, delivery_method, status")
       .eq("trier_sent", true).neq("trier_status", "entregue").neq("trier_status", "cancelado").limit(50);
     rows = (data || []) as any;
   }
   if (!rows.length) return { ok: true, updated: 0 };
 
   // Mapeia numeroPedido (o que o Trier conhece) → pedido local.
-  const byNumero = new Map<string, { id: string; delivery_method: string | null }>();
+  const byNumero = new Map<string, { id: string; delivery_method: string | null; status: string | null }>();
   for (const r of rows) {
     const numero = String(r.trier_order_id || shortNumericOrderId(r.id));
-    byNumero.set(numero, { id: r.id, delivery_method: r.delivery_method });
+    byNumero.set(numero, { id: r.id, delivery_method: r.delivery_method, status: r.status });
   }
   const numeros = [...byNumero.keys()];
   const chunks: string[][] = [];
@@ -2408,19 +2408,27 @@ async function actionCheckOrderStatus(orderIds?: string[]) {
       if (!arr.length && res && typeof res === "object" && (res.numeroPedido || res.numero_pedido)) arr.push(res);
       const returned = new Set<string>();
       for (const r of arr) {
-        // Status pode vir como objeto statusPedido {codigo, descricao} (mesmo formato
-        // do efetuar-venda) ou em campos planos status/statusVenda.
-        const code = Number(r.statusPedido?.codigo ?? r.status ?? r.statusVenda ?? 0);
+        // statusPedido pode vir como string ("2"), número, ou objeto {codigo, descricao}
+        // (formato do efetuar-venda). Fallback para campos planos status/statusVenda.
+        const sp = r.statusPedido;
+        const rawCode = (sp && typeof sp === "object") ? sp.codigo : sp;
+        const code = Number(rawCode ?? r.status ?? r.statusVenda ?? 0);
         const label = STATUS_MAP[code] || "indefinido";
         const numeroPedido = String(r.numeroPedido || r.numero_pedido || "");
         returned.add(numeroPedido);
         const local = byNumero.get(numeroPedido);
         if (!local) continue;
+        // Não regride pedidos já finalizados localmente (ex.: entregue/retirado)
+        // quando o Trier reporta um estágio anterior do fluxo.
+        const TERMINAL_LOCAL = new Set(["finalizado", "entregue", "retirado", "cancelado"]);
+        const localPatch = TERMINAL_LOCAL.has(String(local.status || ""))
+          ? {}
+          : localOrderPatchForTrierStatus(code, local.delivery_method);
         const patch: Record<string, unknown> = {
           trier_status: label,
           trier_status_code: code,
           trier_last_status_check_at: new Date().toISOString(),
-          ...localOrderPatchForTrierStatus(code, local.delivery_method),
+          ...localPatch,
         };
         if (r.numeroNota) patch.trier_numero_nota = String(r.numeroNota);
         await supabase.from("orders").update(patch).eq("id", local.id);
