@@ -39,6 +39,7 @@ export function CpfInput({
         maxLength={14}
         disabled={disabled}
         required={required}
+        aria-label="CPF"
         aria-invalid={invalid || undefined}
         aria-describedby={digits.length > 0 ? statusId : undefined}
         className={cn(
