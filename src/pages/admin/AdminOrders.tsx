@@ -148,7 +148,6 @@ export default function AdminOrders() {
     return `Olá ${o.customer_name}, sobre seu pedido:\n\n${items}\n\nTotal: ${formatBRL(o.total)}\n${o.delivery_method === "pickup" ? "Retirada na loja" : `Entrega: ${deliveryAddress(o)}`}`;
   };
 
-
   return (
     <div className="p-6">
       <div className="flex items-baseline justify-between mb-4">
@@ -308,6 +307,9 @@ export default function AdminOrders() {
 function ItemRow({ item, onStatus, onNotes }: { item: any; onStatus: (id: string, s: string) => void; onNotes: (id: string, n: string) => void }) {
   const [notes, setNotes] = useState(item.item_notes || "");
   const status = item.item_status || "disponivel";
+  const unitPrice = Number(item.unit_price || 0);
+  const itemTotal = unitPrice * Number(item.quantity || 0);
+
   return (
     <div className="border rounded-lg p-3">
       <div className="flex items-start gap-3">
@@ -317,6 +319,10 @@ function ItemRow({ item, onStatus, onNotes }: { item: any; onStatus: (id: string
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>
           {item.variant_label && <div className="text-xs text-muted-foreground">{item.variant_label}</div>}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+            <span className="text-muted-foreground">{formatBRL(unitPrice)} / un.</span>
+            <span className="font-semibold text-foreground">Total: {formatBRL(itemTotal)}</span>
+          </div>
         </div>
         <Badge className={`text-[10px] ${ITEM_BADGE[status] || ""}`} variant="outline">
           {ITEM_STATUSES.find((s) => s.v === status)?.l || status}
