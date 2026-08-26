@@ -10,16 +10,31 @@ import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 
 type Zone = { min_km: number; max_km: number; fee: number; label?: string };
 
+const EMAIL_STATUS: Record<string, string> = {
+  sent: "enviado",
+  failed: "falhou",
+  no_provider: "pendente — provedor de e-mail não configurado",
+  invalid_recipient: "destinatário inválido",
+};
+
 export default function AdminSettings() {
   const [s, setS] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
+  const [lastEmail, setLastEmail] = useState<any>(null);
 
   useEffect(() => {
     supabase.from("store_settings").select("*").eq("id", 1).maybeSingle().then(({ data }) => {
       setS(data || {}); setLoading(false);
     });
+    (supabase as any).from("prescription_email_log")
+      .select("status,error,created_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => setLastEmail(data || null));
   }, []);
+
 
   const save = async () => {
     const payload = {
