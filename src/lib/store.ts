@@ -35,10 +35,12 @@ function normalizePrescriptionStatus(status?: string | null) {
   return String(status || "").trim().toLowerCase();
 }
 
+const APPROVED_STATUSES = ["aprovada", "approved"];
+
 export function isPrescriptionApproved(item: CartItem) {
   if (!isPrescriptionCartItem(item)) return true;
   const status = normalizePrescriptionStatus(item.prescription_status);
-  return !!item.prescription_id && status === "aprovada" && !!item.prescription_approved_at;
+  return !!item.prescription_id && APPROVED_STATUSES.includes(status) && !!item.prescription_approved_at;
 }
 
 export function isCartItemPayable(item: CartItem) {
