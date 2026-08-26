@@ -140,37 +140,31 @@ export default function Cart() {
   const nav = useNavigate();
   const [tick, setTick] = useState(0);
 
-  const prescriptionIds = useMemo(
-    () => Array.from(new Set(items.map((i) => i.prescription_id).filter(Boolean) as string[])),
+  // Reconciliação por (dono, produto): a aprovação acontece no admin, então o
+  // carrinho precisa buscar o estado real no servidor — não basta atualizar
+  // apenas receitas já vinculadas no localStorage.
+  const prescriptionProductsKey = useMemo(
+    () => Array.from(new Set(items.filter(isPrescriptionCartItem).map((i) => i.product_id || i.id))).sort().join(","),
     [items],
   );
-  const prescriptionIdsKey = prescriptionIds.join(",");
 
-  // Realtime gives instant approval feedback; polling is the fallback if the
-  // realtime connection is unavailable or the browser was suspended.
   useEffect(() => {
-    if (!user || !prescriptionIds.length) return;
+    if (!user || !prescriptionProductsKey) return;
     let alive = true;
 
     const refresh = async () => {
-      const { data } = await (supabase as any)
-        .from("prescriptions")
-        .select("id,status,approved_at,product_id")
-        .in("id", prescriptionIds);
       if (!alive) return;
-      for (const row of data || []) {
-        syncCartPrescriptionById(row.id, { status: row.status, approved_at: row.approved_at });
-      }
+      await syncCartPrescriptionsFromServer();
     };
 
     void refresh();
     const timer = window.setInterval(() => void refresh(), 8000);
     const channel = supabase
       .channel(`cart-prescriptions-${user.id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "prescriptions" }, (payload: any) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "prescriptions", filter: `user_id=eq.${user.id}` }, (payload: any) => {
         const row = payload.new;
-        if (!row?.id || !prescriptionIds.includes(row.id)) return;
-        syncCartPrescriptionById(row.id, { status: row.status, approved_at: row.approved_at });
+        if (row?.id) syncCartPrescriptionById(row.id, { status: row.status, approved_at: row.approved_at });
+        void refresh();
       })
       .subscribe();
 
@@ -179,7 +173,7 @@ export default function Cart() {
       window.clearInterval(timer);
       void supabase.removeChannel(channel);
     };
-  }, [user?.id, prescriptionIdsKey]);
+  }, [user?.id, prescriptionProductsKey]);
 
   return (
     <Layout>
