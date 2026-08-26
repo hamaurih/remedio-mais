@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+const GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 
 // Traduz 403 do Google em mensagem administrativa clara (sem expor chave/headers).
 function describeKeyError(details: Array<{ reason?: string }>): string {
@@ -73,9 +73,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!lovableKey || !mapsKey) {
+    if (!mapsKey) {
       return new Response(JSON.stringify({ error: "maps_not_configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -83,10 +82,7 @@ Deno.serve(async (req) => {
     }
 
     const r = await fetch(
-      `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(target)}&region=br`,
-      {
-        headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey },
-      }
+      `${GEOCODING_URL}?address=${encodeURIComponent(target)}&region=br&key=${encodeURIComponent(mapsKey)}`
     );
     if (r.status === 403) {
       const body = await r.json().catch(() => ({}));

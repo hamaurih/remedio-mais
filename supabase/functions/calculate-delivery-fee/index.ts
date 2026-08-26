@@ -8,18 +8,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
+const GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 
 type Zone = { min_km: number; max_km: number; fee: number; label?: string };
 
-function mapsHeaders() {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
-  if (!lovableKey || !mapsKey) return null;
-  return {
-    Authorization: `Bearer ${lovableKey}`,
-    "X-Connection-Api-Key": mapsKey,
-  } as Record<string, string>;
+function mapsApiKey(): string | null {
+  return Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
 }
 
 function describeKeyError(details: Array<{ reason?: string }>): string {
@@ -51,14 +46,14 @@ async function routeDistanceKm(
   destLat: number,
   destLng: number
 ): Promise<{ km: number | null; error?: string }> {
-  const headers = mapsHeaders();
-  if (!headers) return { km: null, error: "missing_maps_credentials" };
+  const mapsKey = mapsApiKey();
+  if (!mapsKey) return { km: null, error: "missing_maps_credentials" };
   try {
-    const r = await fetch(`${GATEWAY_URL}/routes/directions/v2:computeRoutes`, {
+    const r = await fetch(ROUTES_URL, {
       method: "POST",
       headers: {
-        ...headers,
         "Content-Type": "application/json",
+        "X-Goog-Api-Key": mapsKey,
         "X-Goog-FieldMask": "routes.distanceMeters,routes.duration",
       },
       body: JSON.stringify({
@@ -89,10 +84,10 @@ async function routeDistanceKm(
 }
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  const headers = mapsHeaders();
-  if (!headers) return null;
-  const url = `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=br`;
-  const r = await fetch(url, { headers });
+  const mapsKey = mapsApiKey();
+  if (!mapsKey) return null;
+  const url = `${GEOCODING_URL}?address=${encodeURIComponent(address)}&region=br&key=${encodeURIComponent(mapsKey)}`;
+  const r = await fetch(url);
   if (r.status === 403) {
     const body = await r.json().catch(() => ({}));
     console.error("Geocode 403:", describeKeyError(body?.error?.details ?? []));
