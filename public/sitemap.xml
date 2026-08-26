@@ -266,6 +266,16 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/limp-lingua-hillo-1un-28880</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/creatina-hardcore-po-300g-15116</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/whey-puretech-100-chocolate-54465</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
@@ -3102,11 +3112,6 @@
   </url>
   <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/complexo-b-400mg-60cap-10927</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/creatina-hardcore-po-300g-15116</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -10187,11 +10192,6 @@
   </url>
   <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/hipoglos-cr-prot-orig-40g-28938</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/limp-lingua-hillo-1un-28880</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
