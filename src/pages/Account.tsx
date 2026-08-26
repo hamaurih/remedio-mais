@@ -17,6 +17,8 @@ import { Loader2, Plus, Trash2, Star, LogOut, MapPin } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
+
 
 export default function Account() {
   const { user, profile, loading } = useAuth();
