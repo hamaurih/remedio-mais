@@ -23,6 +23,7 @@ import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installm
 import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
+import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
 
 
 
@@ -116,6 +117,13 @@ export default function Checkout() {
       ? deliveryQuote.message
       : "Não conseguimos validar seu endereço para calcular a entrega. Confira o endereço e tente novamente.";
 
+
+  // Garante que aprovações de receita feitas no admin sejam refletidas ao entrar
+  // no checkout (inclusive após reload ou em outro dispositivo).
+  useEffect(() => {
+    if (!user) return;
+    void syncCartPrescriptionsFromServer();
+  }, [user?.id]);
 
   // Carrega profile + endereços salvos
   useEffect(() => {
