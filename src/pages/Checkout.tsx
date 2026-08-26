@@ -502,8 +502,8 @@ export default function Checkout() {
 
             {deliveryType === "delivery" && selectedAddressId === "new" && (
               <div className="mt-4 space-y-3">
-                <Field label="Buscar endereço (Google)" className="col-span-2">
                 <Field label="Buscar endereço" className="col-span-2">
+
                   <AddressAutocomplete
                     onSelect={(a) =>
                       applyPickedAddress({
