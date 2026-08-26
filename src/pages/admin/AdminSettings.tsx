@@ -46,7 +46,10 @@ export default function AdminSettings() {
       delivery_fee_zones: Array.isArray(s.delivery_fee_zones) ? s.delivery_fee_zones : [],
       pix_discount_enabled: !!s.pix_discount_enabled,
       pix_discount_percentage: Number(s.pix_discount_percentage || 0),
+      prescription_email_notify: !!s.prescription_email_notify,
+      prescription_email_to: (s.prescription_email_to || "").trim() || null,
     };
+
     const { error } = await supabase.from("store_settings").upsert(payload);
     if (error) toast.error(error.message); else toast.success("Configurações salvas");
   };
