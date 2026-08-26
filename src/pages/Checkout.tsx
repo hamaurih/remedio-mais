@@ -536,6 +536,9 @@ export default function Checkout() {
                     </div>
                     {cepError && <p className="mt-1 text-xs text-muted-foreground">{cepError}</p>}
                   </Field>
+                  <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => { setStreet(e.target.value); invalidateCoords(); }} /></Field>
+                  <Field label="Número"><Input value={number} onChange={(e) => { setNumber(e.target.value); invalidateCoords(); }} inputMode="numeric" /></Field>
+
 
                   <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
                   <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => { setNeighborhood(e.target.value); invalidateCoords(); }} /></Field>
