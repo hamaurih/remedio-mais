@@ -198,6 +198,39 @@ export default function AdminSettings() {
             <div className="space-y-1"><Label>Texto do rodapé</Label><Textarea value={s.footer_text || ""} onChange={set("footer_text")} /></div>
           </TabsContent>
 
+          <TabsContent value="receitas" className="space-y-3 pt-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!s.prescription_email_notify}
+                onChange={(e) => setS({ ...s, prescription_email_notify: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-semibold">Notificar novas receitas por e-mail</span>
+            </label>
+            <div className="space-y-1">
+              <Label>E-mail destinatário</Label>
+              <Input
+                type="email"
+                value={s.prescription_email_to || ""}
+                onChange={set("prescription_email_to")}
+                placeholder="responsavel@exemplo.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Aviso complementar ao alerta em tempo real do painel. Por LGPD, o e-mail não contém receita, medicamento, telefone ou dados do paciente — apenas o horário e o link do painel.
+              </p>
+            </div>
+            {lastEmail && (
+              <div className="text-xs rounded-md border bg-muted/40 px-3 py-2">
+                Último envio: <strong>{EMAIL_STATUS[lastEmail.status] || lastEmail.status}</strong>
+                {" · "}{new Date(lastEmail.created_at).toLocaleString("pt-BR")}
+                {lastEmail.error && <div className="text-destructive mt-0.5">{lastEmail.error}</div>}
+              </div>
+            )}
+          </TabsContent>
+
+
+
           <TabsContent value="legal" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Razão social</Label><Input value={s.legal_name || ""} onChange={set("legal_name")} /></div>
             <div className="space-y-1"><Label>CNPJ</Label><Input value={s.cnpj || ""} onChange={set("cnpj")} /></div>
