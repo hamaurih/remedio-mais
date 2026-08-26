@@ -74,3 +74,12 @@ describe("prescription cart approval", () => {
     expect(cartPayableTotal(cart)).toBe(50); // 2x10 + 1x30 approved
   });
 });
+
+describe("status aprovado em inglês", () => {
+  it("aceita status 'approved' vindo do servidor", () => {
+    expect(isCartItemPayable({ ...approved, prescription_status: "approved" })).toBe(true);
+  });
+  it("mantém bloqueio para status desconhecido", () => {
+    expect(isCartItemPayable({ ...approved, prescription_status: "waiting" })).toBe(false);
+  });
+});
