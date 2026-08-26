@@ -10,16 +10,31 @@ import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 
 type Zone = { min_km: number; max_km: number; fee: number; label?: string };
 
+const EMAIL_STATUS: Record<string, string> = {
+  sent: "enviado",
+  failed: "falhou",
+  no_provider: "pendente — provedor de e-mail não configurado",
+  invalid_recipient: "destinatário inválido",
+};
+
 export default function AdminSettings() {
   const [s, setS] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
+  const [lastEmail, setLastEmail] = useState<any>(null);
 
   useEffect(() => {
     supabase.from("store_settings").select("*").eq("id", 1).maybeSingle().then(({ data }) => {
       setS(data || {}); setLoading(false);
     });
+    (supabase as any).from("prescription_email_log")
+      .select("status,error,created_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }: any) => setLastEmail(data || null));
   }, []);
+
 
   const save = async () => {
     const payload = {
@@ -31,7 +46,10 @@ export default function AdminSettings() {
       delivery_fee_zones: Array.isArray(s.delivery_fee_zones) ? s.delivery_fee_zones : [],
       pix_discount_enabled: !!s.pix_discount_enabled,
       pix_discount_percentage: Number(s.pix_discount_percentage || 0),
+      prescription_email_notify: !!s.prescription_email_notify,
+      prescription_email_to: (s.prescription_email_to || "").trim() || null,
     };
+
     const { error } = await supabase.from("store_settings").upsert(payload);
     if (error) toast.error(error.message); else toast.success("Configurações salvas");
   };
@@ -78,7 +96,9 @@ export default function AdminSettings() {
             <TabsTrigger value="entrega">Entrega</TabsTrigger>
             <TabsTrigger value="pix">Pix</TabsTrigger>
             <TabsTrigger value="home">Home</TabsTrigger>
+            <TabsTrigger value="receitas">Receitas</TabsTrigger>
             <TabsTrigger value="legal">Legal / Sanitário</TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="loja" className="space-y-3 pt-3">
@@ -195,6 +215,39 @@ export default function AdminSettings() {
             <div className="space-y-1"><Label>Subtítulo do hero</Label><Textarea value={s.hero_subtitle || ""} onChange={set("hero_subtitle")} /></div>
             <div className="space-y-1"><Label>Texto do rodapé</Label><Textarea value={s.footer_text || ""} onChange={set("footer_text")} /></div>
           </TabsContent>
+
+          <TabsContent value="receitas" className="space-y-3 pt-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!s.prescription_email_notify}
+                onChange={(e) => setS({ ...s, prescription_email_notify: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-semibold">Notificar novas receitas por e-mail</span>
+            </label>
+            <div className="space-y-1">
+              <Label>E-mail destinatário</Label>
+              <Input
+                type="email"
+                value={s.prescription_email_to || ""}
+                onChange={set("prescription_email_to")}
+                placeholder="responsavel@exemplo.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Aviso complementar ao alerta em tempo real do painel. Por LGPD, o e-mail não contém receita, medicamento, telefone ou dados do paciente — apenas o horário e o link do painel.
+              </p>
+            </div>
+            {lastEmail && (
+              <div className="text-xs rounded-md border bg-muted/40 px-3 py-2">
+                Último envio: <strong>{EMAIL_STATUS[lastEmail.status] || lastEmail.status}</strong>
+                {" · "}{new Date(lastEmail.created_at).toLocaleString("pt-BR")}
+                {lastEmail.error && <div className="text-destructive mt-0.5">{lastEmail.error}</div>}
+              </div>
+            )}
+          </TabsContent>
+
+
 
           <TabsContent value="legal" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Razão social</Label><Input value={s.legal_name || ""} onChange={set("legal_name")} /></div>

@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { safeLog, safeError, maskId, maskPath, maskPhone } from "../_shared/mask.ts";
+import { notifyNewPrescriptionByEmail } from "../_shared/prescription-email.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,21 +87,26 @@ Deno.serve(async (req) => {
       user_id = data.user?.id ?? null;
     }
 
-    const { error: insErr } = await admin.from("prescriptions").insert({
+    const { data: inserted, error: insErr } = await admin.from("prescriptions").insert({
       customer_name: name,
       customer_phone: phone,
       notes,
       file_url,
       status: "recebida",
       user_id,
-    });
+    }).select("id, created_at").single();
     if (insErr) {
       safeError("[submit-prescription] insert error", { message: insErr.message, user_id: maskId(user_id ?? "") });
       return json({ error: "Falha ao registrar a receita." }, 500);
     }
 
     safeLog("[submit-prescription] saved", { user_id: maskId(user_id ?? ""), phone: maskPhone(phone), has_file: !!file_url });
+
+    // Aviso complementar por e-mail (não substitui o alerta visual/sonoro/realtime).
+    await notifyNewPrescriptionByEmail(admin as any, inserted?.id, inserted?.created_at);
+
     return json({ ok: true });
+
   } catch (e) {
     safeError("[submit-prescription] unexpected", { message: (e as Error)?.message });
     return json({ error: "Erro inesperado." }, 500);

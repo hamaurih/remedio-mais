@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -2039,6 +2039,41 @@ export type Database = {
           },
         ]
       }
+      prescription_email_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          prescription_id: string
+          recipient: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          prescription_id: string
+          recipient: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          prescription_id?: string
+          recipient?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescription_email_log_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "prescriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescriptions: {
         Row: {
           approved_at: string | null
@@ -3361,6 +3396,8 @@ export type Database = {
           pharmacist_name: string | null
           pix_discount_enabled: boolean
           pix_discount_percentage: number
+          prescription_email_notify: boolean
+          prescription_email_to: string | null
           quality_require_own_image: boolean
           quality_strict_mode: string
           sanitary_license: string | null
@@ -3403,6 +3440,8 @@ export type Database = {
           pharmacist_name?: string | null
           pix_discount_enabled?: boolean
           pix_discount_percentage?: number
+          prescription_email_notify?: boolean
+          prescription_email_to?: string | null
           quality_require_own_image?: boolean
           quality_strict_mode?: string
           sanitary_license?: string | null
@@ -3445,6 +3484,8 @@ export type Database = {
           pharmacist_name?: string | null
           pix_discount_enabled?: boolean
           pix_discount_percentage?: number
+          prescription_email_notify?: boolean
+          prescription_email_to?: string | null
           quality_require_own_image?: boolean
           quality_strict_mode?: string
           sanitary_license?: string | null
