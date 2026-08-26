@@ -371,6 +371,7 @@ export default function Checkout() {
           variant_id: i.variant_id || null,
           quantity: i.quantity,
           expected_unit_price: i.price,
+          prescription_id: i.prescription_id || null,
         })),
         delivery_type: deliveryType,
         customer: { name, email, phone, cpf: cpfDigits || undefined },
