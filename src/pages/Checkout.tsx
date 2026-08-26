@@ -75,6 +75,9 @@ export default function Checkout() {
     message?: string;
   } | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+
 
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
