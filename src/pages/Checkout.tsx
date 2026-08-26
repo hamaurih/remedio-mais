@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
 import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
+
 
 
 
