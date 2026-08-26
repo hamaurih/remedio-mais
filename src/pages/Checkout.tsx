@@ -251,24 +251,51 @@ export default function Checkout() {
     trackInitiateCheckout(items, cartTotal(items));
   }, [items]);
 
+  // CEP inteligente: ao completar 8 dígitos, preenche rua/bairro/cidade/UF.
+  // Número e complemento ficam para o cliente. Erro nunca bloqueia o checkout.
   const lookupCep = async (value: string) => {
-    const c = value.replace(/\D/g, "");
+    const c = onlyDigits(value).slice(0, 8);
     setCep(c);
+    setCepError(null);
     // CEP alterado: coordenadas antigas não valem mais
     invalidateCoords();
-    if (c.length === 8) {
-      try {
-        const r = await fetch(`https://viacep.com.br/ws/${c}/json/`);
-        const d = await r.json();
-        if (!d.erro) {
-          setStreet(d.logradouro || "");
-          setNeighborhood(d.bairro || "");
-          setCity(d.localidade || "");
-          setState(d.uf || "");
-        }
-      } catch { /* ignore */ }
+    if (c.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const parts = await lookupCepAddress(c);
+      if (!parts) {
+        setCepError("CEP não encontrado. Você pode preencher os campos manualmente.");
+        return;
+      }
+      if (parts.street) setStreet(parts.street);
+      if (parts.neighborhood) setNeighborhood(parts.neighborhood);
+      if (parts.city) setCity(parts.city);
+      if (parts.state) setState(parts.state);
+    } catch {
+      setCepError("Não conseguimos consultar o CEP agora. Preencha os campos manualmente.");
+    } finally {
+      setCepLoading(false);
     }
   };
+
+  // Preenche a partir da busca/localização sem apagar número e complemento já digitados.
+  const applyPickedAddress = (a: {
+    cep?: string; street?: string; number?: string; neighborhood?: string;
+    city?: string; state?: string; lat?: number; lng?: number; place_id?: string;
+  }) => {
+    setCepError(null);
+    if (a.cep) setCep(a.cep);
+    if (a.street) setStreet(a.street);
+    if (a.number && !number) setNumber(a.number);
+    if (a.neighborhood) setNeighborhood(a.neighborhood);
+    if (a.city) setCity(a.city);
+    if (a.state) setState(a.state);
+    setLat(typeof a.lat === "number" ? a.lat : null);
+    setLng(typeof a.lng === "number" ? a.lng : null);
+    setPlaceId(a.place_id || null);
+    setDeliveryQuote(null);
+  };
+
 
   const persistCustomerData = async () => {
     if (!user) return;
