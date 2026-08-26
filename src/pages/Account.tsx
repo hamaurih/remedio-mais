@@ -335,8 +335,21 @@ export default function Account() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>CEP</Label>
-                    <Input value={newAddr.cep} onChange={(e) => editGeoField("cep", e.target.value)} />
+                    <div className="relative">
+                      <Input
+                        value={formatCep(newAddr.cep)}
+                        onChange={(e) => onCepChange(e.target.value)}
+                        maxLength={9}
+                        inputMode="numeric"
+                        className="pr-9"
+                      />
+                      {cepLoading && (
+                        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {cepError && <p className="text-xs text-muted-foreground">{cepError}</p>}
                   </div>
+
                   <div className="space-y-1.5">
                     <Label>Cidade</Label>
                     <Input value={newAddr.city} onChange={(e) => editGeoField("city", e.target.value)} />
