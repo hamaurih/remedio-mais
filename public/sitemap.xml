@@ -266,6 +266,41 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/garoto-bombom-sort-cx-220g-55307</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/venlafaxina-150mg-30cap-l-p-50987</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/limp-lingua-hillo-1un-28880</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/rosuvastatina-10mg-30cp-rev-41974</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/esc-dent-kess-perf-cap-mc-2un-52624</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/estriol-1mg-g-cr-derm-apl-50g-24307</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://atacadaodosmedicamentos.com.br/produto/fenticonazol-0-02g-g-cr-vag-40-24767</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/fexofenadina-6mg-ml-liq-60ml-24817</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
@@ -316,16 +351,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/garoto-bombom-sort-cx-220g-55307</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/limp-lingua-hillo-1un-28880</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/levotiroxina-sod-25mcg-30cp-31675</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
@@ -336,22 +361,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/venlafaxina-150mg-30cap-l-p-50987</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/betam-gent-cr-derm-30g-18257</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/esc-dent-kess-perf-cap-mc-2un-52624</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/rosuvastatina-10mg-30cp-rev-41974</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
@@ -11986,11 +11996,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/fenticonazol-0-02g-g-cr-vag-40-24767</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/cefalexina-1g-8cp-rev-8086</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
@@ -12152,11 +12157,6 @@
   </url>
   <url>
     <loc>https://atacadaodosmedicamentos.com.br/produto/etna-1mg-2-5mg-1-5mg-20cap-24324</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://atacadaodosmedicamentos.com.br/produto/estriol-1mg-g-cr-derm-apl-50g-24307</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
