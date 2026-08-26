@@ -17,6 +17,8 @@ import { Loader2, Plus, Trash2, Star, LogOut, MapPin } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
+
 
 export default function Account() {
   const { user, profile, loading } = useAuth();
@@ -91,11 +93,16 @@ export default function Account() {
        neighborhood: "", city: "", state: "", reference: "",
        lat: null, lng: null, place_id: null });
 
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+
   const onPickAddress = (a: SelectedAddress) => {
+    setCepError(null);
     setNewAddr((p) => ({
       ...p,
       street: a.street || p.street,
-      number: a.number || p.number,
+      // não sobrescreve número já digitado
+      number: p.number || a.number || "",
       neighborhood: a.neighborhood || p.neighborhood,
       city: a.city || p.city,
       state: a.state || p.state,
@@ -111,6 +118,34 @@ export default function Account() {
   const editGeoField = (field: "street" | "number" | "neighborhood" | "city" | "state" | "cep", value: string) => {
     setNewAddr((p) => ({ ...p, [field]: value, lat: null, lng: null, place_id: null }));
   };
+
+  // CEP inteligente (não bloqueante): completa rua/bairro/cidade/UF.
+  const onCepChange = async (value: string) => {
+    const c = onlyDigits(value).slice(0, 8);
+    setCepError(null);
+    editGeoField("cep", c);
+    if (c.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const parts = await lookupCepAddress(c);
+      if (!parts) {
+        setCepError("CEP não encontrado. Preencha manualmente.");
+        return;
+      }
+      setNewAddr((p) => ({
+        ...p,
+        street: parts.street || p.street,
+        neighborhood: parts.neighborhood || p.neighborhood,
+        city: parts.city || p.city,
+        state: parts.state || p.state,
+      }));
+    } catch {
+      setCepError("Não conseguimos consultar o CEP agora. Preencha manualmente.");
+    } finally {
+      setCepLoading(false);
+    }
+  };
+
 
   const saveAddress = async () => {
     if (!user) return;
@@ -300,8 +335,21 @@ export default function Account() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>CEP</Label>
-                    <Input value={newAddr.cep} onChange={(e) => editGeoField("cep", e.target.value)} />
+                    <div className="relative">
+                      <Input
+                        value={formatCep(newAddr.cep)}
+                        onChange={(e) => onCepChange(e.target.value)}
+                        maxLength={9}
+                        inputMode="numeric"
+                        className="pr-9"
+                      />
+                      {cepLoading && (
+                        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {cepError && <p className="text-xs text-muted-foreground">{cepError}</p>}
                   </div>
+
                   <div className="space-y-1.5">
                     <Label>Cidade</Label>
                     <Input value={newAddr.city} onChange={(e) => editGeoField("city", e.target.value)} />

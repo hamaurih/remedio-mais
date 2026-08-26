@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { buildInstallmentOptions, maxInstallmentsForTotal } from "@/lib/installments";
 import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
+import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
+
 
 
 
@@ -75,6 +77,9 @@ export default function Checkout() {
     message?: string;
   } | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+
 
   // pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
@@ -248,24 +253,51 @@ export default function Checkout() {
     trackInitiateCheckout(items, cartTotal(items));
   }, [items]);
 
+  // CEP inteligente: ao completar 8 dígitos, preenche rua/bairro/cidade/UF.
+  // Número e complemento ficam para o cliente. Erro nunca bloqueia o checkout.
   const lookupCep = async (value: string) => {
-    const c = value.replace(/\D/g, "");
+    const c = onlyDigits(value).slice(0, 8);
     setCep(c);
+    setCepError(null);
     // CEP alterado: coordenadas antigas não valem mais
     invalidateCoords();
-    if (c.length === 8) {
-      try {
-        const r = await fetch(`https://viacep.com.br/ws/${c}/json/`);
-        const d = await r.json();
-        if (!d.erro) {
-          setStreet(d.logradouro || "");
-          setNeighborhood(d.bairro || "");
-          setCity(d.localidade || "");
-          setState(d.uf || "");
-        }
-      } catch { /* ignore */ }
+    if (c.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const parts = await lookupCepAddress(c);
+      if (!parts) {
+        setCepError("CEP não encontrado. Você pode preencher os campos manualmente.");
+        return;
+      }
+      if (parts.street) setStreet(parts.street);
+      if (parts.neighborhood) setNeighborhood(parts.neighborhood);
+      if (parts.city) setCity(parts.city);
+      if (parts.state) setState(parts.state);
+    } catch {
+      setCepError("Não conseguimos consultar o CEP agora. Preencha os campos manualmente.");
+    } finally {
+      setCepLoading(false);
     }
   };
+
+  // Preenche a partir da busca/localização sem apagar número e complemento já digitados.
+  const applyPickedAddress = (a: {
+    cep?: string; street?: string; number?: string; neighborhood?: string;
+    city?: string; state?: string; lat?: number; lng?: number; place_id?: string;
+  }) => {
+    setCepError(null);
+    if (a.cep) setCep(a.cep);
+    if (a.street) setStreet(a.street);
+    if (a.number && !number) setNumber(a.number);
+    if (a.neighborhood) setNeighborhood(a.neighborhood);
+    if (a.city) setCity(a.city);
+    if (a.state) setState(a.state);
+    setLat(typeof a.lat === "number" ? a.lat : null);
+    setLng(typeof a.lng === "number" ? a.lng : null);
+    setPlaceId(a.place_id || null);
+    setDeliveryQuote(null);
+  };
+
 
   const persistCustomerData = async () => {
     if (!user) return;
@@ -470,29 +502,44 @@ export default function Checkout() {
 
             {deliveryType === "delivery" && selectedAddressId === "new" && (
               <div className="mt-4 space-y-3">
-                <Field label="Buscar endereço (Google)" className="col-span-2">
+                <Field label="Buscar endereço" className="col-span-2">
+
                   <AddressAutocomplete
-                    onSelect={(a) => {
-                      applyAddress({
-                        cep: a.cep || "",
-                        street: a.street || "",
-                        number: a.number || "",
-                        neighborhood: a.neighborhood || "",
-                        city: a.city || "",
-                        state: a.state || "",
+                    onSelect={(a) =>
+                      applyPickedAddress({
+                        cep: a.cep,
+                        street: a.street,
+                        number: a.number,
+                        neighborhood: a.neighborhood,
+                        city: a.city,
+                        state: a.state,
                         lat: a.lat,
                         lng: a.lng,
                         place_id: a.place_id,
-                      });
-                    }}
+                      })
+                    }
                   />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="CEP" className="col-span-2 sm:col-span-1">
-                    <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
+                    <div className="relative">
+                      <Input
+                        value={formatCep(cep)}
+                        onChange={(e) => lookupCep(e.target.value)}
+                        maxLength={9}
+                        inputMode="numeric"
+                        className="pr-9"
+                      />
+                      {cepLoading && (
+                        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {cepError && <p className="mt-1 text-xs text-muted-foreground">{cepError}</p>}
                   </Field>
                   <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => { setStreet(e.target.value); invalidateCoords(); }} /></Field>
-                  <Field label="Número"><Input value={number} onChange={(e) => { setNumber(e.target.value); invalidateCoords(); }} /></Field>
+                  <Field label="Número"><Input value={number} onChange={(e) => { setNumber(e.target.value); invalidateCoords(); }} inputMode="numeric" /></Field>
+
+
                   <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
                   <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => { setNeighborhood(e.target.value); invalidateCoords(); }} /></Field>
                   <Field label="Cidade"><Input value={city} onChange={(e) => { setCity(e.target.value); invalidateCoords(); }} /></Field>
