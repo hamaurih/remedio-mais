@@ -503,28 +503,40 @@ export default function Checkout() {
             {deliveryType === "delivery" && selectedAddressId === "new" && (
               <div className="mt-4 space-y-3">
                 <Field label="Buscar endereço (Google)" className="col-span-2">
+                <Field label="Buscar endereço" className="col-span-2">
                   <AddressAutocomplete
-                    onSelect={(a) => {
-                      applyAddress({
-                        cep: a.cep || "",
-                        street: a.street || "",
-                        number: a.number || "",
-                        neighborhood: a.neighborhood || "",
-                        city: a.city || "",
-                        state: a.state || "",
+                    onSelect={(a) =>
+                      applyPickedAddress({
+                        cep: a.cep,
+                        street: a.street,
+                        number: a.number,
+                        neighborhood: a.neighborhood,
+                        city: a.city,
+                        state: a.state,
                         lat: a.lat,
                         lng: a.lng,
                         place_id: a.place_id,
-                      });
-                    }}
+                      })
+                    }
                   />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="CEP" className="col-span-2 sm:col-span-1">
-                    <Input value={cep} onChange={(e) => lookupCep(e.target.value)} maxLength={9} />
+                    <div className="relative">
+                      <Input
+                        value={formatCep(cep)}
+                        onChange={(e) => lookupCep(e.target.value)}
+                        maxLength={9}
+                        inputMode="numeric"
+                        className="pr-9"
+                      />
+                      {cepLoading && (
+                        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {cepError && <p className="mt-1 text-xs text-muted-foreground">{cepError}</p>}
                   </Field>
-                  <Field label="Rua" className="col-span-2"><Input value={street} onChange={(e) => { setStreet(e.target.value); invalidateCoords(); }} /></Field>
-                  <Field label="Número"><Input value={number} onChange={(e) => { setNumber(e.target.value); invalidateCoords(); }} /></Field>
+
                   <Field label="Complemento"><Input value={complement} onChange={(e) => setComplement(e.target.value)} /></Field>
                   <Field label="Bairro" className="col-span-2"><Input value={neighborhood} onChange={(e) => { setNeighborhood(e.target.value); invalidateCoords(); }} /></Field>
                   <Field label="Cidade"><Input value={city} onChange={(e) => { setCity(e.target.value); invalidateCoords(); }} /></Field>
