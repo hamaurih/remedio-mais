@@ -24,6 +24,7 @@ import { SecureBadge } from "@/components/SecureBadge";
 import { toast } from "sonner";
 import { Seo } from "@/components/Seo";
 import { supabase } from "@/integrations/supabase/client";
+import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
   const [sug, setSug] = useState<GenericSuggestion | null>(null);

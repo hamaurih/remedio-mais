@@ -113,19 +113,39 @@ export async function prepareOrder(
     const stock = variant ? (variant.stock ?? 0) : (p.stock ?? 0);
     if (stock <= 0) return { ok: false, status: 400, body: { success: false, error: `Sem estoque: ${p.name}.` } };
     if (p.controlled || p.requires_prescription) {
-      if (!ci.prescription_id) {
-        return { ok: false, status: 400, body: { success: false, error: `Receita aprovada necessária: ${p.name}.` } };
-      }
-      const { data: rx } = await admin.from("prescriptions")
-        .select("id,product_id,product_ids")
-        .eq("id", ci.prescription_id)
+      // A liberação exige receita aprovada DO PRÓPRIO usuário e aplicável a este
+      // produto. O prescription_id enviado pelo cliente é apenas uma dica: se
+      // estiver ausente/desatualizado, buscamos a receita aprovada do dono para
+      // o produto, sem nunca dispensar a exigência.
+      let query = admin.from("prescriptions")
+        .select("id,product_id,product_ids,status")
         .eq("user_id", userId)
-        .eq("status", "aprovada")
-        .maybeSingle();
-      const coveredProducts = Array.isArray((rx as any)?.product_ids) ? (rx as any).product_ids : [];
-      const coversProduct = !!rx && ((rx as any).product_id === p.id || coveredProducts.includes(p.id));
-      if (!coversProduct) {
-        return { ok: false, status: 400, body: { success: false, error: `A receita aprovada não corresponde a: ${p.name}.` } };
+        .in("status", ["aprovada", "approved"]);
+      if (ci.prescription_id) query = query.eq("id", ci.prescription_id);
+      const { data: rxList } = await query.order("approved_at", { ascending: false }).limit(20);
+      const covering = (rxList || []).find((rx: any) => {
+        const covered = Array.isArray(rx?.product_ids) ? rx.product_ids : [];
+        return rx?.product_id === p.id || covered.includes(p.id);
+      });
+      if (!covering && ci.prescription_id) {
+        const { data: fallback } = await admin.from("prescriptions")
+          .select("id,product_id,product_ids,status")
+          .eq("user_id", userId)
+          .in("status", ["aprovada", "approved"])
+          .order("approved_at", { ascending: false })
+          .limit(20);
+        const alt = (fallback || []).find((rx: any) => {
+          const covered = Array.isArray(rx?.product_ids) ? rx.product_ids : [];
+          return rx?.product_id === p.id || covered.includes(p.id);
+        });
+        if (alt) { ci.prescription_id = alt.id; }
+        else {
+          return { ok: false, status: 400, body: { success: false, error: `A receita aprovada não corresponde a: ${p.name}.` } };
+        }
+      } else if (!covering) {
+        return { ok: false, status: 400, body: { success: false, error: `Receita aprovada necessária: ${p.name}.` } };
+      } else {
+        ci.prescription_id = covering.id;
       }
     }
     const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, stock));
