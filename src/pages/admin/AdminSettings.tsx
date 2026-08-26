@@ -78,7 +78,9 @@ export default function AdminSettings() {
             <TabsTrigger value="entrega">Entrega</TabsTrigger>
             <TabsTrigger value="pix">Pix</TabsTrigger>
             <TabsTrigger value="home">Home</TabsTrigger>
+            <TabsTrigger value="receitas">Receitas</TabsTrigger>
             <TabsTrigger value="legal">Legal / Sanitário</TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="loja" className="space-y-3 pt-3">

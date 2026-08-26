@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { safeLog, safeError, maskId, maskPath, maskPhone } from "../_shared/mask.ts";
+import { notifyNewPrescriptionByEmail } from "../_shared/prescription-email.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
