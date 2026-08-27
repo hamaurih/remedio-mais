@@ -22,6 +22,18 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("node_modules/xlsx") || id.includes("node_modules/papaparse") || id.includes("node_modules/fast-xml-parser")) {
             return "admin-import-parsers";
           }
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/scheduler/")) {
+            return "react-vendor";
+          }
+          if (id.includes("node_modules/react-router") || id.includes("node_modules/@remix-run/router")) {
+            return "router-vendor";
+          }
+          if (id.includes("node_modules/@tanstack/")) {
+            return "query-vendor";
+          }
+          if (id.includes("node_modules/@supabase/")) {
+            return "supabase-vendor";
+          }
         },
       },
     },
