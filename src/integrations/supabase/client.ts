@@ -16,3 +16,65 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Compatibilidade temporária da produção: o frontend publicado ainda pode apontar
+// para uma instância cujo RPC admin_products_list não conhece EAN/código de barras.
+// Quando a busca administrativa por um código numérico vier vazia, fazemos uma
+// segunda consulta direta e estritamente somente-leitura na tabela products.
+// Isso não altera dados e pode ser removido após o cutover definitivo do Supabase.
+const originalRpc = (supabase as any).rpc.bind(supabase);
+
+(supabase as any).rpc = async (fn: string, args?: Record<string, any>, options?: any) => {
+  const response = await originalRpc(fn, args, options);
+
+  if (
+    fn !== "admin_products_list" ||
+    response?.error ||
+    !args?._search ||
+    (Array.isArray(response?.data?.rows) && response.data.rows.length > 0)
+  ) {
+    return response;
+  }
+
+  const code = String(args._search).replace(/\s+/g, "").trim();
+  if (!/^\d{6,18}$/.test(code)) return response;
+
+  const status = String(args?._status || "all");
+  if (!["all", "active", "inactive"].includes(status)) return response;
+
+  try {
+    const page = Math.max(Number(args?._page) || 1, 1);
+    const pageSize = Math.min(Math.max(Number(args?._page_size) || 50, 1), 200);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = (supabase as any)
+      .from("products")
+      .select("*, categories(name)", { count: "exact" })
+      .or(`barcode.eq.${code},trier_barcode.eq.${code},sku.eq.${code},trier_product_id.eq.${code}`);
+
+    if (args?._category_id) query = query.eq("category_id", args._category_id);
+    if (args?._manufacturer) query = query.eq("manufacturer", args._manufacturer);
+    if (status === "active") query = query.eq("active", true);
+    if (status === "inactive") query = query.eq("active", false);
+
+    const direct = await query.range(from, to);
+    if (direct?.error || !Array.isArray(direct?.data) || direct.data.length === 0) {
+      return response;
+    }
+
+    return {
+      ...response,
+      error: null,
+      data: {
+        rows: direct.data,
+        total: direct.count ?? direct.data.length,
+        page,
+        page_size: pageSize,
+      },
+    };
+  } catch {
+    // Nunca transforma uma busca vazia em erro de produção.
+    return response;
+  }
+};
