@@ -18,6 +18,7 @@ import { ProductVariantsManager } from "@/components/admin/ProductVariantsManage
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
 import { CommercialClassificationTab } from "@/components/admin/CommercialClassificationTab";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const SHELVES = [
   { slug: "ofertas-da-semana", label: "Ofertas da Semana" },
@@ -59,6 +60,7 @@ const loadAdminProductDetail = async (id: string) => {
 
 export default function AdminProducts() {
   const qc = useQueryClient();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
@@ -327,7 +329,12 @@ export default function AdminProducts() {
 
   const [bulkBusy, setBulkBusy] = useState(false);
   const forceActivateAllTrierInactive = async () => {
-    if (!confirm("Forçar ativação de TODOS os produtos com estoque que estão inativos no Trier?")) return;
+    const approved = await confirmAction({
+      title: "Ativar produtos inativos no Trier?",
+      description: "Todos os produtos com estoque maior que zero, marcados como inativos no Trier e sem bloqueio manual serão forçados como ativos no site. Esta ação pode afetar muitos produtos de uma vez.",
+      confirmLabel: "Ativar produtos",
+    });
+    if (!approved) return;
     setBulkBusy(true);
     const { data, error } = await supabase
       .from("products")
@@ -344,10 +351,21 @@ export default function AdminProducts() {
 
 
   const remove = async (id: string) => {
-    if (!confirm("Excluir produto definitivamente?")) return;
+    const approved = await confirmAction({
+      title: "Excluir produto definitivamente?",
+      description: "O produto será removido do banco de dados. Esta ação é destrutiva e pode afetar vínculos, vitrines, campanhas e histórico operacional associado ao cadastro.",
+      confirmLabel: "Excluir produto",
+      destructive: true,
+    });
+    if (!approved) return false;
     const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Excluído"); qc.invalidateQueries({ queryKey: ["admin_products"] }); }
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+    toast.success("Excluído");
+    qc.invalidateQueries({ queryKey: ["admin_products"] });
+    return true;
   };
 
   const discountPct = useMemo(() => {
@@ -360,6 +378,7 @@ export default function AdminProducts() {
 
   return (
     <div className="p-6">
+      {confirmDialog}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-extrabold">Produtos</h1>
         <div className="flex gap-2">
@@ -861,7 +880,7 @@ export default function AdminProducts() {
             <Button onClick={() => save(false)} className="flex-1">Salvar</Button>
             <Button variant="outline" onClick={() => save(true)}>Salvar e continuar</Button>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-            {editing.id && <Button variant="ghost" className="text-primary" onClick={() => { remove(editing.id); setOpen(false); }}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button>}
+            {editing.id && <Button variant="ghost" className="text-primary" onClick={async () => { const removed = await remove(editing.id); if (removed) setOpen(false); }}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button>}
           </div>
         </DialogContent>
       </Dialog>
@@ -1005,4 +1024,3 @@ function TrierStockSyncButton({
     </div>
   );
 }
-
