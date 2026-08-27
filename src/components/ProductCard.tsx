@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
@@ -38,7 +39,7 @@ const BADGE_STYLE: Record<Exclude<BadgeKind, null>, { label: string; cls: string
   novo: { label: "Novo", cls: "bg-sky-600 text-white" },
 };
 
-export function ProductCard({ p }: { p: Product }) {
+export const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
   const finalPrice = p.promo_price ?? p.price;
   const hasDiscount = !!p.promo_price && p.promo_price < p.price;
   const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
@@ -143,4 +144,4 @@ export function ProductCard({ p }: { p: Product }) {
       </div>
     </article>
   );
-}
+});
