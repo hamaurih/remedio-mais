@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
@@ -37,7 +37,7 @@ function isActive(b: HeroBannerRow): boolean {
   return true;
 }
 
-export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
+export const HeroPromoCarousel = memo(function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
   const activeSlides = useMemo(
     () => (slides || []).filter(isActive).map((b) => applyVisualModel(b)),
     [slides],
@@ -78,7 +78,6 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
     prefersReducedMotion ? [] : [autoplay.current],
   );
 
-  // Keep autoplay delay in sync with computed delay after banner data loads.
   useEffect(() => {
     const ap = autoplay.current as any;
     if (!ap) return;
@@ -127,8 +126,6 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
       setPaused(true);
     }
   };
-
-  // filtered always contains at least the FALLBACK slide
 
   const viewportStyle: React.CSSProperties = isMobile
     ? {
@@ -190,10 +187,6 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
           </div>
         </div>
 
-
-
-
-        {/* Arrows */}
         {filtered.length > 1 && (
           <>
             <button
@@ -213,7 +206,6 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
               <ChevronRight className="h-5 w-5" />
             </button>
 
-            {/* Pause/play */}
             <button
               type="button"
               onClick={togglePause}
@@ -223,7 +215,6 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
               {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
             </button>
 
-            {/* Dots */}
             <div
               className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2"
               role="tablist"
@@ -251,4 +242,4 @@ export function HeroPromoCarousel({ slides, defaultDelay = 4000 }: Props) {
       </div>
     </section>
   );
-}
+});
