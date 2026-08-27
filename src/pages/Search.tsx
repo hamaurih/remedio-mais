@@ -51,6 +51,8 @@ export default function Search() {
         `active_ingredient.ilike.%${term}%`,
         `category_name.ilike.%${term}%`,
         numeric ? `barcode.eq.${term}` : null,
+        numeric ? `trier_barcode.eq.${term}` : null,
+        numeric ? `sku.eq.${term}` : null,
       ]
         .filter(Boolean)
         .join(",");
