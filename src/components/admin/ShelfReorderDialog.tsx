@@ -14,6 +14,9 @@ type Row = {
   manufacturer: string | null;
   price: number;
   stock: number | null;
+  sku: string | null;
+  barcode: string | null;
+  trier_barcode: string | null;
 };
 
 interface Props {
@@ -23,7 +26,7 @@ interface Props {
   shelfTitle: string;
 }
 
-const SELECT = "id,name,image_url,manufacturer,price,stock";
+const SELECT = "id,name,image_url,manufacturer,price,stock,sku,barcode,trier_barcode";
 
 export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }: Props) {
   const qc = useQueryClient();
@@ -50,12 +53,20 @@ export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }:
 
   useEffect(() => {
     const t = setTimeout(async () => {
-      if (search.trim().length < 2) { setResults([]); return; }
+      const clean = search.trim().replace(/[%_]/g, "");
+      if (clean.length < 2) { setResults([]); return; }
+      const term = `%${clean}%`;
       const { data } = await (supabase as any)
         .from("products")
         .select(SELECT)
         .eq("active", true)
-        .ilike("name", `%${search.trim()}%`)
+        .or([
+          `name.ilike.${term}`,
+          `manufacturer.ilike.${term}`,
+          `sku.ilike.${term}`,
+          `barcode.ilike.${term}`,
+          `trier_barcode.ilike.${term}`,
+        ].join(","))
         .limit(10);
       setResults(((data || []) as Row[]).filter((r) => !items.find((i) => i.id === r.id)));
     }, 250);
@@ -111,7 +122,7 @@ export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }:
 
         <div className="relative">
           <Search className="h-4 w-4 absolute left-2 top-3 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Buscar produto para adicionar..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder="Buscar por nome, SKU ou código de barras..." value={search} onChange={(e) => setSearch(e.target.value)} />
           {results.length > 0 && (
             <div className="absolute z-20 mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
               {results.map((r) => (
@@ -119,7 +130,9 @@ export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }:
                   {r.image_url && <img src={r.image_url} alt="" className="h-8 w-8 object-contain shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <div className="truncate">{r.name}</div>
-                    {r.manufacturer && <div className="text-xs text-muted-foreground truncate">{r.manufacturer}</div>}
+                    <div className="text-xs text-muted-foreground truncate">
+                      {[r.manufacturer, r.barcode || r.sku].filter(Boolean).join(" • ")}
+                    </div>
                   </div>
                   <Plus className="h-4 w-4 text-primary" />
                 </button>
