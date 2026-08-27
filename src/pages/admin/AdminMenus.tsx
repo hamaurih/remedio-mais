@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, ArrowUp, ArrowDown, Plus, Activity, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PAGE_KEYS, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const AREAS: { value: string; label: string }[] = [
   { value: "header_main", label: "Header principal" },
@@ -46,6 +47,7 @@ const emptyItem = (area: string): Partial<MenuItem> => ({
 
 export default function AdminMenus() {
   const qc = useQueryClient();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [area, setArea] = useState("header_main");
   const [editing, setEditing] = useState<Partial<MenuItem> | null>(null);
   const [diagOpen, setDiagOpen] = useState(false);
@@ -109,9 +111,19 @@ export default function AdminMenus() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Excluir este item de menu?")) return;
+    const item = items.find((it) => it.id === id);
+    const approved = await confirmAction({
+      title: "Excluir item de menu?",
+      description: item?.label
+        ? `O item \"${item.label}\" será removido desta área do menu. Esta ação não exclui a página, categoria, produto ou campanha vinculada.`
+        : "O item será removido desta área do menu. Esta ação não exclui o conteúdo vinculado.",
+      confirmLabel: "Excluir item",
+      destructive: true,
+    });
+    if (!approved) return;
     const { error } = await (supabase as any).from("menu_items").delete().eq("id", id);
     if (error) return toast.error(error.message);
+    toast.success("Item de menu excluído");
     refresh();
   }
 
@@ -132,6 +144,7 @@ export default function AdminMenus() {
 
   return (
     <div className="p-6 space-y-4">
+      {confirmDialog}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Menus</h1>
