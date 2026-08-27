@@ -40,6 +40,7 @@ const AdminBranchNew = lazy(() => import("./pages/admin/AdminBranchNew.tsx"));
 const AdminBranchCompliance = lazy(() => import("./pages/admin/AdminBranchCompliance.tsx"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.tsx"));
 const AdminProductsCanary = lazy(() => import("./pages/admin/products/AdminProductsCanary.tsx"));
+const AdminProductEditorCanary = lazy(() => import("./pages/admin/products/AdminProductEditorCanary.tsx"));
 const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport.tsx"));
 const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
 const AdminStock = lazy(() => import("./pages/admin/AdminStock.tsx"));
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="pdv/indicadores" element={<PdvDashboard />} />
               <Route path="produtos" element={<AdminProducts />} />
               <Route path="produtos-v2" element={<AdminProductsCanary />} />
+              <Route path="produtos-editor-v2" element={<AdminProductEditorCanary />} />
               <Route path="produtos/importar" element={<AdminProductsImport />} />
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
               <Route path="estoque" element={<AdminStock />} />
