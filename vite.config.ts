@@ -16,6 +16,15 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: "es2020",
     cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/xlsx") || id.includes("node_modules/papaparse") || id.includes("node_modules/fast-xml-parser")) {
+            return "admin-import-parsers";
+          }
+        },
+      },
+    },
   },
   resolve: {
     alias: {
