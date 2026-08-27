@@ -14,12 +14,17 @@ type Row = {
   manufacturer: string | null;
   price: number;
   bestseller_rank: number | null;
+  sku: string | null;
+  barcode: string | null;
+  trier_barcode: string | null;
 };
 
 interface Props {
   open: boolean;
   onOpenChange: (b: boolean) => void;
 }
+
+const SELECT = "id,name,image_url,manufacturer,price,bestseller_rank,sku,barcode,trier_barcode";
 
 export function BestsellersReorderDialog({ open, onOpenChange }: Props) {
   const qc = useQueryClient();
@@ -32,9 +37,9 @@ export function BestsellersReorderDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("products")
-        .select("id,name,image_url,manufacturer,price,bestseller_rank")
+        .select(SELECT)
         .not("bestseller_rank", "is", null)
         .order("bestseller_rank", { ascending: true });
       setItems((data || []) as Row[]);
@@ -44,12 +49,20 @@ export function BestsellersReorderDialog({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     const t = setTimeout(async () => {
-      if (search.length < 2) { setResults([]); return; }
-      const { data } = await supabase
+      const clean = search.trim().replace(/[%_]/g, "");
+      if (clean.length < 2) { setResults([]); return; }
+      const term = `%${clean}%`;
+      const { data } = await (supabase as any)
         .from("products")
-        .select("id,name,image_url,manufacturer,price,bestseller_rank")
+        .select(SELECT)
         .eq("active", true)
-        .ilike("name", `%${search}%`)
+        .or([
+          `name.ilike.${term}`,
+          `manufacturer.ilike.${term}`,
+          `sku.ilike.${term}`,
+          `barcode.ilike.${term}`,
+          `trier_barcode.ilike.${term}`,
+        ].join(","))
         .limit(10);
       setResults(((data || []) as Row[]).filter((r) => !items.find((i) => i.id === r.id)));
     }, 250);
@@ -101,7 +114,7 @@ export function BestsellersReorderDialog({ open, onOpenChange }: Props) {
 
         <div className="relative">
           <Search className="h-4 w-4 absolute left-2 top-3 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Adicionar produto..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder="Buscar por nome, SKU ou código de barras..." value={search} onChange={(e) => setSearch(e.target.value)} />
           {results.length > 0 && (
             <div className="absolute z-20 mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
               {results.map((r) => (
@@ -109,7 +122,9 @@ export function BestsellersReorderDialog({ open, onOpenChange }: Props) {
                   {r.image_url && <img src={r.image_url} alt="" className="h-8 w-8 object-contain shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <div className="truncate">{r.name}</div>
-                    {r.manufacturer && <div className="text-xs text-muted-foreground truncate">{r.manufacturer}</div>}
+                    <div className="text-xs text-muted-foreground truncate">
+                      {[r.manufacturer, r.barcode || r.sku].filter(Boolean).join(" • ")}
+                    </div>
                   </div>
                   <Plus className="h-4 w-4 text-primary" />
                 </button>
@@ -134,7 +149,9 @@ export function BestsellersReorderDialog({ open, onOpenChange }: Props) {
               )}
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{it.name}</div>
-                {it.manufacturer && <div className="text-[11px] text-muted-foreground truncate">{it.manufacturer}</div>}
+                <div className="text-[11px] text-muted-foreground truncate">
+                  {[it.manufacturer, it.barcode || it.sku].filter(Boolean).join(" • ")}
+                </div>
               </div>
               <Button size="icon" variant="ghost" onClick={() => move(idx, -1)} disabled={idx === 0}><ArrowUp className="h-4 w-4" /></Button>
               <Button size="icon" variant="ghost" onClick={() => move(idx, 1)} disabled={idx === items.length - 1}><ArrowDown className="h-4 w-4" /></Button>
