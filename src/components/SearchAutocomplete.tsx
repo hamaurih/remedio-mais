@@ -17,6 +17,8 @@ type Suggestion = {
   image_url: string | null;
   manufacturer: string | null;
   category_name: string | null;
+  barcode: string | null;
+  trier_barcode: string | null;
 };
 
 const MAX = 8;
@@ -72,13 +74,15 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
       `manufacturer.ilike.%${term}%`,
       `active_ingredient.ilike.%${term}%`,
       numeric ? `barcode.eq.${term}` : null,
+      numeric ? `trier_barcode.eq.${term}` : null,
+      numeric ? `sku.eq.${term}` : null,
     ]
       .filter(Boolean)
       .join(",");
 
     supabase
       .from("products")
-      .select("id,name,slug,price,promo_price,on_sale,requires_prescription,image_url,manufacturer,category_name")
+      .select("id,name,slug,price,promo_price,on_sale,requires_prescription,image_url,manufacturer,category_name,barcode,trier_barcode")
       .eq("active", true)
       .gt("stock", 0)
       .or(orFilter)
@@ -87,6 +91,11 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
         if (cancel) return;
         const rows = (data ?? []) as Suggestion[];
         rows.sort((a, b) => {
+          if (numeric) {
+            const aExact = a.barcode === term || a.trier_barcode === term;
+            const bExact = b.barcode === term || b.trier_barcode === term;
+            if (aExact !== bExact) return aExact ? -1 : 1;
+          }
           const ra = rank(a.name, term);
           const rb = rank(b.name, term);
           if (ra !== rb) return ra - rb;
@@ -154,7 +163,7 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
           }}
           onFocus={() => q.trim().length >= 2 && setOpen(true)}
           onKeyDown={onKey}
-          placeholder="Busque por produto, marca ou princípio ativo"
+          placeholder="Busque por produto, marca, princípio ativo ou código de barras"
           className={`pl-10 pr-10 ${compact ? "h-10" : "h-11"} rounded-full bg-secondary border-transparent focus-visible:ring-primary w-full`}
           aria-autocomplete="list"
           aria-expanded={open}
