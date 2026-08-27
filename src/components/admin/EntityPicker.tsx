@@ -32,16 +32,26 @@ export function EntityPicker({ kind, value, onPick, placeholder }: Props) {
         setResults([]);
         return;
       }
-      const term = `%${search}%`;
+      const clean = search.trim().replace(/[%_]/g, "");
+      const term = `%${clean}%`;
       if (kind === "product") {
         const { data } = await (supabase as any)
           .from("products")
           .select(
-            "id,name,slug,image_url,short_description,sku,barcode,laboratory,category_name,on_sale,requires_prescription,controlled,price,promo_price,manufacturer",
+            "id,name,slug,image_url,short_description,sku,barcode,trier_barcode,trier_product_id,laboratory,category_name,on_sale,requires_prescription,controlled,price,promo_price,manufacturer",
           )
           .eq("active", true)
           .or(
-            `name.ilike.${term},sku.ilike.${term},barcode.ilike.${term},laboratory.ilike.${term},category_name.ilike.${term}`,
+            [
+              `name.ilike.${term}`,
+              `sku.ilike.${term}`,
+              `barcode.ilike.${term}`,
+              `trier_barcode.ilike.${term}`,
+              `trier_product_id.ilike.${term}`,
+              `laboratory.ilike.${term}`,
+              `manufacturer.ilike.${term}`,
+              `category_name.ilike.${term}`,
+            ].join(","),
           )
           .limit(15);
         setResults(
@@ -50,7 +60,7 @@ export function EntityPicker({ kind, value, onPick, placeholder }: Props) {
             name: p.name,
             slug: p.slug,
             image_url: p.image_url,
-            subtitle: p.laboratory || p.category_name || p.short_description,
+            subtitle: p.laboratory || p.manufacturer || p.category_name || p.short_description,
             raw: p,
           })),
         );
@@ -120,7 +130,7 @@ export function EntityPicker({ kind, value, onPick, placeholder }: Props) {
     <div className="relative">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <Input
-        placeholder={placeholder || "Buscar…"}
+        placeholder={placeholder || (kind === "product" ? "Buscar por nome, SKU ou código de barras…" : "Buscar…")}
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
