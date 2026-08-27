@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { EntityPicker, type PickedEntity } from "@/components/admin/EntityPicker";
 import type { MosaicTile } from "@/components/PromoMosaic";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const BG_OPTIONS = [
   { value: "soft-pink", label: "Rosa suave" },
@@ -56,6 +57,7 @@ type ExtendedTile = MosaicTile & {
 };
 
 export default function AdminMosaic() {
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [tiles, setTiles] = useState<ExtendedTile[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickedEntities, setPickedEntities] = useState<Record<string, PickedEntity | null>>({});
@@ -219,19 +221,30 @@ export default function AdminMosaic() {
   };
 
   const removeTile = async (id: string) => {
-    if (!confirm("Remover este bloco?")) return;
+    const tile = tiles.find((t) => t.id === id);
+    const approved = await confirmAction({
+      title: "Remover bloco do mosaico?",
+      description: tile?.title
+        ? `O bloco \"${tile.title}\" será removido da Home. O produto, categoria ou campanha vinculada não será excluído.`
+        : "O bloco será removido da Home. O conteúdo vinculado não será excluído.",
+      confirmLabel: "Remover bloco",
+      destructive: true,
+    });
+    if (!approved) return;
     const { error } = await (supabase as any)
       .from("home_mosaic_tiles")
       .delete()
       .eq("id", id);
     if (error) return toast.error(error.message);
     setTiles((ts) => ts.filter((t) => t.id !== id));
+    toast.success("Bloco removido");
   };
 
   if (loading) return <div className="p-6">Carregando…</div>;
 
   return (
     <div className="p-6 max-w-5xl">
+      {confirmDialog}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-extrabold">Mosaico da Home</h1>
