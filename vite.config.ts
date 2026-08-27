@@ -16,6 +16,12 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: "es2020",
     cssCodeSplit: true,
+    modulePreload: {
+      resolveDependencies: (_filename, deps, context) =>
+        context.hostType === "html"
+          ? deps.filter((dep) => !dep.includes("admin-import-parsers"))
+          : deps,
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {
