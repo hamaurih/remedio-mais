@@ -10,9 +10,11 @@ import { formatBRL } from "@/lib/store";
 import { toast } from "sonner";
 import { AlertTriangle, Edit, X, Plus } from "lucide-react";
 import { EntityPicker } from "@/components/admin/EntityPicker";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 export default function AdminOffers() {
   const qc = useQueryClient();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [filter, setFilter] = useState("active");
   const [editing, setEditing] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -38,7 +40,13 @@ export default function AdminOffers() {
   }, [data, filter]);
 
   const removeFromOffer = async (p: any) => {
-    if (!confirm(`Remover "${p.name}" das ofertas?`)) return;
+    const approved = await confirmAction({
+      title: "Remover produto das ofertas?",
+      description: `\"${p.name}\" perderá o preço promocional, as datas da promoção e a associação com a vitrine Ofertas da Semana.`,
+      confirmLabel: "Remover das ofertas",
+      destructive: true,
+    });
+    if (!approved) return;
     const shelves = (p.shelves || []).filter((s: string) => s !== "ofertas-da-semana");
     await supabase.from("products").update({ on_sale: false, promo_price: null, promotion_start: null, promotion_end: null, shelves, lock_promotion: false, promotion_source: "none", lock_manual_price: false }).eq("id", p.id);
     qc.invalidateQueries({ queryKey: ["admin_offers"] });
@@ -54,8 +62,6 @@ export default function AdminOffers() {
       product_badge: editing.product_badge || null,
       on_sale: true,
       shelves,
-      // Protege APENAS a promoção. O preço normal continua sendo atualizado
-      // pelo sistema da farmácia, salvo trava explícita do admin.
       lock_promotion: true,
       promotion_source: "manual",
       lock_base_price: !!editing.lock_base_price,
@@ -67,6 +73,7 @@ export default function AdminOffers() {
 
   return (
     <div className="p-6">
+      {confirmDialog}
       <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-extrabold">Ofertas da Semana</h1>
