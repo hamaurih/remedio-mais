@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard, Product } from "./ProductCard";
@@ -26,7 +26,7 @@ export interface ProductShelfProps {
   autoplayMs?: number;
 }
 
-export function ProductShelf({
+export const ProductShelf = memo(function ProductShelf({
   title,
   subtitle,
   products,
@@ -147,4 +147,4 @@ export function ProductShelf({
       </div>
     </section>
   );
-}
+});
