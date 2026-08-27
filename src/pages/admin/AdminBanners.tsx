@@ -16,6 +16,7 @@ import { HeroSlideImage } from "@/components/hero/HeroSlideImage";
 import { EntityPicker, type PickedEntity, type PickerKind } from "@/components/admin/EntityPicker";
 import { HERO_SIZE_OPTIONS, HERO_SIZES, type HeroSizeVariant } from "@/lib/heroSizes";
 import { HERO_VISUAL_MODEL_OPTIONS } from "@/lib/heroVisualModels";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const PLACEMENTS = [
   { v: "hero", l: "Hero principal" },
@@ -106,6 +107,7 @@ const empty: any = {
 
 export default function AdminBanners() {
   const qc = useQueryClient();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const [file, setFile] = useState<File | null>(null);
@@ -182,7 +184,16 @@ export default function AdminBanners() {
     qc.invalidateQueries({ queryKey: ["admin_banners"] });
   };
   const remove = async (id: string) => {
-    if (!confirm("Excluir banner?")) return;
+    const banner = data?.find((b: any) => b.id === id);
+    const approved = await confirmAction({
+      title: "Excluir banner?",
+      description: banner?.title
+        ? `O banner \"${banner.title}\" será removido. Esta ação não exclui produtos, categorias ou campanhas vinculadas.`
+        : "O banner será removido. Esta ação não exclui produtos, categorias ou campanhas vinculadas.",
+      confirmLabel: "Excluir banner",
+      destructive: true,
+    });
+    if (!approved) return;
     const { error } = await (supabase as any).from("banners").delete().eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Excluído"); qc.invalidateQueries({ queryKey: ["admin_banners"] }); }
   };
@@ -236,6 +247,7 @@ export default function AdminBanners() {
 
   return (
     <div className="p-6">
+      {confirmDialog}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-extrabold">Banners</h1>
         <div className="flex gap-2">
