@@ -31,6 +31,7 @@ import {
 } from "@/hooks/useCustomShelves";
 import { toast } from "sonner";
 import { LayoutList, Settings2, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const BG_OPTIONS = [
   { value: "white", label: "Branco" },
@@ -61,6 +62,7 @@ const emptyDraft: Draft = {
 };
 
 export default function AdminHomeShelves() {
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [openTitle, setOpenTitle] = useState<string>("");
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -159,8 +161,13 @@ export default function AdminHomeShelves() {
   };
 
   const removeShelf = async (shelf: CustomShelf) => {
-    if (!confirm(`Excluir a vitrine "${shelf.title}"? Os produtos fixados nela serão desvinculados.`))
-      return;
+    const approved = await confirmAction({
+      title: "Excluir vitrine personalizada?",
+      description: `A vitrine \"${shelf.title}\" será excluída da Home e os produtos fixados nela serão apenas desvinculados. Os produtos não serão excluídos do catálogo.`,
+      confirmLabel: "Excluir vitrine",
+      destructive: true,
+    });
+    if (!approved) return;
     try {
       await (supabase as any).from("home_shelf_items").delete().eq("shelf_key", shelf.shelf_key);
       await (supabase as any)
@@ -182,6 +189,7 @@ export default function AdminHomeShelves() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold flex items-center gap-2">
