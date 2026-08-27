@@ -4,21 +4,15 @@ import {
   DollarSign, TrendingUp, Boxes, Activity, Barcode,
 } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { formatBRL } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, BarChart, Legend,
-} from "recharts";
+import { AdminDashboardCharts } from "@/components/admin/dashboard/AdminDashboardCharts";
 import {
   ADMIN_DASHBOARD_RANGES,
   useAdminDashboardData,
 } from "@/hooks/admin/useAdminDashboardData";
-
-const PALETTE = ["hsl(var(--primary))", "#16a34a", "#f59e0b", "#0ea5e9", "#a855f7", "#ef4444", "#14b8a6", "#f43f5e"];
 
 export default function AdminDashboard() {
   const {
@@ -104,118 +98,17 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Receita & Pedidos</CardTitle>
-            <Badge variant="outline">{days} dias</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              {series.data && series.data.some((d) => d.receita || d.pedidos) ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={series.data}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(d) => format(new Date(d), days > 90 ? "MMM" : "dd/MM", { locale: ptBR })}
-                      fontSize={12}
-                    />
-                    <YAxis yAxisId="left" fontSize={12} tickFormatter={(v) => `R$${v}`} />
-                    <YAxis yAxisId="right" orientation="right" fontSize={12} />
-                    <Tooltip
-                      formatter={(v: any, name) => name === "Receita" ? formatBRL(Number(v)) : v}
-                      labelFormatter={(d) => format(new Date(d), "dd/MM/yyyy")}
-                    />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="receita" name="Receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Line yAxisId="right" dataKey="pedidos" name="Pedidos" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart text="Ainda sem pedidos no período. O gráfico aparece automaticamente assim que entrarem vendas." />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Status de pagamento</CardTitle></CardHeader>
-          <CardContent>
-            <div className="h-72">
-              {k && (k.ordersPaid + k.ordersPending + k.ordersCancelled) > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      dataKey="value"
-                      data={[
-                        { name: "Pagos", value: k.ordersPaid },
-                        { name: "Pendentes", value: k.ordersPending },
-                        { name: "Cancelados", value: k.ordersCancelled },
-                      ]}
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={3}
-                    >
-                      {["#16a34a", "#f59e0b", "#ef4444"].map((c, i) => <Cell key={i} fill={c} />)}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart text="Sem pedidos cadastrados ainda." />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle>Top 10 — Mais vendidos ({days}d)</CardTitle></CardHeader>
-          <CardContent>
-            <div className="h-80">
-              {topProducts.data && topProducts.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topProducts.data} layout="vertical" margin={{ left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis type="number" fontSize={12} />
-                    <YAxis dataKey="name" type="category" width={140} fontSize={11} tickFormatter={(v) => v.length > 22 ? v.slice(0, 22) + "…" : v} />
-                    <Tooltip formatter={(v, n) => n === "receita" ? formatBRL(Number(v)) : v} />
-                    <Bar dataKey="qtd" name="Quantidade" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart text="Os campeões de venda aparecem aqui assim que houver pedidos pagos no período." />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Catálogo por categoria</CardTitle></CardHeader>
-          <CardContent>
-            <div className="h-80">
-              {catalog.data && catalog.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={catalog.data} margin={{ bottom: 50 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="name" fontSize={11} angle={-30} textAnchor="end" interval={0} height={60} />
-                    <YAxis fontSize={12} />
-                    <Tooltip formatter={(v, n) => n === "valor" ? formatBRL(Number(v)) : v} />
-                    <Bar dataKey="qtd" name="Produtos" radius={[4, 4, 0, 0]}>
-                      {catalog.data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart text="Sem categorias ativas." />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AdminDashboardCharts
+        days={days}
+        series={series.data}
+        topProducts={topProducts.data}
+        catalog={catalog.data}
+        paymentStatus={k ? {
+          paid: k.ordersPaid,
+          pending: k.ordersPending,
+          cancelled: k.ordersCancelled,
+        } : undefined}
+      />
 
       <div className="grid lg:grid-cols-3 gap-4">
         <Card>
@@ -290,14 +183,6 @@ function KpiCard({
       </div>
       <div className={`text-3xl font-extrabold mt-2 tabular-nums ${accent ? "text-primary" : ""}`}>{value}</div>
       {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
-    </div>
-  );
-}
-
-function EmptyChart({ text }: { text: string }) {
-  return (
-    <div className="h-full flex items-center justify-center text-center text-sm text-muted-foreground px-6">
-      {text}
     </div>
   );
 }
