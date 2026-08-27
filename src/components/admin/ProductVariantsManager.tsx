@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Trash2, Plus, ArrowUp, ArrowDown, Upload, CheckCircle2, AlertTriangle, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
 import { EntityPicker, type PickedEntity } from "./EntityPicker";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type Variant = {
   id?: string;
@@ -28,6 +29,7 @@ type Variant = {
 const TYPES = ["tamanho", "volume", "sabor", "quantidade", "apresentação", "cor"];
 
 export function ProductVariantsManager({ productId, onChangeSummary }: { productId: string; onChangeSummary?: (info: { count: number; hasAnyStock: boolean }) => void }) {
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [rows, setRows] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(false);
   const [parent, setParent] = useState<{ name?: string; has_variants?: boolean; active?: boolean } | null>(null);
@@ -118,7 +120,13 @@ export function ProductVariantsManager({ productId, onChangeSummary }: { product
   const remove = async (idx: number) => {
     const row = rows[idx];
     if (row.id) {
-      if (!confirm("Excluir variação definitivamente?")) return;
+      const approved = await confirmAction({
+        title: "Excluir variação definitivamente?",
+        description: `A variação \"${row.name || row.variation_value || "sem nome"}\" será removida do cadastro do produto. Esta ação não exclui o produto pai.`,
+        confirmLabel: "Excluir variação",
+        destructive: true,
+      });
+      if (!approved) return;
       const { error } = await supabase.from("product_variants").delete().eq("id", row.id);
       if (error) { toast.error(error.message); return; }
     }
@@ -188,6 +196,7 @@ export function ProductVariantsManager({ productId, onChangeSummary }: { product
 
   return (
     <div className="space-y-3">
+      {confirmDialog}
       <div className="flex items-center justify-between">
         <div>
           <div className="font-bold">Variações do produto</div>
