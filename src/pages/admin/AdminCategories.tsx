@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const empty: any = {
   id: "", name: "", slug: "", description: "", icon: "", image_url: "",
@@ -26,12 +27,12 @@ const MACRO_GROUPS = [
   "Primeiros Socorros",
 ];
 
-
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 export default function AdminCategories() {
   const qc = useQueryClient();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const [file, setFile] = useState<File | null>(null);
@@ -70,7 +71,13 @@ export default function AdminCategories() {
     qc.invalidateQueries({ queryKey: ["admin_cats"] });
   };
   const remove = async (id: string) => {
-    if (!confirm("Excluir categoria?")) return;
+    const approved = await confirmAction({
+      title: "Excluir categoria?",
+      description: "Esta ação remove a categoria do cadastro. Confirme somente se ela realmente não deve mais ser utilizada.",
+      confirmLabel: "Excluir categoria",
+      destructive: true,
+    });
+    if (!approved) return;
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("Excluído"); qc.invalidateQueries({ queryKey: ["admin_cats"] }); }
@@ -78,6 +85,7 @@ export default function AdminCategories() {
 
   return (
     <div className="p-6">
+      {confirmDialog}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-extrabold">Categorias</h1>
         <Button onClick={() => { setEditing(empty); setFile(null); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova</Button>
@@ -149,7 +157,6 @@ export default function AdminCategories() {
             </div>
             <div className="flex items-center gap-2"><Switch checked={editing.show_in_menu} onCheckedChange={(v) => setEditing({ ...editing, show_in_menu: v })} /><Label>Aparece no menu</Label></div>
             <div className="flex items-center gap-2"><Switch checked={editing.show_on_home} onCheckedChange={(v) => setEditing({ ...editing, show_on_home: v })} /><Label>Aparece no carrossel da home</Label></div>
-
             <div className="flex items-center gap-2"><Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /><Label>Ativa</Label></div>
             <Button className="w-full" onClick={save}>Salvar</Button>
           </div>
