@@ -6,12 +6,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetaPixelProvider } from "@/components/MetaPixelProvider";
 import { useAuth } from "@/hooks/useAuth";
-import Index from "./pages/Index.tsx";
-import Category from "./pages/Category.tsx";
-import Product from "./pages/Product.tsx";
-import Collection from "./pages/Collection.tsx";
-import NotFound from "./pages/NotFound.tsx";
 
+const Index = lazy(() => import("./pages/Index.tsx"));
+const Category = lazy(() => import("./pages/Category.tsx"));
+const Product = lazy(() => import("./pages/Product.tsx"));
+const Collection = lazy(() => import("./pages/Collection.tsx"));
+const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Cart = lazy(() => import("./pages/Cart.tsx"));
 const Checkout = lazy(() => import("./pages/Checkout.tsx"));
 const PixPayment = lazy(() => import("./pages/PixPayment.tsx"));
