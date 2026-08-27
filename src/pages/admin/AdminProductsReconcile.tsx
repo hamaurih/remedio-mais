@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 type Issue =
   | "no_trier_id"
@@ -46,6 +47,7 @@ const isNumericSku = (s: string | null | undefined) =>
   !!s && /^\d{3,12}$/.test(String(s).trim());
 
 export default function AdminProductsReconcile() {
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [issue, setIssue] = useState<Issue>("no_trier_id");
@@ -64,7 +66,12 @@ export default function AdminProductsReconcile() {
   useEffect(() => { loadIssueRows(issue); }, [issue]);
 
   async function completeFromTrier() {
-    if (!confirm("Vamos sincronizar pela Trier no modo SEGURO (safe_operational): atualiza estoque, preço, código de barras e dados técnicos. Não toca em imagem, descrição, SEO ou categoria comercial. Continuar?")) return;
+    const approved = await confirmAction({
+      title: "Sincronizar dados pela Trier?",
+      description: "A sincronização será executada no modo seguro (safe_operational): atualiza estoque, preço, código de barras e dados técnicos, sem alterar imagem, descrição, SEO ou categoria comercial.",
+      confirmLabel: "Iniciar sincronização",
+    });
+    if (!approved) return;
     setCompleting(true);
     try {
       const { data, error } = await (supabase as any).functions.invoke("trier", {
@@ -210,7 +217,12 @@ export default function AdminProductsReconcile() {
 
   async function applySkuMigration() {
     if (!applicableSku.length) return;
-    if (!confirm(`Aplicar trier_product_id em ${applicableSku.length} produtos? Esta ação não toca em outros campos.`)) return;
+    const approved = await confirmAction({
+      title: "Aplicar códigos Trier?",
+      description: `O trier_product_id será preenchido em ${applicableSku.length} produtos usando o SKU validado. Nenhum outro campo será alterado.`,
+      confirmLabel: `Aplicar em ${applicableSku.length} produtos`,
+    });
+    if (!approved) return;
     setSkuApplying(true);
     try {
       let ok = 0, err = 0;
@@ -234,6 +246,7 @@ export default function AdminProductsReconcile() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl">
+      {confirmDialog}
       <div className="flex items-start justify-between gap-4">
         <div>
           <Link to="/admin/produtos" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
