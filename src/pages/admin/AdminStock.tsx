@@ -42,7 +42,7 @@ export default function AdminStock() {
     queryFn: async () => {
       let qy: any = (supabase as any)
         .from("products")
-        .select("id, name, sku, barcode, stock, minimum_stock, trier_stock_quantity, mapping_status, needs_review, price, ecommerce_price, price_origin, stock_origin, active")
+        .select("id, name, sku, barcode, trier_barcode, trier_product_id, stock, minimum_stock, trier_stock_quantity, mapping_status, needs_review, price, ecommerce_price, price_origin, stock_origin, active")
         .order("name")
         .limit(500);
       if (mappingFilter !== "all") qy = qy.eq("mapping_status", mappingFilter);
@@ -68,7 +68,7 @@ export default function AdminStock() {
     const list = (products || []) as any[];
     if (!t) return list.slice(0, 50);
     return list.filter((p: any) =>
-      [p.name, p.sku, p.barcode].some((v) => (v || "").toLowerCase().includes(t)),
+      [p.name, p.sku, p.barcode, p.trier_barcode, p.trier_product_id].some((v) => (v || "").toLowerCase().includes(t)),
     ).slice(0, 50);
   }, [products, q]);
 
@@ -103,7 +103,7 @@ export default function AdminStock() {
             </Select>
           </div>
         </div>
-        <Input placeholder="Buscar por nome, SKU ou código de barras..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input placeholder="Buscar por nome, SKU, código Trier ou código de barras..." value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-secondary text-left">
@@ -127,7 +127,7 @@ export default function AdminStock() {
                       {!p.active && <span className="ml-2 text-xs text-muted-foreground">(inativo)</span>}
                     </td>
                     <td className="p-2 text-xs font-mono text-muted-foreground">
-                      {p.sku || "—"}<br/>{p.barcode || ""}
+                      {p.sku || "—"}<br/>{p.barcode || p.trier_barcode || ""}
                     </td>
                     <td className="p-2">
                       <Badge variant={MAPPING_VARIANT[p.mapping_status] || "secondary"}>
@@ -239,7 +239,10 @@ function NewMovementDialog({
   const filtered = useMemo(() => {
     const t = search.toLowerCase().trim();
     if (!t) return products.slice(0, 20);
-    return products.filter((p) => (p.name || "").toLowerCase().includes(t) || (p.sku || "").toLowerCase().includes(t)).slice(0, 20);
+    return products.filter((p) =>
+      [p.name, p.sku, p.barcode, p.trier_barcode, p.trier_product_id]
+        .some((v) => (v || "").toLowerCase().includes(t)),
+    ).slice(0, 20);
   }, [search, products]);
 
   const submit = async () => {
@@ -286,7 +289,7 @@ function NewMovementDialog({
         <div className="space-y-3">
           <div>
             <label className="text-xs font-semibold">Produto</label>
-            <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder="Buscar por nome, SKU, código Trier ou código de barras..." value={search} onChange={(e) => setSearch(e.target.value)} />
             <div className="max-h-40 overflow-auto border rounded mt-1">
               {filtered.map((p) => (
                 <button
@@ -295,7 +298,7 @@ function NewMovementDialog({
                   className={`block w-full text-left px-2 py-1 text-sm hover:bg-accent ${productId === p.id ? "bg-accent" : ""}`}
                   onClick={() => setProductId(p.id)}
                 >
-                  {p.name} <span className="text-xs text-muted-foreground">({p.sku || "s/sku"} · estoque {p.stock ?? 0})</span>
+                  {p.name} <span className="text-xs text-muted-foreground">({p.barcode || p.trier_barcode || p.sku || "s/código"} · estoque {p.stock ?? 0})</span>
                 </button>
               ))}
             </div>
