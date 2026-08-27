@@ -1,1 +1,1 @@
-export { default } from "./products/AdminProductsLegacy";
+export { default } from "./products/AdminProductsIntegrated";
