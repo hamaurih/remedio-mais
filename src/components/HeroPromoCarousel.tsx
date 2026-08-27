@@ -9,6 +9,9 @@ import { getHeroSize, type HeroSizeVariant } from "@/lib/heroSizes";
 import { applyVisualModel } from "@/lib/heroVisualModels";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+const MemoHeroSlideAuto = memo(HeroSlideAuto);
+const MemoHeroSlideImage = memo(HeroSlideImage);
+
 export interface HeroBannerRow extends HeroSlideType {
   visual_model?: string | null;
   size_variant?: string | null;
@@ -178,9 +181,9 @@ export const HeroPromoCarousel = memo(function HeroPromoCarousel({ slides, defau
                 aria-label={`Slide ${idx + 1} de ${filtered.length}`}
               >
                 {isImageMode(b) ? (
-                  <HeroSlideImage s={b as any} eager={idx === 0} />
+                  <MemoHeroSlideImage s={b as any} eager={idx === 0} />
                 ) : (
-                  <HeroSlideAuto s={b} />
+                  <MemoHeroSlideAuto s={b} />
                 )}
               </div>
             ))}
