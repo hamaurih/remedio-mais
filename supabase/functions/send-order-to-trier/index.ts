@@ -632,7 +632,8 @@ Deno.serve(async (req) => {
     // 7) Envia
     const url = `${salesBaseUrl}${SEND_PATH}`;
     const startedAt = Date.now();
-    const currentAttempt = (order.trier_attempts || 0) + 1;
+    const attemptsBefore = order.trier_attempts || 0;
+    const currentAttempt = attemptsBefore + 1;
     if (!isTest) {
       await admin.from("orders").update({
         trier_attempts: currentAttempt,
@@ -644,25 +645,53 @@ Deno.serve(async (req) => {
     let httpStatus = 0;
     let responseBody: any = null;
     let errorMessage: string | null = null;
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${TRIER_TOKEN}`,
-        },
-        body: JSON.stringify(payload),
+    // Retry curto apenas para falhas transitórias (SGF/gateway fora do ar) e erros de rede.
+    // Nunca reenvia após resposta 2xx e nunca em erros 4xx (payload/autorização).
+    const MAX_ATTEMPTS = 6;
+    let tries = 0;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      tries = attempt;
+      httpStatus = 0;
+      responseBody = null;
+      errorMessage = null;
+      let transient = false;
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${TRIER_TOKEN}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        httpStatus = res.status;
+        const text = await res.text();
+        try { responseBody = text ? JSON.parse(text) : null; } catch { responseBody = { raw: text }; }
+        if (!res.ok) {
+          errorMessage = `HTTP ${res.status}`;
+          transient = TRANSIENT_TRIER_STATUSES.has(res.status);
+        }
+      } catch (e) {
+        errorMessage = `Erro de rede: ${(e as Error).message}`;
+        transient = true;
+      }
+      if (!errorMessage || !transient || attempt === MAX_ATTEMPTS) break;
+      const delay = 400 * attempt * attempt;
+      safeLog("[send-order-to-trier] retry transitório", {
+        orderId, attempt, next_in_ms: delay, httpStatus, error: errorMessage,
       });
-      httpStatus = res.status;
-      const text = await res.text();
-      try { responseBody = text ? JSON.parse(text) : null; } catch { responseBody = { raw: text }; }
-      if (!res.ok) errorMessage = `HTTP ${res.status}`;
-    } catch (e) {
-      errorMessage = `Erro de rede: ${(e as Error).message}`;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
+    if (!isTest && tries > 1) {
+      await admin.from("orders").update({
+        trier_attempts: attemptsBefore + tries,
+      }).eq("id", orderId);
     }
 
     const elapsed = Date.now() - startedAt;
-    safeLog("[send-order-to-trier] response", { orderId, action, mode, httpStatus, elapsed });
+    safeLog("[send-order-to-trier] response", { orderId, action, mode, httpStatus, elapsed, tries });
+
 
     const success = httpStatus >= 200 && httpStatus < 300 && !errorMessage;
     const trierOrderId = responseBody?.numeroPedido || responseBody?.numeroVenda || responseBody?.numero || null;
@@ -737,7 +766,10 @@ Deno.serve(async (req) => {
         trier_sending_at: null,
 
       }).eq("id", orderId);
-      if (shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
+      const transientFailure = TRANSIENT_TRIER_STATUSES.has(httpStatus) || httpStatus === 0;
+      const exhausted = tries >= MAX_ATTEMPTS;
+      // Só notifica após esgotar as tentativas transitórias (evita 1 alerta por retry).
+      if ((!transientFailure || exhausted) && shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
         await admin.from("admin_notifications").insert({
           type: "trier_order_failed",
           title: "Falha ao enviar pedido ao Trier",
