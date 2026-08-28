@@ -766,7 +766,10 @@ Deno.serve(async (req) => {
         trier_sending_at: null,
 
       }).eq("id", orderId);
-      if (shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
+      const transientFailure = TRANSIENT_TRIER_STATUSES.has(httpStatus) || httpStatus === 0;
+      const exhausted = tries >= MAX_ATTEMPTS;
+      // Só notifica após esgotar as tentativas transitórias (evita 1 alerta por retry).
+      if ((!transientFailure || exhausted) && shouldNotifyFailure(isInternal, httpStatus, currentAttempt)) {
         await admin.from("admin_notifications").insert({
           type: "trier_order_failed",
           title: "Falha ao enviar pedido ao Trier",
