@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
+import { resolveSitePrice } from "@/lib/pricing";
 import { calculatePixPrice, resolvePixPercentage } from "@/lib/pix";
 import { onQuickView } from "@/lib/quickview";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";

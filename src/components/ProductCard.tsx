@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
+import { resolveSitePrice } from "@/lib/pricing";
 import { toast } from "sonner";
 import { openQuickView } from "@/lib/quickview";
 import { openGenericCheck } from "@/lib/genericSuggestion";

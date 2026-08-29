@@ -6,6 +6,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
+import { resolveSitePrice } from "@/lib/pricing";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { ShoppingCart, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
