@@ -17,15 +17,16 @@ export type LiveCheckResult = {
 
 /**
  * Consulta o sistema da farmácia (Trier) na hora e devolve estoque/preço reais.
- * Também grava os valores atualizados no banco, para o site não ficar defasado
- * entre um ciclo de sincronização e outro.
+ * A loja usa um endpoint público mínimo que aceita somente IDs de produtos e
+ * encaminha internamente a ação permitida. A função administrativa Trier não
+ * precisa mais ficar exposta para esta leitura.
  */
 export async function liveCheckProductsDetailed(productIds: string[]): Promise<LiveCheckResult> {
   const ids = Array.from(new Set(productIds.filter(Boolean))).slice(0, 30);
   if (ids.length === 0) return { ok: false, items: [], error: "Nenhum produto para conferir." };
   try {
-    const { data, error } = await supabase.functions.invoke("trier", {
-      body: { action: "live-check", product_ids: ids },
+    const { data, error } = await supabase.functions.invoke("trier-live-check", {
+      body: { product_ids: ids },
     });
     if (error || !data?.ok) {
       return { ok: false, items: [], error: data?.error || error?.message || "A Trier não respondeu." };
