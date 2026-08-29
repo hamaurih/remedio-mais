@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { customerAccount } from "@/lib/customerAccountApi";
 import type { Session, User } from "@supabase/supabase-js";
 
 export type Profile = {
@@ -31,6 +32,7 @@ export function useAuth() {
         setLoading(false);
         return;
       }
+
       const { data, error } = await supabase.auth.getUser();
       if (!mounted) return;
       if (error || !data?.user) {
@@ -41,17 +43,24 @@ export function useAuth() {
         setLoading(false);
         return;
       }
+
       setUser(data.user);
-      const [{ data: roles }, { data: prof }] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", data.user.id),
-        supabase.from("profiles").select("id, full_name, email, phone, cpf").eq("id", data.user.id).maybeSingle(),
-      ]);
-      if (!mounted) return;
-      const rs = (roles || []).map((r: any) => r.role);
-      setIsAdmin(rs.includes("admin"));
-      setIsSeller(rs.includes("seller"));
-      setProfile((prof as Profile) || null);
-      setLoading(false);
+      try {
+        const context = await customerAccount<{ profile: Profile | null; roles: string[] }>("context");
+        if (!mounted) return;
+        const roles = context.roles || [];
+        setIsAdmin(roles.includes("admin"));
+        setIsSeller(roles.includes("seller"));
+        setProfile(context.profile || null);
+      } catch {
+        if (!mounted) return;
+        // Falhar fechado: sessão continua identificada, mas nenhum privilégio é concedido.
+        setIsAdmin(false);
+        setIsSeller(false);
+        setProfile(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -70,4 +79,3 @@ export function useAuth() {
 
   return { session, user, profile, isAdmin, isSeller, loading };
 }
-
