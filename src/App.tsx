@@ -22,6 +22,7 @@ const Departamentos = lazy(() => import("./pages/Departamentos.tsx"));
 const Department = lazy(() => import("./pages/Department.tsx"));
 const Campaign = lazy(() => import("./pages/Campaign.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"));
 const Account = lazy(() => import("./pages/Account.tsx"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.tsx"));
 const Terms = lazy(() => import("./pages/Terms.tsx"));
@@ -118,6 +119,7 @@ const App = () => (
             <Route path="/buscar" element={<Search />} />
             <Route path="/departamentos" element={<Departamentos />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/redefinir-senha" element={<ResetPassword />} />
             <Route path="/minha-conta" element={<Account />} />
             <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos-de-uso" element={<Terms />} />
