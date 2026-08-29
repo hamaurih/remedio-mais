@@ -7,6 +7,7 @@ import { addToCart, formatBRL } from "@/lib/store";
 import { fetchGenericSuggestion, onGenericCheck, type GenericSuggestion } from "@/lib/genericSuggestion";
 import { toast } from "sonner";
 import { notifyCartAddition } from "@/lib/cartLiveNotify";
+import { resolveSitePrice } from "@/lib/pricing";
 
 export function GenericSuggestionDialog() {
   const [open, setOpen] = useState(false);
@@ -47,7 +48,7 @@ export function GenericSuggestionDialog() {
       id: c.id,
       product_id: c.id,
       name: c.name,
-      price: c.promo_price ?? c.price,
+      price: resolveSitePrice(c).finalPrice,
       image_url: c.image_url,
     });
     toast.success(`Genérico adicionado! Você economizou ${formatBRL(suggestion.savings)}`);

@@ -146,7 +146,7 @@ export default function Product() {
           sku: (p as any).sku || p.id,
           offers: {
             "@type": "Offer",
-            price: Number((p as any).promo_price ?? p.price ?? 0),
+            price: Number(finalPrice),
             priceCurrency: "BRL",
             availability: Math.max(Number(p.stock ?? 0), Number((p as any).stock_quantity ?? 0)) > 0
               ? "https://schema.org/InStock"
