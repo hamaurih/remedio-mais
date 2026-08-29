@@ -12,6 +12,8 @@ import { notifyCartAddition } from "@/lib/cartLiveNotify";
 export type Product = {
   id: string; name: string; slug: string;
   price: number; promo_price: number | null;
+  site_price?: number | null; site_promo_price?: number | null;
+  promotion_start?: string | null; promotion_end?: string | null;
   image_url: string | null; manufacturer: string | null;
   on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
   stock?: number; cart_quantity_limit?: number | null;
