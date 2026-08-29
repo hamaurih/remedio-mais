@@ -42,9 +42,8 @@ export default function Auth() {
     nav("/", { replace: true });
   }, [user, isAdmin, isSeller, authLoading, nav, next]);
 
-  // Critério simples e amigável: mínimo 8 caracteres, com pelo menos 1 letra e 1 número.
   const pwChecks = {
-    length: password.length >= 8,
+    length: password.length >= 10,
     letter: /[A-Za-z]/.test(password),
     number: /\d/.test(password),
   };
@@ -53,18 +52,48 @@ export default function Auth() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === "signup" && !passwordValid) {
-      toast.error("A senha precisa ter pelo menos 8 caracteres, com letras e números.");
+      toast.error("A senha precisa ter pelo menos 10 caracteres, com letras e números.");
       return;
     }
     setLoading(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data, error } = await supabase.functions.invoke("secure-login", {
+          body: { email, password },
+        });
+
+        if (error) {
+          let code = "";
+          let retryAfter = 0;
+          try {
+            const payload = await (error as any)?.context?.json?.();
+            code = String(payload?.error || "");
+            retryAfter = Number(payload?.retry_after || 0);
+          } catch {
+            // resposta não JSON: manter mensagem genérica
+          }
+
+          if (code === "too_many_attempts") {
+            const minutes = Math.max(1, Math.ceil(retryAfter / 60));
+            throw new Error(`LOGIN_RATE_LIMITED:${minutes}`);
+          }
+          throw new Error("INVALID_LOGIN");
+        }
+
+        const session = data?.session;
+        if (!session?.access_token || !session?.refresh_token) throw new Error("INVALID_LOGIN");
+
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
+        if (sessionError) throw sessionError;
+
         toast.success("Bem-vindo!");
       } else {
         const { error } = await supabase.auth.signUp({
-          email, password,
+          email,
+          password,
           options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
         });
         if (error) throw error;
@@ -72,16 +101,19 @@ export default function Auth() {
       }
     } catch (e: any) {
       const msg = String(e?.message || "");
-      if (/weak|pwned|known to be|leaked|compromised/i.test(msg)) {
-        toast.error("Essa senha apareceu em vazamentos conhecidos ou é muito comum. Tente uma combinação diferente de letras e números.");
-      } else if (/email not confirmed|not confirmed/i.test(msg)) {
-        toast.error("Seu e-mail ainda não estava confirmado. Já liberamos o acesso — tente entrar novamente.");
-      } else if (/invalid login|invalid credentials/i.test(msg)) {
+      if (msg.startsWith("LOGIN_RATE_LIMITED:")) {
+        const minutes = msg.split(":")[1] || "15";
+        toast.error(`Muitas tentativas de acesso. Tente novamente em aproximadamente ${minutes} minuto(s).`);
+      } else if (msg === "INVALID_LOGIN" || /invalid login|invalid credentials/i.test(msg)) {
         toast.error("E-mail ou senha incorretos.");
+      } else if (/weak|pwned|known to be|leaked|compromised/i.test(msg)) {
+        toast.error("Essa senha apareceu em vazamentos conhecidos ou é muito comum. Use uma senha diferente.");
+      } else if (/email not confirmed|not confirmed/i.test(msg)) {
+        toast.error("Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.");
       } else if (/already registered|already exists|user already/i.test(msg)) {
         toast.error("Este e-mail já está cadastrado. Tente entrar.");
       } else {
-        toast.error(msg || "Erro");
+        toast.error("Não foi possível concluir o acesso. Tente novamente.");
       }
     } finally {
       setLoading(false);
@@ -104,27 +136,26 @@ export default function Auth() {
           <p className="text-sm text-muted-foreground mb-5">Acesso à área administrativa e à sua conta.</p>
           <form onSubmit={submit} className="space-y-4">
             {mode === "signup" && (
-              <div className="space-y-2"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+              <div className="space-y-2"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" /></div>
             )}
-            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" /></div>
             <div className="space-y-2">
               <Label>Senha</Label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                minLength={mode === "signup" ? 8 : 6}
+                minLength={mode === "signup" ? 10 : 6}
+                maxLength={256}
                 required
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
               />
               {mode === "signup" && (
                 <ul className="text-xs space-y-1 mt-2" aria-live="polite">
-                  <Rule ok={pwChecks.length}>Pelo menos 8 caracteres</Rule>
+                  <Rule ok={pwChecks.length}>Pelo menos 10 caracteres</Rule>
                   <Rule ok={pwChecks.letter}>Contém letras (a-z)</Rule>
                   <Rule ok={pwChecks.number}>Contém números (0-9)</Rule>
-                  <li className="text-muted-foreground pt-1">
-                    Dica: evite senhas comuns como "12345678" ou "senha123" — elas podem ser recusadas por segurança.
-                  </li>
+                  <li className="text-muted-foreground pt-1">Evite senhas reutilizadas, sequências e informações pessoais.</li>
                 </ul>
               )}
             </div>
