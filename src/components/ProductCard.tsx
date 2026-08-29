@@ -43,9 +43,10 @@ const BADGE_STYLE: Record<Exclude<BadgeKind, null>, { label: string; cls: string
 };
 
 export const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
-  const finalPrice = p.promo_price ?? p.price;
-  const hasDiscount = !!p.promo_price && p.promo_price < p.price;
-  const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
+  const resolved = resolveSitePrice(p);
+  const finalPrice = resolved.finalPrice;
+  const hasDiscount = resolved.hasDiscount;
+  const discount = resolved.discountPercent;
   const badge = resolveBadge(p, hasDiscount);
   const outOfStock = typeof p.stock === "number" && p.stock <= 0;
   const requiresPrescription = !!(p.controlled || p.requires_prescription);
