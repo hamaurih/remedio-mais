@@ -195,7 +195,7 @@ export default function Product() {
             )}
 
             <div className="mt-5">
-              {hasDiscount && <div className="text-muted-foreground line-through">{formatBRL(basePrice)}</div>}
+              {hasDiscount && <div className="text-muted-foreground line-through">{formatBRL(resolved.comparePrice ?? Number(p.price))}</div>}
               <div className="text-4xl price">{formatBRL(Number(finalPrice))}</div>
               <div className="text-sm text-muted-foreground mt-1">Retire na loja ou receba em casa</div>
             </div>
