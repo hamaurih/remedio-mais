@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
+import { resolveSitePrice } from "@/lib/pricing";
 import { calculatePixPrice, resolvePixPercentage } from "@/lib/pix";
 import { onQuickView } from "@/lib/quickview";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
@@ -103,11 +104,13 @@ export function ProductQuickView() {
   const outOfStock = stock <= 0;
   const requiresPrescription = !!(p.controlled || p.requires_prescription);
 
-  const basePrice = hasVariants && selectedVariant ? Number(selectedVariant.price ?? p.price) : Number(p.price);
-  const basePromo = hasVariants && selectedVariant ? selectedVariant.promo_price : p.promo_price;
-  const finalPrice = basePromo ?? basePrice;
-  const hasDiscount = !!basePromo && basePromo < basePrice;
-  const discount = hasDiscount ? Math.round((1 - basePromo / basePrice) * 100) : 0;
+  const resolved = resolveSitePrice(
+    p,
+    hasVariants && selectedVariant ? { price: selectedVariant.price, promo_price: selectedVariant.promo_price } : null,
+  );
+  const finalPrice = resolved.finalPrice;
+  const hasDiscount = resolved.hasDiscount;
+  const discount = resolved.discountPercent;
   const pixPct = resolvePixPercentage(p.pix_discount_percentage, (settings as any)?.pix_discount_percentage, (settings as any)?.pix_discount_enabled);
   const pixPrice = calculatePixPrice(finalPrice, pixPct);
   const maxQty = Math.min(stock || 99, p.cart_quantity_limit || 99) || 99;
@@ -229,7 +232,7 @@ export function ProductQuickView() {
             <div>
               {hasDiscount && (
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground line-through text-sm">{formatBRL(p.price)}</span>
+                  <span className="text-muted-foreground line-through text-sm">{formatBRL(resolved.comparePrice ?? Number(p.price))}</span>
                   <span className="text-[11px] font-extrabold bg-primary text-primary-foreground px-2 py-0.5 rounded">-{discount}%</span>
                 </div>
               )}

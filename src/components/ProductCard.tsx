@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
+import { resolveSitePrice } from "@/lib/pricing";
 import { toast } from "sonner";
 import { openQuickView } from "@/lib/quickview";
 import { openGenericCheck } from "@/lib/genericSuggestion";
@@ -11,6 +12,8 @@ import { notifyCartAddition } from "@/lib/cartLiveNotify";
 export type Product = {
   id: string; name: string; slug: string;
   price: number; promo_price: number | null;
+  site_price?: number | null; site_promo_price?: number | null;
+  promotion_start?: string | null; promotion_end?: string | null;
   image_url: string | null; manufacturer: string | null;
   on_sale: boolean; featured?: boolean; requires_prescription: boolean; controlled: boolean;
   stock?: number; cart_quantity_limit?: number | null;
@@ -40,9 +43,10 @@ const BADGE_STYLE: Record<Exclude<BadgeKind, null>, { label: string; cls: string
 };
 
 export const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
-  const finalPrice = p.promo_price ?? p.price;
-  const hasDiscount = !!p.promo_price && p.promo_price < p.price;
-  const discount = hasDiscount ? Math.round((1 - p.promo_price! / p.price) * 100) : 0;
+  const resolved = resolveSitePrice(p);
+  const finalPrice = resolved.finalPrice;
+  const hasDiscount = resolved.hasDiscount;
+  const discount = resolved.discountPercent;
   const badge = resolveBadge(p, hasDiscount);
   const outOfStock = typeof p.stock === "number" && p.stock <= 0;
   const requiresPrescription = !!(p.controlled || p.requires_prescription);
@@ -126,7 +130,7 @@ export const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
         {p.manufacturer && <div className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">{p.manufacturer}</div>}
 
         <div className="mt-auto pt-2">
-          <div className="h-4 text-xs text-muted-foreground line-through">{hasDiscount ? formatBRL(p.price) : "\u00A0"}</div>
+          <div className="h-4 text-xs text-muted-foreground line-through">{resolved.comparePrice != null ? formatBRL(resolved.comparePrice) : "\u00A0"}</div>
           <div className="text-[22px] md:text-[26px] font-extrabold leading-none text-primary">{formatBRL(finalPrice)}</div>
           <div className="text-[10px] md:text-[11px] text-muted-foreground mt-1">Retire na loja ou receba em casa</div>
         </div>

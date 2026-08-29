@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Seo } from "@/components/Seo";
 import { supabase } from "@/integrations/supabase/client";
 import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
+import { resolveSitePrice } from "@/lib/pricing";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
   const [sug, setSug] = useState<GenericSuggestion | null>(null);
@@ -44,7 +45,7 @@ function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) 
       id: sug.candidate.id,
       product_id: sug.candidate.id,
       name: sug.candidate.name,
-      price: sug.candidate.promo_price ?? sug.candidate.price,
+      price: resolveSitePrice(sug.candidate).finalPrice,
       image_url: sug.candidate.image_url,
     }, item.quantity);
     toast.success(`Trocado pelo genérico — economia de ${formatBRL(sug.savings * item.quantity)}`);
