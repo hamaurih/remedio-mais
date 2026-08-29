@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { customerAccount } from "@/lib/customerAccountApi";
 import { formatBRL } from "@/lib/store";
 import { trackPurchase } from "@/lib/metaEvents";
 import { CheckCircle2, Clock, XCircle, Loader2, Package, Truck, Store } from "lucide-react";
@@ -30,7 +31,6 @@ function eventLabel(e: any) {
 
 export default function OrderReturn({ status }: { status: Status }) {
   const loc = useLocation();
-  const nav = useNavigate();
   const params = new URLSearchParams(loc.search);
   const orderId = params.get("order");
   const [order, setOrder] = useState<any>(null);
@@ -43,30 +43,30 @@ export default function OrderReturn({ status }: { status: Status }) {
     try {
       await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } });
     } catch {
-      // status opcional: segue com os dados já salvos
+      // O status ativo é opcional; a API de conta ainda retorna o último estado persistido.
     }
-    const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle();
-    setOrder(data);
-    const { data: evs } = await supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
-    setEvents(evs || []);
-    setLoading(false);
+    try {
+      const result = await customerAccount<any>("order-detail", { order_id: orderId });
+      setOrder(result?.order || null);
+      setEvents(result?.order?.order_events || []);
+    } catch {
+      setOrder(null);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    refresh();  
+    void refresh();
     if (!orderId) return;
-    const ch = supabase
-      .channel(`order_${orderId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `id=eq.${orderId}` }, () => refresh())
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_events", filter: `order_id=eq.${orderId}` }, () => refresh())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // Polling via API autenticada substitui Realtime/PostgREST direto do cliente.
+    const timer = window.setInterval(() => { void refresh(); }, 6000);
+    return () => window.clearInterval(timer);
   }, [orderId]);
 
   const isPaid = order?.payment_status === "approved";
 
-  // Meta Purchase (browser) SOMENTE com pagamento aprovado. O mesmo event_id
-  // (purchase:<order_id>) é usado pelo servidor, então a Meta deduplica.
   useEffect(() => {
     if (!isPaid || !order?.id) return;
     trackPurchase({
@@ -79,15 +79,14 @@ export default function OrderReturn({ status }: { status: Status }) {
       })),
     });
   }, [isPaid, order?.id]);
-  const effective: Status = isPaid ? "success" : status;
 
+  const effective: Status = isPaid ? "success" : status;
   const icon = effective === "success" ? <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" />
     : effective === "pending" ? <Clock className="h-14 w-14 text-amber-500 mx-auto" />
     : <XCircle className="h-14 w-14 text-destructive mx-auto" />;
   const title = effective === "success" ? "Pagamento aprovado!"
     : effective === "pending" ? "Pagamento em análise"
     : "Pagamento não aprovado";
-
   const isPickup = order?.delivery_type === "pickup";
 
   return (
@@ -105,9 +104,7 @@ export default function OrderReturn({ status }: { status: Status }) {
                 <div className="font-bold mb-1">Seu pedido já está sendo preparado! 🎉</div>
                 <p className="leading-relaxed">
                   Recebemos seu pagamento e nossa equipe está separando seus produtos com todo cuidado.
-                  {isPickup
-                    ? " Avisaremos assim que estiver pronto para retirada na loja."
-                    : " Em breve seu pedido será despachado para entrega no endereço informado."}
+                  {isPickup ? " Avisaremos assim que estiver pronto para retirada na loja." : " Em breve seu pedido será despachado para entrega no endereço informado."}
                 </p>
                 <div className="flex items-center gap-2 mt-3 text-xs font-medium text-emerald-800">
                   {isPickup ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
@@ -151,12 +148,7 @@ export default function OrderReturn({ status }: { status: Status }) {
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
-            {effective === "pending" && (
-              <Button onClick={refresh} variant="outline" className="flex-1">Verificar novamente</Button>
-            )}
-            {effective === "failure" && order?.mercado_pago_checkout_url && (
-              <Button asChild className="flex-1"><a href={order.mercado_pago_checkout_url}>Tentar pagar novamente</a></Button>
-            )}
+            {effective === "pending" && <Button onClick={refresh} variant="outline" className="flex-1">Verificar novamente</Button>}
             <Button asChild className="flex-1" variant={effective === "success" ? "default" : "outline"}>
               <Link to="/">Voltar à loja</Link>
             </Button>
