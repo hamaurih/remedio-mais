@@ -3,8 +3,22 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const OFFICIAL_HOSTS = new Set([
+  'atacadaodosmedicamentos.com.br',
+  'www.atacadaodosmedicamentos.com.br',
+]);
+const OFFICIAL_SUPABASE_URL = 'https://jzltdocmvvdlyaukwzix.supabase.co';
+const OFFICIAL_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_geFYMQbAFOJ3d3qazu0RYA_Xa1pBcxL';
+const isOfficialDomain = typeof window !== 'undefined' && OFFICIAL_HOSTS.has(window.location.hostname);
+
+// Produção oficial fica presa ao projeto Supabase de produção correto.
+// Preview/local continuam podendo usar variáveis de ambiente próprias.
+const SUPABASE_URL = isOfficialDomain
+  ? OFFICIAL_SUPABASE_URL
+  : (import.meta.env.VITE_SUPABASE_URL || OFFICIAL_SUPABASE_URL);
+const SUPABASE_PUBLISHABLE_KEY = isOfficialDomain
+  ? OFFICIAL_SUPABASE_PUBLISHABLE_KEY
+  : (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || OFFICIAL_SUPABASE_PUBLISHABLE_KEY);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
