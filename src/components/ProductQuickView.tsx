@@ -103,11 +103,13 @@ export function ProductQuickView() {
   const outOfStock = stock <= 0;
   const requiresPrescription = !!(p.controlled || p.requires_prescription);
 
-  const basePrice = hasVariants && selectedVariant ? Number(selectedVariant.price ?? p.price) : Number(p.price);
-  const basePromo = hasVariants && selectedVariant ? selectedVariant.promo_price : p.promo_price;
-  const finalPrice = basePromo ?? basePrice;
-  const hasDiscount = !!basePromo && basePromo < basePrice;
-  const discount = hasDiscount ? Math.round((1 - basePromo / basePrice) * 100) : 0;
+  const resolved = resolveSitePrice(
+    p,
+    hasVariants && selectedVariant ? { price: selectedVariant.price, promo_price: selectedVariant.promo_price } : null,
+  );
+  const finalPrice = resolved.finalPrice;
+  const hasDiscount = resolved.hasDiscount;
+  const discount = resolved.discountPercent;
   const pixPct = resolvePixPercentage(p.pix_discount_percentage, (settings as any)?.pix_discount_percentage, (settings as any)?.pix_discount_enabled);
   const pixPrice = calculatePixPrice(finalPrice, pixPct);
   const maxQty = Math.min(stock || 99, p.cart_quantity_limit || 99) || 99;
