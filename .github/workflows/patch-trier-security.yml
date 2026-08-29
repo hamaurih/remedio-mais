@@ -1,0 +1,40 @@
+name: One-time Trier security patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-trier-security.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Remove public actions from administrative Trier function
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('supabase/functions/trier/index.ts')
+          s = p.read_text()
+          old = 'const PUBLIC_ACTIONS = new Set(["scheduled", "live-check"]);'
+          new = 'const PUBLIC_ACTIONS = new Set<string>();'
+          if old not in s:
+              raise SystemExit('Expected Trier public-actions marker not found; refusing unsafe patch')
+          p.write_text(s.replace(old, new, 1))
+
+      - name: Commit security patch
+        shell: bash
+        run: |
+          git config user.name "security-bot"
+          git config user.email "security-bot@users.noreply.github.com"
+          git add supabase/functions/trier/index.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "security: require auth for all Trier admin actions"
+          git push origin HEAD:main
