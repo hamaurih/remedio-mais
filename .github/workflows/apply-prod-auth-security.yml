@@ -1,0 +1,102 @@
+name: Apply production Auth security
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-prod-auth-security.yml'
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_REF: jzltdocmvvdlyaukwzix
+  SITE_URL: https://atacadaodosmedicamentos.com.br
+  RESET_URL: https://atacadaodosmedicamentos.com.br/redefinir-senha
+
+jobs:
+  configure:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Validate management token
+        shell: bash
+        run: test -n "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Read current Auth config and build safe patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" > /tmp/auth-before.json
+
+          python - <<'PY'
+          import json, os
+          cfg=json.load(open('/tmp/auth-before.json'))
+          current=(cfg.get('uri_allow_list') or '').strip()
+          reset=os.environ['RESET_URL']
+          values=[x.strip() for x in current.split(',') if x.strip()]
+          if reset not in values:
+              values.append(reset)
+          payload={
+              'password_hibp_enabled': True,
+              'password_min_length': 8,
+              'site_url': os.environ['SITE_URL'],
+              'uri_allow_list': ','.join(values),
+              'mailer_notifications_password_changed_enabled': True,
+          }
+          json.dump(payload,open('/tmp/auth-patch.json','w'))
+          PY
+
+      - name: Apply Auth hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X PATCH \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/auth-patch.json \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" > /tmp/auth-patch-response.json
+
+      - name: Verify and record non-secret result
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" > /tmp/auth-after.json
+
+          mkdir -p .security
+          python - <<'PY'
+          import json, os, datetime
+          cfg=json.load(open('/tmp/auth-after.json'))
+          assert cfg.get('password_hibp_enabled') is True, 'HIBP protection was not enabled'
+          assert int(cfg.get('password_min_length') or 0) >= 8, 'Password minimum length is below 8'
+          assert cfg.get('site_url') == os.environ['SITE_URL'], 'Production site_url mismatch'
+          allow=cfg.get('uri_allow_list') or ''
+          assert os.environ['RESET_URL'] in allow, 'Reset redirect URL was not allowlisted'
+          out={
+            'project_ref': os.environ['PROJECT_REF'],
+            'password_hibp_enabled': True,
+            'password_min_length': int(cfg.get('password_min_length')),
+            'site_url': cfg.get('site_url'),
+            'reset_url_allowlisted': True,
+            'password_change_notifications_enabled': bool(cfg.get('mailer_notifications_password_changed_enabled')),
+            'verified_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          json.dump(out,open('.security/auth-config-applied.json','w'),indent=2)
+          PY
+
+          git config user.name "security-bot"
+          git config user.email "security-bot@users.noreply.github.com"
+          git add .security/auth-config-applied.json
+          git diff --cached --quiet && exit 0
+          git commit -m "security: record verified Supabase Auth hardening"
+          git push origin HEAD:main
