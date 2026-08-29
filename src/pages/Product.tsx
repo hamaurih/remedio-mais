@@ -67,10 +67,12 @@ export default function Product() {
   if (!p) return <Layout><div className="container py-20 text-center">Produto não encontrado.</div></Layout>;
 
   const hasVariants = !!(p as any).has_variants && variants.length > 0;
-  const basePrice = hasVariants && selectedVariant ? (selectedVariant.price ?? p.price) : p.price;
-  const basePromo = hasVariants && selectedVariant ? selectedVariant.promo_price : (p as any).promo_price;
-  const finalPrice = basePromo ?? basePrice;
-  const hasDiscount = !!basePromo && basePromo < basePrice;
+  const resolved = resolveSitePrice(
+    p,
+    hasVariants && selectedVariant ? { price: selectedVariant.price, promo_price: selectedVariant.promo_price } : null,
+  );
+  const finalPrice = resolved.finalPrice;
+  const hasDiscount = resolved.hasDiscount;
   const displayImage = (hasVariants && selectedVariant?.image_url) || p.image_url || productPlaceholder;
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : ((p as any).stock ?? 0);
   const outOfStock = variantStock <= 0;
