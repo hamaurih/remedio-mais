@@ -232,7 +232,7 @@ export function ProductQuickView() {
             <div>
               {hasDiscount && (
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground line-through text-sm">{formatBRL(p.price)}</span>
+                  <span className="text-muted-foreground line-through text-sm">{formatBRL(resolved.comparePrice ?? Number(p.price))}</span>
                   <span className="text-[11px] font-extrabold bg-primary text-primary-foreground px-2 py-0.5 rounded">-{discount}%</span>
                 </div>
               )}
