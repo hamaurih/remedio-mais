@@ -44,6 +44,7 @@ export function HeroSlideImage({ s, eager }: Props) {
   const desktop = s.desktop_image_url || s.image_url || s.background_image_url || "";
   const tablet = s.tablet_image_url || desktop;
   const mobile = s.mobile_image_url || tablet || desktop;
+  const sourceKey = `${desktop}|${tablet}|${mobile}`;
   const fit = FIT_MAP[s.image_fit || "cover"] || "object-cover";
   const focus = FOCUS_MAP[s.image_focus || "center"] || "object-center";
   const alt = s.image_alt || s.title || "Banner promocional";
@@ -53,7 +54,7 @@ export function HeroSlideImage({ s, eager }: Props) {
 
   return (
     <Wrapper {...wrapperProps} className="block relative h-full w-full bg-muted/30">
-      <picture>
+      <picture key={sourceKey}>
         <source media="(min-width: 1024px)" srcSet={desktop} />
         <source media="(min-width: 640px)" srcSet={tablet} />
         <img
