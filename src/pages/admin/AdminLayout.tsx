@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate, NavLink, Outlet } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,8 +27,17 @@ const items: Item[] = [
 ];
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
+  const qc = useQueryClient();
   const { user, isAdmin, isSeller, loading } = useAuth();
   const [canAccessPrescriptions, setCanAccessPrescriptions] = useState(false);
+
+  // A home e o admin compartilham o mesmo QueryClient. Ao entrar no admin,
+  // descartamos o snapshot de banners da home para que uma edição nunca seja
+  // seguida por um primeiro frame antigo ao retornar para a loja.
+  useEffect(() => {
+    qc.removeQueries({ queryKey: ["home_banners"], exact: true });
+  }, [qc]);
+
   useEffect(() => {
     let active = true;
     if (!user?.id || isAdmin || !isSeller) { setCanAccessPrescriptions(false); return; }
