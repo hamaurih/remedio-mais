@@ -126,7 +126,8 @@ export async function fetchBestsellers(days = 30, limit = 12): Promise<Product[]
   const rpc = await sb.rpc("public_bestseller_product_ids", { _days: days, _limit: limit });
   if (rpc.error) return [];
 
-  const ids = ((rank || []) as any[]).map((r) => r.product_id);
+  const rank = (rpc.data || []) as any[];
+  const ids = rank.map((r) => r.product_id);
   if (ids.length === 0) return [];
   const { data } = await vendable(sb.from("products").select(PUBLIC_PRODUCT_SELECT)).in("id", ids);
   const byId = new Map(((data || []) as any[]).map((p) => [p.id, p]));
