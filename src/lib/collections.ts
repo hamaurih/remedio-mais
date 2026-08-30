@@ -123,7 +123,9 @@ async function fetchTagged(slug: string, limit: number): Promise<Product[]> {
 
 /** Ranking real de vendas via função do banco (unidades vendidas). */
 export async function fetchBestsellers(days = 30, limit = 12): Promise<Product[]> {
-  const { data: rank } = await sb.rpc("public_bestsellers", { _days: days, _limit: Math.max(limit * 3, limit) });
+  const rpc = await sb.rpc("public_bestseller_product_ids", { _days: days, _limit: limit });
+  if (rpc.error) return [];
+
   const ids = ((rank || []) as any[]).map((r) => r.product_id);
   if (ids.length === 0) return [];
   const { data } = await vendable(sb.from("products").select(PUBLIC_PRODUCT_SELECT)).in("id", ids);
