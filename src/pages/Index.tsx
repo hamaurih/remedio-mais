@@ -36,6 +36,19 @@ function Reveal({ children }: { children: React.ReactNode }) {
   return <div ref={ref} className={show ? "animate-fade-in-up" : "opacity-0"}>{children}</div>;
 }
 
+function HomeLayoutLoading() {
+  return (
+    <div className="container py-4 md:py-6" aria-hidden="true">
+      <div className="w-full min-h-[220px] md:min-h-[320px] rounded-2xl bg-muted/40 animate-pulse" />
+      <div className="mt-8 h-7 w-48 rounded bg-muted/40 animate-pulse" />
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-52 rounded-xl bg-muted/30 animate-pulse" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Vitrine simples por categoria: curadoria manual → produtos marcados na
@@ -202,18 +215,19 @@ export default function Index() {
   const vitamins = useShelfQuery("vitaminas", "vitaminas-e-suplementos");
   const firstaid = useShelfQuery("primeiros-socorros", "primeiros-socorros");
 
-
-  const { data: layout } = useQuery({
+  const layoutQuery = useQuery({
     queryKey: ["home_layout"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("home_layout")
         .select("section_key,enabled,position")
         .eq("enabled", true)
         .order("position");
+      if (error) throw error;
       return (data || []) as { section_key: string; enabled: boolean; position: number }[];
     },
   });
+  const layout = layoutQuery.data;
 
   // Vitrines personalizadas criadas em Admin > Vitrines da Home
   const customShelves = useQuery({
@@ -265,8 +279,6 @@ export default function Index() {
   const shelfKeys = Object.keys(shelfSections);
   const shelvesBlock = <>{[...shelfKeys, ...Object.keys(customSections)].map((k) => <div key={k}>{shelfSections[k] ?? customSections[k]}</div>)}</>;
 
-
-
   const locationBlock = (
     <Reveal>
       <section className="container py-4">
@@ -302,32 +314,48 @@ export default function Index() {
     location: locationBlock,
   };
 
-  const defaultOrder = [
-    "promo_ticker",
+  // Fallback usado somente se a consulta do layout falhar. Ele replica a
+  // estrutura atualmente publicada e, principalmente, não reativa seções antigas.
+  const safeFallbackOrder = [
     "hero_carousel",
-    "promo_mini_banner_row",
-    "promo_mosaic",
-    "benefit_cards",
     "campaign_shelf",
-    "department_carousel",
-    ...shelfKeys,
+    "shelf_offers",
+    "shelf_best_offers",
+    "shelf_bestsellers",
+    "shelf_meds",
+    "shelf_hygiene",
+    "shelf_babies",
+    "shelf_vitamins",
     ...Object.keys(customSections),
     "prescription_cta",
     "google_rating",
     "location",
   ];
 
-  const order = layout && layout.length > 0
-    ? layout.map((r) => r.section_key)
-    : defaultOrder;
+  const order = layoutQuery.isSuccess
+    ? (layout || []).map((r) => r.section_key)
+    : safeFallbackOrder;
+
+  const seo = (
+    <Seo
+      title="Atacadão dos Medicamentos | Farmácia em Campina Grande - PB"
+      description="Farmácia Atacadão dos Medicamentos em Campina Grande - PB. Preço baixo todo dia, entrega local e atendimento pelo WhatsApp."
+      path="/"
+    />
+  );
+
+  if (layoutQuery.isPending) {
+    return (
+      <Layout>
+        {seo}
+        <HomeLayoutLoading />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <Seo
-        title="Atacadão dos Medicamentos | Farmácia em Campina Grande - PB"
-        description="Farmácia Atacadão dos Medicamentos em Campina Grande - PB. Preço baixo todo dia, entrega local e atendimento pelo WhatsApp."
-        path="/"
-      />
+      {seo}
       {order.map((key) => (
         <div key={key}>{SECTIONS[key] ?? null}</div>
       ))}
@@ -338,4 +366,3 @@ export default function Index() {
     </Layout>
   );
 }
-
