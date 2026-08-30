@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { publicBootstrapQueryOptions } from "@/hooks/usePublicBootstrap";
 
 export type StoreSettings = {
   whatsapp: string | null;
@@ -27,16 +27,10 @@ export type StoreSettings = {
 
 export function useStoreSettings() {
   return useQuery({
-    queryKey: ["store_settings"],
-    queryFn: async (): Promise<StoreSettings> => {
-      const { data, error } = await (supabase as any)
-        .from("store_settings_public")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
-      if (error) throw error;
-      return (
-        (data as StoreSettings) ?? ({
+    ...publicBootstrapQueryOptions,
+    select: (bootstrap): StoreSettings =>
+      (bootstrap.settings as StoreSettings | null) ??
+        ({
           whatsapp: "5583999286000",
           address: null,
           instagram: null,
@@ -58,8 +52,6 @@ export function useStoreSettings() {
           tiktok: null,
           footer_text: null,
           sanitary_notice: null,
-        } as StoreSettings)
-      );
-    },
+        } as StoreSettings),
   });
 }

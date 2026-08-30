@@ -1,7 +1,5 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
   SheetContent,
@@ -18,6 +16,7 @@ import {
 import { Menu, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
+import { usePublicBootstrap } from "@/hooks/usePublicBootstrap";
 
 export interface Category {
   id?: string;
@@ -163,53 +162,11 @@ function MegaMenuMobile({ groups }: { groups: MegaGroupRich[] }) {
 }
 
 export function CategoryNav() {
-  // Live categories — keeps macro_group info for grouping the mega menu
-  const { data: live } = useQuery({
-    queryKey: ["nav_categories"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("categories")
-        .select("id, name, slug, macro_group, show_in_menu")
-        .eq("active", true)
-        .order("position");
-      return (data ?? []) as Category[];
-    },
-  });
-
-  // New taxonomy: departments + per-category subcategories
-  const { data: depts = [] } = useQuery({
-    queryKey: ["nav_departments"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("departments")
-        .select("id, name, slug, position, show_in_menu")
-        .eq("active", true)
-        .order("position");
-      return (data ?? []) as Array<{ id: string; name: string; slug: string; position: number; show_in_menu: boolean }>;
-    },
-  });
-  const { data: catsWithDept = [] } = useQuery({
-    queryKey: ["nav_cats_with_dept"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("categories")
-        .select("id, name, slug, department_id, position")
-        .eq("active", true)
-        .order("position");
-      return (data ?? []) as Array<{ id: string; name: string; slug: string; department_id: string | null; position: number }>;
-    },
-  });
-  const { data: subsAll = [] } = useQuery({
-    queryKey: ["nav_subs"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("subcategories")
-        .select("id, name, slug, category_id, position, show_in_menu")
-        .eq("active", true)
-        .order("position");
-      return (data ?? []) as Array<{ id: string; name: string; slug: string; category_id: string; position: number; show_in_menu: boolean }>;
-    },
-  });
+  const { data: bootstrap } = usePublicBootstrap();
+  const live = (bootstrap?.categories ?? []) as Category[];
+  const depts = bootstrap?.departments ?? [];
+  const catsWithDept = bootstrap?.categories ?? [];
+  const subsAll = bootstrap?.subcategories ?? [];
 
   const { data: headerMenu = [] } = useMenu("header_main");
   const { data: allCatsMenu = [] } = useMenu("all_categories");

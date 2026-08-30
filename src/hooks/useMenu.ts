@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { publicBootstrapQueryOptions } from "@/hooks/usePublicBootstrap";
 
 export type MenuArea =
   | "header_main"
@@ -89,16 +89,10 @@ function buildTree(rows: MenuItem[]): MenuItem[] {
 
 export function useMenu(area: MenuArea) {
   return useQuery({
-    queryKey: ["menu_items", area],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("menu_items")
-        .select("*")
-        .eq("menu_area", area)
-        .eq("active", true)
-        .order("position");
-      if (error) throw error;
-      return buildTree((data ?? []) as MenuItem[]);
-    },
+    ...publicBootstrapQueryOptions,
+    select: (bootstrap) =>
+      buildTree(
+        bootstrap.menuItems.filter((item) => item.menu_area === area) as MenuItem[],
+      ),
   });
 }
