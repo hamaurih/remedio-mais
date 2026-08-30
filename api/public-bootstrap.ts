@@ -4,13 +4,11 @@ const OFFICIAL_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_geFYMQbAFOJ3d3qazu0RYA
 type QueryValue = string | number | boolean;
 
 function getSupabaseConfig() {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    OFFICIAL_SUPABASE_URL;
+  // Variáveis VITE_* podem pertencer a previews/ambientes legados. A API de
+  // produção só aceita configuração server-side explícita ou o projeto oficial.
+  const url = process.env.SUPABASE_URL || OFFICIAL_SUPABASE_URL;
   const publishableKey =
     process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     OFFICIAL_SUPABASE_PUBLISHABLE_KEY;
 
   return { url: url.replace(/\/$/, ""), publishableKey };
