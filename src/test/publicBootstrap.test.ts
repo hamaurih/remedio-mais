@@ -19,6 +19,8 @@ const payload: PublicBootstrapData = {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  delete process.env.VITE_SUPABASE_URL;
+  delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 });
 
 describe("public bootstrap client", () => {
@@ -46,6 +48,8 @@ describe("public bootstrap client", () => {
 
 describe("public bootstrap Vercel function", () => {
   it("aggregates public rows and emits shared-cache headers", async () => {
+    process.env.VITE_SUPABASE_URL = "https://legacy-preview.supabase.co";
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY = "legacy-preview-key";
     const fetchMock = vi.fn().mockImplementation(async (input: URL) => {
       const table = input.pathname.split("/").pop();
       const rows = table === "store_settings_public" ? [{ id: 1 }] : [];
@@ -66,6 +70,12 @@ describe("public bootstrap Vercel function", () => {
     expect(response.headers.get("x-public-bootstrap-version")).toBe("1");
     expect(body.settings).toEqual({ id: 1 });
     expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(
+      fetchMock.mock.calls.every(
+        ([input]) =>
+          (input as URL).hostname === "jzltdocmvvdlyaukwzix.supabase.co",
+      ),
+    ).toBe(true);
   });
 
   it("does not cache upstream failures", async () => {
