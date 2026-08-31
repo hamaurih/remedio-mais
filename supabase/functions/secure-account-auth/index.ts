@@ -20,8 +20,11 @@ function allowedOrigin(req: Request) {
 function headers(req: Request) { return {
   "Access-Control-Allow-Origin": allowedOrigin(req),
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json",
-  "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Vary": "Origin",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+  "Vary": "Origin",
 }; }
 function json(req: Request, body: unknown, status=200) { return new Response(JSON.stringify(body), { status, headers: headers(req) }); }
 function ip(req: Request) { return req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"; }
@@ -64,7 +67,6 @@ function passwordReason(password:string,email:string) {
   if(local.length>=5 && normalized.includes(local)) return "personal";
   return null;
 }
-
 function smtpConfig() {
   const username = (Deno.env.get("SMTP_USERNAME") || "").trim();
   const password = Deno.env.get("SMTP_PASSWORD") || "";
@@ -73,27 +75,21 @@ function smtpConfig() {
   const port = Number(Deno.env.get("SMTP_PORT") || "465");
   return { username, password, from, host, port, ready: !!username && !!password && !!from };
 }
-
 async function sendRecoveryEmail(email:string, actionLink:string) {
   const cfg = smtpConfig();
   if (!cfg.ready) return false;
-  const transport = nodemailer.createTransport({
-    host: cfg.host,
-    port: cfg.port,
-    secure: cfg.port === 465,
-    auth: { user: cfg.username, pass: cfg.password },
-    connectionTimeout: 12000,
-    greetingTimeout: 12000,
-    socketTimeout: 20000,
-  });
+  const transport = nodemailer.createTransport({host:cfg.host,port:cfg.port,secure:cfg.port===465,auth:{user:cfg.username,pass:cfg.password},connectionTimeout:12000,greetingTimeout:12000,socketTimeout:20000});
   await transport.sendMail({
-    from: `"Atacadão dos Medicamentos" <${cfg.from}>`,
-    to: email,
-    subject: "Redefina sua senha | Atacadão dos Medicamentos",
-    text: `Recebemos uma solicitação para redefinir a senha da sua conta no Atacadão dos Medicamentos. Abra este link para criar uma nova senha: ${actionLink}\n\nSe você não solicitou esta alteração, ignore este e-mail.`,
-    html: `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#202124"><div style="max-width:560px;margin:32px auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:32px"><h2 style="margin:0 0 12px">Redefinição de senha</h2><p style="line-height:1.6">Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Atacadão dos Medicamentos</strong>.</p><p style="margin:28px 0"><a href="${actionLink}" style="display:inline-block;background:#0f6b3e;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px">Redefinir minha senha</a></p><p style="font-size:13px;line-height:1.6;color:#6b7280">Se você não solicitou esta alteração, ignore este e-mail. Por segurança, não compartilhe este link.</p></div></body></html>`,
+    from:`"Atacadão dos Medicamentos" <${cfg.from}>`,
+    to:email,
+    subject:"Redefina sua senha | Atacadão dos Medicamentos",
+    text:`Recebemos uma solicitação para redefinir a senha da sua conta no Atacadão dos Medicamentos. Abra este link para criar uma nova senha: ${actionLink}\n\nSe você não solicitou esta alteração, ignore este e-mail.`,
+    html:`<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#202124"><div style="max-width:560px;margin:32px auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:32px"><h2 style="margin:0 0 12px">Redefinição de senha</h2><p style="line-height:1.6">Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Atacadão dos Medicamentos</strong>.</p><p style="margin:28px 0"><a href="${actionLink}" style="display:inline-block;background:#0f6b3e;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px">Redefinir minha senha</a></p><p style="font-size:13px;line-height:1.6;color:#6b7280">Se você não solicitou esta alteração, ignore este e-mail. Por segurança, não compartilhe este link.</p></div></body></html>`,
   });
   return true;
+}
+function sessionPayload(session:any) {
+  return session ? {access_token:session.access_token,refresh_token:session.refresh_token,expires_at:session.expires_at,expires_in:session.expires_in,token_type:session.token_type} : null;
 }
 
 Deno.serve(async(req)=>{
@@ -101,64 +97,98 @@ Deno.serve(async(req)=>{
   if(req.method!=="POST") return json(req,{error:"method_not_allowed"},405);
   if(!ANON_KEY) return json(req,{error:"auth_unavailable"},503);
   try {
-    const body=await req.json().catch(()=>({})); const action=String(body?.action||"");
+    const body=await req.json().catch(()=>({}));
+    const action=String(body?.action||"");
     const email=String(body?.email||"").trim().toLowerCase();
     if(!email || email.length>254 || !email.includes("@")) return json(req,{error:"invalid_email"},400);
-    const now=Date.now(); const emailKey=`${action}:email:${await digest(email)}`; const ipKey=`${action}:ip:${await digest(ip(req))}`;
-    const [ea,ia]=await Promise.all([getAttempt(emailKey),getAttempt(ipKey)]); const retry=Math.max(blocked(ea,now),blocked(ia,now));
+    const now=Date.now();
+    const emailKey=`${action}:email:${await digest(email)}`;
+    const ipKey=`${action}:ip:${await digest(ip(req))}`;
+    const [ea,ia]=await Promise.all([getAttempt(emailKey),getAttempt(ipKey)]);
+    const retry=Math.max(blocked(ea,now),blocked(ia,now));
     if(retry>0) return json(req,{error:"too_many_attempts",retry_after:retry},429);
 
     if(action==="request-reset") {
       await Promise.all([hit(emailKey,3,now),hit(ipKey,15,now)]);
-      const cfg = smtpConfig();
-      if (cfg.ready) {
+      const cfg=smtpConfig();
+      if(cfg.ready) {
         try {
-          const { data, error } = await admin.auth.admin.generateLink({
-            type: "recovery",
-            email,
-            options: { redirectTo: `${APP_URL}/redefinir-senha` },
-          });
-          const actionLink = data?.properties?.action_link;
-          if (!error && actionLink) await sendRecoveryEmail(email, actionLink);
-          else if (error) console.error("recovery link generation rejected", { code:(error as any)?.code || "auth_error" });
-        } catch (mailError) {
-          console.error("custom recovery email failed", mailError instanceof Error ? mailError.message : "smtp_error");
-          const { error } = await authClient.auth.resetPasswordForEmail(email,{redirectTo:`${APP_URL}/redefinir-senha`});
-          if(error) console.error("password reset fallback rejected", { code:(error as any)?.code || "auth_error" });
+          const {data,error}=await admin.auth.admin.generateLink({type:"recovery",email,options:{redirectTo:`${APP_URL}/redefinir-senha`}});
+          const actionLink=data?.properties?.action_link;
+          if(!error && actionLink) await sendRecoveryEmail(email,actionLink);
+          else if(error) console.error("recovery link generation rejected",{code:(error as any)?.code||"auth_error"});
+        } catch(mailError) {
+          console.error("custom recovery email failed",mailError instanceof Error?mailError.message:"smtp_error");
+          const {error}=await authClient.auth.resetPasswordForEmail(email,{redirectTo:`${APP_URL}/redefinir-senha`});
+          if(error) console.error("password reset fallback rejected",{code:(error as any)?.code||"auth_error"});
         }
       } else {
-        const { error } = await authClient.auth.resetPasswordForEmail(email,{redirectTo:`${APP_URL}/redefinir-senha`});
-        if(error) console.error("password reset delivery rejected", { code:(error as any)?.code || "auth_error" });
+        const {error}=await authClient.auth.resetPasswordForEmail(email,{redirectTo:`${APP_URL}/redefinir-senha`});
+        if(error) console.error("password reset delivery rejected",{code:(error as any)?.code||"auth_error"});
       }
       return json(req,{ok:true,message:"Se o e-mail estiver cadastrado, enviaremos as instruções."});
     }
 
     if(action==="signup") {
-      const password=String(body?.password||""); const name=String(body?.name||"").trim().replace(/[\u0000-\u001F\u007F]/g,"").slice(0,120);
-      const reason=passwordReason(password,email); if(reason) return json(req,{error:"weak_password",reason},400);
+      const password=String(body?.password||"");
+      const name=String(body?.name||"").trim().replace(/[\u0000-\u001F\u007F]/g,"").slice(0,120);
+      const reason=passwordReason(password,email);
+      if(reason) return json(req,{error:"weak_password",reason},400);
       if(await passwordPwned(password)) return json(req,{error:"pwned_password"},400);
       const locked=await Promise.all([hit(emailKey,5,now),hit(ipKey,20,now)]);
       if(locked.some(Boolean)) return json(req,{error:"too_many_attempts",retry_after:Math.ceil(LOCK_MS/1000)},429);
-      const { data,error }=await authClient.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:APP_URL}});
-      if(error) {
-        const msg=String(error.message||"");
-        if(/already|registered|exists/i.test(msg)) return json(req,{error:"account_exists"},409);
+
+      const {data:createData,error:createError}=await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm:true,
+        user_metadata:{full_name:name},
+      });
+
+      if(createError) {
+        const msg=String(createError.message||"");
+        if(/already|registered|exists/i.test(msg)) {
+          let {data:existingLogin,error:existingLoginError}=await authClient.auth.signInWithPassword({email,password});
+          if(existingLoginError && ((existingLoginError as any)?.code==="email_not_confirmed" || /not confirmed/i.test(String(existingLoginError.message||"")))) {
+            const {data:profile}=await admin.from("profiles").select("id").eq("email",email).maybeSingle();
+            if(profile?.id) {
+              const {error:confirmError}=await admin.auth.admin.updateUserById(profile.id,{email_confirm:true});
+              if(!confirmError) {
+                const retried=await authClient.auth.signInWithPassword({email,password});
+                existingLogin=retried.data;
+                existingLoginError=retried.error;
+              }
+            }
+          }
+          if(!existingLoginError && existingLogin.session) {
+            await admin.from("auth_login_attempts").delete().eq("key_hash",emailKey);
+            return json(req,{ok:true,session:sessionPayload(existingLogin.session),needs_email_confirmation:false});
+          }
+          return json(req,{error:"account_exists"},409);
+        }
         if(/weak|password/i.test(msg)) return json(req,{error:"weak_password"},400);
-        console.error("signup failed",{code:(error as any)?.code || "auth_error"});
+        console.error("signup createUser failed",{code:(createError as any)?.code||"auth_error"});
         return json(req,{error:"signup_failed"},400);
       }
-      if(data.user?.id) {
-        const { error: profileError } = await admin.from("profiles").upsert({
-          id:data.user.id,
-          email:data.user.email || email,
-          full_name:name || null,
-        },{onConflict:"id"});
-        if(profileError) console.error("signup profile upsert failed", { code:(profileError as any)?.code || "db_error" });
+
+      if(createData.user?.id) {
+        const {error:profileError}=await admin.from("profiles").upsert({id:createData.user.id,email:createData.user.email||email,full_name:name||null},{onConflict:"id"});
+        if(profileError) console.error("signup profile upsert failed",{code:(profileError as any)?.code||"db_error"});
       }
+
+      const {data:loginData,error:loginError}=await authClient.auth.signInWithPassword({email,password});
+      if(loginError || !loginData.session) {
+        console.error("signup post-create login failed",{code:(loginError as any)?.code||"auth_error"});
+        return json(req,{error:"signup_failed"},400);
+      }
+
       await admin.from("auth_login_attempts").delete().eq("key_hash",emailKey);
-      return json(req,{ok:true,session:data.session?{access_token:data.session.access_token,refresh_token:data.session.refresh_token}:null,needs_email_confirmation:!data.session});
+      return json(req,{ok:true,session:sessionPayload(loginData.session),needs_email_confirmation:false});
     }
 
     return json(req,{error:"invalid_action"},400);
-  } catch(e){ console.error("secure-account-auth error",e instanceof Error?e.message:String(e)); return json(req,{error:"auth_unavailable"},503); }
+  } catch(e) {
+    console.error("secure-account-auth error",e instanceof Error?e.message:String(e));
+    return json(req,{error:"auth_unavailable"},503);
+  }
 });
