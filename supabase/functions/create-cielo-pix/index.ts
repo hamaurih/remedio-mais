@@ -3,6 +3,7 @@
 import { safeLog, safeError } from "../_shared/mask.ts";
 import { prepareOrder, jsonResp } from "../_shared/prepare-order.ts";
 import { CIELO_BASES, toCents, mapCieloStatus, type CieloEnv } from "../_shared/cielo.ts";
+import { getCieloCredentials } from "../_shared/cielo-credentials.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -13,52 +14,34 @@ const CORS = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
-  const MERCHANT_ID = Deno.env.get("CIELO_MERCHANT_ID");
-  const MERCHANT_KEY = Deno.env.get("CIELO_MERCHANT_KEY");
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  if (!MERCHANT_ID || !MERCHANT_KEY) {
-    return jsonResp({ success: false, error: "Cielo não configurada (credenciais ausentes)." }, 500);
-  }
-
   const prep = await prepareOrder(req, "pix");
   if (!prep.ok) return jsonResp(prep.body, prep.status);
   const { admin, order, total } = prep;
 
-  // Ambiente da Cielo
+  const { merchantId: MERCHANT_ID, merchantKey: MERCHANT_KEY } = await getCieloCredentials(admin);
+  if (!MERCHANT_ID || !MERCHANT_KEY) {
+    await admin.from("orders").delete().eq("id", order.id);
+    return jsonResp({ success: false, error: "Cielo não configurada (credenciais ausentes)." }, 500);
+  }
+
   const { data: pset } = await admin.from("payment_settings").select("environment").eq("id", 1).maybeSingle();
   const env: CieloEnv = ((pset as any)?.environment === "sandbox" ? "sandbox" : "production");
   const base = CIELO_BASES[env].transaction;
-
   const cpfDigits = String(order.customer_cpf || "").replace(/\D/g, "");
   const expirationMinutes = 30;
 
   const cieloBody = {
     MerchantOrderId: order.id,
-    Customer: {
-      Name: order.customer_name || "Cliente",
-      Identity: cpfDigits,
-      IdentityType: "CPF",
-      Email: order.customer_email || undefined,
-    },
-    Payment: {
-      Type: "Pix",
-      Amount: toCents(total),
-      QrCodeExpiration: expirationMinutes * 60, // segundos
-    },
+    Customer: { Name: order.customer_name || "Cliente", Identity: cpfDigits, IdentityType: "CPF", Email: order.customer_email || undefined },
+    Payment: { Type: "Pix", Amount: toCents(total), QrCodeExpiration: expirationMinutes * 60 },
   };
 
   safeLog("[cielo-pix] request", { order_id: order.id, total, env });
-
   let res: Response;
   try {
     res = await fetch(`${base}/1/sales/`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "MerchantId": MERCHANT_ID,
-        "MerchantKey": MERCHANT_KEY,
-        "RequestId": crypto.randomUUID(),
-      },
+      headers: { "Content-Type": "application/json", "MerchantId": MERCHANT_ID, "MerchantKey": MERCHANT_KEY, "RequestId": crypto.randomUUID() },
       body: JSON.stringify(cieloBody),
     });
   } catch (e) {
@@ -70,16 +53,11 @@ Deno.serve(async (req) => {
   const text = await res.text();
   let cielo: any = null;
   try { cielo = JSON.parse(text); } catch { cielo = { raw: text }; }
-
   if (!res.ok) {
     safeError("[cielo-pix] rejected", { status: res.status, body: cielo });
     await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
     const firstErr = Array.isArray(cielo) ? cielo[0] : cielo;
-    return jsonResp({
-      success: false,
-      error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento Pix.",
-      details: cielo,
-    }, 502);
+    return jsonResp({ success: false, error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento Pix.", details: cielo }, 502);
   }
 
   const pay = cielo?.Payment || {};
@@ -88,34 +66,10 @@ Deno.serve(async (req) => {
   const paymentId = pay.PaymentId as string | undefined;
   const statusCode = Number(pay.Status ?? 12);
   const status = mapCieloStatus(statusCode);
-
-  if (!qr || !qrBase64 || !paymentId) {
-    safeError("[cielo-pix] missing qr", { pay });
-    return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
-  }
+  if (!qr || !qrBase64 || !paymentId) return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
 
   const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000).toISOString();
-
-  await admin.from("orders").update({
-    cielo_payment_id: paymentId,
-    cielo_status: statusCode,
-    pix_qr_code: qr,
-    pix_qr_code_base64: qrBase64,
-    pix_expires_at: expiresAt,
-    payment_status: status,
-    external_reference: order.id,
-  }).eq("id", order.id);
-
+  await admin.from("orders").update({ cielo_payment_id: paymentId, cielo_status: statusCode, pix_qr_code: qr, pix_qr_code_base64: qrBase64, pix_expires_at: expiresAt, payment_status: status, external_reference: order.id }).eq("id", order.id);
   safeLog("[cielo-pix] success", { order_id: order.id, paymentId, statusCode });
-
-  return jsonResp({
-    success: true,
-    order_id: order.id,
-    payment_id: paymentId,
-    status,
-    qr_code: qr,
-    qr_code_base64: qrBase64,
-    expires_at: expiresAt,
-    total,
-  });
+  return jsonResp({ success: true, order_id: order.id, payment_id: paymentId, status, qr_code: qr, qr_code_base64: qrBase64, expires_at: expiresAt, total });
 });
