@@ -3,6 +3,8 @@ import nodemailer from "npm:nodemailer@^9";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_PRODUCTS = 20;
+const APP_DOMAIN = "atacadaodosmedicamentos.com.br";
+const ADMIN_LINK = `https://${APP_DOMAIN}/admin/receitas`;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_MIME = new Set(["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const EXT_BY_MIME: Record<string, string> = {
@@ -12,24 +14,23 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
-const ADMIN_LINK = "https://atacadaodosmedicamentos.com.br/admin/receitas";
 
-function origin(req: Request) {
+function allowedOrigin(req: Request) {
   const current = req.headers.get("origin") || "";
-  const configured = (Deno.env.get("APP_ALLOWED_ORIGINS") || "").split(",").map((v) => v.trim()).filter(Boolean);
+  const configured = (Deno.env.get("APP_ALLOWED_ORIGINS") || "").split(",").map(v => v.trim()).filter(Boolean);
   const allowed = new Set([
-    "https://atacadaodosmedicamentos.com.br",
-    "https://www.atacadaodosmedicamentos.com.br",
+    `https://${APP_DOMAIN}`,
+    `https://www.${APP_DOMAIN}`,
     "http://localhost:5173",
     "http://localhost:8080",
     ...configured,
   ]);
-  return allowed.has(current) ? current : "https://atacadaodosmedicamentos.com.br";
+  return allowed.has(current) ? current : `https://${APP_DOMAIN}`;
 }
 
 function cors(req: Request) {
   return {
-    "Access-Control-Allow-Origin": origin(req),
+    "Access-Control-Allow-Origin": allowedOrigin(req),
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
@@ -58,7 +59,7 @@ function parseProductIds(raw: FormDataEntryValue | null): string[] | null {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length > MAX_PRODUCTS) return null;
     const ids = Array.from(new Set(parsed.map(String)));
-    return ids.every((id) => UUID_RE.test(id)) ? ids : null;
+    return ids.every(id => UUID_RE.test(id)) ? ids : null;
   } catch {
     return null;
   }
@@ -90,14 +91,28 @@ async function emailLog(admin: any, prescriptionId: string, recipient: string, s
 }
 
 async function primaryAdminEmail(admin: any): Promise<string | null> {
-  const { data: role } = await admin
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "admin")
-    .limit(1)
+  const { data: domainRow } = await admin
+    .from("tenant_domains")
+    .select("tenant_id")
+    .eq("domain", APP_DOMAIN)
+    .eq("active", true)
+    .eq("is_primary", true)
     .maybeSingle();
-  const userId = role?.user_id ? String(role.user_id) : "";
+  const tenantId = domainRow?.tenant_id ? String(domainRow.tenant_id) : "";
+  if (!tenantId) return null;
+
+  const { data: memberships } = await admin
+    .from("tenant_memberships")
+    .select("user_id,role,active")
+    .eq("tenant_id", tenantId)
+    .eq("active", true);
+  const rows = Array.isArray(memberships) ? memberships : [];
+  const sellerIds = new Set(rows.filter((r: any) => String(r.role) === "seller").map((r: any) => String(r.user_id)));
+  const admins = rows.filter((r: any) => String(r.role) === "admin");
+  const primary = admins.find((r: any) => !sellerIds.has(String(r.user_id))) || admins[0];
+  const userId = primary?.user_id ? String(primary.user_id) : "";
   if (!userId) return null;
+
   const { data, error } = await admin.auth.admin.getUserById(userId);
   if (error) return null;
   const email = String(data?.user?.email || "").trim().toLowerCase();
@@ -117,7 +132,7 @@ async function notifyAdminByEmail(admin: any, prescriptionId: string, createdAt:
 
     const recipient = await primaryAdminEmail(admin);
     if (!recipient) {
-      await emailLog(admin, prescriptionId, "(admin_sem_email)", "invalid_recipient", "conta de administrador sem e-mail válido");
+      await emailLog(admin, prescriptionId, "(admin_sem_email)", "invalid_recipient", "administrador principal sem e-mail válido");
       return;
     }
 
@@ -145,12 +160,11 @@ async function notifyAdminByEmail(admin: any, prescriptionId: string, createdAt:
       text: `Uma nova receita foi recebida pelo site em ${when} e aguarda análise. Acesse o painel administrativo: ${ADMIN_LINK}`,
       html: `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#202124"><div style="max-width:560px;margin:32px auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:32px"><h2 style="margin:0 0 12px">Nova receita recebida</h2><p style="line-height:1.6">Uma nova receita foi enviada pelo site em <strong>${when}</strong> e está aguardando análise no painel administrativo.</p><p style="margin:28px 0"><a href="${ADMIN_LINK}" style="display:inline-block;background:#0f6b3e;color:#fff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px">Abrir painel de receitas</a></p><p style="font-size:13px;line-height:1.6;color:#6b7280">Por privacidade e segurança, este e-mail não contém nome do paciente, telefone, medicamentos nem arquivo da receita.</p></div></body></html>`,
     });
-
     await emailLog(admin, prescriptionId, recipient, "sent", null);
   } catch (e) {
     try {
       await emailLog(admin, prescriptionId, "(desconhecido)", "failed", (e as Error)?.message || "smtp_error");
-    } catch { /* e-mail é best effort e nunca bloqueia a receita */ }
+    } catch { /* e-mail não pode bloquear o recebimento da receita */ }
   }
 }
 
