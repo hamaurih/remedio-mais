@@ -12,9 +12,11 @@ import { PosProductPanel } from "@/components/pos/PosProductPanel";
 import { PosPaymentDialog } from "@/components/pos/PosPaymentDialog";
 import { PosCustomerDialog, PosCustomer } from "@/components/pos/PosCustomerDialog";
 import { PosCashPanel } from "@/components/pos/PosCashPanel";
+import { PosDeliveryPanel } from "@/components/pos/PosDeliveryPanel";
 import { printReceipt } from "@/components/pos/PosReceipt";
 import {
   PosCartItem,
+  PosDeliveryQuote,
   PosOperator,
   PosPayment,
   PosProduct,
@@ -39,6 +41,7 @@ export default function Pdv() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<PosCartItem[]>([]);
   const [customer, setCustomer] = useState<PosCustomer | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<PosDeliveryQuote | null>(null);
   const [saleDiscount, setSaleDiscount] = useState("0");
   const [payOpen, setPayOpen] = useState(false);
   const [custOpen, setCustOpen] = useState(false);
@@ -65,7 +68,8 @@ export default function Pdv() {
   const itemDiscounts = useMemo(() => round2(items.reduce((s, i) => s + (i.discount || 0), 0)), [items]);
   const extraDiscount = round2(Number(saleDiscount.replace(",", ".")) || 0);
   const discount = round2(itemDiscounts + extraDiscount);
-  const total = round2(Math.max(subtotal - discount, 0));
+  const deliveryFee = round2(Number(deliveryQuote?.fee ?? 0));
+  const total = round2(Math.max(subtotal - discount + deliveryFee, 0));
   const savings = useMemo(
     () =>
       round2(
@@ -110,6 +114,7 @@ export default function Pdv() {
   function clearSale() {
     setItems([]);
     setCustomer(null);
+    setDeliveryQuote(null);
     setSaleDiscount("0");
     setFocusSignal((n) => n + 1);
   }
@@ -131,6 +136,7 @@ export default function Pdv() {
           customer_cpf: customer?.cpf ?? null,
           customer_phone: customer?.phone ?? null,
           discount: extraDiscount,
+          delivery_quote_id: deliveryQuote?.quote_id ?? null,
           items: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity, discount: i.discount || 0 })),
           payments,
         });
@@ -151,6 +157,13 @@ export default function Pdv() {
           })),
           subtotal: result.subtotal,
           discount: result.discount,
+          delivery: result.delivery_fee && result.delivery_fee > 0
+            ? {
+                address: result.delivery_address || deliveryQuote?.address || "",
+                fee: result.delivery_fee,
+                distance_km: result.delivery_distance_km ?? deliveryQuote?.distance_km ?? null,
+              }
+            : null,
           total: result.total,
           payments,
           change: result.change,
@@ -159,12 +172,14 @@ export default function Pdv() {
         const trier = await posSendSaleToTrier(result.sale_id, result.order_id);
         if (!trier.ok) toast.warning("Venda registrada. Envio ao Trier pendente — é possível reenviar depois.");
       } catch (e: any) {
-        toast.error(e.message || "Falha ao finalizar venda");
+        const message = e?.message || "Falha ao finalizar venda";
+        if (/cotação|frete|entrega|expirad/i.test(message)) setDeliveryQuote(null);
+        toast.error(message);
       } finally {
         setBusy(false);
       }
     },
-    [session, customer, extraDiscount, items, profile, user, settings],
+    [session, customer, deliveryQuote, extraDiscount, items, profile, user, settings],
   );
 
   // Atalhos profissionais de balcão
@@ -267,6 +282,17 @@ export default function Pdv() {
         <div className="space-y-4">
           <PosCashPanel session={session} onChanged={reload} canWithdraw={canWithdraw} />
 
+          {session && (
+            <PosDeliveryPanel
+              key={focusSignal}
+              storeId={session.store_id}
+              applied={deliveryQuote}
+              onApply={setDeliveryQuote}
+              onRemove={() => setDeliveryQuote(null)}
+              disabled={busy}
+            />
+          )}
+
           <Card className="p-4 space-y-2">
             <div className="flex justify-between text-sm"><span>Subtotal</span><span>{brl(subtotal)}</span></div>
             {savings > 0 && (
@@ -282,6 +308,12 @@ export default function Pdv() {
                 disabled={maxDiscount <= 0}
               />
             </div>
+            {deliveryQuote && (
+              <div className="flex justify-between text-sm font-medium">
+                <span>Entrega{deliveryQuote.distance_km != null ? ` · ${Number(deliveryQuote.distance_km).toFixed(1)} km` : ""}</span>
+                <span>{brl(deliveryFee)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between text-lg font-extrabold"><span>Total</span><span>{brl(total)}</span></div>
             <Button
@@ -291,7 +323,7 @@ export default function Pdv() {
             >
               Pagamento (F8)
             </Button>
-            <Button variant="outline" className="w-full" onClick={clearSale} disabled={items.length === 0}>
+            <Button variant="outline" className="w-full" onClick={clearSale} disabled={items.length === 0 && !deliveryQuote}>
               Cancelar venda
             </Button>
             {!session && <p className="text-xs text-destructive">Abra o caixa para vender.</p>}
