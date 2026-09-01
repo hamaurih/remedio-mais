@@ -8,11 +8,13 @@ import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Seo } from "@/components/Seo";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
@@ -181,15 +183,28 @@ export default function Auth() {
             {mode !== "forgot" && (
               <div className="space-y-2">
                 <Label>Senha</Label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  minLength={mode === "signup" ? 8 : 1}
-                  maxLength={128}
-                  required
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={mode === "signup" ? 8 : 1}
+                    maxLength={128}
+                    required
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-r-md"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    aria-pressed={showPassword}
+                    title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                  </button>
+                </div>
                 {mode === "signup" && (
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p className={password.length >= 8 ? "text-green-600" : ""}>{password.length >= 8 ? "✓" : "○"} Pelo menos 8 caracteres</p>
@@ -205,7 +220,10 @@ export default function Auth() {
           </form>
 
           {mode === "login" && (
-            <button className="mt-4 block text-sm text-primary hover:underline" onClick={() => setMode("forgot")}>
+            <button className="mt-4 block text-sm text-primary hover:underline" onClick={() => {
+              setShowPassword(false);
+              setMode("forgot");
+            }}>
               Esqueci minha senha
             </button>
           )}
@@ -214,6 +232,7 @@ export default function Auth() {
             className="mt-3 text-sm text-primary hover:underline"
             onClick={() => {
               setPassword("");
+              setShowPassword(false);
               setMode(mode === "login" ? "signup" : "login");
             }}
           >
