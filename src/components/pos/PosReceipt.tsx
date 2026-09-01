@@ -10,6 +10,11 @@ export type PosReceiptData = {
   items: { name: string; quantity: number; unit_price: number; total: number }[];
   subtotal: number;
   discount: number;
+  delivery?: {
+    address: string;
+    fee: number;
+    distance_km?: number | null;
+  } | null;
   total: number;
   payments: PosPayment[];
   change: number;
@@ -23,6 +28,11 @@ export function printReceipt(d: PosReceiptData) {
     )
     .join("");
   const pays = d.payments.map((p) => `<div>${PAYMENT_LABELS[p.method]}: ${brl(p.amount)}</div>`).join("");
+  const delivery = d.delivery
+    ? `<div>Entrega: ${brl(d.delivery.fee)}</div>
+<div>Endereço: ${escapeHtml(d.delivery.address)}</div>
+${d.delivery.distance_km != null ? `<div>Distância: ${Number(d.delivery.distance_km).toFixed(1)} km</div>` : ""}`
+    : "";
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8" />
 <title>Comprovante ${d.saleNumber}</title>
 <style>
@@ -41,6 +51,7 @@ export function printReceipt(d: PosReceiptData) {
 <hr/>
 <div>Subtotal: ${brl(d.subtotal)}</div>
 <div>Desconto: ${brl(d.discount)}</div>
+${delivery}
 <div class="tot"><span>TOTAL</span><span>${brl(d.total)}</span></div>
 <hr/>
 ${pays}
