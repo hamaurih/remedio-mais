@@ -1,0 +1,36 @@
+# Atacadão dos Medicamentos
+
+> Farmácia e e-commerce de medicamentos, higiene, beleza, vitaminas, suplementos e conveniência em Campina Grande - PB, Brasil.
+
+Canonical site: https://www.atacadaodosmedicamentos.com.br/
+Language: pt-BR
+Business: Atacadao dos Medicamentos LTDA
+CNPJ: 44.895.435/0001-17
+Location: Av. Mal. Floriano Peixoto, 4050 - Malvinas, Campina Grande - PB, 58428-111
+
+## Main public pages
+- Home: https://www.atacadaodosmedicamentos.com.br/
+- Offers: https://www.atacadaodosmedicamentos.com.br/ofertas
+- Best offers: https://www.atacadaodosmedicamentos.com.br/melhores-ofertas
+- Best sellers: https://www.atacadaodosmedicamentos.com.br/mais-vendidos
+- Popular medicines: https://www.atacadaodosmedicamentos.com.br/medicamentos-populares
+- Generic offers: https://www.atacadaodosmedicamentos.com.br/genericos-em-oferta
+- Departments: https://www.atacadaodosmedicamentos.com.br/departamentos
+- Contact: https://www.atacadaodosmedicamentos.com.br/fale-conosco
+- Prescription submission: https://www.atacadaodosmedicamentos.com.br/enviar-receita
+
+## Policies
+- Privacy: https://www.atacadaodosmedicamentos.com.br/politica-de-privacidade
+- Terms of use: https://www.atacadaodosmedicamentos.com.br/termos-de-uso
+- Returns and exchanges: https://www.atacadaodosmedicamentos.com.br/trocas-e-devolucoes
+- Refund policy: https://www.atacadaodosmedicamentos.com.br/politica-de-reembolso
+
+## Discovery
+- XML sitemap: https://www.atacadaodosmedicamentos.com.br/sitemap.xml
+- Robots: https://www.atacadaodosmedicamentos.com.br/robots.txt
+
+## Content notes
+- Product prices, stock and promotions can change; use the current product page as the source of truth.
+- Products that require a prescription are subject to pharmaceutical review before purchase is released.
+- Product and medication information on the site is informational and is not a substitute for professional medical advice.
+- Administrative, account, cart, checkout and payment pages are transactional and should not be treated as public reference content.
