@@ -64,7 +64,18 @@ export default function Product() {
   );
 
   if (isLoading) return <Layout><div className="container py-20 text-center">Carregando...</div></Layout>;
-  if (!p) return <Layout><div className="container py-20 text-center">Produto não encontrado.</div></Layout>;
+  if (!p) {
+    return (
+      <Layout>
+        <Seo
+          title="Produto não encontrado"
+          description="O produto solicitado não foi encontrado no Atacadão dos Medicamentos."
+          noindex
+        />
+        <div className="container py-20 text-center">Produto não encontrado.</div>
+      </Layout>
+    );
+  }
 
   const hasVariants = !!(p as any).has_variants && variants.length > 0;
   const resolved = resolveSitePrice(
