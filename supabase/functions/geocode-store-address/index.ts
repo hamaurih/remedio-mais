@@ -1,4 +1,5 @@
 // Geocoda o endereço da loja e salva store_lat/store_lng. Admin-only.
+// Usa a chave privada da própria loja armazenada no Supabase Vault.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -7,131 +8,127 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-// Traduz 403 do Google em mensagem administrativa clara (sem expor chave/headers).
-function describeKeyError(details: Array<{ reason?: string }>): string {
-  const reason = details.find((d) => d.reason)?.reason;
-  if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
-    return "A chave do Google Maps usada no servidor está com restrição de site (HTTP referrer) e por isso é recusada em chamadas server-side. Cadastre uma chave de servidor sem restrição de aplicativo (ou restrita por endereço IP).";
-  }
-  if (reason === "API_KEY_SERVICE_BLOCKED") {
-    return "A chave do Google Maps não permite esta API. Habilite/permita a Geocoding API na lista de APIs da chave de servidor.";
-  }
-  return "O Google recusou a requisição (403). Verifique as restrições da chave de servidor no Google Cloud Console.";
+function envMapsKey(): string {
+  return String(
+    Deno.env.get("GOOGLE_MAPS_SERVER_API_KEY") ||
+    Deno.env.get("GOOGLE_MAPS_API_KEY_1") ||
+    Deno.env.get("GOOGLE_MAPS_API_KEY") ||
+    ""
+  ).trim();
+}
+
+async function mapsKey(storeSettingsId: number): Promise<string> {
+  const { data, error } = await admin.rpc("get_private_store_integration_secret", {
+    p_store_settings_id: storeSettingsId,
+    p_provider: "google_maps",
+    p_key: "server_api_key",
+  });
+  if (!error && data) return String(data).trim();
+  return envMapsKey();
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    if (!token) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!token) return json({ error: "unauthorized" }, 401);
 
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    const userClient = createClient(url, anonKey, {
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false },
     });
-    const { data: userData } = await userClient.auth.getUser();
+    const { data: userData, error: userError } = await userClient.auth.getUser(token);
     const userId = userData?.user?.id;
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (userError || !userId) return json({ error: "unauthorized" }, 401);
 
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!isAdmin) return json({ error: "forbidden" }, 403);
 
-    const { address } = (await req.json().catch(() => ({}))) as { address?: string };
-    let target = address?.trim();
+    const body = await req.json().catch(() => ({}));
+    const storeSettingsIdRaw = Number(body?.store_settings_id ?? 1);
+    const storeSettingsId = Number.isInteger(storeSettingsIdRaw) && storeSettingsIdRaw > 0 ? storeSettingsIdRaw : 1;
+    let target = typeof body?.address === "string" ? body.address.trim() : "";
+
     if (!target) {
-      const { data: s } = await admin.from("store_settings").select("address").eq("id", 1).maybeSingle();
-      target = (s?.address || "").trim();
+      const { data: settings } = await admin
+        .from("store_settings")
+        .select("address")
+        .eq("id", storeSettingsId)
+        .maybeSingle();
+      target = String(settings?.address || "").trim();
     }
-    if (!target) {
-      return new Response(JSON.stringify({ error: "address_required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!target) return json({ error: "address_required" }, 400);
+
+    const key = await mapsKey(storeSettingsId);
+    if (!key) {
+      return json({
+        error: "maps_not_configured",
+        message: "Cadastre a chave privada do Google Maps na aba Entrega antes de recalcular as coordenadas.",
+      }, 422);
     }
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!lovableKey || !mapsKey) {
-      return new Response(JSON.stringify({ error: "maps_not_configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const params = new URLSearchParams({
+      address: target,
+      region: "br",
+      language: "pt-BR",
+      components: "country:BR",
+      key,
+    });
+    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+    const result = await response.json().catch(() => ({}));
+    const googleStatus = String(result?.status || `HTTP_${response.status}`);
+
+    if (!response.ok || googleStatus !== "OK") {
+      const configurationProblem = googleStatus === "REQUEST_DENIED" || googleStatus === "OVER_DAILY_LIMIT";
+      return json({
+        error: configurationProblem ? "maps_key_denied" : "geocode_failed",
+        google_status: googleStatus,
+        message: configurationProblem
+          ? "A chave foi recusada pelo Google. Confira faturamento, Geocoding API e as restrições da chave de servidor."
+          : "Não foi possível localizar o endereço da loja.",
+      }, configurationProblem ? 422 : 404);
     }
 
-    const r = await fetch(
-      `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(target)}&region=br`,
-      {
-        headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey },
-      }
-    );
-    if (r.status === 403) {
-      const body = await r.json().catch(() => ({}));
-      const msg = describeKeyError(body?.error?.details ?? []);
-      console.error("Geocode 403:", msg);
-      return new Response(
-        JSON.stringify({ error: "maps_key_denied", message: msg }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    if (!r.ok) {
-      const text = await r.text();
-      console.error(`Geocode falhou [${r.status}]: ${text}`);
-      return new Response(
-        JSON.stringify({ error: "geocode_request_failed", status: r.status, message: "O Google recusou a requisição de geocodificação." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    const j = await r.json();
-    const loc = j?.results?.[0]?.geometry?.location;
-    const formatted = j?.results?.[0]?.formatted_address;
-    if (!loc) {
-      return new Response(
-        JSON.stringify({ error: "geocode_failed", details: j?.status, message: j?.error_message }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const first = result?.results?.[0];
+    const loc = first?.geometry?.location;
+    if (!loc || typeof loc.lat !== "number" || typeof loc.lng !== "number") {
+      return json({ error: "geocode_failed", message: "O Google não retornou coordenadas para esse endereço." }, 404);
     }
 
-    await admin
+    const { error: updateError } = await admin
       .from("store_settings")
       .update({
         store_lat: loc.lat,
         store_lng: loc.lng,
         store_geocoded_at: new Date().toISOString(),
       })
-      .eq("id", 1);
+      .eq("id", storeSettingsId);
+    if (updateError) throw updateError;
 
-    return new Response(
-      JSON.stringify({ ok: true, lat: loc.lat, lng: loc.lng, formatted_address: formatted }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e?.message || "internal_error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return json({
+      ok: true,
+      lat: loc.lat,
+      lng: loc.lng,
+      formatted_address: first?.formatted_address || target,
+      partial_match: Boolean(first?.partial_match),
     });
+  } catch (e: any) {
+    console.error("geocode-store-address", e?.message || "internal_error");
+    return json({ error: "internal_error" }, 500);
   }
 });
