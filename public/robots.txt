@@ -1,16 +1,7 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Atacadão dos Medicamentos
+# Páginas públicas podem ser rastreadas; a área administrativa não deve entrar no índice.
 User-agent: *
 Allow: /
+Disallow: /admin
 
-Sitemap: https://atacadaodosmedicamentos.com.br/sitemap.xml
+Sitemap: https://www.atacadaodosmedicamentos.com.br/sitemap.xml
