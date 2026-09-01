@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GoogleMapsCredentialPanel } from "@/components/admin/GoogleMapsCredentialPanel";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 
@@ -34,7 +35,6 @@ export default function AdminSettings() {
       .maybeSingle()
       .then(({ data }: any) => setLastEmail(data || null));
   }, []);
-
 
   const save = async () => {
     const payload = {
@@ -73,7 +73,7 @@ export default function AdminSettings() {
     setGeocoding(true);
     try {
       const { data, error } = await supabase.functions.invoke("geocode-store-address", {
-        body: { address: s.address || "" },
+        body: { address: s.address || "", store_settings_id: 1 },
       });
       if (error || (data as any)?.error) throw new Error((data as any)?.message || (data as any)?.error || error?.message || "Falha");
       setS({ ...s, store_lat: (data as any).lat, store_lng: (data as any).lng, store_geocoded_at: new Date().toISOString() });
@@ -98,7 +98,6 @@ export default function AdminSettings() {
             <TabsTrigger value="home">Home</TabsTrigger>
             <TabsTrigger value="receitas">Receitas</TabsTrigger>
             <TabsTrigger value="legal">Legal / Sanitário</TabsTrigger>
-
           </TabsList>
 
           <TabsContent value="loja" className="space-y-3 pt-3">
@@ -132,6 +131,8 @@ export default function AdminSettings() {
                 {geocoding ? <><Loader2 className="h-3 w-3 mr-2 animate-spin" /> Geocodificando…</> : "Recalcular coordenadas do endereço"}
               </Button>
             </div>
+
+            <GoogleMapsCredentialPanel storeSettingsId={1} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">
@@ -246,8 +247,6 @@ export default function AdminSettings() {
               </div>
             )}
           </TabsContent>
-
-
 
           <TabsContent value="legal" className="space-y-3 pt-3">
             <div className="space-y-1"><Label>Razão social</Label><Input value={s.legal_name || ""} onChange={set("legal_name")} /></div>
