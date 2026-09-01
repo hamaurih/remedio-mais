@@ -157,10 +157,10 @@ export default function Pdv() {
           })),
           subtotal: result.subtotal,
           discount: result.discount,
-          delivery: result.delivery_fee && result.delivery_fee > 0
+          delivery: result.delivery_address || deliveryQuote
             ? {
                 address: result.delivery_address || deliveryQuote?.address || "",
-                fee: result.delivery_fee,
+                fee: Number(result.delivery_fee ?? deliveryQuote?.fee ?? 0),
                 distance_km: result.delivery_distance_km ?? deliveryQuote?.distance_km ?? null,
               }
             : null,
