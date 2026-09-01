@@ -77,6 +77,13 @@ export default function Product() {
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : ((p as any).stock ?? 0);
   const outOfStock = variantStock <= 0;
   const requiresPrescription = !!((p as any).requires_prescription || (p as any).controlled);
+  const productUrl = `https://www.atacadaodosmedicamentos.com.br/produto/${p.slug}`;
+  const seoTitle = String((p as any).seo_title || p.name).trim();
+  const seoDescription = String(
+    (p as any).seo_description ||
+      `${p.name}${(p as any).manufacturer ? " - " + (p as any).manufacturer : ""}. Compre na farmácia Atacadão dos Medicamentos com preço baixo e entrega em Campina Grande - PB.`,
+  ).trim();
+  const barcode = String((p as any).barcode || "").replace(/\D/g, "");
 
   const handleAdd = () => {
     if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
@@ -132,26 +139,39 @@ export default function Product() {
   return (
     <Layout>
       <Seo
-        title={p.name}
-        description={`${p.name}${(p as any).manufacturer ? " - " + (p as any).manufacturer : ""}. Compre na farmácia Atacadão dos Medicamentos com preço baixo e entrega em Campina Grande - PB.`}
+        title={seoTitle}
+        description={seoDescription}
         path={`/produto/${p.slug}`}
         image={typeof p.image_url === "string" && p.image_url.startsWith("http") ? p.image_url : null}
         type="product"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Product",
+          "@id": `${productUrl}#product`,
           name: p.name,
+          description: seoDescription,
+          url: productUrl,
           image: p.image_url || undefined,
-          brand: (p as any).manufacturer || undefined,
+          brand: (p as any).manufacturer
+            ? { "@type": "Brand", name: (p as any).manufacturer }
+            : undefined,
           sku: (p as any).sku || p.id,
+          ...(barcode.length === 13 ? { gtin13: barcode } : {}),
+          category: (p as any).category_name || (p as any).department_name || undefined,
           offers: {
             "@type": "Offer",
+            url: productUrl,
             price: Number(finalPrice),
             priceCurrency: "BRL",
-            availability: Math.max(Number(p.stock ?? 0), Number((p as any).stock_quantity ?? 0)) > 0
+            itemCondition: "https://schema.org/NewCondition",
+            availability: variantStock > 0
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
-            url: `https://atacadaodosmedicamentos.com.br/produto/${p.slug}`,
+            seller: {
+              "@type": "Organization",
+              name: "Atacadão dos Medicamentos",
+              url: "https://www.atacadaodosmedicamentos.com.br/",
+            },
           },
         }}
       />
@@ -161,7 +181,7 @@ export default function Product() {
         </nav>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-secondary/40 rounded-2xl p-8 flex items-center justify-center">
-            <img src={displayImage} alt={p.name} width={420} height={420} decoding="async" className="max-h-[420px] object-contain" />
+            <img src={displayImage} alt={p.name} width={420} height={420} decoding="async" fetchPriority="high" className="max-h-[420px] object-contain" />
           </div>
           <div>
             {(p as any).manufacturer && <div className="text-sm text-muted-foreground">{(p as any).manufacturer}</div>}
