@@ -49,6 +49,34 @@ export type PosOperator = {
   max_discount_percent: number;
 };
 
+export type PosDeliveryAddress = {
+  cep?: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  reference?: string;
+};
+
+export type PosDeliveryQuote = {
+  quote_id: string | null;
+  address: string;
+  allowed: boolean;
+  fee: number | null;
+  distance_km: number | null;
+  distance_source?: "route" | "haversine" | string | null;
+  distance_warning?: string | null;
+  zone_label?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  expires_at?: string | null;
+  message?: string | null;
+  reason?: string | null;
+  address_fields?: PosDeliveryAddress;
+};
+
 export const PAYMENT_LABELS: Record<PosPaymentMethod, string> = {
   cash: "Dinheiro",
   pix: "Pix",
@@ -184,6 +212,17 @@ export async function posCashMovement(sessionId: string, type: "withdrawal" | "d
   if (error) throw error;
 }
 
+export async function posQuoteDelivery(address: PosDeliveryAddress, storeId: string): Promise<PosDeliveryQuote> {
+  const { data, error } = await supabase.functions.invoke("pos-delivery-quote", {
+    body: { store_id: storeId, address },
+  });
+  if (error) throw new Error(error.message || "Não foi possível calcular o frete.");
+  const result = data as any;
+  if (!result) throw new Error("Não foi possível calcular o frete.");
+  if (result.error) throw new Error(result.message || result.error);
+  return result as PosDeliveryQuote;
+}
+
 export type PosFinalizePayload = {
   session_id: string;
   client_request_id: string;
@@ -193,6 +232,7 @@ export type PosFinalizePayload = {
   customer_phone?: string | null;
   discount?: number;
   notes?: string | null;
+  delivery_quote_id?: string | null;
   items: { product_id: string; quantity: number; discount: number }[];
   payments: PosPayment[];
 };
@@ -203,6 +243,9 @@ export type PosFinalizeResult = {
   order_id: string | null;
   subtotal: number;
   discount: number;
+  delivery_fee?: number;
+  delivery_address?: string | null;
+  delivery_distance_km?: number | null;
   total: number;
   change: number;
   duplicate?: boolean;
