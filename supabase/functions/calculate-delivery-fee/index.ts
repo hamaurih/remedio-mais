@@ -1,5 +1,6 @@
-// Calcula taxa de entrega por distância. Usa a Routes API (distância real por
-// rota de carro) e cai para Haversine (linha reta) se a rota não estiver disponível.
+// Calcula taxa de entrega por distância usando Google Maps diretamente.
+// A chave privada é lida primeiro do Supabase Vault por loja/configuração e nunca
+// é enviada ao navegador. Há fallback para secrets de ambiente durante a transição.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -8,29 +9,43 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 type Zone = { min_km: number; max_km: number; fee: number; label?: string };
+type GeocodeResult = {
+  ok: boolean;
+  lat?: number;
+  lng?: number;
+  formatted_address?: string;
+  partial_match?: boolean;
+  error?: string;
+};
 
-function mapsHeaders() {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY_1") || Deno.env.get("GOOGLE_MAPS_API_KEY");
-  if (!lovableKey || !mapsKey) return null;
-  return {
-    Authorization: `Bearer ${lovableKey}`,
-    "X-Connection-Api-Key": mapsKey,
-  } as Record<string, string>;
+function envMapsKey(): string {
+  return String(
+    Deno.env.get("GOOGLE_MAPS_SERVER_API_KEY") ||
+    Deno.env.get("GOOGLE_MAPS_API_KEY_1") ||
+    Deno.env.get("GOOGLE_MAPS_API_KEY") ||
+    ""
+  ).trim();
 }
 
-function describeKeyError(details: Array<{ reason?: string }>): string {
-  const reason = details.find((d) => d.reason)?.reason;
-  if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
-    return "A chave do Google Maps usada no servidor tem restrição de site (HTTP referrer). No Google Cloud Console, use uma chave sem restrição de aplicativo (ou restrita por IP) para o servidor.";
+async function mapsKey(storeSettingsId: number): Promise<{ key: string; source: string }> {
+  try {
+    const { data, error } = await admin.rpc("get_private_store_integration_secret", {
+      p_store_settings_id: storeSettingsId,
+      p_provider: "google_maps",
+      p_key: "server_api_key",
+    });
+    if (!error && data) return { key: String(data).trim(), source: "store_vault" };
+  } catch (error) {
+    console.error("maps vault lookup failed", error instanceof Error ? error.message : "unknown");
   }
-  if (reason === "API_KEY_SERVICE_BLOCKED") {
-    return "A chave do Google Maps não permite esta API. Adicione Geocoding API e Routes API à lista de APIs permitidas da chave de servidor.";
-  }
-  return "O Google recusou a requisição (403). Verifique as restrições da chave de servidor no Google Cloud Console.";
+
+  const fallback = envMapsKey();
+  return { key: fallback, source: fallback ? "environment" : "none" };
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -44,21 +59,21 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Distância real por rota (carro). Retorna null se indisponível.
 async function routeDistanceKm(
+  key: string,
   originLat: number,
   originLng: number,
   destLat: number,
-  destLng: number
+  destLng: number,
 ): Promise<{ km: number | null; error?: string }> {
-  const headers = mapsHeaders();
-  if (!headers) return { km: null, error: "missing_maps_credentials" };
+  if (!key) return { km: null, error: "maps_credentials_missing" };
+
   try {
-    const r = await fetch(`${GATEWAY_URL}/routes/directions/v2:computeRoutes`, {
+    const r = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
       method: "POST",
       headers: {
-        ...headers,
         "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
         "X-Goog-FieldMask": "routes.distanceMeters,routes.duration",
       },
       body: JSON.stringify({
@@ -66,183 +81,224 @@ async function routeDistanceKm(
         destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
         travelMode: "DRIVE",
         routingPreference: "TRAFFIC_UNAWARE",
+        languageCode: "pt-BR",
         regionCode: "BR",
       }),
     });
-    if (r.status === 403) {
-      const body = await r.json().catch(() => ({}));
-      return { km: null, error: describeKeyError(body?.error?.details ?? []) };
-    }
+
     if (!r.ok) {
-      const text = await r.text();
-      console.error(`Routes API falhou [${r.status}]: ${text}`);
-      return { km: null, error: `routes_${r.status}` };
+      const body = await r.json().catch(() => ({}));
+      const apiStatus = body?.error?.status || `HTTP_${r.status}`;
+      console.error("Routes API recusou a rota", { status: r.status, apiStatus });
+      return { km: null, error: `routes_${String(apiStatus).toLowerCase()}` };
     }
+
     const j = await r.json();
     const meters = j?.routes?.[0]?.distanceMeters;
     if (typeof meters !== "number") return { km: null, error: "no_route" };
     return { km: meters / 1000 };
   } catch (e: any) {
-    console.error("Routes API erro:", e?.message);
-    return { km: null, error: e?.message || "routes_error" };
+    console.error("Routes API erro", e?.message || "routes_error");
+    return { km: null, error: "routes_error" };
   }
 }
 
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  const headers = mapsHeaders();
-  if (!headers) return null;
-  const url = `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=br`;
-  const r = await fetch(url, { headers });
-  if (r.status === 403) {
-    const body = await r.json().catch(() => ({}));
-    console.error("Geocode 403:", describeKeyError(body?.error?.details ?? []));
-    return null;
+function addressCandidates(raw: string): string[] {
+  const base = raw.replace(/\s+/g, " ").trim();
+  const candidates = [base];
+
+  if (!/campina\s+grande/i.test(base)) {
+    candidates.push(`${base}, Campina Grande, PB, Brasil`);
   }
-  if (!r.ok) {
-    console.error(`Geocode falhou [${r.status}]: ${await r.text()}`);
-    return null;
+
+  if (/bodocongo/i.test(base) && !/bodocongó/i.test(base)) {
+    candidates.push(base.replace(/bodocongo/gi, "Bodocongó"));
   }
-  const j = await r.json();
-  const loc = j?.results?.[0]?.geometry?.location;
-  if (!loc) return null;
-  return { lat: loc.lat, lng: loc.lng };
+
+  return [...new Set(candidates)];
+}
+
+async function geocodeAddress(address: string, key: string): Promise<GeocodeResult> {
+  if (!key) return { ok: false, error: "maps_credentials_missing" };
+
+  let lastStatus = "ZERO_RESULTS";
+  for (const candidate of addressCandidates(address)) {
+    try {
+      const params = new URLSearchParams({
+        address: candidate,
+        region: "br",
+        language: "pt-BR",
+        components: "country:BR",
+        key,
+      });
+      const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+      if (!r.ok) {
+        lastStatus = `HTTP_${r.status}`;
+        continue;
+      }
+
+      const j = await r.json();
+      const status = String(j?.status || "UNKNOWN_ERROR");
+      lastStatus = status;
+
+      if (status === "OK" && j?.results?.[0]?.geometry?.location) {
+        const first = j.results[0];
+        return {
+          ok: true,
+          lat: Number(first.geometry.location.lat),
+          lng: Number(first.geometry.location.lng),
+          formatted_address: first.formatted_address || candidate,
+          partial_match: Boolean(first.partial_match),
+        };
+      }
+
+      if (status === "REQUEST_DENIED" || status === "OVER_DAILY_LIMIT") {
+        return { ok: false, error: "maps_configuration_error" };
+      }
+    } catch (e: any) {
+      console.error("Geocoding API erro", e?.message || "geocode_error");
+      lastStatus = "NETWORK_ERROR";
+    }
+  }
+
+  return {
+    ok: false,
+    error: lastStatus === "ZERO_RESULTS" ? "geocode_zero_results" : "geocode_failed",
+  };
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
 
   try {
     const body = await req.json().catch(() => ({}));
+    const storeSettingsIdRaw = Number(body?.store_settings_id ?? 1);
+    const storeSettingsId = Number.isInteger(storeSettingsIdRaw) && storeSettingsIdRaw > 0 ? storeSettingsIdRaw : 1;
     let { lat, lng } = body as { lat?: number; lng?: number };
-    const { address } = body as { lat?: number; lng?: number; address?: string };
+    const { address } = body as { address?: string };
+
+    const { data: s, error } = await admin
+      .from("store_settings")
+      .select("store_lat, store_lng, delivery_max_km, delivery_fee_zones, delivery_mode, delivery_fee")
+      .eq("id", storeSettingsId)
+      .maybeSingle();
+
+    if (error || !s) return json({ ok: false, error: "settings_unavailable" }, 500);
+
+    if (s.delivery_mode !== "distance") {
+      return json({
+        ok: true,
+        mode: "flat",
+        allowed: true,
+        distance_km: null,
+        fee: Number(s.delivery_fee || 0),
+        zone_label: "Taxa fixa",
+      });
+    }
+
+    const keyInfo = await mapsKey(storeSettingsId);
+    let resolvedAddress: string | undefined;
+    let partialMatch = false;
 
     if ((typeof lat !== "number" || typeof lng !== "number") && typeof address === "string" && address.trim()) {
-      const geo = await geocodeAddress(address);
-      if (!geo) {
-        return new Response(
-          JSON.stringify({ ok: false, allowed: false, reason: "geocode_failed", error: "Não foi possível localizar o endereço." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      const geo = await geocodeAddress(address, keyInfo.key);
+      if (!geo.ok || typeof geo.lat !== "number" || typeof geo.lng !== "number") {
+        const configurationProblem = geo.error === "maps_credentials_missing" || geo.error === "maps_configuration_error";
+        return json({
+          ok: false,
+          allowed: false,
+          reason: geo.error || "geocode_failed",
+          error: configurationProblem
+            ? "Serviço de localização do Google não está configurado corretamente."
+            : "Não foi possível localizar esse endereço. Confira rua, número, bairro, cidade e CEP.",
+        });
       }
       lat = geo.lat;
       lng = geo.lng;
+      resolvedAddress = geo.formatted_address;
+      partialMatch = Boolean(geo.partial_match);
     }
 
     if (typeof lat !== "number" || typeof lng !== "number") {
-      return new Response(
-        JSON.stringify({ ok: false, allowed: false, reason: "missing_coords", error: "Coordenadas ou endereço são obrigatórios." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { auth: { persistSession: false } }
-    );
-
-    const { data: s, error } = await supabase
-      .from("store_settings")
-      .select("store_lat, store_lng, delivery_max_km, delivery_fee_zones, delivery_mode, delivery_fee")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (error || !s) {
-      return new Response(JSON.stringify({ ok: false, error: "settings_unavailable" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Modo legado: taxa fixa
-    if (s.delivery_mode !== "distance") {
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          mode: "flat",
-          allowed: true,
-          distance_km: null,
-          fee: Number(s.delivery_fee || 0),
-          zone_label: "Taxa fixa",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ ok: false, allowed: false, reason: "missing_coords", error: "Coordenadas ou endereço são obrigatórios." }, 400);
     }
 
     if (s.store_lat == null || s.store_lng == null) {
-      return new Response(JSON.stringify({ ok: false, error: "store_origin_not_configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ ok: false, error: "store_origin_not_configured" }, 500);
     }
 
-    // Prioriza distância real por rota; se indisponível, usa linha reta.
-    const route = await routeDistanceKm(Number(s.store_lat), Number(s.store_lng), lat, lng);
+    const route = await routeDistanceKm(
+      keyInfo.key,
+      Number(s.store_lat),
+      Number(s.store_lng),
+      lat,
+      lng,
+    );
     const distanceSource = route.km != null ? "route" : "haversine";
     const distance = route.km ?? haversineKm(Number(s.store_lat), Number(s.store_lng), lat, lng);
     const maxKm = Number(s.delivery_max_km || 0);
     const distanceRounded = Math.round(distance * 10) / 10;
 
-    // Nunca mascarar o fallback: toda resposta de distância informa a origem.
     const distanceMeta = {
       distance_km: distanceRounded,
       distance_source: distanceSource,
       distance_warning: route.km == null ? route.error : undefined,
+      resolved_address: resolvedAddress,
+      partial_match: partialMatch,
+      maps_key_source: keyInfo.source,
     };
 
     if (maxKm > 0 && distance > maxKm) {
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          mode: "distance",
-          allowed: false,
-          ...distanceMeta,
-          fee: null,
-          reason: "out_of_range",
-          message: `Endereço a ${distanceRounded} km da loja — fora da área de entrega (máx. ${maxKm} km).`,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({
+        ok: true,
+        mode: "distance",
+        allowed: false,
+        ...distanceMeta,
+        fee: null,
+        reason: "out_of_range",
+        message: `Endereço a ${distanceRounded} km da loja — fora da área de entrega (máx. ${maxKm} km).`,
+        lat,
+        lng,
+      });
     }
 
     const zones = (s.delivery_fee_zones as Zone[]) || [];
     const zone = zones.find((z) => distance >= Number(z.min_km) && distance <= Number(z.max_km));
 
     if (!zone) {
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          mode: "distance",
-          allowed: false,
-          ...distanceMeta,
-          fee: null,
-          reason: "no_zone_match",
-          message: `Nenhuma faixa de frete cobre ${distanceRounded} km.`,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-
-    return new Response(
-      JSON.stringify({
+      return json({
         ok: true,
         mode: "distance",
-        allowed: true,
-        distance_km: distanceRounded,
-        distance_source: distanceSource,
-        distance_warning: route.km == null ? route.error : undefined,
-        fee: Number(zone.fee),
-        zone_label: zone.label || `${zone.min_km}–${zone.max_km} km`,
+        allowed: false,
+        ...distanceMeta,
+        fee: null,
+        reason: "no_zone_match",
+        message: `Nenhuma faixa de frete cobre ${distanceRounded} km.`,
         lat,
         lng,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (e: any) {
-    return new Response(JSON.stringify({ ok: false, error: e?.message || "internal_error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return json({
+      ok: true,
+      mode: "distance",
+      allowed: true,
+      ...distanceMeta,
+      fee: Number(zone.fee),
+      zone_label: zone.label || `${zone.min_km}–${zone.max_km} km`,
+      lat,
+      lng,
     });
+  } catch (e: any) {
+    console.error("calculate-delivery-fee erro", e?.message || "internal_error");
+    return json({ ok: false, error: "internal_error" }, 500);
   }
 });
