@@ -190,7 +190,7 @@ export default function AdminProducts() {
 
   const openNew = () => { setEditing(empty); setMainFile(null); setGalleryFiles([]); setPctInput(null); setOpen(true); };
   const openEdit = (p: any, tab: string = "basic") => {
-    setEditing({ ...empty, ...p, category_id: p.category_id || "", shelves: p.shelves || [], gallery_images: p.gallery_images || [] });
+    setEditing({ ...empty, ...p, _original_name: p.name || "", category_id: p.category_id || "", shelves: p.shelves || [], gallery_images: p.gallery_images || [] });
     setMainFile(null); setGalleryFiles([]); setPctInput(null);
     setActiveTab(tab);
     setOpen(true);
@@ -251,7 +251,9 @@ export default function AdminProducts() {
 
       const toNumOrNull = (v: any) => (v === "" || v == null ? null : Number(v));
       const payload: any = {
-        ...editing, slug, image_url, gallery_images,
+        ...editing,
+        manual_name: !!editing.manual_name || editing.name.trim() !== String(editing._original_name || "").trim(),
+        slug, image_url, gallery_images,
         category_id: editing.category_id || null,
         price: Number(editing.price),
         promo_price: promoNum,
@@ -284,6 +286,7 @@ export default function AdminProducts() {
       delete payload.categories;
       delete payload.category_display_name; // vem da RPC admin_products_list (alias do JOIN)
       delete payload.discount_percentage; // generated column
+      delete payload._original_name;
 
       let saved;
       if (editing.id) {

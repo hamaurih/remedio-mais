@@ -92,6 +92,7 @@ export default function AdminProductsIntegrated() {
     setEditing({
       ...empty,
       ...product,
+      _original_name: product.name || "",
       category_id: product.category_id || "",
       shelves: product.shelves || [],
       gallery_images: product.gallery_images || [],
@@ -158,6 +159,7 @@ export default function AdminProductsIntegrated() {
 
       const payload: any = {
         ...editing,
+        manual_name: !!editing.manual_name || editing.name.trim() !== String(editing._original_name || "").trim(),
         slug,
         image_url,
         gallery_images,
@@ -194,6 +196,7 @@ export default function AdminProductsIntegrated() {
       delete payload.categories;
       delete payload.category_display_name;
       delete payload.discount_percentage;
+      delete payload._original_name;
 
       let saved;
       if (editing.id) {
