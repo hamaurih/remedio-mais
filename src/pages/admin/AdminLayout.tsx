@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, BarChart3, Boxes, Building2, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, Users } from "lucide-react";
+import { Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
@@ -17,6 +17,7 @@ const items: Item[] = [
   { to: "/admin/pdv", label: "PDV", icon: CreditCard, roles: ["admin", "seller"] },
   { to: "/admin/pedidos", label: "Vendas e Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, roles: ["admin"] },
+  { to: "/admin/compras", label: "Compra inteligente", icon: ClipboardList, roles: ["admin"] },
   { to: "/admin/produtos", label: "Produtos e Preços", icon: Package, roles: ["admin"] },
   { to: "/admin/unidades", label: "Matriz e Filiais", icon: Building2, roles: ["admin"] },
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
