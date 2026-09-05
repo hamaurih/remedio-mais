@@ -79,20 +79,33 @@ export default function AdminPrescriptions() {
   }, [qc]);
 
   const reviewPrescription = async (id: string, status: string, note?: string | null) => {
-    const { data: result, error } = await (supabase as any).rpc("seller_review_prescription", {
-      _prescription_id: id,
-      _status: status,
-      _internal_notes: note ?? null,
+    const { data: result, error } = await supabase.functions.invoke("review-prescription", {
+      body: {
+        prescription_id: id,
+        status,
+        internal_notes: note ?? null,
+      },
     });
     if (error) throw error;
-    return result;
+    if ((result as any)?.error) throw new Error(String((result as any).error));
+    return result as any;
   };
 
   const updateStatus = async (id: string, status: string) => {
     try {
       setSaving(true);
-      await reviewPrescription(id, status);
-      toast.success(status === "aprovada" ? "Receita aprovada — medicamento liberado no carrinho do cliente" : "Status atualizado");
+      const result = await reviewPrescription(id, status);
+      if (status === "aprovada") {
+        if (result?.customer_notification?.sent) {
+          toast.success("Receita aprovada — cliente notificado por e-mail e item liberado.");
+        } else {
+          toast.success("Receita aprovada — item liberado no carrinho do cliente.", {
+            description: "A aprovação foi concluída, mas o aviso por e-mail não pôde ser confirmado.",
+          });
+        }
+      } else {
+        toast.success("Status atualizado");
+      }
       if (view?.id === id) setView((current: any) => current ? { ...current, status } : current);
       await qc.invalidateQueries({ queryKey: ["admin_presc"] });
     } catch (error: any) {
