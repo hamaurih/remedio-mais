@@ -84,13 +84,18 @@ export default function SendPrescription() {
       fd.append("name", parsed.data.name);
       fd.append("phone", parsed.data.phone);
       if (parsed.data.notes) fd.append("notes", parsed.data.notes);
+      if (productId) fd.append("product_ids", JSON.stringify([productId]));
       fd.append("file", file);
 
       const { data, error } = await supabase.functions.invoke("submit-prescription", { body: fd });
       if (error || (data && (data as any).error)) throw new Error((data as any)?.error || error?.message);
 
       if (productId) {
-        const linked = await bindToProduct(createdAfter);
+        const submitted = (data as any)?.prescription;
+        const linked = submitted?.id && submitted?.product_id === productId
+          ? submitted
+          : await bindToProduct(createdAfter);
+
         updateCartPrescription(productId, {
           id: linked.id,
           status: linked.status || "recebida",
