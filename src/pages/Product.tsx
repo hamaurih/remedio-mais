@@ -8,7 +8,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { addToCart, formatBRL } from "@/lib/store";
 import { resolveSitePrice } from "@/lib/pricing";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { ShoppingCart, AlertCircle } from "lucide-react";
+import { ShoppingCart, AlertCircle, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "@/components/VariantSelector";
 import { useRelatedProducts } from "@/hooks/useRelatedProducts";
@@ -23,6 +23,7 @@ import { trackViewContent } from "@/lib/metaEvents";
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { data: _settings } = useStoreSettings();
+  const [qty, setQty] = useState(1);
   
   const { data: p, isLoading, refetch } = useQuery({
     queryKey: ["product", slug],
@@ -42,6 +43,10 @@ export default function Product() {
     });
     return () => { cancelled = true; };
   }, [productId, refetch]);
+
+  useEffect(() => {
+    setQty(1);
+  }, [slug]);
 
   // Prescription/controlled products are deliberately excluded from Meta
   // ViewContent to avoid sending sensitive health-related signals.
@@ -87,6 +92,9 @@ export default function Product() {
   const displayImage = (hasVariants && selectedVariant?.image_url) || p.image_url || productPlaceholder;
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : ((p as any).stock ?? 0);
   const outOfStock = variantStock <= 0;
+  const configuredLimit = Number((p as any).cart_quantity_limit || 99);
+  const maxQty = Math.max(1, Math.min(Number(variantStock || 0), Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : 99));
+  const safeQty = Math.max(1, Math.min(qty, maxQty));
   const requiresPrescription = !!((p as any).requires_prescription || (p as any).controlled);
   const productUrl = `https://www.atacadaodosmedicamentos.com.br/produto/${p.slug}`;
   const seoTitle = String((p as any).seo_title || p.name).trim();
@@ -119,7 +127,7 @@ export default function Product() {
           price: Number(finalPrice),
           image_url: displayImage,
           ...commonPrescription,
-        });
+        }, safeQty);
       } else {
         addToCart({
           id: p.id,
@@ -128,12 +136,12 @@ export default function Product() {
           price: Number(finalPrice),
           image_url: p.image_url,
           ...commonPrescription,
-        });
+        }, safeQty);
       }
 
       toast.success(requiresPrescription
-        ? "Produto adicionado. Envie a receita pelo carrinho para liberar a compra."
-        : "Adicionado ao carrinho");
+        ? `${safeQty}x adicionado. Envie a receita pelo carrinho para liberar a compra.`
+        : `${safeQty}x adicionado ao carrinho`);
       if (!requiresPrescription && !(hasVariants && selectedVariant)) void notifyCartAddition(p.id, p.id);
     };
 
@@ -209,7 +217,7 @@ export default function Product() {
                 <VariantSelector
                   variants={variants}
                   selectedId={selectedVariantId}
-                  onSelect={(v) => setSelectedVariantId(v.id)}
+                  onSelect={(v) => { setSelectedVariantId(v.id); setQty(1); }}
                 />
                 {selectedVariant && (
                   <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
@@ -231,9 +239,37 @@ export default function Product() {
               <div className="text-sm text-muted-foreground mt-1">Retire na loja ou receba em casa</div>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            {!outOfStock && (!hasVariants || selectedVariant) && (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold">Quantidade</span>
+                <div className="inline-flex items-center border rounded-full bg-background">
+                  <button
+                    type="button"
+                    onClick={() => setQty((current) => Math.max(1, current - 1))}
+                    disabled={safeQty <= 1}
+                    className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40"
+                    aria-label="Diminuir quantidade"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-10 text-center font-extrabold">{safeQty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQty((current) => Math.min(maxQty, current + 1))}
+                    disabled={safeQty >= maxQty}
+                    className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40"
+                    aria-label="Aumentar quantidade"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                {safeQty > 1 && <span className="text-sm text-muted-foreground">Subtotal: <strong>{formatBRL(Number(finalPrice) * safeQty)}</strong></span>}
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-3">
               <Button size="lg" onClick={handleAdd} disabled={outOfStock}>
-                <ShoppingCart className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : "Adicionar ao carrinho"}
+                <ShoppingCart className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : `Adicionar ${safeQty > 1 ? `${safeQty} itens` : "ao carrinho"}`}
               </Button>
             </div>
 
