@@ -5,6 +5,7 @@ import { WhatsAppFab } from "./WhatsAppFab";
 import { ProductQuickView } from "./ProductQuickView";
 import { GenericSuggestionDialog } from "./GenericSuggestionDialog";
 import { PixCartReconciler } from "./PixCartReconciler";
+import { PrescriptionCustomerNotifier } from "./PrescriptionCustomerNotifier";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <ProductQuickView />
       <GenericSuggestionDialog />
       <PixCartReconciler />
+      <PrescriptionCustomerNotifier />
     </div>
   );
 }
