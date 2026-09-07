@@ -4,6 +4,7 @@
     { "source": "/termos", "destination": "/termos-de-uso", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
