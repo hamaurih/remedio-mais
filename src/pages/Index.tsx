@@ -36,20 +36,6 @@ function Reveal({ children }: { children: React.ReactNode }) {
   return <div ref={ref} className={show ? "animate-fade-in-up" : "opacity-0"}>{children}</div>;
 }
 
-function HomeLayoutLoading() {
-  return (
-    <div className="container py-4 md:py-6" aria-hidden="true">
-      <div className="w-full min-h-[220px] md:min-h-[320px] rounded-2xl bg-muted/40 animate-pulse" />
-      <div className="mt-8 h-7 w-48 rounded bg-muted/40 animate-pulse" />
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-52 rounded-xl bg-muted/30 animate-pulse" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /**
  * Vitrine simples por categoria: curadoria manual → produtos marcados na
  * prateleira → fallback pela categoria. Hook de verdade (não fábrica dentro do
@@ -314,8 +300,8 @@ export default function Index() {
     location: locationBlock,
   };
 
-  // Fallback usado somente se a consulta do layout falhar. Ele replica a
-  // estrutura atualmente publicada e, principalmente, não reativa seções antigas.
+  // Fallback seguro usado enquanto o layout oficial carrega ou se a consulta falhar.
+  // Assim a home abre imediatamente mesmo em rede móvel lenta, sem reativar seções antigas.
   const safeFallbackOrder = [
     "hero_carousel",
     "campaign_shelf",
@@ -343,15 +329,6 @@ export default function Index() {
       path="/"
     />
   );
-
-  if (layoutQuery.isPending) {
-    return (
-      <Layout>
-        {seo}
-        <HomeLayoutLoading />
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
