@@ -105,6 +105,11 @@ export const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
           width={300}
           height={300}
           sizes="(max-width: 768px) 45vw, 250px"
+          onError={(event) => {
+            const image = event.currentTarget;
+            image.onerror = null;
+            image.src = productPlaceholder;
+          }}
           className="w-full h-full object-contain p-2 md:p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
         />
         {badge && (
