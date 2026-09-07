@@ -59,7 +59,7 @@ export default {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
-      const [products, categories] = await Promise.all([
+      const [products, categories, departments] = await Promise.all([
         fetchAll("products", {
           select: "slug,updated_at",
           active: "eq.true",
@@ -70,6 +70,14 @@ export default {
         fetchAll("categories", {
           select: "slug,updated_at",
           active: "eq.true",
+          show_in_menu: "eq.true",
+          slug: "not.is.null",
+          order: "position.asc",
+        }, controller.signal),
+        fetchAll("departments", {
+          select: "slug,updated_at",
+          active: "eq.true",
+          show_in_menu: "eq.true",
           slug: "not.is.null",
           order: "position.asc",
         }, controller.signal),
@@ -101,6 +109,14 @@ export default {
           priority: "0.7",
         }));
 
+      const departmentUrls = departments
+        .filter((row) => row.slug)
+        .map((row) => urlNode(`${SITE}/departamento/${encodeURIComponent(row.slug!)}`, {
+          lastmod: row.updated_at,
+          changefreq: "weekly",
+          priority: "0.7",
+        }));
+
       const productUrls = products
         .filter((row) => row.slug)
         .map((row) => urlNode(`${SITE}/produto/${encodeURIComponent(row.slug!)}`, {
@@ -109,13 +125,14 @@ export default {
           priority: "0.6",
         }));
 
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[...staticUrls, ...categoryUrls, ...productUrls].join("")}</urlset>`;
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[...staticUrls, ...categoryUrls, ...departmentUrls, ...productUrls].join("")}</urlset>`;
       const headers = {
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
         "X-Robots-Tag": "noindex",
         "X-Sitemap-Products": String(productUrls.length),
         "X-Sitemap-Categories": String(categoryUrls.length),
+        "X-Sitemap-Departments": String(departmentUrls.length),
       };
       if (request.method === "HEAD") return new Response(null, { status: 200, headers });
       return new Response(xml, { status: 200, headers });
