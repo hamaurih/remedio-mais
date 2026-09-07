@@ -64,6 +64,12 @@ export function HeroSlideImage({ s, eager }: Props) {
           loading={eager ? "eager" : "lazy"}
           {...(eager ? ({ fetchpriority: "high" } as any) : {})}
           decoding="async"
+          onError={(event) => {
+            const image = event.currentTarget;
+            image.onerror = null;
+            image.src = "/og-image.jpg?v=2";
+            image.className = "absolute inset-0 w-full h-full object-cover object-center";
+          }}
         />
       </picture>
     </Wrapper>
