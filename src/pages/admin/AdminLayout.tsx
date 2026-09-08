@@ -1,33 +1,84 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Navigate, NavLink, Outlet } from "react-router-dom";
+import { ReactNode, useEffect, useLayoutEffect, useState } from "react";
+import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, Users } from "lucide-react";
+import { Moon, Sun, ExternalLink, Tags, Megaphone, ShieldCheck, RefreshCw, Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
-type Item = { to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller">; requiresPrescriptionPermission?: boolean };
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import "./admin-theme.css";
+
+type Item = { group?: string; to: string; label: string; icon: any; end?: boolean; roles?: Array<"admin" | "seller">; requiresPrescriptionPermission?: boolean };
 const items: Item[] = [
-  { to: "/admin", label: "Início", icon: LayoutDashboard, end: true, roles: ["admin"] },
-  { to: "/admin/bi", label: "BI Executivo", icon: Activity, roles: ["admin"] },
-  { to: "/admin/curva-abc", label: "Curva ABC", icon: BarChart3, roles: ["admin"] },
-  { to: "/admin/vendedor", label: "Início", icon: LayoutDashboard, end: true, roles: ["seller"] },
-  { to: "/admin/pdv", label: "PDV", icon: CreditCard, roles: ["admin", "seller"] },
-  { to: "/admin/pedidos", label: "Vendas e Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
-  { to: "/admin/estoque", label: "Estoque", icon: Boxes, roles: ["admin"] },
-  { to: "/admin/compras", label: "Compra inteligente", icon: ClipboardList, roles: ["admin"] },
-  { to: "/admin/produtos", label: "Produtos e Preços", icon: Package, roles: ["admin"] },
-  { to: "/admin/unidades", label: "Matriz e Filiais", icon: Building2, roles: ["admin"] },
-  { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
-  { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
-  { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
-  { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
-  { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
+  { group: "Dashboard", to: "/admin", label: "Visão geral", icon: LayoutDashboard, end: true, roles: ["admin"] },
+  { group: "Dashboard", to: "/admin/bi", label: "BI executivo", icon: Activity, roles: ["admin"] },
+  { group: "Dashboard", to: "/admin/vendedor", label: "Minha visão geral", icon: LayoutDashboard, end: true, roles: ["seller"] },
+  { group: "Comercial", to: "/admin/pdv", label: "PDV / Caixa", icon: CreditCard, roles: ["admin", "seller"] },
+  { group: "Comercial", to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, roles: ["admin", "seller"] },
+  { group: "Comercial", to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
+  { group: "Comercial", to: "/admin/vendedores", label: "Vendedores e permissões", icon: UserCog, roles: ["admin"] },
+  { group: "Catálogo", to: "/admin/produtos", label: "Produtos e preços", icon: Package, roles: ["admin"] },
+  { group: "Catálogo", to: "/admin/categorias", label: "Categorias", icon: Tags, roles: ["admin"] },
+  { group: "Catálogo", to: "/admin/taxonomia", label: "Classificação", icon: ClipboardList, roles: ["admin"] },
+  { group: "Catálogo", to: "/admin/monitor-precos", label: "Monitor de preços", icon: Activity, roles: ["admin"] },
+  { group: "Estoque", to: "/admin/estoque", label: "Estoque e movimentações", icon: Boxes, roles: ["admin"] },
+  { group: "Estoque", to: "/admin/compras", label: "Compra inteligente", icon: ClipboardList, roles: ["admin"] },
+  { group: "Estoque", to: "/admin/curva-abc", label: "Curva ABC", icon: BarChart3, roles: ["admin"] },
+  { group: "Farmácia", to: "/admin/receitas", label: "Receitas e análise", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
+  { group: "Farmácia", to: "/admin/unidades", label: "Unidades e regularização", icon: Building2, roles: ["admin"] },
+  { group: "Financeiro", to: "/admin/pagamentos", label: "Pagamentos e conciliação", icon: CreditCard, roles: ["admin"] },
+  { group: "Marketing", to: "/admin/campanhas", label: "Campanhas", icon: Megaphone, roles: ["admin"] },
+  { group: "Marketing", to: "/admin/ofertas", label: "Ofertas e promoções", icon: Tags, roles: ["admin"] },
+  { group: "Marketing", to: "/admin/banners", label: "Banners", icon: Globe2, roles: ["admin"] },
+  { group: "Marketing", to: "/admin/site", label: "Gestão do e-commerce", icon: Globe2, roles: ["admin"] },
+  { group: "Integrações", to: "/admin/integrations/trier", label: "Trier", icon: RefreshCw, roles: ["admin"] },
+  { group: "Integrações", to: "/admin/integrations/meta-ads", label: "Meta Ads", icon: Megaphone, roles: ["admin"] },
+  { group: "Integrações", to: "/admin/integrations/whatsapp-agent", label: "Automação WhatsApp", icon: Activity, roles: ["admin"] },
+  { group: "Sistema", to: "/admin/auditoria", label: "Auditoria", icon: ShieldCheck, roles: ["admin"] },
+  { group: "Sistema", to: "/admin/qualidade-dados", label: "Qualidade dos dados", icon: ClipboardList, roles: ["admin"] },
+  { group: "Sistema", to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
 
+function AdminNavigation({ visible }: { visible: Item[] }) {
+  const { pathname } = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
+  return <Sidebar collapsible="icon">
+    {isMobile && <><SheetTitle className="sr-only">Menu administrativo</SheetTitle><SheetDescription className="sr-only">Módulos do Atacadão dos Medicamentos</SheetDescription></>}
+    <SidebarHeader className="h-20 justify-center border-b">
+      <Link to="/admin" aria-label="Atacadão dos Medicamentos — início" className="flex items-center gap-3 overflow-hidden" onClick={() => setOpenMobile(false)}>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-sm font-extrabold text-primary-foreground">A+</span>
+        <span className="group-data-[collapsible=icon]:hidden"><span className="block text-sm font-bold">Atacadão</span><span className="block text-xs text-muted-foreground">dos Medicamentos · Gestão</span></span>
+      </Link>
+    </SidebarHeader>
+    <SidebarContent><nav aria-label="Módulos administrativos">
+      {[...new Set(visible.map(item => item.group))].map(group => <SidebarGroup key={group}>
+        <SidebarGroupLabel className="text-xs uppercase tracking-wider">{group}</SidebarGroupLabel>
+        <SidebarMenu>{visible.filter(item => item.group === group).map(item => <SidebarMenuItem key={item.to}>
+          <SidebarMenuButton asChild tooltip={item.label} isActive={item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/")} className="h-10 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold">
+            <NavLink to={item.to} end={item.end} onClick={() => setOpenMobile(false)}><item.icon aria-hidden="true" /><span>{item.label}</span></NavLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>)}</SidebarMenu>
+      </SidebarGroup>)}
+    </nav></SidebarContent>
+    <SidebarFooter className="border-t"><SidebarMenu><SidebarMenuItem><SidebarMenuButton tooltip="Sair da conta" onClick={() => supabase.auth.signOut()}><LogOut /><span>Sair da conta</span></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarFooter>
+  </Sidebar>;
+}
+
 export default function AdminLayout({ children }: { children?: ReactNode }) {
+  const { pathname } = useLocation();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try { return localStorage.getItem("atacadao-admin-theme") === "dark" ? "dark" : "light"; } catch { return "light"; }
+  });
+  useLayoutEffect(() => {
+    const previous = document.body.getAttribute("data-admin-theme");
+    document.body.setAttribute("data-admin-theme", theme);
+    try { localStorage.setItem("atacadao-admin-theme", theme); } catch { /* Device preferences are optional. */ }
+    return () => { if (previous === null) document.body.removeAttribute("data-admin-theme"); else document.body.setAttribute("data-admin-theme", previous); };
+  }, [theme]);
   const qc = useQueryClient();
   const { user, isAdmin, isSeller, loading } = useAuth();
   const [canAccessPrescriptions, setCanAccessPrescriptions] = useState(false);
@@ -59,13 +110,20 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
     return false;
   });
 
-  return <div className="min-h-screen flex">
+  const current = [...visible].sort((a, b) => b.to.length - a.to.length).find(item => item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/"));
+  return <SidebarProvider className={`admin-shell ${theme === "dark" ? "dark" : ""}`}>
     <CieloPendingReconciler enabled={isAdmin} />
-    <aside className="w-60 bg-card border-r flex flex-col">
-      <div className="p-4 border-b"><div className="flex items-center gap-2"><div className="w-9 h-9 bg-gradient-hero rounded-lg flex items-center justify-center text-primary-foreground font-extrabold">A+</div><div><div className="font-extrabold text-sm">{isAdmin ? "Administração" : "Vendedor"}</div><div className="text-[11px] text-muted-foreground">Atacadão dos Medicamentos</div></div></div></div>
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">{visible.map(item => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}><item.icon className="h-4 w-4" /> {item.label}</NavLink>)}</nav>
-      <div className="p-3 border-t"><Button variant="outline" size="sm" className="w-full" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4 mr-2" /> Sair</Button></div>
-    </aside>
-    <main className="flex-1 bg-background flex flex-col min-w-0"><header className="h-12 border-b bg-card flex items-center justify-end px-3"><NotificationsBell /></header><div className="flex-1">{children || <Outlet />}</div></main>
-  </div>;
+    <a href="#admin-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-card focus:p-3">Ir para o conteúdo</a>
+    <AdminNavigation visible={visible} />
+    <main className="min-w-0 flex-1 bg-background text-foreground">
+      <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-card px-4 md:px-6">
+        <SidebarTrigger aria-label="Abrir ou recolher menu" className="h-10 w-10 shrink-0" />
+        <div className="min-w-0 flex-1"><div className="hidden text-xs text-muted-foreground sm:block">{current?.group || "Sistema"}</div><div className="truncate text-sm font-semibold">{current?.label || "Administração"}</div></div>
+        <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link to="/"><ExternalLink className="mr-2 h-4 w-4" />Ver loja</Link></Button>
+        <Button variant="ghost" size="icon" aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}</Button>
+        <NotificationsBell />
+      </header>
+      <div id="admin-content" className="admin-content" tabIndex={-1}>{children || <Outlet />}</div>
+    </main>
+  </SidebarProvider>;
 }

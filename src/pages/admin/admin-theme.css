@@ -1,0 +1,61 @@
+/* Only mounted administrative routes opt into these tokens, including portals. */
+body[data-admin-theme] {
+  --background: 220 20% 97%;
+  --foreground: 220 22% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 22% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 22% 16%;
+  --secondary: 220 16% 95%;
+  --secondary-foreground: 220 22% 16%;
+  --muted: 220 16% 95%;
+  --muted-foreground: 220 10% 43%;
+  --border: 220 16% 89%;
+  --input: 220 16% 85%;
+  --radius: 0.625rem;
+  --sidebar-background: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+body[data-admin-theme="dark"] {
+  color-scheme: dark;
+  --background: 222 22% 9%;
+  --foreground: 220 16% 94%;
+  --card: 222 20% 12%;
+  --card-foreground: 220 16% 94%;
+  --popover: 222 20% 14%;
+  --popover-foreground: 220 16% 94%;
+  --secondary: 222 16% 19%;
+  --secondary-foreground: 220 16% 94%;
+  --muted: 222 16% 19%;
+  --muted-foreground: 220 12% 70%;
+  --accent: 354 32% 20%;
+  --accent-foreground: 354 85% 80%;
+  --border: 222 15% 23%;
+  --input: 222 15% 30%;
+}
+.admin-shell { font-family: Inter, system-ui, sans-serif; }
+.admin-shell :is(h1,h2,h3,h4) { font-family: inherit; font-weight: 650; letter-spacing: -.025em; }
+.admin-content { min-width: 0; }
+.admin-content > div { max-width: 1680px; margin-inline: auto; }
+.admin-content :is(table) { font-size: .875rem; }
+.admin-content th { color: hsl(var(--muted-foreground)); font-weight: 600; background: hsl(var(--muted) / .55); }
+.admin-content :is(td,th) { padding: .875rem 1rem; }
+.admin-content :is(input,select,textarea) { border-radius: .5rem; }
+.admin-content :is(.shadow-card,.shadow-sm) { box-shadow: 0 1px 3px hsl(220 20% 10% / .04); }
+.admin-content [role="tablist"] { max-width: 100%; overflow-x: auto; justify-content: flex-start; }
+.admin-content [role="tab"] { white-space: nowrap; }
+@media (max-width: 767px) {
+  .admin-content > div { padding: 1rem; }
+  .admin-content :is(input,select,textarea) { font-size: 1rem; }
+  .admin-content h1 { font-size: 1.5rem; overflow-wrap: anywhere; }
+  .admin-content > div > .flex.items-center.justify-between { flex-wrap: wrap; gap: .75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell *, body[data-admin-theme] [data-sidebar] { transition-duration: 0s !important; animation-duration: 0s !important; }
+}
