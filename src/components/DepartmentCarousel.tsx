@@ -8,14 +8,25 @@ function useMeasure<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
-    if (!ref.current) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setWidth(entry.contentRect.width);
-      }
-    });
-    ro.observe(ref.current);
-    return () => ro.disconnect();
+    const el = ref.current;
+    if (!el) return;
+
+    const updateWidth = () => setWidth(el.getBoundingClientRect().width);
+    updateWidth();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setWidth(entry.contentRect.width);
+        }
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+
+    // Fallback para Safari/iOS antigos sem ResizeObserver.
+    window.addEventListener("resize", updateWidth, { passive: true });
+    return () => window.removeEventListener("resize", updateWidth);
   }, []);
   return { ref, width };
 }
@@ -63,7 +74,19 @@ export function DepartmentCarousel() {
       if (!track) return;
       const card = track.children[clamped] as HTMLElement | undefined;
       if (!card) return;
-      track.scrollTo({ left: card.offsetLeft - track.offsetLeft, behavior: "smooth" });
+
+      const left = card.offsetLeft - track.offsetLeft;
+      const supportsSmoothScroll =
+        typeof document !== "undefined" &&
+        "scrollBehavior" in document.documentElement.style &&
+        typeof track.scrollTo === "function";
+
+      if (supportsSmoothScroll) {
+        track.scrollTo({ left, behavior: "smooth" });
+      } else {
+        // Fallback para Safari/iOS antigos sem smooth scroll via ScrollOptions.
+        track.scrollLeft = left;
+      }
     },
     [maxIndex]
   );
