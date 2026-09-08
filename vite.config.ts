@@ -26,9 +26,11 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules/xlsx") || id.includes("node_modules/papaparse") || id.includes("node_modules/fast-xml-parser")) {
-            return "admin-import-parsers";
-          }
+          // Importadores de Excel/CSV/XML são usados apenas no administrativo.
+          // Não os forçamos em um chunk manual compartilhado porque o Rollup pode
+          // colocar helpers comuns nesse chunk e fazer o React público depender dele
+          // antes mesmo de montar a aplicação. As rotas lazy do admin mantêm esses
+          // pacotes fora do bootstrap público automaticamente.
           if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/scheduler/")) {
             return "react-vendor";
           }
