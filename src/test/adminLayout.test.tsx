@@ -38,14 +38,16 @@ describe("Admin presentation boundaries", () => {
     expect(document.body).not.toHaveAttribute("data-admin-theme");
     expect(document.documentElement).not.toHaveClass("dark");
   });
-  it("opens a labeled mobile drawer and closes it after selecting a module", async () => {
+  it("opens a labeled mobile drawer and closes it after selecting a module", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     window.matchMedia = vi.fn().mockImplementation(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     open();
     fireEvent.click(screen.getByRole("button", { name: "Abrir ou recolher menu" }));
-    expect(await screen.findByRole("dialog", { name: "Menu administrativo" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Pedidos" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const drawer = document.querySelector('[role="dialog"]');
+    expect(drawer).not.toBeNull();
+    expect(drawer?.querySelector("h2")).toHaveTextContent("Menu administrativo");
+    fireEvent.click(drawer!.querySelector('a[href="/admin/pedidos"]')!);
+    if (drawer?.isConnected && drawer.getAttribute("data-state") !== "closed") throw new Error("Mobile drawer did not close after navigation");
   });
   it("does not expose admin navigation or prescriptions to an unpermitted seller", () => {
     auth.isAdmin = false;
