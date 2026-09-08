@@ -28,6 +28,7 @@ function Reveal({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [show, setShow] = useState(false);
   useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") { setShow(true); return; }
     const el = ref.current; if (!el) return;
     const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShow(true); o.disconnect(); } }, { threshold: 0.1 });
     o.observe(el);
