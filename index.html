@@ -82,6 +82,48 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <script>
+      // Proteção fora do React: se um erro de rede/chunk impedir o bootstrap,
+      // o cliente recebe uma saída útil em vez de uma tela branca infinita.
+      (function () {
+        var bootFailed = false;
+
+        function showRecovery() {
+          if (bootFailed) return;
+          var root = document.getElementById("root");
+          if (!root || root.childNodes.length > 0) return;
+          bootFailed = true;
+
+          root.innerHTML =
+            '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#fff;font-family:Arial,sans-serif;color:#1f2937">' +
+              '<div style="max-width:420px;text-align:center">' +
+                '<h1 style="font-size:22px;margin:0 0 10px">Atacadão dos Medicamentos</h1>' +
+                '<p style="font-size:15px;line-height:1.5;margin:0 0 18px">Não foi possível carregar a loja nesta tentativa. Verifique sua conexão e tente novamente.</p>' +
+                '<button id="boot-retry" type="button" style="border:0;border-radius:8px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer;background:#166534;color:#fff">Tentar novamente</button>' +
+              '</div>' +
+            '</div>';
+
+          var button = document.getElementById("boot-retry");
+          if (button) {
+            button.onclick = function () {
+              var url = new URL(window.location.href);
+              url.searchParams.set("_reload", String(Date.now()));
+              window.location.replace(url.toString());
+            };
+          }
+        }
+
+        window.setTimeout(showRecovery, 12000);
+        window.addEventListener("error", function () {
+          window.setTimeout(showRecovery, 250);
+        });
+        window.addEventListener("unhandledrejection", function () {
+          window.setTimeout(showRecovery, 250);
+        });
+      })();
+    </script>
+
     <!-- Meta Pixel (fallback sem JavaScript) -->
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1408673987862846&amp;ev=PageView&amp;noscript=1" alt="" /></noscript>
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2242709569861798&amp;ev=PageView&amp;noscript=1" alt="" /></noscript>
