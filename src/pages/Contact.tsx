@@ -1,6 +1,6 @@
 import { LegalPage } from "@/components/LegalPage";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { buildWhatsAppLink } from "@/lib/store";
+import { buildWhatsAppLink, PUBLIC_WHATSAPP_NUMBER } from "@/lib/store";
 import { MessageCircle, Mail, MapPin, Clock, Instagram } from "lucide-react";
 
 function formatPhone(raw: string | null | undefined) {
@@ -14,7 +14,7 @@ function formatPhone(raw: string | null | undefined) {
 
 export default function Contact() {
   const { data: s } = useStoreSettings();
-  const waRaw = s?.whatsapp || "5583999286000";
+  const waRaw = PUBLIC_WHATSAPP_NUMBER;
   const waLink = buildWhatsAppLink(waRaw, "Olá! Vim pelo site.");
   return (
     <LegalPage title="Fale Conosco" description="Fale com a Farmácia Atacadão dos Medicamentos por WhatsApp, e-mail ou telefone. Atendimento sobre pedidos, receitas e produtos." path="/fale-conosco">

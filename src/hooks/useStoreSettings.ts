@@ -31,7 +31,7 @@ export function useStoreSettings() {
     select: (bootstrap): StoreSettings =>
       (bootstrap.settings as StoreSettings | null) ??
         ({
-          whatsapp: "5583999286000",
+          whatsapp: "558320009576",
           address: null,
           instagram: null,
           hours: null,

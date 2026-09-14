@@ -1,7 +1,6 @@
 import { Truck, Store, MessageCircle, FileText, BadgePercent } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { buildWhatsAppLink } from "@/lib/store";
+import { buildPublicWhatsAppLink } from "@/lib/store";
 
 type Benefit = {
   icon: typeof Truck;
@@ -12,9 +11,7 @@ type Benefit = {
 };
 
 export function BenefitCards() {
-  const { data: settings } = useStoreSettings();
-  const phone = (settings as any)?.whatsapp || "5583999286000";
-  const wa = buildWhatsAppLink(phone, "Olá! Gostaria de fazer um pedido.");
+  const wa = buildPublicWhatsAppLink("Olá! Gostaria de fazer um pedido.");
 
   const items: Benefit[] = [
     { icon: Truck, title: "Entrega rápida", desc: "Em Campina Grande", to: "/categoria/ofertas" },

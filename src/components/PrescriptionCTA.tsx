@@ -1,12 +1,10 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FileText, MessageCircle, Stethoscope } from "lucide-react";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { buildPublicWhatsAppLink } from "@/lib/store";
 
 export function PrescriptionCTA() {
-  const { data: settings } = useStoreSettings();
-  const phone = (settings?.whatsapp || "").replace(/\D/g, "");
-  const waLink = `https://wa.me/${phone}?text=${encodeURIComponent("Olá! Gostaria de enviar uma receita.")}`;
+  const waLink = buildPublicWhatsAppLink("Olá! Gostaria de enviar uma receita.");
 
   return (
     <section className="container py-8">

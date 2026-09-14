@@ -8,7 +8,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { addToCart, buildWhatsAppLink, formatBRL } from "@/lib/store";
+import { addToCart, buildWhatsAppLink, formatBRL, PUBLIC_WHATSAPP_NUMBER } from "@/lib/store";
 import { resolveSitePrice } from "@/lib/pricing";
 import { calculatePixPrice, resolvePixPercentage } from "@/lib/pix";
 import { onQuickView } from "@/lib/quickview";
@@ -119,7 +119,7 @@ export function ProductQuickView() {
   const displayImage = activeImage || variantImage || p.image_url || productPlaceholder;
   const variantCode = hasVariants && selectedVariant ? selectedVariant.trier_product_id : null;
 
-  const waPhone = (settings as any)?.whatsapp || "5583999286000";
+  const waPhone = PUBLIC_WHATSAPP_NUMBER;
   const waMsg = `Olá! Tenho interesse neste produto:\n\nProduto: ${p.name}${hasVariants && selectedVariant ? ` (${buildVariantLabel(selectedVariant)})` : ""}\nCódigo: ${variantCode || p.trier_product_id || p.sku || p.id}\nQuantidade: ${qty}\nPreço: ${formatBRL(finalPrice)}${pixPrice ? `\nPreço Pix: ${formatBRL(pixPrice)}` : ""}\n\nGostaria de consultar disponibilidade e entrega.`;
   const wa = buildWhatsAppLink(waPhone, waMsg);
 

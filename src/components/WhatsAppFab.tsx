@@ -1,10 +1,8 @@
 import { MessageCircle } from "lucide-react";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { buildWhatsAppLink } from "@/lib/store";
+import { buildPublicWhatsAppLink } from "@/lib/store";
 
 export function WhatsAppFab() {
-  const { data } = useStoreSettings();
-  const href = buildWhatsAppLink(data?.whatsapp || "5583999286000", "Olá! Vim pelo site da Atacadão dos Medicamentos.");
+  const href = buildPublicWhatsAppLink("Olá! Vim pelo site da Atacadão dos Medicamentos.");
   return (
     <a
       href={href}
