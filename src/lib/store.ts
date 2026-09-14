@@ -169,7 +169,13 @@ export function onCartChange(cb: () => void) {
 export const formatBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+export const PUBLIC_WHATSAPP_NUMBER = "558320009576";
+
 export function buildWhatsAppLink(phone: string, message: string) {
   const clean = phone.replace(/\D/g, "");
   return `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildPublicWhatsAppLink(message: string) {
+  return buildWhatsAppLink(PUBLIC_WHATSAPP_NUMBER, message);
 }

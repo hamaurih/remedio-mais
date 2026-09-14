@@ -1,7 +1,7 @@
 import { Instagram, Facebook, MessageCircle, MapPin, Phone, Mail, Clock } from "lucide-react";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Link } from "react-router-dom";
-import { buildWhatsAppLink } from "@/lib/store";
+import { buildWhatsAppLink, PUBLIC_WHATSAPP_NUMBER } from "@/lib/store";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import logoRed from "@/assets/logo-red.webp";
 import { SecureBadge } from "@/components/SecureBadge";
@@ -46,9 +46,9 @@ export function Footer() {
   const { data: footerCats = [] } = useMenu("footer_categories");
   const year = new Date().getFullYear();
 
-  const waRaw = s?.whatsapp || "5583999286000";
+  const waRaw = PUBLIC_WHATSAPP_NUMBER;
   const waLink = buildWhatsAppLink(waRaw, "Olá! Vim pelo site.");
-  const waText = formatPhone(waRaw) || "(83) 99928-6000";
+  const waText = formatPhone(waRaw) || "(83) 2000-9576";
 
   const address =
     s?.address ||
