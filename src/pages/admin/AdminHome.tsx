@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
-import { ArrowRight, BarChart3, Boxes, Building2, CreditCard, FileText, Globe2, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, UserPlus, Users, WalletCards } from "lucide-react";
+import { ArrowRight, BarChart3, Boxes, Building2, CreditCard, FileText, Globe2, HardDriveDownload, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, UserPlus, Users, WalletCards } from "lucide-react";
 
 type Module = { title: string; description: string; to: string; icon: any };
 
@@ -41,7 +41,7 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
     modules: [
       { title: "Site e E-commerce", description: "Home, vitrines, banners, menus, campanhas e experiência da loja.", to: "/admin/site", icon: Globe2 },
       { title: "Marketing", description: "Campanhas, ofertas, Meta Ads e conversões.", to: "/admin/campanhas", icon: Megaphone },
-      { title: "Configurações", description: "Empresa, integrações, pagamentos e parâmetros do sistema.", to: "/admin/config", icon: Settings },
+      { title: "Configurações", description: "Empresa, integrações, pagamentos e parâmetros do sistema.", to: "/admin/config", icon: Settings },\n      { title: "Backup e recuperação", description: "Backups automáticos, integridade, histórico e recuperação protegida.", to: "/admin/backups", icon: HardDriveDownload },
     ],
   },
 ];
