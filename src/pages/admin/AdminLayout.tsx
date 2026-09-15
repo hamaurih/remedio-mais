@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, UserPlus, Users } from "lucide-react";
+import { Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, HardDriveDownload, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, UserPlus, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
@@ -25,7 +25,7 @@ const items: Item[] = [
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
   { to: "/admin/cadastros", label: "Cadastros do site", icon: UserPlus, roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
-  { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
+  { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },\n  { to: "/admin/backups", label: "Backup e recuperação", icon: HardDriveDownload, roles: ["admin"] },
 ];
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
