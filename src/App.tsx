@@ -46,7 +46,8 @@ const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport
 const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
 const AdminStock = lazy(() => import("./pages/admin/AdminStock.tsx"));
 const AdminSmartPurchasing = lazy(() => import("./pages/admin/AdminSmartPurchasing.tsx"));
-const AdminCustomers = lazy(() => import("./pages/admin/AdminCustomers.tsx"));\nconst AdminRegistrations = lazy(() => import("./pages/admin/AdminRegistrations.tsx"));
+const AdminCustomers = lazy(() => import("./pages/admin/AdminCustomers.tsx"));
+const AdminRegistrations = lazy(() => import("./pages/admin/AdminRegistrations.tsx"));
 const AdminSellers = lazy(() => import("./pages/admin/AdminSellers.tsx"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories.tsx"));
 const AdminTaxonomy = lazy(() => import("./pages/admin/AdminTaxonomy.tsx"));
@@ -146,7 +147,8 @@ const App = () => (
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
               <Route path="estoque" element={<AdminStock />} />
               <Route path="compras" element={<AdminSmartPurchasing />} />
-              <Route path="clientes" element={<AdminCustomers />} />\n              <Route path="cadastros" element={<AdminRegistrations />} />
+              <Route path="clientes" element={<AdminCustomers />} />
+              <Route path="cadastros" element={<AdminRegistrations />} />
               <Route path="vendedores" element={<AdminSellers />} />
               <Route path="categorias" element={<AdminCategories />} />
               <Route path="taxonomia" element={<AdminTaxonomy />} />
