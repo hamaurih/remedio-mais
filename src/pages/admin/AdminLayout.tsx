@@ -22,7 +22,8 @@ const items: Item[] = [
   { to: "/admin/unidades", label: "Matriz e Filiais", icon: Building2, roles: ["admin"] },
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
-  { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },\n  { to: "/admin/cadastros", label: "Cadastros do site", icon: UserPlus, roles: ["admin"] },
+  { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
+  { to: "/admin/cadastros", label: "Cadastros do site", icon: UserPlus, roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
