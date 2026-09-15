@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, Users } from "lucide-react";
+import { Activity, BarChart3, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, UserPlus, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
@@ -22,7 +22,7 @@ const items: Item[] = [
   { to: "/admin/unidades", label: "Matriz e Filiais", icon: Building2, roles: ["admin"] },
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
-  { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
+  { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },\n  { to: "/admin/cadastros", label: "Cadastros do site", icon: UserPlus, roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
 ];
