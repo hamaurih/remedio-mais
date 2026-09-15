@@ -41,7 +41,8 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
     modules: [
       { title: "Site e E-commerce", description: "Home, vitrines, banners, menus, campanhas e experiência da loja.", to: "/admin/site", icon: Globe2 },
       { title: "Marketing", description: "Campanhas, ofertas, Meta Ads e conversões.", to: "/admin/campanhas", icon: Megaphone },
-      { title: "Configurações", description: "Empresa, integrações, pagamentos e parâmetros do sistema.", to: "/admin/config", icon: Settings },\n      { title: "Backup e recuperação", description: "Backups automáticos, integridade, histórico e recuperação protegida.", to: "/admin/backups", icon: HardDriveDownload },
+      { title: "Configurações", description: "Empresa, integrações, pagamentos e parâmetros do sistema.", to: "/admin/config", icon: Settings },
+      { title: "Backup e recuperação", description: "Backups automáticos, integridade, histórico e recuperação protegida.", to: "/admin/backups", icon: HardDriveDownload },
     ],
   },
 ];
