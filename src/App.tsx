@@ -63,7 +63,8 @@ const AdminPriceMonitor = lazy(() => import("./pages/admin/AdminPriceMonitor.tsx
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders.tsx"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments.tsx"));
 const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions.tsx"));
-const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.tsx"));\nconst AdminBackups = lazy(() => import("./pages/admin/AdminBackups.tsx"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.tsx"));
+const AdminBackups = lazy(() => import("./pages/admin/AdminBackups.tsx"));
 const AdminHomeDiagnostics = lazy(() => import("./pages/admin/AdminHomeDiagnostics.tsx"));
 const AdminMenus = lazy(() => import("./pages/admin/AdminMenus.tsx"));
 const AdminDataQuality = lazy(() => import("./pages/admin/AdminDataQuality.tsx"));
@@ -164,7 +165,8 @@ const App = () => (
               <Route path="pedidos" element={<AdminOrders />} />
               <Route path="pagamentos" element={<AdminPayments />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
-              <Route path="config" element={<AdminSettings />} />\n              <Route path="backups" element={<AdminBackups />} />
+              <Route path="config" element={<AdminSettings />} />
+              <Route path="backups" element={<AdminBackups />} />
               <Route path="integrations/meta-ads" element={<AdminMetaAds />} />
               <Route path="diagnostico-home" element={<AdminHomeDiagnostics />} />
               <Route path="menus" element={<AdminMenus />} />
