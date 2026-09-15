@@ -25,7 +25,8 @@ const items: Item[] = [
   { to: "/admin/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
   { to: "/admin/cadastros", label: "Cadastros do site", icon: UserPlus, roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, roles: ["admin"] },
-  { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },\n  { to: "/admin/backups", label: "Backup e recuperação", icon: HardDriveDownload, roles: ["admin"] },
+  { to: "/admin/config", label: "Configurações", icon: Settings, roles: ["admin"] },
+  { to: "/admin/backups", label: "Backup e recuperação", icon: HardDriveDownload, roles: ["admin"] },
 ];
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
