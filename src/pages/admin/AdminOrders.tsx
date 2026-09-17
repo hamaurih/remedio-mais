@@ -127,6 +127,7 @@ export default function AdminOrders() {
     const patch: any = {
       prescription_original_status: status,
       prescription_original_collected_at: status === "validated" ? new Date().toISOString() : null,
+      prescription_original_notes: status === "rejected" ? "Receita recusada durante a separação; itens com receita removidos e estorno iniciado." : null,
     };
     const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
     if (error) {
@@ -143,6 +144,51 @@ export default function AdminOrders() {
       const { error: sendError } = await supabase.functions.invoke("send-order-to-trier", { body: { order_id: order.id } });
       if (sendError) toast.warning("Receita conferida, mas o envio ao Trier precisa ser tentado novamente.");
       else toast.success("Receita conferida e pedido liberado para separação.");
+    } else if (status === "rejected") {
+      const prescriptionItems = (order.order_items || []).filter((item: any) => item.prescription_condition !== "none" && item.item_status !== "removido");
+      const remainingItems = (order.order_items || []).filter((item: any) => item.prescription_condition === "none" && item.item_status !== "removido");
+      const rejectedAmount = Math.round(prescriptionItems.reduce((sum: number, item: any) => sum + Number(item.unit_price || 0) * Number(item.quantity || 0), 0) * 100) / 100;
+
+      for (const item of prescriptionItems) {
+        const { error: itemError } = await supabase.from("order_items").update({ item_status: "removido", item_notes: "Receita recusada durante a separação." }).eq("id", item.id);
+        if (itemError) {
+          toast.error(`Não foi possível remover o item ${item.product_name}: ${itemError.message}`);
+          await qc.invalidateQueries({ queryKey: ["admin_orders"] });
+          return;
+        }
+      }
+
+      const refundFunction = order.cielo_payment_id
+        ? "refund-cielo"
+        : order.mercado_pago_payment_id
+          ? "refund-mercado-pago"
+          : null;
+      const isTotalRefund = remainingItems.length === 0;
+      const refundAmount = isTotalRefund ? undefined : rejectedAmount;
+
+      if (prescriptionItems.length > 0 && ["approved", "partially_refunded"].includes(order.payment_status) && refundFunction) {
+        const idempotencyKey = `prescription-rejected:${order.id}:${prescriptionItems.map((item: any) => item.id).sort().join(",")}`;
+        const { data: refundData, error: refundError } = await supabase.functions.invoke(refundFunction, {
+          body: {
+            order_id: order.id,
+            amount: refundAmount,
+            reason: "Receita recusada durante a separação",
+            idempotency_key: idempotencyKey,
+            mode: "execute",
+          },
+        });
+        if (refundError || (refundData as any)?.error) {
+          await supabase.from("orders").update({ status: "reembolso_pendente" }).eq("id", order.id);
+          toast.warning("Receita recusada e itens removidos, mas o estorno ficou pendente para conferência no painel de reembolsos.");
+        } else {
+          toast.success(isTotalRefund ? "Receita recusada e pedido estornado integralmente." : `Receita recusada e estorno de ${formatBRL(rejectedAmount)} concluído.`);
+        }
+      } else if (prescriptionItems.length > 0 && ["approved", "partially_refunded"].includes(order.payment_status)) {
+        await supabase.from("orders").update({ status: "reembolso_pendente" }).eq("id", order.id);
+        toast.warning("Receita recusada, mas o pedido não possui gateway de pagamento configurado para estorno automático.");
+      } else {
+        toast.success("Receita recusada; itens removidos do pedido.");
+      }
     } else {
       toast.success(status === "rejected" ? "Receita original recusada; pedido mantido bloqueado." : "Pedido voltou a aguardar a receita original.");
     }

@@ -34,6 +34,13 @@ const received: CartItem = {
   prescription_approved_at: null,
 };
 
+const controlledReceived: CartItem = {
+  ...received,
+  id: "rx-controlled-received",
+  product_id: "rx-controlled-received",
+  controlled: true,
+};
+
 const approved: CartItem = {
   ...waiting,
   id: "rx-approved",
@@ -56,6 +63,10 @@ describe("prescription cart approval", () => {
     expect(isCartItemPayable(received)).toBe(true);
   });
 
+  it("permite pagamento condicionado também para receita controlada recebida", () => {
+    expect(isCartItemPayable(controlledReceived)).toBe(true);
+  });
+
   it("só libera com status aprovada e approved_at", () => {
     expect(isPrescriptionApproved({ ...approved, prescription_approved_at: null })).toBe(false);
     expect(isPrescriptionApproved({ ...approved, prescription_status: "recebida" })).toBe(false);
@@ -64,8 +75,8 @@ describe("prescription cart approval", () => {
   });
 
   it("em carrinho misto envia ao checkout itens comuns e condicionados", () => {
-    const cart = [normal, waiting, received, approved];
-    expect(cartPayableItems(cart).map((i) => i.id)).toEqual(["normal", "rx-received", "rx-approved"]);
+    const cart = [normal, waiting, received, controlledReceived, approved];
+    expect(cartPayableItems(cart).map((i) => i.id)).toEqual(["normal", "rx-received", "rx-controlled-received", "rx-approved"]);
     expect(cartPendingPrescriptionItems(cart).map((i) => i.id)).toEqual(["rx-waiting"]);
   });
 

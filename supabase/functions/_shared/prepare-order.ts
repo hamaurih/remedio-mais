@@ -117,17 +117,6 @@ export async function prepareOrder(
     if (p.controlled || p.requires_prescription) {
       // A receita deve ser do próprio usuário e estar vinculada ao produto. O
       // ID enviado pelo cliente é apenas uma dica; o servidor sempre confere.
-      const findApproved = async (rxId?: string) => {
-        let q = admin.from("prescriptions")
-          .select("id,product_id,status,approved_at,created_at")
-          .eq("user_id", userId)
-          .eq("product_id", p.id)
-          .in("status", ["aprovada", "approved"])
-          .not("approved_at", "is", null);
-        if (rxId) q = q.eq("id", rxId);
-        const { data } = await q.order("approved_at", { ascending: false }).limit(1);
-        return (data || [])[0] || null;
-      };
       const findReceived = async (rxId?: string) => {
         let q = admin.from("prescriptions")
           .select("id,product_id,status,approved_at,created_at")
@@ -139,24 +128,23 @@ export async function prepareOrder(
         return (data || [])[0] || null;
       };
 
-      const covering = p.controlled
-        ? (await findApproved(ci.prescription_id)) || (ci.prescription_id ? await findApproved() : null)
-        : (await findReceived(ci.prescription_id)) || (ci.prescription_id ? await findReceived() : null);
+      // O pagamento não espera a aprovação. A conferência farmacêutica ocorre
+      // durante a separação, antes de liberar a dispensação/entrega.
+      const covering = (await findReceived(ci.prescription_id))
+        || (ci.prescription_id ? await findReceived() : null);
       if (!covering) {
         return {
           ok: false,
           status: 400,
           body: {
             success: false,
-            error: p.controlled
-              ? `Receita aprovada necessária: ${p.name}.`
-              : `Envie uma receita válida antes de continuar: ${p.name}.`,
+            error: `Envie uma receita válida antes de continuar: ${p.name}.`,
           },
         };
       }
       ci.prescription_id = covering.id;
       prescriptionOriginalRequired = true;
-      prescriptionCondition = p.controlled ? "manual_approval" : "original_on_delivery";
+      prescriptionCondition = "original_on_delivery";
     }
     const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, stock));
     const unit = Number(variant ? (variant.promo_price ?? variant.price ?? p.promo_price ?? p.price) : (p.promo_price ?? p.price));

@@ -46,10 +46,10 @@ export function isPrescriptionApproved(item: CartItem) {
 const REJECTED_STATUSES = ["recusada", "rejeitada", "negada", "rejected"];
 const CONDITIONALLY_ALLOWED_STATUSES = ["recebida", "em_analise", "aprovada", "approved", "finalizada"];
 
-/** Receita não controlada pode seguir para pagamento após o envio do arquivo,
- * mas continua condicionada à conferência do original na entrega. */
+/** Qualquer receita enviada pode seguir para pagamento, mas o pedido continua
+ * condicionado à conferência farmacêutica antes da dispensação. */
 export function isPrescriptionConditionallyPayable(item: CartItem) {
-  if (!isPrescriptionCartItem(item) || item.controlled === true) return false;
+  if (!isPrescriptionCartItem(item)) return false;
   const status = normalizePrescriptionStatus(item.prescription_status);
   return !!item.prescription_id && CONDITIONALLY_ALLOWED_STATUSES.includes(status) && !REJECTED_STATUSES.includes(status);
 }
