@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
-import { cartTotal, clearCart, formatBRL, setPendingPixOrder } from "@/lib/store";
+import { cartPayableItems, cartTotal, clearCart, formatBRL, isPrescriptionCartItem, setPendingPixOrder } from "@/lib/store";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { customerAccount } from "@/lib/customerAccountApi";
@@ -82,8 +82,14 @@ export default function Checkout() {
   const [cardExpiration, setCardExpiration] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [installments, setInstallments] = useState(1);
+  const [acceptedOriginalPrescription, setAcceptedOriginalPrescription] = useState(false);
 
-  const subtotal = cartTotal(items);
+  // O carrinho pode conter simultaneamente itens já liberados e itens
+  // controlados aguardando aprovação. Só os itens pagáveis entram neste pedido.
+  const checkoutItems = useMemo(() => cartPayableItems(items), [items]);
+  const hasPrescriptionItems = useMemo(() => checkoutItems.some(isPrescriptionCartItem), [checkoutItems]);
+
+  const subtotal = cartTotal(checkoutItems);
   const deliveryMode: "flat" | "distance" = ((settings as any)?.delivery_mode as "flat" | "distance") ?? "distance";
   const deliveryFee = useMemo(() => {
     if (deliveryType !== "delivery") return 0;
@@ -208,12 +214,16 @@ export default function Checkout() {
     if (items.length === 0) nav("/carrinho", { replace: true });
   }, [items.length, nav]);
 
+  useEffect(() => {
+    if (items.length > 0 && checkoutItems.length === 0) nav("/carrinho", { replace: true });
+  }, [items.length, checkoutItems.length, nav]);
+
   const icSent = useRef(false);
   useEffect(() => {
-    if (icSent.current || items.length === 0) return;
+    if (icSent.current || checkoutItems.length === 0) return;
     icSent.current = true;
-    trackInitiateCheckout(items, cartTotal(items));
-  }, [items]);
+    trackInitiateCheckout(checkoutItems, cartTotal(checkoutItems));
+  }, [checkoutItems]);
 
   const lookupCep = async (value: string) => {
     const c = onlyDigits(value).slice(0, 8);
@@ -297,6 +307,10 @@ export default function Checkout() {
 
   const goPay = async () => {
     if (!user) return;
+    if (hasPrescriptionItems && !acceptedOriginalPrescription) {
+      toast.error("Confirme que entregará a receita original à farmácia para continuar.", { duration: 8000 });
+      return;
+    }
     if (paymentMethod === "pix" && !cpfDigits) {
       toast.error("CPF é obrigatório para pagamento via Pix. Volte para a etapa 'Seus dados' e preencha.", { duration: 8000 });
       setStep(1);
@@ -313,7 +327,7 @@ export default function Checkout() {
       await persistCustomerData();
 
       const commonBody = {
-        items: items.map((i) => ({
+        items: checkoutItems.map((i) => ({
           id: i.product_id || i.id,
           variant_id: i.variant_id || null,
           quantity: i.quantity,
@@ -487,7 +501,7 @@ export default function Checkout() {
         {step === 3 && (
           <Section title="Revisão do pedido">
             <div className="space-y-2 text-sm">
-              {items.map((i) => (
+              {checkoutItems.map((i) => (
                 <div key={i.id} className="flex justify-between">
                   <span>{i.quantity}x {i.name}{i.variant_label && <span className="text-muted-foreground"> · {i.variant_label}</span>}</span>
                   <span>{formatBRL(i.price * i.quantity)}</span>
@@ -497,7 +511,13 @@ export default function Checkout() {
               <div className="flex justify-between"><span>Entrega</span><span>{deliveryFee > 0 ? formatBRL(deliveryFee) : "Grátis / Retirada"}</span></div>
               <div className="flex justify-between text-lg font-extrabold pt-2 border-t"><span>Total</span><span className="text-primary">{formatBRL(total)}</span></div>
             </div>
-            <div className="flex justify-between mt-6"><Button variant="outline" onClick={() => setStep(2)}>Voltar</Button><Button onClick={() => setStep(4)}>Continuar</Button></div>
+            {hasPrescriptionItems && (
+              <label className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={acceptedOriginalPrescription} onChange={(e) => setAcceptedOriginalPrescription(e.target.checked)} />
+                <span><strong>Confirmo que entregarei a receita original</strong> ao entregador ou à equipe da loja no momento da entrega/retirada. A farmácia fará a conferência antes de liberar o medicamento; se a receita não for apresentada ou estiver irregular, o item poderá ser retirado e o estorno correspondente será processado pela farmácia.</span>
+              </label>
+            )}
+            <div className="flex justify-between mt-6"><Button variant="outline" onClick={() => setStep(2)}>Voltar</Button><Button onClick={() => setStep(4)} disabled={hasPrescriptionItems && !acceptedOriginalPrescription}>Continuar</Button></div>
           </Section>
         )}
 

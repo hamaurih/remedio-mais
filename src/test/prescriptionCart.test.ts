@@ -52,8 +52,8 @@ describe("prescription cart approval", () => {
     expect(isCartItemPayable(waiting)).toBe(false);
   });
 
-  it("continua bloqueado depois que a receita foi apenas recebida", () => {
-    expect(isCartItemPayable(received)).toBe(false);
+  it("permite compra condicionada depois que a receita foi recebida", () => {
+    expect(isCartItemPayable(received)).toBe(true);
   });
 
   it("só libera com status aprovada e approved_at", () => {
@@ -63,10 +63,10 @@ describe("prescription cart approval", () => {
     expect(isCartItemPayable(approved)).toBe(true);
   });
 
-  it("em carrinho misto envia ao checkout apenas itens liberados", () => {
+  it("em carrinho misto envia ao checkout itens comuns e condicionados", () => {
     const cart = [normal, waiting, received, approved];
-    expect(cartPayableItems(cart).map((i) => i.id)).toEqual(["normal", "rx-approved"]);
-    expect(cartPendingPrescriptionItems(cart).map((i) => i.id)).toEqual(["rx-waiting", "rx-received"]);
+    expect(cartPayableItems(cart).map((i) => i.id)).toEqual(["normal", "rx-received", "rx-approved"]);
+    expect(cartPendingPrescriptionItems(cart).map((i) => i.id)).toEqual(["rx-waiting"]);
   });
 
   it("total liberado ignora somente itens aguardando receita", () => {
@@ -79,7 +79,7 @@ describe("status aprovado em inglês", () => {
   it("aceita status 'approved' vindo do servidor", () => {
     expect(isCartItemPayable({ ...approved, prescription_status: "approved" })).toBe(true);
   });
-  it("mantém bloqueio para status desconhecido", () => {
-    expect(isCartItemPayable({ ...approved, prescription_status: "waiting" })).toBe(false);
+  it("mantém bloqueio para status desconhecido sem receita aprovada", () => {
+    expect(isCartItemPayable({ ...approved, prescription_status: "waiting", prescription_approved_at: null })).toBe(false);
   });
 });

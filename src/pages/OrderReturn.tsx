@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { customerAccount } from "@/lib/customerAccountApi";
 import { formatBRL } from "@/lib/store";
 import { trackPurchase } from "@/lib/metaEvents";
-import { CheckCircle2, Clock, XCircle, Loader2, Package, Truck, Store } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Loader2, Package, Truck, Store, FileText } from "lucide-react";
 import { Seo } from "@/components/Seo";
 
 type Status = "success" | "pending" | "failure";
@@ -88,6 +88,8 @@ export default function OrderReturn({ status }: { status: Status }) {
     : effective === "pending" ? "Pagamento em análise"
     : "Pagamento não aprovado";
   const isPickup = order?.delivery_type === "pickup";
+  const needsOriginalPrescription = order?.prescription_original_required === true
+    || (order?.order_items || []).some((item: any) => ["original_on_delivery", "manual_approval"].includes(item?.prescription_condition));
 
   return (
     <Layout>
@@ -98,12 +100,13 @@ export default function OrderReturn({ status }: { status: Status }) {
           <h1 className="text-2xl font-extrabold">{title}</h1>
 
           {effective === "success" && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 p-4 text-left flex gap-3 items-start">
+            <div className="space-y-3">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 p-4 text-left flex gap-3 items-start">
               <Package className="h-6 w-6 text-emerald-700 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <div className="font-bold mb-1">Seu pedido já está sendo preparado! 🎉</div>
+                <div className="font-bold mb-1">{needsOriginalPrescription ? "Pagamento aprovado — aguardando conferência da receita" : "Seu pedido já está sendo preparado! 🎉"}</div>
                 <p className="leading-relaxed">
-                  Recebemos seu pagamento e nossa equipe está separando seus produtos com todo cuidado.
+                  Recebemos seu pagamento. {needsOriginalPrescription ? "Assim que a receita original for conferida, nossa equipe liberará a separação do medicamento." : "Nossa equipe está separando seus produtos com todo cuidado."}
                   {isPickup ? " Avisaremos assim que estiver pronto para retirada na loja." : " Em breve seu pedido será despachado para entrega no endereço informado."}
                 </p>
                 <div className="flex items-center gap-2 mt-3 text-xs font-medium text-emerald-800">
@@ -111,6 +114,16 @@ export default function OrderReturn({ status }: { status: Status }) {
                   <span>{isPickup ? "Retirada na loja" : "Entrega em domicílio"}</span>
                 </div>
               </div>
+              </div>
+              {needsOriginalPrescription && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-950 p-4 text-left flex gap-3 items-start">
+                  <FileText className="h-6 w-6 text-amber-700 shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <div className="font-bold mb-1">Entregue a receita original {isPickup ? "na retirada" : "ao entregador"}</div>
+                    <p className="leading-relaxed">A farmácia fará a conferência antes de liberar o medicamento. Se a receita não for apresentada ou estiver irregular, o item poderá ser retirado do pedido e o estorno correspondente será processado pela farmácia.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

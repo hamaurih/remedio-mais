@@ -1292,6 +1292,8 @@ export type Database = {
           item_notes: string | null
           item_status: string
           order_id: string
+          prescription_condition: string
+          prescription_id: string | null
           product_id: string | null
           product_image_url: string | null
           product_name: string
@@ -1312,6 +1314,8 @@ export type Database = {
           item_notes?: string | null
           item_status?: string
           order_id: string
+          prescription_condition?: string
+          prescription_id?: string | null
           product_id?: string | null
           product_image_url?: string | null
           product_name: string
@@ -1332,6 +1336,8 @@ export type Database = {
           item_notes?: string | null
           item_status?: string
           order_id?: string
+          prescription_condition?: string
+          prescription_id?: string | null
           product_id?: string | null
           product_image_url?: string | null
           product_name?: string
@@ -1417,6 +1423,10 @@ export type Database = {
           payment_gateway: string | null
           payment_method: string | null
           payment_status: string
+          prescription_original_collected_at: string | null
+          prescription_original_notes: string | null
+          prescription_original_required: boolean
+          prescription_original_status: string
           pix_expires_at: string | null
           pix_qr_code: string | null
           pix_qr_code_base64: string | null
@@ -1486,6 +1496,10 @@ export type Database = {
           payment_gateway?: string | null
           payment_method?: string | null
           payment_status?: string
+          prescription_original_collected_at?: string | null
+          prescription_original_notes?: string | null
+          prescription_original_required?: boolean
+          prescription_original_status?: string
           pix_expires_at?: string | null
           pix_qr_code?: string | null
           pix_qr_code_base64?: string | null
@@ -1555,6 +1569,10 @@ export type Database = {
           payment_gateway?: string | null
           payment_method?: string | null
           payment_status?: string
+          prescription_original_collected_at?: string | null
+          prescription_original_notes?: string | null
+          prescription_original_required?: boolean
+          prescription_original_status?: string
           pix_expires_at?: string | null
           pix_qr_code?: string | null
           pix_qr_code_base64?: string | null
