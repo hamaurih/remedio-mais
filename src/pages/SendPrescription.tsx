@@ -127,14 +127,14 @@ export default function SendPrescription() {
         </div>
         <p className="text-muted-foreground mb-4 text-sm">
           {productId
-            ? "Após o envio, itens não controlados podem seguir para compra condicionada. Medicamentos controlados continuam aguardando análise farmacêutica; em qualquer caso, entregue a receita original na entrega ou retirada."
+            ? "Após o envio, qualquer medicamento com receita pode seguir para compra condicionada. A aprovação farmacêutica acontece durante a separação, antes da entrega ou retirada."
             : <>Status inicial: <strong>Recebida para análise</strong>. A venda depende da conferência da farmácia.</>}
         </p>
 
         {productId && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 text-sm text-amber-950">
             <ShieldCheck className="h-5 w-5 shrink-0" />
-            <div><strong>O envio da receita não conclui a venda.</strong> A compra poderá ser condicionada à conferência da receita original; medicamentos controlados só são liberados após aprovação farmacêutica.</div>
+            <div><strong>O envio da receita libera o pagamento condicionado.</strong> A farmácia fará a conferência durante a separação e só liberará o medicamento após a aprovação farmacêutica.</div>
           </div>
         )}
 

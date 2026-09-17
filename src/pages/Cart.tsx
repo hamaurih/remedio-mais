@@ -82,7 +82,7 @@ function PrescriptionState({ item }: { item: any }) {
           <FileText className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
           <div>
             <div className="text-sm font-bold text-amber-950">Receita necessária</div>
-            <div className="text-xs text-amber-900/80">Este item fica no carrinho e não entra no pagamento até a receita ser aprovada.</div>
+            <div className="text-xs text-amber-900/80">Envie a receita para liberar o pagamento condicionado. A conferência farmacêutica acontece durante a separação.</div>
           </div>
         </div>
         <Button asChild size="sm" className="shrink-0">
@@ -110,7 +110,7 @@ function PrescriptionState({ item }: { item: any }) {
         <FileText className="h-5 w-5 text-sky-700 shrink-0" />
         <div>
           <div className="text-sm font-bold text-sky-950">Receita recebida — compra condicionada</div>
-          <div className="text-xs text-sky-900/80">Você pode pagar agora. Entregue a receita original ao entregador (ou na retirada); a farmácia fará a conferência antes de liberar o medicamento.</div>
+          <div className="text-xs text-sky-900/80">Você pode pagar agora. A farmácia conferirá a receita durante a separação e só então liberará o medicamento para entrega ou retirada.</div>
         </div>
       </div>
     );
