@@ -11,6 +11,7 @@ import {
   cartTotal,
   formatBRL,
   isPrescriptionCartItem,
+  isPrescriptionConditionallyPayable,
   removeFromCart,
   syncCartPrescriptionById,
   updateQty,
@@ -98,6 +99,18 @@ function PrescriptionState({ item }: { item: any }) {
         <div>
           <div className="text-sm font-bold text-emerald-900">Receita aprovada — item liberado</div>
           <div className="text-xs text-emerald-800/80">Este medicamento já pode entrar no checkout.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPrescriptionConditionallyPayable(item)) {
+    return (
+      <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 flex gap-2 items-start">
+        <FileText className="h-5 w-5 text-sky-700 shrink-0" />
+        <div>
+          <div className="text-sm font-bold text-sky-950">Receita recebida — compra condicionada</div>
+          <div className="text-xs text-sky-900/80">Você pode pagar agora. Entregue a receita original ao entregador (ou na retirada); a farmácia fará a conferência antes de liberar o medicamento.</div>
         </div>
       </div>
     );

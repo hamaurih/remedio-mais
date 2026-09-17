@@ -390,6 +390,19 @@ Deno.serve(async (req) => {
       ? (presetParam as unknown as DiagnosticPreset)
       : null;
 
+    // Pedidos com receita só podem seguir para separação depois que a equipe
+    // confirmar a receita original entregue pelo cliente. Isso protege todos
+    // os disparos (webhook, conciliação e botão manual) em um único ponto.
+    if (!isTest && order.prescription_original_required && order.prescription_original_status !== "validated") {
+      return json({
+        skipped: true,
+        reason: order.prescription_original_status === "rejected"
+          ? "prescription_original_rejected"
+          : "prescription_original_pending",
+        prescription_original_status: order.prescription_original_status,
+      }, 200);
+    }
+
     if (!isTest) {
       if (order.payment_status !== "approved") {
         return json({ error: "Pedido não está aprovado", payment_status: order.payment_status }, 400);

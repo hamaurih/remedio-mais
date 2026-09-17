@@ -43,8 +43,19 @@ export function isPrescriptionApproved(item: CartItem) {
   return !!item.prescription_id && APPROVED_STATUSES.includes(status) && !!item.prescription_approved_at;
 }
 
+const REJECTED_STATUSES = ["recusada", "rejeitada", "negada", "rejected"];
+const CONDITIONALLY_ALLOWED_STATUSES = ["recebida", "em_analise", "aprovada", "approved", "finalizada"];
+
+/** Receita não controlada pode seguir para pagamento após o envio do arquivo,
+ * mas continua condicionada à conferência do original na entrega. */
+export function isPrescriptionConditionallyPayable(item: CartItem) {
+  if (!isPrescriptionCartItem(item) || item.controlled === true) return false;
+  const status = normalizePrescriptionStatus(item.prescription_status);
+  return !!item.prescription_id && CONDITIONALLY_ALLOWED_STATUSES.includes(status) && !REJECTED_STATUSES.includes(status);
+}
+
 export function isCartItemPayable(item: CartItem) {
-  return !isPrescriptionCartItem(item) || isPrescriptionApproved(item);
+  return !isPrescriptionCartItem(item) || isPrescriptionApproved(item) || isPrescriptionConditionallyPayable(item);
 }
 
 export function cartPayableItems(items: CartItem[]) {

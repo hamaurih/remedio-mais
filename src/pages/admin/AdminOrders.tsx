@@ -22,6 +22,12 @@ const FULFILL_LABEL: Record<string, string> = {
   unfulfilled: "Não iniciado", picking: "Separando", packed: "Embalado",
   shipped: "Despachado", delivered: "Entregue", cancelled: "Cancelado",
 };
+const PRESCRIPTION_ORIGINAL_LABEL: Record<string, string> = {
+  pending_collection: "Aguardando receita original",
+  validated: "Receita original conferida",
+  rejected: "Receita original recusada",
+  not_required: "Sem receita original",
+};
 
 const STATUSES = [
   "novo", "em_atendimento", "aguardando_pagamento", "aprovado", "em_separacao",
@@ -81,6 +87,12 @@ export default function AdminOrders() {
   });
 
   const updateStatus = async (id: string, status: string) => {
+    const current = (data || []).find((order: any) => order.id === id);
+    const fulfillmentStatuses = ["em_separacao", "pronto_retirada", "saiu_para_entrega", "entregue", "retirado", "finalizado"];
+    if (current?.prescription_original_required && current.prescription_original_status !== "validated" && fulfillmentStatuses.includes(status)) {
+      toast.warning("Confira a receita original antes de liberar este pedido para separação ou entrega.");
+      return;
+    }
     const operationalPatch: { status: string; fulfillment_status?: string; delivery_status?: string } = { status };
     if (status === "em_separacao") operationalPatch.fulfillment_status = "picking";
     if (status === "pronto_retirada") { operationalPatch.fulfillment_status = "packed"; operationalPatch.delivery_status = "pickup_ready"; }
@@ -108,6 +120,35 @@ export default function AdminOrders() {
   const updateItemNotes = async (itemId: string, notes: string) => {
     const { error } = await supabase.from("order_items").update({ item_notes: notes }).eq("id", itemId);
     if (error) toast.error(error.message); else toast.success("Observação salva");
+  };
+
+  const updatePrescriptionOriginal = async (order: any, status: "validated" | "rejected" | "pending_collection") => {
+    if (!order?.prescription_original_required) return;
+    const patch: any = {
+      prescription_original_status: status,
+      prescription_original_collected_at: status === "validated" ? new Date().toISOString() : null,
+    };
+    const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    await supabase.from("order_events").insert({
+      order_id: order.id,
+      type: "prescription_original",
+      message: status === "validated" ? "Receita original conferida; pedido liberado para separação." : status === "rejected" ? "Receita original recusada; pedido permanece bloqueado." : "Aguardando apresentação da receita original.",
+      new_status: status,
+    });
+    if (status === "validated") {
+      const { error: sendError } = await supabase.functions.invoke("send-order-to-trier", { body: { order_id: order.id } });
+      if (sendError) toast.warning("Receita conferida, mas o envio ao Trier precisa ser tentado novamente.");
+      else toast.success("Receita conferida e pedido liberado para separação.");
+    } else {
+      toast.success(status === "rejected" ? "Receita original recusada; pedido mantido bloqueado." : "Pedido voltou a aguardar a receita original.");
+    }
+    const refreshed = await supabase.from("orders").select("*, order_items(*)").eq("id", order.id).maybeSingle();
+    if (refreshed.data) setView(refreshed.data);
+    await qc.invalidateQueries({ queryKey: ["admin_orders"] });
   };
 
   const counts = useMemo(() => {
@@ -156,7 +197,7 @@ export default function AdminOrders() {
                 <tr key={o.id} className="border-t">
                   <td className="p-3 text-xs font-mono">{o.id.slice(0, 6)}</td>
                   <td className="p-3 text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
-                  <td className="p-3 font-medium">{o.customer_name}<div className="text-xs text-muted-foreground">{o.customer_phone}</div>{hasUnavailable && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> item indisponível</div>}</td>
+                  <td className="p-3 font-medium">{o.customer_name}<div className="text-xs text-muted-foreground">{o.customer_phone}</div>{o.prescription_original_required && o.prescription_original_status !== "validated" && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> receita original pendente</div>}{hasUnavailable && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> item indisponível</div>}</td>
                   <td className="p-3 text-xs">{o.delivery_method === "pickup" ? "Retirada" : "Entrega"}</td>
                   {isAdmin && <td className="p-3 price">{formatBRL(o.total)}</td>}
                   {isAdmin && <td className="p-3"><Badge variant="secondary">{PAYMENT_LABEL[o.payment_status] || o.payment_status || "—"}</Badge></td>}
@@ -181,6 +222,7 @@ export default function AdminOrders() {
               <TabsContent value="resumo" className="space-y-2 text-sm pt-3">
                 <div><strong>Cliente:</strong> {view.customer_name}</div><div><strong>Telefone:</strong> {view.customer_phone}</div>
                 {isAdmin && <div className="flex gap-2 flex-wrap"><Badge variant="secondary">Pgto: {PAYMENT_LABEL[view.payment_status] || view.payment_status}</Badge><Badge variant="outline">Separação: {FULFILL_LABEL[view.fulfillment_status] || view.fulfillment_status}</Badge></div>}
+                {view.prescription_original_required && <div className={`rounded-lg border p-3 space-y-2 ${view.prescription_original_status === "validated" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><div className="font-semibold">Receita original: {PRESCRIPTION_ORIGINAL_LABEL[view.prescription_original_status] || view.prescription_original_status}</div><div className="text-xs text-muted-foreground">Não envie o pedido ao cliente antes de conferir a receita original.</div>{isAdmin && <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void updatePrescriptionOriginal(view, "validated")} disabled={view.prescription_original_status === "validated"}>Conferi e liberar separação</Button><Button size="sm" variant="outline" onClick={() => void updatePrescriptionOriginal(view, "pending_collection")} disabled={view.prescription_original_status === "pending_collection"}>Aguardar receita</Button><Button size="sm" variant="destructive" onClick={() => void updatePrescriptionOriginal(view, "rejected")}>Recusar receita</Button></div>}</div>}
                 {view.delivery_method === "pickup" ? <div><strong>Entrega:</strong> Retirar na loja</div> : <div className="rounded-md border p-2 space-y-0.5"><div className="font-semibold">Endereço de entrega</div><div>{deliveryAddress(view)}</div>{view.delivery_reference && <div className="text-xs text-muted-foreground">Referência: {view.delivery_reference}</div>}<div className="text-xs text-muted-foreground">Contato: {view.customer_phone || "-"}</div></div>}
                 {view.notes && <div><strong>Obs:</strong> {view.notes}</div>}
                 <div className="border-t pt-2 mt-2">{view.order_items?.map((it: any) => <div key={it.id} className="flex justify-between"><span>{it.quantity}x {it.product_name}</span>{isAdmin && <span>{formatBRL(it.unit_price * it.quantity)}</span>}</div>)}</div>

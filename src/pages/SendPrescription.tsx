@@ -101,7 +101,7 @@ export default function SendPrescription() {
           status: linked.status || "recebida",
           approved_at: linked.approved_at || null,
         });
-        toast.success("Receita recebida. O medicamento ficará no carrinho aguardando aprovação.");
+        toast.success("Receita recebida. Você poderá concluir a compra condicionada e entregar a receita original na entrega.");
         nav(returnTo, { replace: true });
         return;
       }
@@ -127,14 +127,14 @@ export default function SendPrescription() {
         </div>
         <p className="text-muted-foreground mb-4 text-sm">
           {productId
-            ? "Após o envio, o medicamento continuará no seu carrinho como “aguardando análise”. Os outros produtos permanecem liberados para compra."
+            ? "Após o envio, itens não controlados podem seguir para compra condicionada. Medicamentos controlados continuam aguardando análise farmacêutica; em qualquer caso, entregue a receita original na entrega ou retirada."
             : <>Status inicial: <strong>Recebida para análise</strong>. A venda depende da conferência da farmácia.</>}
         </p>
 
         {productId && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 text-sm text-amber-950">
             <ShieldCheck className="h-5 w-5 shrink-0" />
-            <div><strong>O envio da receita não conclui a venda.</strong> O item só será liberado no carrinho após aprovação da equipe farmacêutica.</div>
+            <div><strong>O envio da receita não conclui a venda.</strong> A compra poderá ser condicionada à conferência da receita original; medicamentos controlados só são liberados após aprovação farmacêutica.</div>
           </div>
         )}
 

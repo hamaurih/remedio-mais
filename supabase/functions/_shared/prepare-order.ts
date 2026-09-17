@@ -96,6 +96,7 @@ export async function prepareOrder(
   }
   const byId = new Map((products || []).map((p: any) => [p.id, p]));
   const orderItems: any[] = [];
+  let prescriptionOriginalRequired = false;
   let subtotal = 0;
 
   for (const ci of body.items) {
@@ -112,14 +113,13 @@ export async function prepareOrder(
     }
     const stock = variant ? (variant.stock ?? 0) : (p.stock ?? 0);
     if (stock <= 0) return { ok: false, status: 400, body: { success: false, error: `Sem estoque: ${p.name}.` } };
+    let prescriptionCondition = "none";
     if (p.controlled || p.requires_prescription) {
-      // A liberação exige receita aprovada DO PRÓPRIO usuário e aplicável a este
-      // produto. O prescription_id enviado pelo cliente é apenas uma dica: se
-      // estiver ausente/desatualizado, buscamos a receita aprovada do dono para
-      // o produto, sem nunca dispensar a exigência.
-      const findCovering = async (rxId?: string) => {
+      // A receita deve ser do próprio usuário e estar vinculada ao produto. O
+      // ID enviado pelo cliente é apenas uma dica; o servidor sempre confere.
+      const findApproved = async (rxId?: string) => {
         let q = admin.from("prescriptions")
-          .select("id,product_id,status,approved_at")
+          .select("id,product_id,status,approved_at,created_at")
           .eq("user_id", userId)
           .eq("product_id", p.id)
           .in("status", ["aprovada", "approved"])
@@ -128,13 +128,35 @@ export async function prepareOrder(
         const { data } = await q.order("approved_at", { ascending: false }).limit(1);
         return (data || [])[0] || null;
       };
-      let covering = await findCovering(ci.prescription_id);
-      if (!covering && ci.prescription_id) covering = await findCovering();
+      const findReceived = async (rxId?: string) => {
+        let q = admin.from("prescriptions")
+          .select("id,product_id,status,approved_at,created_at")
+          .eq("user_id", userId)
+          .eq("product_id", p.id)
+          .in("status", ["recebida", "em_analise", "aprovada", "approved", "finalizada"]);
+        if (rxId) q = q.eq("id", rxId);
+        const { data } = await q.order("created_at", { ascending: false }).limit(1);
+        return (data || [])[0] || null;
+      };
+
+      const covering = p.controlled
+        ? (await findApproved(ci.prescription_id)) || (ci.prescription_id ? await findApproved() : null)
+        : (await findReceived(ci.prescription_id)) || (ci.prescription_id ? await findReceived() : null);
       if (!covering) {
-        return { ok: false, status: 400, body: { success: false, error: `Receita aprovada necessária: ${p.name}.` } };
+        return {
+          ok: false,
+          status: 400,
+          body: {
+            success: false,
+            error: p.controlled
+              ? `Receita aprovada necessária: ${p.name}.`
+              : `Envie uma receita válida antes de continuar: ${p.name}.`,
+          },
+        };
       }
       ci.prescription_id = covering.id;
-
+      prescriptionOriginalRequired = true;
+      prescriptionCondition = p.controlled ? "manual_approval" : "original_on_delivery";
     }
     const qty = Math.max(1, Math.min(ci.quantity | 0, p.cart_quantity_limit ?? 99, stock));
     const unit = Number(variant ? (variant.promo_price ?? variant.price ?? p.promo_price ?? p.price) : (p.promo_price ?? p.price));
@@ -160,6 +182,8 @@ export async function prepareOrder(
       product_image_url: variant?.image_url || p.image_url,
       quantity: qty, unit_price: unit, total: line,
       requires_prescription: !!p.requires_prescription, controlled: !!p.controlled,
+      prescription_id: ci.prescription_id ?? null,
+      prescription_condition: prescriptionCondition,
     });
   }
 
@@ -236,6 +260,8 @@ export async function prepareOrder(
     delivery_fee: deliveryFee, subtotal, total,
     status: "novo", payment_gateway: "cielo", payment_method: paymentMethod,
     payment_status: "pending", order_status: "aguardando_pagamento", trier_sent: false,
+    prescription_original_required: prescriptionOriginalRequired,
+    prescription_original_status: prescriptionOriginalRequired ? "pending_collection" : "not_required",
     external_reference: null,
     meta_fbp: typeof body.meta?.fbp === "string" ? body.meta.fbp.slice(0, 128) : null,
     meta_fbc: typeof body.meta?.fbc === "string" ? body.meta.fbc.slice(0, 256) : null,
