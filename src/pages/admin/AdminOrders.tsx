@@ -158,11 +158,9 @@ export default function AdminOrders() {
         }
       }
 
-      const refundFunction = order.cielo_payment_id
-        ? "refund-cielo"
-        : order.mercado_pago_payment_id
-          ? "refund-mercado-pago"
-          : null;
+      // O fluxo de receitas usa exclusivamente a Cielo para estornos.
+      // Outros gateways não devem ser acionados automaticamente aqui.
+      const refundFunction = order.cielo_payment_id ? "refund-cielo" : null;
       const isTotalRefund = remainingItems.length === 0;
       const refundAmount = isTotalRefund ? undefined : rejectedAmount;
 
@@ -185,7 +183,7 @@ export default function AdminOrders() {
         }
       } else if (prescriptionItems.length > 0 && ["approved", "partially_refunded"].includes(order.payment_status)) {
         await supabase.from("orders").update({ status: "reembolso_pendente" }).eq("id", order.id);
-        toast.warning("Receita recusada, mas o pedido não possui gateway de pagamento configurado para estorno automático.");
+        toast.warning("Receita recusada, mas o pedido não possui pagamento Cielo identificado para estorno automático.");
       } else {
         toast.success("Receita recusada; itens removidos do pedido.");
       }
