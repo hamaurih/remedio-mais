@@ -383,6 +383,27 @@ Deno.serve(async (req) => {
       .from("orders").select("*").eq("id", orderId).maybeSingle();
     if (orderErr || !order) return json({ error: "Pedido não encontrado" }, 404);
 
+    // Bloqueio definitivo: pedidos originados pela IA/WhatsApp nunca são enviados ao Trier nesta fase.
+    // force não pode contornar esta regra.
+    if (!isTest && (String(order.source || "") === "ia"
+      || String(order.sales_channel || "") === "whatsapp"
+      || order.trier_eligible === false)) {
+      await writeLog({
+        order_id: orderId,
+        action,
+        status: "skipped",
+        error_message: "Pedido originado pela IA/WhatsApp bloqueado: trier_eligible=false",
+        created_by: actorId,
+      });
+      return json({
+        skipped: true,
+        reason: "ai_order_trier_blocked",
+        source: order.source,
+        sales_channel: order.sales_channel,
+        trier_eligible: order.trier_eligible,
+      }, 200);
+    }
+
     const isPaymentTest = action === "test_payment_preset";
     const isDiagnosticTest = action === "test_diagnostic_preset";
     const isTest = isPaymentTest || isDiagnosticTest;
@@ -758,6 +779,7 @@ Deno.serve(async (req) => {
         trier_numero_nota: trierNumeroNota ? String(trierNumeroNota) : null,
         trier_last_error: null,
         trier_error_message: null,
+        trier_dispatched_at: new Date().toISOString(),
         trier_sending_at: null,
       }).eq("id", orderId);
       await admin.from("order_items").update({ trier_item_sent: true }).eq("order_id", orderId);
