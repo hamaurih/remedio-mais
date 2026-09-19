@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
-import { ArrowRight, BarChart3, Boxes, Building2, CreditCard, FileText, Globe2, HardDriveDownload, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, UserPlus, Users, WalletCards } from "lucide-react";
+import { ArrowRight, BarChart3, Bot, Boxes, Building2, CreditCard, FileText, Globe2, HardDriveDownload, Landmark, Megaphone, Package, ReceiptText, Settings, ShoppingBag, ShoppingCart, Store, Tags, UserCog, UserPlus, Users, WalletCards } from "lucide-react";
 
 type Module = { title: string; description: string; to: string; icon: any };
 
@@ -15,6 +15,7 @@ const groups: Array<{ title: string; subtitle: string; modules: Module[] }> = [
     subtitle: "Acesso rápido ao que a equipe usa todos os dias.",
     modules: [
       { title: "Vendas e Pedidos", description: "Pedidos do site, status, separação e atendimento.", to: "/admin/pedidos", icon: ShoppingBag },
+      { title: "Gestão de vendas por IA", description: "Vendas do WhatsApp, notificações da equipe e proteção contra envio ao Trier.", to: "/admin/ia-vendas", icon: Bot },
       { title: "PDV", description: "Venda de balcão, caixa e operação presencial.", to: "/admin/pdv", icon: CreditCard },
       { title: "Estoque", description: "Saldo, movimentações, estoque baixo e inventário.", to: "/admin/estoque", icon: Boxes },
       { title: "Receitas", description: "Fila de receitas, análise, aprovação e acompanhamento.", to: "/admin/receitas", icon: FileText },
