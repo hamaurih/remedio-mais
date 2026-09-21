@@ -1389,10 +1389,11 @@ async function actionSyncStockSingle(productId: string) {
   };
 }
 
-// Refresh de estoque focado em produtos ATIVOS com EAN, priorizando os mais desatualizados.
-// Consulta a Trier por código de barras em pequenos lotes concorrentes e atualiza estoque/ativo.
-// Roda a cada tick do cron para manter o catálogo visível sempre com estoque em dia,
-// independente da varredura completa (que percorre 50k+ registros).
+// Refresh contínuo de estoque de todos os produtos não arquivados com EAN.
+// Produtos com estoque zero/negativo também precisam continuar sendo consultados:
+// se filtrarmos active=true, eles deixam de ser atualizados justamente depois que
+// ficam sem estoque e o valor antigo permanece no banco. A Trier é a fonte de
+// verdade; active controla apenas a disponibilidade de venda no catálogo.
 async function actionSyncStockActive(trigger = "manual", batchSize = 250, concurrency = 5) {
   const s = await getSettings();
   const startedAt = new Date().toISOString();
@@ -1401,8 +1402,8 @@ async function actionSyncStockActive(trigger = "manual", batchSize = 250, concur
   const { data: rows, error } = await supabase
     .from("products")
     .select("id, name, barcode, trier_barcode, trier_product_id, stock, stock_quantity, trier_stock_quantity, active, manual_disabled, trier_active, force_active, archived_at, last_stock_sync_at")
-    .eq("active", true)
     .is("archived_at", null)
+    .not("trier_product_id", "is", null)
     .or("barcode.not.is.null,trier_barcode.not.is.null")
     .order("last_stock_sync_at", { ascending: true, nullsFirst: true })
     .limit(batchSize);
@@ -2875,3 +2876,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+
