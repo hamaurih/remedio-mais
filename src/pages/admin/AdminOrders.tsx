@@ -83,7 +83,7 @@ export default function AdminOrders() {
 
   const { data } = useQuery({
     queryKey: ["admin_orders"],
-    queryFn: async () => (await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false })).data || [],
+    queryFn: async () => (await supabase.from("orders").select("*, order_items(*, products:product_id(manufacturer, laboratory, barcode, trier_barcode, sku))").order("created_at", { ascending: false })).data || [],
   });
 
   const updateStatus = async (id: string, status: string) => {
@@ -111,7 +111,7 @@ export default function AdminOrders() {
       toast.success("Item atualizado");
       qc.invalidateQueries({ queryKey: ["admin_orders"] });
       if (view) {
-        const refreshed = await supabase.from("orders").select("*, order_items(*)").eq("id", view.id).maybeSingle();
+        const refreshed = await supabase.from("orders").select("*, order_items(*, products:product_id(manufacturer, laboratory, barcode, trier_barcode, sku))").eq("id", view.id).maybeSingle();
         if (refreshed.data) setView(refreshed.data);
       }
     }
@@ -190,7 +190,7 @@ export default function AdminOrders() {
     } else {
       toast.success(status === "rejected" ? "Receita original recusada; pedido mantido bloqueado." : "Pedido voltou a aguardar a receita original.");
     }
-    const refreshed = await supabase.from("orders").select("*, order_items(*)").eq("id", order.id).maybeSingle();
+    const refreshed = await supabase.from("orders").select("*, order_items(*, products:product_id(manufacturer, laboratory, barcode, trier_barcode, sku))").eq("id", order.id).maybeSingle();
     if (refreshed.data) setView(refreshed.data);
     await qc.invalidateQueries({ queryKey: ["admin_orders"] });
   };
@@ -288,9 +288,13 @@ function ItemRow({ item, onStatus, onNotes }: { item: any; onStatus: (id: string
   const status = item.item_status || "disponivel";
   const unitPrice = Number(item.unit_price || 0);
   const itemTotal = unitPrice * Number(item.quantity || 0);
+  const product = item.products || {};
+  const manufacturer = product.manufacturer || null;
+  const laboratory = product.laboratory || null;
+  const barcode = product.barcode || product.trier_barcode || null;
   return (
     <div className="border rounded-lg p-3">
-      <div className="flex items-start gap-3">{item.product_image_url && <img src={item.product_image_url} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded object-cover border" />}<div className="flex-1 min-w-0"><div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>{item.variant_label && <div className="text-xs text-muted-foreground">{item.variant_label}</div>}<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs"><span className="text-muted-foreground">{formatBRL(unitPrice)} / un.</span><span className="font-semibold text-foreground">Total: {formatBRL(itemTotal)}</span></div></div><Badge className={`text-[10px] ${ITEM_BADGE[status] || ""}`} variant="outline">{ITEM_STATUSES.find((s) => s.v === status)?.l || status}</Badge></div>
+      <div className="flex items-start gap-3">{item.product_image_url && <img src={item.product_image_url} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded object-cover border" />}<div className="flex-1 min-w-0"><div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>{item.variant_label && <div className="text-xs text-muted-foreground">{item.variant_label}</div>}<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs"><span className="text-muted-foreground">{formatBRL(unitPrice)} / un.</span><span className="font-semibold text-foreground">Total: {formatBRL(itemTotal)}</span></div><div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">{manufacturer && <span><strong className="font-medium text-foreground">Marca:</strong> {manufacturer}</span>}{laboratory && <span><strong className="font-medium text-foreground">Laboratório:</strong> {laboratory}</span>}{barcode && <span><strong className="font-medium text-foreground">Cód. barras:</strong> <span className="font-mono">{barcode}</span></span>}</div></div><Badge className={`text-[10px] ${ITEM_BADGE[status] || ""}`} variant="outline">{ITEM_STATUSES.find((s) => s.v === status)?.l || status}</Badge></div>
       <div className="flex flex-wrap gap-1 mt-2">{ITEM_STATUSES.map((s) => <button key={s.v} onClick={() => onStatus(item.id, s.v)} className={`px-2 py-1 rounded text-[11px] font-medium border ${status === s.v ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"}`}>{s.l}</button>)}</div>
       {(status === "indisponivel" || status === "substituir" || notes) && <div className="mt-2 flex gap-2"><Textarea placeholder="Observação (ex: marca alternativa, motivo da indisponibilidade)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="text-xs" /><Button size="sm" variant="outline" onClick={() => onNotes(item.id, notes)}>Salvar</Button></div>}
     </div>
