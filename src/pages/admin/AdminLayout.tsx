@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Activity, BarChart3, Bot, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, HardDriveDownload, LayoutDashboard, LogOut, Package, Settings, ShoppingBag, UserCog, UserPlus, Users } from "lucide-react";
+import { Activity, BarChart3, Bot, Boxes, Building2, ClipboardList, CreditCard, FileText, Globe2, HardDriveDownload, LayoutDashboard, Layers3, LogOut, Package, Settings, ShoppingBag, Truck, UserCog, UserPlus, Users } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
 
@@ -19,7 +19,10 @@ const items: Item[] = [
   { to: "/admin/ia-vendas", label: "Gestão IA", icon: Bot, roles: ["admin", "seller"] },
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, roles: ["admin"] },
   { to: "/admin/compras", label: "Compra inteligente", icon: ClipboardList, roles: ["admin"] },
+  { to: "/admin/compras-operacionais", label: "Pedidos e recebimentos", icon: Package, roles: ["admin"] },
+  { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, roles: ["admin"] },
   { to: "/admin/produtos", label: "Produtos e Preços", icon: Package, roles: ["admin"] },
+  { to: "/admin/taxonomia", label: "Grupos e Subgrupos", icon: Layers3, roles: ["admin"] },
   { to: "/admin/unidades", label: "Matriz e Filiais", icon: Building2, roles: ["admin"] },
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, roles: ["admin", "seller"], requiresPrescriptionPermission: true },
