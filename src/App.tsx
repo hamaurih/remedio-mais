@@ -46,6 +46,8 @@ const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport
 const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
 const AdminStock = lazy(() => import("./pages/admin/AdminStock.tsx"));
 const AdminSmartPurchasing = lazy(() => import("./pages/admin/AdminSmartPurchasing.tsx"));
+const AdminSuppliers = lazy(() => import("./pages/admin/AdminSuppliers.tsx"));
+const AdminPurchaseOperations = lazy(() => import("./pages/admin/AdminPurchaseOperations.tsx"));
 const AdminCustomers = lazy(() => import("./pages/admin/AdminCustomers.tsx"));
 const AdminRegistrations = lazy(() => import("./pages/admin/AdminRegistrations.tsx"));
 const AdminSellers = lazy(() => import("./pages/admin/AdminSellers.tsx"));
@@ -149,6 +151,8 @@ const App = () => (
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
               <Route path="estoque" element={<AdminStock />} />
               <Route path="compras" element={<AdminSmartPurchasing />} />
+              <Route path="fornecedores" element={<AdminSuppliers />} />
+              <Route path="compras-operacionais" element={<AdminPurchaseOperations />} />
               <Route path="clientes" element={<AdminCustomers />} />
               <Route path="cadastros" element={<AdminRegistrations />} />
               <Route path="vendedores" element={<AdminSellers />} />
