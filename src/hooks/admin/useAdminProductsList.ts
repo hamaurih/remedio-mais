@@ -44,7 +44,7 @@ export function useAdminProductsList({
 
   const { data: cats } = useQuery({
     queryKey: ["admin_cats_list"],
-    queryFn: async () => (await supabase.from("categories").select("*").order("position")).data || [],
+    queryFn: async () => (await supabase.from("categories").select("*").order("name", { ascending: true })).data || [],
   });
 
   const { data: manufacturers = [] } = useQuery({
