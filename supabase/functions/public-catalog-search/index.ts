@@ -17,7 +17,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-type Channel = "whatsapp" | "site" | "balcao" | "telefone";
+type Channel = "whatsapp" | "ia" | "site" | "balcao" | "pdv" | "telefone";
 
 interface AgentBody {
   mensagem?: string;
@@ -38,10 +38,15 @@ function effectivePrice(p: any, channel: string) {
   const site = num(p.site_price) ?? num(p.ecommerce_price);
   const waPromo = num(p.whatsapp_promo_price);
   const wa = num(p.whatsapp_price);
+  const pdvPromo = num(p.pdv_promo_price);
+  const pdv = num(p.pdv_price);
   const promo = num(p.promo_price);
 
-  if (channel === "whatsapp" || channel === "balcao" || channel === "telefone") {
-    return waPromo ?? wa ?? sitePromo ?? site ?? promo ?? base;
+  if (channel === "whatsapp" || channel === "ia" || channel === "telefone") {
+    return waPromo ?? wa ?? promo ?? base;
+  }
+  if (channel === "balcao" || channel === "pdv") {
+    return pdvPromo ?? pdv ?? promo ?? base;
   }
   return sitePromo ?? site ?? promo ?? base;
 }
@@ -124,7 +129,7 @@ Deno.serve(async (req) => {
     .select(
       "id, name, slug, manufacturer, active_ingredient, image_url, short_description, " +
       "requires_prescription, controlled, stock, active, " +
-      "price, price_base, site_price, whatsapp_price, site_promo_price, whatsapp_promo_price, " +
+      "price, price_base, site_price, whatsapp_price, pdv_price, site_promo_price, whatsapp_promo_price, pdv_promo_price, " +
       "promo_price, ecommerce_price, discount_percentage, category_id, categories(name)",
     )
     .eq("active", true)
@@ -164,6 +169,7 @@ Deno.serve(async (req) => {
     const base = num(p.price_base) ?? num(p.price);
     const site = num(p.site_price) ?? num(p.ecommerce_price);
     const wa = num(p.whatsapp_price);
+    const pdv = num(p.pdv_price);
     const effective = effectivePrice(p, channel)!;
     const reference = base ?? site ?? wa ?? effective;
     const discount = reference && reference > effective
@@ -171,7 +177,11 @@ Deno.serve(async (req) => {
       : 0;
     const stock = Number(p.stock || 0);
     const available = stock > 0;
-    const isWa = channel !== "site";
+    const priceLabel = channel === "site"
+      ? "Preço do site"
+      : (channel === "balcao" || channel === "pdv")
+        ? "Preço do balcão"
+        : "Preço IA/WhatsApp";
 
     return {
       id: p.id,
@@ -183,8 +193,9 @@ Deno.serve(async (req) => {
       base_price: base,
       site_price: site,
       whatsapp_price: wa,
+      pdv_price: pdv,
       effective_price: effective,
-      price_label: isWa ? "Preço WhatsApp" : "Preço do site",
+      price_label: priceLabel,
       promo_price: effective,
       discount_percentage: discount,
       stock,
