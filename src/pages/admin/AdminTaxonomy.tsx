@@ -31,7 +31,7 @@ function DepartmentsTab() {
 
   const { data = [] } = useQuery({
     queryKey: ["admin_departments"],
-    queryFn: async () => (await sb.from("departments").select("*").order("position")).data || [],
+    queryFn: async () => (await sb.from("departments").select("*").order("name", { ascending: true })).data || [],
   });
   const { data: counts = {} } = useQuery({
     queryKey: ["admin_departments_counts"],
@@ -129,8 +129,8 @@ function DepartmentsTab() {
 function CategoriesTab() {
   const qc = useQueryClient();
   const [filterDept, setFilterDept] = useState<string>("all");
-  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name,slug").order("position")).data || [] });
-  const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_taxonomy"], queryFn: async () => (await sb.from("categories").select("id,name,slug,department_id,active,position,macro_group").order("position")).data || [] });
+  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name,slug").order("name", { ascending: true })).data || [] });
+  const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_taxonomy"], queryFn: async () => (await sb.from("categories").select("id,name,slug,department_id,active,position,macro_group").order("name", { ascending: true })).data || [] });
   const filtered = useMemo(() => filterDept === "all" ? cats : filterDept === "none" ? cats.filter((c: any) => !c.department_id) : cats.filter((c: any) => c.department_id === filterDept), [cats, filterDept]);
   const setDept = async (catId: string, deptId: string | null) => {
     const { error } = await sb.from("categories").update({ department_id: deptId }).eq("id", catId);
@@ -156,7 +156,7 @@ function SubcategoriesTab() {
   const [filterCat, setFilterCat] = useState("all");
   const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_simple"], queryFn: async () => (await sb.from("categories").select("id,name").order("name")).data || [] });
   const catMap = useMemo(() => Object.fromEntries(cats.map((c: any) => [c.id, c.name])), [cats]);
-  const { data: subs = [] } = useQuery({ queryKey: ["admin_subcategories"], queryFn: async () => (await sb.from("subcategories").select("*").order("position")).data || [] });
+  const { data: subs = [] } = useQuery({ queryKey: ["admin_subcategories"], queryFn: async () => (await sb.from("subcategories").select("*").order("name", { ascending: true })).data || [] });
   const filtered = useMemo(() => filterCat === "all" ? subs : subs.filter((s: any) => s.category_id === filterCat), [subs, filterCat]);
 
   const save = async () => {
@@ -197,7 +197,7 @@ function TrierMappingsTab() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const { data: rules = [] } = useQuery({ queryKey: ["admin_trier_mappings"], queryFn: async () => (await sb.from("trier_category_mappings").select("*").order("priority")).data || [] });
-  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name").order("position")).data || [] });
+  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name").order("name", { ascending: true })).data || [] });
   const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_simple"], queryFn: async () => (await sb.from("categories").select("id,name").order("name")).data || [] });
   const { data: subs = [] } = useQuery({ queryKey: ["admin_subcategories"], queryFn: async () => (await sb.from("subcategories").select("id,name,category_id").order("name")).data || [] });
   const subsFiltered = useMemo(() => editing.category_id ? subs.filter((s: any) => s.category_id === editing.category_id) : [], [subs, editing.category_id]);
