@@ -48,11 +48,66 @@ export function AdminProductPriceTab({ editing, setEditing }: Props) {
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? n : null;
   };
+
   const effectiveBase = positive(editing.price_base) ?? positive(editing.price);
-  const effectiveSite = positive(editing.site_promo_price) ?? positive(editing.site_price) ?? positive(editing.promo_price) ?? effectiveBase;
-  const effectiveWhatsapp = positive(editing.whatsapp_promo_price) ?? positive(editing.whatsapp_price) ?? positive(editing.site_promo_price) ?? positive(editing.site_price) ?? positive(editing.promo_price) ?? effectiveBase;
+  const globalPromo = positive(editing.promo_price);
+  const effectiveSite = positive(editing.site_promo_price) ?? positive(editing.site_price) ?? globalPromo ?? effectiveBase;
+  const effectiveWhatsapp = positive(editing.whatsapp_promo_price) ?? positive(editing.whatsapp_price) ?? globalPromo ?? effectiveBase;
+  const effectivePdv = positive(editing.pdv_promo_price) ?? positive(editing.pdv_price) ?? globalPromo ?? effectiveBase;
   const fmt = (n: number | null) => n == null ? "—" : `R$ ${n.toFixed(2).replace(".", ",")}`;
-  const channelsDiffer = effectiveSite != null && effectiveWhatsapp != null && effectiveSite !== effectiveWhatsapp;
+  const effectiveValues = [effectiveSite, effectiveWhatsapp, effectivePdv].filter((v): v is number => v != null);
+  const channelsDiffer = new Set(effectiveValues.map((v) => v.toFixed(2))).size > 1;
+
+  const ChannelCard = ({
+    title,
+    subtitle,
+    pctField,
+    priceField,
+    promoField,
+  }: {
+    title: string;
+    subtitle: string;
+    pctField: string;
+    priceField: string;
+    promoField: string;
+  }) => (
+    <div className="rounded-lg border p-3 space-y-3 bg-card">
+      <div>
+        <div className="font-semibold text-sm">{title}</div>
+        <div className="text-[11px] text-muted-foreground">{subtitle}</div>
+      </div>
+      <div className="space-y-1">
+        <Label>Desconto (%)</Label>
+        <Input
+          type="text"
+          inputMode="decimal"
+          placeholder="ex.: 10,5"
+          value={editing[pctField] ?? ""}
+          onChange={(e) => setChannelPct(pctField, priceField, e.target.value)}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>Preço R$</Label>
+        <Input
+          type="number"
+          step="0.01"
+          value={editing[priceField] ?? ""}
+          onChange={(e) => setChannelPrice(pctField, priceField, e.target.value)}
+          placeholder="usa o preço normal se vazio"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>Preço promocional R$</Label>
+        <Input
+          type="number"
+          step="0.01"
+          value={editing[promoField] ?? ""}
+          onChange={(e) => setEditing((prev: any) => ({ ...prev, [promoField]: e.target.value || null }))}
+          placeholder="usa a promoção geral se vazio"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-3 pt-3">
@@ -68,22 +123,22 @@ export function AdminProductPriceTab({ editing, setEditing }: Props) {
           <input type="checkbox" className="mt-0.5" checked={editing.promo_price != null ? true : !!editing.lock_promotion} disabled={editing.promo_price != null} onChange={(e) => setEditing((prev: any) => ({ ...prev, lock_promotion: e.target.checked }))} />
           <span>
             <span className="font-medium">Proteger promoção</span>
-            <span className="block text-xs text-muted-foreground">Protege a <strong>base de desconto (%)</strong>: se o sistema da farmácia mudar o preço normal, o preço promocional é recalculado mantendo o mesmo percentual. A oferta nunca é apagada pela sincronização.</span>
+            <span className="block text-xs text-muted-foreground">Protege a <strong>base de desconto (%)</strong>: se o sistema da farmácia mudar o preço normal, o preço promocional é recalculado mantendo o mesmo percentual.</span>
           </span>
         </label>
       </div>
 
       {editing.promo_price != null && Number(editing.promo_price) >= Number(editing.price || 0) && Number(editing.price || 0) > 0 && (
         <div className="text-xs rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-3">
-          Promoção inconsistente: o preço promocional está maior ou igual ao preço normal. O desconto não aparece no site até você corrigir.
+          Promoção inconsistente: o preço promocional está maior ou igual ao preço normal.
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1"><Label>Preço normal (R$) *</Label><Input type="number" step="0.01" value={editing.price} onChange={(e) => setEditing((prev: any) => ({ ...prev, price: e.target.value }))} /></div>
-        <div className="space-y-1"><Label>Preço promocional (R$)</Label><Input type="number" step="0.01" value={editing.promo_price ?? ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, promo_price: e.target.value || null }))} /></div>
+        <div className="space-y-1"><Label>Preço promocional geral (R$)</Label><Input type="number" step="0.01" value={editing.promo_price ?? ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, promo_price: e.target.value || null }))} /></div>
         <div className="space-y-1">
-          <Label>Desconto (%)</Label>
+          <Label>Desconto geral (%)</Label>
           <Input
             type="text"
             inputMode="decimal"
@@ -112,12 +167,12 @@ export function AdminProductPriceTab({ editing, setEditing }: Props) {
       </div>
 
       <div className="border-t pt-4 mt-2 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <Label className="font-bold">Preços por canal</Label>
-            <p className="text-xs text-muted-foreground">Defina preço específico para o site e para o WhatsApp/loja. Em branco = usa o preço normal acima.</p>
+            <p className="text-xs text-muted-foreground">Site, IA/WhatsApp e Balcão/PDV são independentes. Campo vazio = usa o preço normal ou a promoção geral.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Switch checked={!!editing.use_channel_pricing} onCheckedChange={(v) => setEditing((prev: any) => ({ ...prev, use_channel_pricing: v }))} />
             <Label className="text-xs">Usar preço por canal</Label>
           </div>
@@ -127,26 +182,31 @@ export function AdminProductPriceTab({ editing, setEditing }: Props) {
           <input type="checkbox" className="mt-0.5" checked={!!editing.lock_channel_discount} onChange={(e) => setEditing((prev: any) => ({ ...prev, lock_channel_discount: e.target.checked }))} />
           <span>
             <span className="font-medium">Travar desconto (%) por canal</span>
-            <span className="block text-xs text-muted-foreground">Com a trava ativa, o que vale é o <strong>percentual</strong>: sempre que o preço normal mudar (inclusive pelo sistema da farmácia), os preços do site e do WhatsApp/loja são recalculados automaticamente com o mesmo desconto.</span>
+            <span className="block text-xs text-muted-foreground">Com a trava ativa, quando o Trier mudar o preço-base, os preços de Site, IA/WhatsApp e Balcão/PDV são recalculados mantendo o percentual definido em cada canal.</span>
           </span>
         </label>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1"><Label>Preço base (Trier) R$</Label><Input type="number" step="0.01" value={editing.price_base ?? ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, price_base: e.target.value || null }))} placeholder="ex: vindo da Trier" /></div>
-          <div className="hidden sm:block" />
-          <div className="space-y-1"><Label>Desconto do site (%)</Label><Input type="text" inputMode="decimal" placeholder="ex.: 10,5" value={editing.site_discount_percentage ?? ""} onChange={(e) => setChannelPct("site_discount_percentage", "site_price", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Preço do site R$</Label><Input type="number" step="0.01" value={editing.site_price ?? ""} onChange={(e) => setChannelPrice("site_discount_percentage", "site_price", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Desconto WhatsApp/loja (%)</Label><Input type="text" inputMode="decimal" placeholder="ex.: 15,25" value={editing.whatsapp_discount_percentage ?? ""} onChange={(e) => setChannelPct("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Preço WhatsApp/loja R$</Label><Input type="number" step="0.01" value={editing.whatsapp_price ?? ""} onChange={(e) => setChannelPrice("whatsapp_discount_percentage", "whatsapp_price", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Preço promo do site R$</Label><Input type="number" step="0.01" value={editing.site_promo_price ?? ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, site_promo_price: e.target.value || null }))} /></div>
-          <div className="space-y-1"><Label>Preço promo WhatsApp R$</Label><Input type="number" step="0.01" value={editing.whatsapp_promo_price ?? ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, whatsapp_promo_price: e.target.value || null }))} /></div>
-          <div className="col-span-2 space-y-1"><Label>Observação interna de preço</Label><Input value={editing.channel_price_notes || ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, channel_price_notes: e.target.value }))} placeholder="visível apenas no admin" /></div>
+        <div className="space-y-1 max-w-sm">
+          <Label>Preço base (Trier) R$</Label>
+          <Input type="number" step="0.01" value={editing.price_base ?? ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, price_base: e.target.value || null }))} placeholder="vindo do Trier" />
         </div>
 
-        <div className="text-xs bg-secondary/40 border rounded p-2 space-y-1">
-          <div>Preço usado no <strong>site</strong>: <span className="font-semibold">{fmt(effectiveSite)}</span></div>
-          <div>Preço usado no <strong>WhatsApp/loja</strong>: <span className="font-semibold">{fmt(effectiveWhatsapp)}</span></div>
-          {channelsDiffer && <div className="text-primary font-semibold">⚠ Este produto possui preço diferente para WhatsApp/loja.</div>}
+        <div className="grid gap-3 md:grid-cols-3">
+          <ChannelCard title="Site" subtitle="Preço exibido no e-commerce." pctField="site_discount_percentage" priceField="site_price" promoField="site_promo_price" />
+          <ChannelCard title="IA / WhatsApp" subtitle="Preço informado e vendido pelo agente." pctField="whatsapp_discount_percentage" priceField="whatsapp_price" promoField="whatsapp_promo_price" />
+          <ChannelCard title="Balcão / PDV" subtitle="Preço cobrado na venda presencial." pctField="pdv_discount_percentage" priceField="pdv_price" promoField="pdv_promo_price" />
+        </div>
+
+        <div className="space-y-1">
+          <Label>Observação interna de preço</Label>
+          <Input value={editing.channel_price_notes || ""} onChange={(e) => setEditing((prev: any) => ({ ...prev, channel_price_notes: e.target.value }))} placeholder="visível apenas no admin" />
+        </div>
+
+        <div className="text-xs bg-secondary/40 border rounded p-3 grid gap-1 sm:grid-cols-3">
+          <div>Site: <strong>{fmt(effectiveSite)}</strong></div>
+          <div>IA/WhatsApp: <strong>{fmt(effectiveWhatsapp)}</strong></div>
+          <div>Balcão/PDV: <strong>{fmt(effectivePdv)}</strong></div>
+          {channelsDiffer && <div className="sm:col-span-3 text-primary font-semibold">Preços diferentes por canal estão ativos para este produto.</div>}
         </div>
       </div>
     </div>
