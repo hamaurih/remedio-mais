@@ -126,9 +126,15 @@ function buildEnderecoEntrega(order: any, minimal = false): Record<string, strin
   const rawNumero = clean(order.delivery_number).replace(/\s+/g, "");
   const numero = (rawNumero || "0").slice(0, 5);
   const numeroSobra = rawNumero.length > 5 ? rawNumero.slice(5) : "";
-  const complemento = [clean(order.delivery_complement), numeroSobra ? `Nº ${rawNumero}` : ""]
-    .filter(Boolean).join(" - ").slice(0, 60);
-  const ref = [clean(order.delivery_reference), contato ? `Contato: ${contato}` : ""]
+  // O Trier limita "complemento" a 20 caracteres. Mantemos o valor completo
+  // também em "referencia" quando houver truncamento, para não perder informação de entrega.
+  const complementoCompleto = [clean(order.delivery_complement), numeroSobra ? `Nº ${rawNumero}` : ""]
+    .filter(Boolean).join(" - ");
+  const complemento = complementoCompleto.slice(0, 20);
+  const complementoExcedente = complementoCompleto.length > 20
+    ? `Complemento: ${complementoCompleto}`
+    : "";
+  const ref = [clean(order.delivery_reference), complementoExcedente, contato ? `Contato: ${contato}` : ""]
     .filter(Boolean).join(" - ").slice(0, 100);
   return {
     logradouro: (clean(order.delivery_street) || STORE_ADDRESS.logradouro).slice(0, 60),
@@ -290,6 +296,12 @@ Deno.serve(async (req) => {
     const orderId = String(body?.order_id || "");
     const force = !!body?.force;
     const presetParam = String(body?.preset || "") as PaymentMode | "";
+    const isPaymentTest = action === "test_payment_preset";
+    const isDiagnosticTest = action === "test_diagnostic_preset";
+    const isTest = isPaymentTest || isDiagnosticTest;
+    const diagnosticPreset: DiagnosticPreset | null = isDiagnosticTest
+      ? (presetParam as unknown as DiagnosticPreset)
+      : null;
 
     // Resolve sales base URL (gateway or local webservice)
     const { data: settingsForBase } = await admin
@@ -404,17 +416,11 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const isPaymentTest = action === "test_payment_preset";
-    const isDiagnosticTest = action === "test_diagnostic_preset";
-    const isTest = isPaymentTest || isDiagnosticTest;
-    const diagnosticPreset: DiagnosticPreset | null = isDiagnosticTest
-      ? (presetParam as unknown as DiagnosticPreset)
-      : null;
 
     // Pedidos com receita só podem seguir para separação depois que a equipe
     // confirmar a receita original entregue pelo cliente. Isso protege todos
     // os disparos (webhook, conciliação e botão manual) em um único ponto.
-    if (!isTest && order.prescription_original_required && order.prescription_original_status !== "validated") {
+    if (!isTest && order.prescription_original_required && !["validated", "pending_collection"].includes(String(order.prescription_original_status || ""))) {
       return json({
         skipped: true,
         reason: order.prescription_original_status === "rejected"
