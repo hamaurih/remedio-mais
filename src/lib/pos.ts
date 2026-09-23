@@ -13,6 +13,8 @@ export type PosProduct = {
   image_url: string | null;
   price: number | null;
   promo_price: number | null;
+  pdv_price: number | null;
+  pdv_promo_price: number | null;
   promotion_start: string | null;
   promotion_end: string | null;
   stock: number | null;
@@ -90,9 +92,15 @@ export function productImage(p: { image_url?: string | null }) {
   return url;
 }
 
+export function baseUnitPrice(p: PosProduct) {
+  const pdv = Number(p.pdv_price ?? 0);
+  if (pdv > 0) return pdv;
+  return Number(p.price ?? 0);
+}
+
 export function hasValidPromo(p: PosProduct) {
-  const promo = Number(p.promo_price ?? 0);
-  const base = Number(p.price ?? 0);
+  const promo = Number(p.pdv_promo_price ?? p.promo_price ?? 0);
+  const base = baseUnitPrice(p);
   if (!promo || promo <= 0 || !base || promo >= base) return false;
   const now = Date.now();
   if (p.promotion_start && new Date(p.promotion_start).getTime() > now) return false;
@@ -101,7 +109,9 @@ export function hasValidPromo(p: PosProduct) {
 }
 
 export function unitPrice(p: PosProduct) {
-  return hasValidPromo(p) ? Number(p.promo_price) : Number(p.price ?? 0);
+  return hasValidPromo(p)
+    ? Number(p.pdv_promo_price ?? p.promo_price)
+    : baseUnitPrice(p);
 }
 
 export function itemTotal(item: PosCartItem) {
@@ -118,7 +128,7 @@ export function brl(n: number) {
 
 // manual_barcode é uma FLAG booleana ("código digitado à mão"), nunca um EAN.
 const PRODUCT_FIELDS =
-  "id,name,manufacturer,trier_product_id,barcode,trier_barcode,sku,image_url,price,promo_price,promotion_start,promotion_end,stock";
+  "id,name,manufacturer,trier_product_id,barcode,trier_barcode,sku,image_url,price,promo_price,pdv_price,pdv_promo_price,promotion_start,promotion_end,stock";
 
 function normalize(row: any): PosProduct {
   return {
@@ -151,6 +161,7 @@ export async function posSearchProducts(term: string): Promise<PosProduct[]> {
     .from("products")
     .select(PRODUCT_FIELDS)
     .ilike("name", `%${q}%`)
+    .order("name", { ascending: true })
     .order("stock", { ascending: false })
     .limit(20);
   if (byName.error) throw byName.error;
