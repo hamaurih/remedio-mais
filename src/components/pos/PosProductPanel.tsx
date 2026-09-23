@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Barcode, Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { PosProduct, brl, hasValidPromo, posSearchProducts, productImage, unitPrice } from "@/lib/pos";
+import { PosProduct, baseUnitPrice, brl, hasValidPromo, posSearchProducts, productImage, unitPrice } from "@/lib/pos";
 
 type Props = {
   onAdd: (p: PosProduct, qty: number) => void;
@@ -116,9 +116,9 @@ export function PosProductPanel({ onAdd, focusSignal }: Props) {
               <div className="flex items-baseline gap-2 pt-1">
                 {promo ? (
                   <>
-                    <span className="text-sm line-through text-muted-foreground">{brl(Number(selected.price))}</span>
-                    <span className="text-2xl font-extrabold text-primary">{brl(Number(selected.promo_price))}</span>
-                    <Badge>Economia {brl(Number(selected.price) - Number(selected.promo_price))}</Badge>
+                    <span className="text-sm line-through text-muted-foreground">{brl(baseUnitPrice(selected))}</span>
+                    <span className="text-2xl font-extrabold text-primary">{brl(unitPrice(selected))}</span>
+                    <Badge>Economia {brl(baseUnitPrice(selected) - unitPrice(selected))}</Badge>
                   </>
                 ) : (
                   <span className="text-2xl font-extrabold">{brl(unitPrice(selected))}</span>
