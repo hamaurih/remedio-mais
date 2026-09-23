@@ -26,7 +26,7 @@ export function CommercialClassificationTab({ productId }: Props) {
 
   const { data: depts = [] } = useQuery({
     queryKey: ["cc_depts"],
-    queryFn: async () => (await sb.from("departments").select("id,name").order("position")).data || [],
+    queryFn: async () => (await sb.from("departments").select("id,name").order("name", { ascending: true })).data || [],
   });
   const { data: cats = [] } = useQuery({
     queryKey: ["cc_cats", departmentId],
