@@ -31,7 +31,7 @@ function DepartmentsTab() {
 
   const { data = [] } = useQuery({
     queryKey: ["admin_departments"],
-    queryFn: async () => (await sb.from("departments").select("*").order("name", { ascending: true })).data || [],
+    queryFn: async () => (await sb.from("departments").select("*").order("position")).data || [],
   });
   const { data: counts = {} } = useQuery({
     queryKey: ["admin_departments_counts"],
@@ -128,10 +128,55 @@ function DepartmentsTab() {
 
 function CategoriesTab() {
   const qc = useQueryClient();
+  const { confirm: confirmAction, dialog: confirmDialog } = useConfirmDialog();
   const [filterDept, setFilterDept] = useState<string>("all");
-  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name,slug").order("name", { ascending: true })).data || [] });
-  const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_taxonomy"], queryFn: async () => (await sb.from("categories").select("id,name,slug,department_id,active,position,macro_group").order("name", { ascending: true })).data || [] });
+  const [open, setOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const empty: any = { id: "", name: "", slug: "", description: "", icon: "", image_url: "", position: 0, active: true, show_in_menu: true, show_on_home: true, link: "", band_color: "#E11D2E", macro_group: "", department_id: null };
+  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name,slug").order("position")).data || [] });
+  const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_taxonomy"], queryFn: async () => (await sb.from("categories").select("*").order("position")).data || [] });
   const filtered = useMemo(() => filterDept === "all" ? cats : filterDept === "none" ? cats.filter((c: any) => !c.department_id) : cats.filter((c: any) => c.department_id === filterDept), [cats, filterDept]);
+  const save = async () => {
+    try {
+      if (!editing.name?.trim()) return toast.error("Nome obrigatório");
+      const slug = editing.slug || slugify(editing.name);
+      let image_url = editing.image_url || null;
+      if (file) {
+        const path = `cat-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const { error } = await sb.storage.from("products").upload(path, file);
+        if (error) throw error;
+        image_url = sb.storage.from("products").getPublicUrl(path).data.publicUrl;
+      }
+      const payload = { ...editing, slug, image_url, position: Number(editing.position) || 0 };
+      if (editing.id) {
+        const { error } = await sb.from("categories").update(payload).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        delete payload.id;
+        const { error } = await sb.from("categories").insert(payload);
+        if (error) throw error;
+      }
+      toast.success("Categoria salva");
+      qc.invalidateQueries({ queryKey: ["admin_categories_taxonomy"] });
+      qc.invalidateQueries({ queryKey: ["admin_categories_simple"] });
+      setOpen(false); setFile(null);
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const [editing, setEditing] = useState<any>(empty);
+  const toggleActive = async (c: any) => {
+    const { error } = await sb.from("categories").update({ active: !c.active }).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["admin_categories_taxonomy"] });
+  };
+  const remove = async (id: string) => {
+    const cat = cats.find((c: any) => c.id === id);
+    const approved = await confirmAction({ title: "Excluir categoria?", description: `A categoria "${cat?.name || ""}" será excluída. Produtos e subcategorias vinculados poderão perder este vínculo.`, confirmLabel: "Excluir categoria", destructive: true });
+    if (!approved) return;
+    const { error } = await sb.from("categories").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Categoria excluída");
+    qc.invalidateQueries({ queryKey: ["admin_categories_taxonomy"] });
+  };
   const setDept = async (catId: string, deptId: string | null) => {
     const { error } = await sb.from("categories").update({ department_id: deptId }).eq("id", catId);
     if (error) return toast.error(error.message);
@@ -140,9 +185,11 @@ function CategoriesTab() {
   };
   return (
     <div>
-      <div className="flex items-center gap-3 mb-3"><Label className="text-sm">Filtrar:</Label><Select value={filterDept} onValueChange={setFilterDept}><SelectTrigger className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos departamentos</SelectItem><SelectItem value="none">Sem departamento</SelectItem>{depts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select><span className="text-sm text-muted-foreground">{filtered.length} categorias</span></div>
-      <p className="text-xs text-muted-foreground mb-3">Vincule cada categoria existente a um departamento comercial. Edição completa (nome, imagem etc.) continua em <strong>Admin &gt; Categorias</strong>.</p>
-      <div className="bg-card border rounded-xl overflow-hidden"><div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[640px] text-sm"><thead className="bg-secondary text-left"><tr><th className="p-3">Categoria</th><th className="p-3">Slug</th><th className="p-3">Macro-grupo (legado)</th><th className="p-3">Departamento comercial</th><th className="p-3">Status</th></tr></thead><tbody>{filtered.map((c: any) => <tr key={c.id} className="border-t"><td className="p-3 font-medium">{c.name}</td><td className="p-3 text-muted-foreground">{c.slug}</td><td className="p-3 text-muted-foreground">{c.macro_group || <span className="opacity-50">—</span>}</td><td className="p-3"><Select value={c.department_id || "none"} onValueChange={(v) => setDept(c.id, v === "none" ? null : v)}><SelectTrigger className="w-56"><SelectValue placeholder="Sem departamento" /></SelectTrigger><SelectContent><SelectItem value="none">— Sem departamento —</SelectItem>{depts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select></td><td className="p-3">{c.active ? <span className="text-whatsapp text-xs font-semibold">Ativa</span> : <span className="text-muted-foreground text-xs">Inativa</span>}</td></tr>)}{filtered.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Nenhuma categoria.</td></tr>}</tbody></table></div></div>
+      {confirmDialog}
+      <div className="flex items-center justify-between gap-3 mb-3"><div className="flex items-center gap-3"><Label className="text-sm">Filtrar:</Label><Select value={filterDept} onValueChange={setFilterDept}><SelectTrigger className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos departamentos</SelectItem><SelectItem value="none">Sem departamento</SelectItem>{depts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select><span className="text-sm text-muted-foreground">{filtered.length} categorias</span></div><Button onClick={() => { setEditing({ ...empty }); setFile(null); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova categoria</Button></div>
+      <p className="text-xs text-muted-foreground mb-3">Edite, crie, ative ou exclua categorias diretamente nesta tela. O vínculo com o departamento também pode ser alterado aqui.</p>
+      <div className="bg-card border rounded-xl overflow-hidden"><div className="overflow-x-auto -mx-2 px-2"><table className="w-full min-w-[900px] text-sm"><thead className="bg-secondary text-left"><tr><th className="p-3">Categoria</th><th className="p-3">Slug</th><th className="p-3">Macro-grupo</th><th className="p-3">Departamento comercial</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead><tbody>{filtered.map((c: any) => <tr key={c.id} className="border-t"><td className="p-3 font-medium"><div className="flex items-center gap-2">{c.image_url ? <img src={c.image_url} alt="" className="h-8 w-8 rounded object-cover" /> : <div className="h-8 w-8 rounded bg-secondary" />}{c.name}</div></td><td className="p-3 text-muted-foreground">{c.slug}</td><td className="p-3 text-muted-foreground">{c.macro_group || <span className="opacity-50">—</span>}</td><td className="p-3"><Select value={c.department_id || "none"} onValueChange={(v) => setDept(c.id, v === "none" ? null : v)}><SelectTrigger className="w-56"><SelectValue placeholder="Sem departamento" /></SelectTrigger><SelectContent><SelectItem value="none">— Sem departamento —</SelectItem>{depts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select></td><td className="p-3">{c.active ? <span className="text-whatsapp text-xs font-semibold">Ativa</span> : <span className="text-muted-foreground text-xs">Inativa</span>}</td><td className="p-3 text-right whitespace-nowrap"><Button size="icon" variant="ghost" onClick={() => toggleActive(c)}><Power className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => { setEditing({ ...empty, ...c }); setFile(null); setOpen(true); }}><Edit className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => remove(c.id)}><Trash2 className="h-4 w-4" /></Button></td></tr>)}{filtered.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhuma categoria.</td></tr>}</tbody></table></div></div>
+      <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{editing.id ? "Editar" : "Nova"} categoria</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Nome *</Label><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div><div className="space-y-1"><Label>Slug</Label><Input value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} placeholder={editing.name && slugify(editing.name)} /></div><div className="space-y-1"><Label>Macro-grupo</Label><Input value={editing.macro_group || ""} onChange={(e) => setEditing({ ...editing, macro_group: e.target.value })} placeholder="Ex.: Medicamentos e Saúde" /></div><div className="space-y-1"><Label>Departamento comercial</Label><Select value={editing.department_id || "none"} onValueChange={(v) => setEditing({ ...editing, department_id: v === "none" ? null : v })}><SelectTrigger><SelectValue placeholder="Sem departamento" /></SelectTrigger><SelectContent><SelectItem value="none">— Sem departamento —</SelectItem>{depts.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Descrição</Label><Textarea value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div><div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>Ícone</Label><Input value={editing.icon || ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} /></div><div className="space-y-1"><Label>Ordem</Label><Input type="number" value={editing.position ?? 0} onChange={(e) => setEditing({ ...editing, position: e.target.value })} /></div></div><div className="space-y-1"><Label>Imagem da categoria</Label>{editing.image_url && <img src={editing.image_url} alt="" className="h-20 w-20 rounded object-cover mb-2" />}<Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div><div className="space-y-1"><Label>Link customizado</Label><Input value={editing.link || ""} onChange={(e) => setEditing({ ...editing, link: e.target.value })} /></div><div className="flex items-center gap-2"><Switch checked={editing.show_in_menu !== false} onCheckedChange={(v) => setEditing({ ...editing, show_in_menu: v })} /><Label>Aparece no menu</Label></div><div className="flex items-center gap-2"><Switch checked={editing.show_on_home !== false} onCheckedChange={(v) => setEditing({ ...editing, show_on_home: v })} /><Label>Aparece na home</Label></div><div className="flex items-center gap-2"><Switch checked={editing.active !== false} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /><Label>Ativa</Label></div><Button className="w-full" onClick={save}>Salvar categoria</Button></div></DialogContent></Dialog>
     </div>
   );
 }
@@ -156,7 +203,7 @@ function SubcategoriesTab() {
   const [filterCat, setFilterCat] = useState("all");
   const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_simple"], queryFn: async () => (await sb.from("categories").select("id,name").order("name")).data || [] });
   const catMap = useMemo(() => Object.fromEntries(cats.map((c: any) => [c.id, c.name])), [cats]);
-  const { data: subs = [] } = useQuery({ queryKey: ["admin_subcategories"], queryFn: async () => (await sb.from("subcategories").select("*").order("name", { ascending: true })).data || [] });
+  const { data: subs = [] } = useQuery({ queryKey: ["admin_subcategories"], queryFn: async () => (await sb.from("subcategories").select("*").order("position")).data || [] });
   const filtered = useMemo(() => filterCat === "all" ? subs : subs.filter((s: any) => s.category_id === filterCat), [subs, filterCat]);
 
   const save = async () => {
@@ -197,7 +244,7 @@ function TrierMappingsTab() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(empty);
   const { data: rules = [] } = useQuery({ queryKey: ["admin_trier_mappings"], queryFn: async () => (await sb.from("trier_category_mappings").select("*").order("priority")).data || [] });
-  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name").order("name", { ascending: true })).data || [] });
+  const { data: depts = [] } = useQuery({ queryKey: ["admin_departments_simple"], queryFn: async () => (await sb.from("departments").select("id,name").order("position")).data || [] });
   const { data: cats = [] } = useQuery({ queryKey: ["admin_categories_simple"], queryFn: async () => (await sb.from("categories").select("id,name").order("name")).data || [] });
   const { data: subs = [] } = useQuery({ queryKey: ["admin_subcategories"], queryFn: async () => (await sb.from("subcategories").select("id,name,category_id").order("name")).data || [] });
   const subsFiltered = useMemo(() => editing.category_id ? subs.filter((s: any) => s.category_id === editing.category_id) : [], [subs, editing.category_id]);
