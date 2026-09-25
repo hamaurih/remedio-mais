@@ -25,6 +25,8 @@ export default function PixPayment() {
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
   const pollRef = useRef<number | null>(null);
+  const checkingRef = useRef(false);
+  const lastGatewayCheckRef = useRef(0);
 
   useEffect(() => {
     if (!orderId) return;
@@ -64,15 +66,17 @@ export default function PixPayment() {
   }, [orderId, nav]);
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId || ["approved", "rejected", "cancelled"].includes(status)) return;
     let active = true;
-    let tick = 0;
-    const check = async () => {
-      tick++;
-      if (tick % 2 === 0) {
-        try { await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } }); } catch { /* ignore */ }
-      }
+    const check = async (forceGateway = false) => {
+      if (!active || checkingRef.current || (!forceGateway && document.visibilityState === "hidden")) return;
+      checkingRef.current = true;
       try {
+        const nowMs = Date.now();
+        if (forceGateway || nowMs - lastGatewayCheckRef.current >= 60_000) {
+          lastGatewayCheckRef.current = nowMs;
+          try { await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } }); } catch { /* a consulta local abaixo preserva o último estado */ }
+        }
         const result = await customerAccount<any>("order-detail", { order_id: orderId });
         const data = result?.order;
         if (!active || !data) return;
@@ -85,15 +89,19 @@ export default function PixPayment() {
         } else if (data.payment_status === "rejected" || data.payment_status === "cancelled") {
           clearPendingPixOrder();
         }
-      } catch { /* polling tolera indisponibilidade transitória */ }
+      } catch { /* indisponibilidade transitória não gera novas chamadas concorrentes */ }
+      finally { checkingRef.current = false; }
     };
-    void check();
-    pollRef.current = window.setInterval(check, 4000);
+    void check(true);
+    pollRef.current = window.setInterval(() => { void check(false); }, 15_000);
+    const onVisibility = () => { if (document.visibilityState === "visible") void check(false); };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       active = false;
       if (pollRef.current) window.clearInterval(pollRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [orderId, nav]);
+  }, [orderId, nav, status]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
