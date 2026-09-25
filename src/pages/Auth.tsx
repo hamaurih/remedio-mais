@@ -79,29 +79,8 @@ export default function Auth() {
       }
 
       if (mode === "login") {
-        const { data, error } = await supabase.functions.invoke("secure-login", {
-          body: { email, password },
-        });
-
-        if (error) {
-          const payload = await readInvokePayload(error);
-          const code = String(payload?.error || "");
-          const retryAfter = Number(payload?.retry_after || 0);
-          if (code === "too_many_attempts") {
-            const minutes = Math.max(1, Math.ceil(retryAfter / 60));
-            throw new Error(`LOGIN_RATE_LIMITED:${minutes}`);
-          }
-          throw new Error("INVALID_LOGIN");
-        }
-
-        const session = data?.session;
-        if (!session?.access_token || !session?.refresh_token) throw new Error("INVALID_LOGIN");
-
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        });
-        if (sessionError) throw sessionError;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw new Error("INVALID_LOGIN");
         toast.success("Bem-vindo!");
         return;
       }
