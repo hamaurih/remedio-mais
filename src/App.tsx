@@ -96,7 +96,10 @@ const Pdv = lazyWithRetry(() => import("./pages/admin/Pdv.tsx"));
 const PdvDashboard = lazyWithRetry(() => import("./pages/admin/PdvDashboard.tsx"));
 const AdminMetaAds = lazyWithRetry(() => import("./pages/admin/AdminMetaAds.tsx"));
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, gcTime: 10 * 60_000, retry: 1, refetchOnWindowFocus: "always", refetchOnReconnect: "always" } } });
+// Evita tempestade de requisições ao retornar para a aba ou ao reconectar.
+// O painel possui atualizações específicas onde realmente são necessárias;
+// a loja pública não deve refazer todas as consultas simultaneamente.
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 60_000, gcTime: 10 * 60_000, retry: 0, refetchOnWindowFocus: false, refetchOnReconnect: false } } });
 
 function RouteFallback() {
   return <div className="container py-16"><div className="h-8 w-48 bg-muted rounded animate-pulse" /><div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-56 bg-muted rounded-xl animate-pulse" />)}</div></div>;
