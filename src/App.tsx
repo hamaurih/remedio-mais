@@ -66,6 +66,7 @@ const AdminOrders = lazy(() => import("./pages/admin/AdminOrders.tsx"));
 const AdminAISales = lazy(() => import("./pages/admin/AdminAISales.tsx"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments.tsx"));
 const AdminAccountsPayable = lazy(() => import("./pages/admin/AdminAccountsPayable.tsx"));
+const AdminReceivablesCashFlow = lazy(() => import("./pages/admin/AdminReceivablesCashFlow.tsx"));
 const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions.tsx"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.tsx"));
 const AdminBackups = lazy(() => import("./pages/admin/AdminBackups.tsx"));
@@ -172,6 +173,7 @@ const App = () => (
               <Route path="ia-vendas" element={<AdminAISales />} />
               <Route path="pagamentos" element={<AdminPayments />} />
               <Route path="contas-a-pagar" element={<AdminAccountsPayable />} />
+              <Route path="contas-a-receber" element={<AdminReceivablesCashFlow />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
               <Route path="config" element={<AdminSettings />} />
               <Route path="backups" element={<AdminBackups />} />
