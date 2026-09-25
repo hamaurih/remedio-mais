@@ -96,7 +96,13 @@ export default function Category() {
       q = buildQuery(q, filters);
       q = sortQuery(q, sort);
       const { data } = await q.limit(240);
-      return applyClientFilters((data || []) as Product[], filters);
+      const filtered = applyClientFilters((data || []) as Product[], filters);
+      if (filtered.length > 0 || subcategory) return filtered;
+      // Contingência: a sincronização pode deixar a categoria sem vínculo temporariamente.
+      // Mantemos a loja operacional mostrando itens realmente disponíveis.
+      const { data: fallback } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT)
+        .eq("active", true).gt("stock", 0).gt("price", 0).limit(60);
+      return applyClientFilters((fallback || []) as Product[], filters);
     },
     enabled: !!slug && (slug === "ofertas" || !!cat) && (!isHub || !!siblingIds) && (!sub || subProductIds !== undefined),
   });
