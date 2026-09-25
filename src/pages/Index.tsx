@@ -21,9 +21,14 @@ import { Button } from "@/components/ui/button";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { useEffect, useRef, useState } from "react";
 import type { Product as ProductType } from "@/components/ProductCard";
-import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { fetchBestsellers, fetchCollectionProducts } from "@/lib/collections";
 import { productStock } from "@/lib/availability";
+
+const HOME_PRODUCT_SELECT = [
+  "id", "name", "slug", "price", "promo_price", "site_price", "site_promo_price",
+  "image_url", "manufacturer", "on_sale", "featured", "requires_prescription",
+  "controlled", "stock", "created_at", "has_variants", "cart_quantity_limit",
+].join(",");
 
 function Reveal({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -49,7 +54,7 @@ function useShelfQuery(slug: string, shelf: string) {
     queryFn: async () => {
       const { data: curated } = await (supabase as any)
         .from("home_shelf_items")
-        .select(`position, products:product_id(${PUBLIC_PRODUCT_SELECT})`)
+        .select(`position, products:product_id(${HOME_PRODUCT_SELECT})`)
         .eq("shelf_key", shelf)
         .order("position");
       const manual = ((curated || []) as any[])
@@ -58,14 +63,14 @@ function useShelfQuery(slug: string, shelf: string) {
       if (manual.length > 0) return manual as Product[];
 
       const { data: tagged } = await (supabase as any)
-        .from("products").select(PUBLIC_PRODUCT_SELECT)
+        .from("products").select(HOME_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).contains("shelves", [shelf]).limit(12);
       if (tagged && tagged.length > 0) return tagged as Product[];
 
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
       if (!cat) return [] as Product[];
       const { data } = await (supabase as any)
-        .from("products").select(PUBLIC_PRODUCT_SELECT)
+        .from("products").select(HOME_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
@@ -82,7 +87,7 @@ export default function Index() {
   });
 
   const fetchShelf = (mod: (q: any) => any) => async () => {
-    let q = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).limit(12);
+    let q = (supabase as any).from("products").select(HOME_PRODUCT_SELECT).eq("active", true).gt("stock", 0).limit(12);
     q = mod(q);
     const { data } = await q;
     return (data || []) as Product[];
@@ -92,7 +97,7 @@ export default function Index() {
   const manualShelf = async (key: string): Promise<Product[] | null> => {
     const { data } = await (supabase as any)
       .from("home_shelf_items")
-      .select(`position, products:product_id(${PUBLIC_PRODUCT_SELECT})`)
+      .select(`position, products:product_id(${HOME_PRODUCT_SELECT})`)
       .eq("shelf_key", key)
       .order("position");
     const list = ((data || []) as any[])
@@ -103,7 +108,7 @@ export default function Index() {
 
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
-    const { data: tagged } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
+    const { data: tagged } = await (supabase as any).from("products").select(HOME_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
     if (tagged && tagged.length > 0) return tagged as Product[];
     return null;
   };
@@ -118,7 +123,7 @@ export default function Index() {
       // 1) shelf tag
       const tagged = await (supabase as any)
         .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+        .select(HOME_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .contains("shelves", ["ofertas-da-semana"])
         .limit(12);
@@ -126,7 +131,7 @@ export default function Index() {
       // 2) on_sale
       const onSale = await (supabase as any)
         .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+        .select(HOME_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .eq("on_sale", true)
         .or(`promotion_start.is.null,promotion_start.lte.${nowIso}`)
@@ -136,7 +141,7 @@ export default function Index() {
       // 3) promo_price < price
       const promo = await (supabase as any)
         .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+        .select(HOME_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .not("promo_price", "is", null)
         .limit(24);
@@ -145,7 +150,7 @@ export default function Index() {
       // 4) fallback: recém atualizados
       const recent = await (supabase as any)
         .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
+        .select(HOME_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
@@ -183,7 +188,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await (supabase as any).from("products").select(HOME_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -196,7 +201,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "mamaes-e-bebes").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
+      const { data } = await (supabase as any).from("products").select(HOME_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -253,8 +258,3 @@ export default function Index() {
     customSections[customShelfSectionKey(s.shelf_key)] = (
       <Reveal>
         <ProductShelf
-          title={s.title}
-          subtitle={s.subtitle || undefined}
-          badge={s.badge || undefined}
-          viewAllLink={s.view_all_link || undefined}
-          products={s.products}
