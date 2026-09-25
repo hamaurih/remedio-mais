@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const CHECK_INTERVAL_MS = 30_000;
-const MAX_PER_CYCLE = 8;
+const CHECK_INTERVAL_MS = 90_000;
+const MAX_PER_CYCLE = 4;
 const LOOKBACK_HOURS = 24;
 
 /**
