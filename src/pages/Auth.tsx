@@ -79,7 +79,14 @@ export default function Auth() {
       }
 
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const loginRequest = supabase.auth.signInWithPassword({ email, password });
+        const { error } = await Promise.race([
+          loginRequest,
+          new Promise<{ error: Error }>((resolve) =>
+            setTimeout(() => resolve({ error: new Error("AUTH_TIMEOUT") }), 12000),
+          ),
+        ]);
+        if (error?.message === "AUTH_TIMEOUT") throw error;
         if (error) throw new Error("INVALID_LOGIN");
         toast.success("Bem-vindo!");
         return;
@@ -116,6 +123,8 @@ export default function Auth() {
         toast.error("Muitas tentativas em sequência. Aguarde alguns minutos e tente novamente.");
       } else if (msg === "INVALID_LOGIN" || /invalid login|invalid credentials/i.test(msg)) {
         toast.error("E-mail ou senha incorretos.");
+      } else if (msg === "AUTH_TIMEOUT") {
+        toast.error("O serviço de login demorou para responder. Verifique sua conexão e tente novamente.");
       } else if (msg === "WEAK_PASSWORD" || /weak|pwned|known to be|leaked|compromised/i.test(msg)) {
         toast.error("Essa senha é muito comum ou apareceu em vazamentos. Escolha outra senha.");
       } else if (msg === "ACCOUNT_EXISTS") {
