@@ -24,6 +24,12 @@ import type { Product as ProductType } from "@/components/ProductCard";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { fetchBestsellers, fetchCollectionProducts } from "@/lib/collections";
 
+async function fetchAvailableProducts(limit = 12): Promise<Product[]> {
+  const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT)
+    .eq("active", true).gt("stock", 0).gt("price", 0).limit(limit);
+  return (data || []) as Product[];
+}
+
 function Reveal({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [show, setShow] = useState(false);
@@ -62,11 +68,11 @@ function useShelfQuery(slug: string, shelf: string) {
       if (tagged && tagged.length > 0) return tagged as Product[];
 
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
-      if (!cat) return [] as Product[];
+      if (!cat) return await fetchAvailableProducts();
       const { data } = await (supabase as any)
         .from("products").select(PUBLIC_PRODUCT_SELECT)
         .eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
-      return (data || []) as Product[];
+      return data && data.length > 0 ? (data as Product[]) : await fetchAvailableProducts();
     },
   });
 }
@@ -141,14 +147,8 @@ export default function Index() {
         .limit(24);
       const promoFiltered = (promo.data || []).filter((p: any) => p.promo_price != null && Number(p.promo_price) < Number(p.price)).slice(0, 12);
       if (promoFiltered.length > 0) return promoFiltered as Product[];
-      // 4) fallback: recém atualizados
-      const recent = await (supabase as any)
-        .from("products")
-        .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).gt("stock", 0).gt("price", 0)
-        .order("updated_at", { ascending: false })
-        .limit(12);
-      return (recent.data || []) as Product[];
+      // 4) fallback operacional: produtos disponíveis, sem ordenação cara.
+      return await fetchAvailableProducts();
     },
   });
   // Ranking automático por unidades realmente vendidas (função do banco)
@@ -181,9 +181,9 @@ export default function Index() {
       const t = await shelfBy("higiene-e-beleza")();
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
-      if (!cat) return [];
+      if (!cat) return await fetchAvailableProducts();
       const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
-      return (data || []) as Product[];
+      return data && data.length > 0 ? (data as Product[]) : await fetchAvailableProducts();
     },
   });
   const babies = useQuery({
