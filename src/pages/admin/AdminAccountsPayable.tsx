@@ -78,7 +78,7 @@ export default function AdminAccountsPayable() {
     </div>
     <div className="bg-card border rounded-xl overflow-x-auto">
       <table className="w-full text-sm"><thead className="bg-secondary text-left"><tr><th className="p-3">Descrição</th><th className="p-3">Fornecedor</th><th className="p-3">Vencimento</th><th className="p-3">Valor</th><th className="p-3">Status</th><th className="p-3">Ação</th></tr></thead>
-      <tbody>{isLoading && <tr><td colSpan={6} className="p-10 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></td>}
+      <tbody>{isLoading && <tr><td colSpan={6} className="p-10 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></td></tr>}
       {!isLoading && shown.map((a: any) => <tr key={a.id} className="border-t">
         <td className="p-3"><div className="font-medium">{a.description}</div><div className="text-xs text-muted-foreground">{a.document_number ? `NF ${a.document_number}` : a.goods_receipt_id ? "Gerada do recebimento" : "Lançamento manual"}</div></td>
         <td className="p-3">{a.suppliers?.trade_name || a.suppliers?.legal_name || "—"}</td>
@@ -87,7 +87,7 @@ export default function AdminAccountsPayable() {
         <td className="p-3"><Badge className={tone[a.status] || ""}>{labels[a.status] || a.status}</Badge></td>
         <td className="p-3"><div className="flex gap-2">{["draft", "pending"].includes(a.status) && <Button size="sm" variant="outline" onClick={() => approve(a.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>}{["approved", "partially_paid"].includes(a.status) && <Button size="sm" onClick={() => pay(a.id)}><CreditCard className="h-4 w-4 mr-1" />Pagar</Button>}</div></td>
       </tr>)}
-      {!isLoading && !shown.length && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Nenhuma conta encontrada.</td>}</tbody></table>
+      {!isLoading && !shown.length && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Nenhuma conta encontrada.</td></tr>}</tbody></table>
     </div>
     <NewPayableDialog open={open} onOpenChange={setOpen} tenantId={tenantId} suppliers={suppliers} onSaved={refresh} />
   </div>;
