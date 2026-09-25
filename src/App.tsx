@@ -1,86 +1,100 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, type ComponentType } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetaPixelProvider } from "@/components/MetaPixelProvider";
 import { useAuth } from "@/hooks/useAuth";
 
-const Index = lazy(() => import("./pages/Index.tsx"));
-const Category = lazy(() => import("./pages/Category.tsx"));
-const Product = lazy(() => import("./pages/Product.tsx"));
-const Collection = lazy(() => import("./pages/Collection.tsx"));
-const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-const Cart = lazy(() => import("./pages/Cart.tsx"));
-const Checkout = lazy(() => import("./pages/Checkout.tsx"));
-const PixPayment = lazy(() => import("./pages/PixPayment.tsx"));
-const OrderReturn = lazy(() => import("./pages/OrderReturn.tsx"));
-const SendPrescription = lazy(() => import("./pages/SendPrescription.tsx"));
-const Search = lazy(() => import("./pages/Search.tsx"));
-const Departamentos = lazy(() => import("./pages/Departamentos.tsx"));
-const Department = lazy(() => import("./pages/Department.tsx"));
-const Campaign = lazy(() => import("./pages/Campaign.tsx"));
-const Auth = lazy(() => import("./pages/Auth.tsx"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"));
-const Account = lazy(() => import("./pages/Account.tsx"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy.tsx"));
-const Terms = lazy(() => import("./pages/Terms.tsx"));
-const Returns = lazy(() => import("./pages/Returns.tsx"));
-const RefundPolicy = lazy(() => import("./pages/RefundPolicy.tsx"));
-const Contact = lazy(() => import("./pages/Contact.tsx"));
+const lazyWithRetry = <T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) =>
+  lazy(async () => {
+    try {
+      const module = await factory();
+      if (module?.default) return module;
+      throw new Error("Módulo de rota carregado sem exportação default");
+    } catch (error) {
+      const key = "route_chunk_retry";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, String(Date.now()));
+        const url = new URL(window.location.href);
+        url.searchParams.set("_route_retry", String(Date.now()));
+        window.location.replace(url.toString());
+      }
+      throw error;
+    }
+  });
 
-const AdminLayout = lazy(() => import("./pages/admin/AdminLayout.tsx"));
-const AdminHome = lazy(() => import("./pages/admin/AdminHome.tsx"));
-const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.tsx"));
-const AdminCurveABC = lazy(() => import("./pages/admin/AdminCurveABC.tsx"));
-const AdminSiteHub = lazy(() => import("./pages/admin/AdminSiteHub.tsx"));
-const SellerDashboard = lazy(() => import("./pages/admin/SellerDashboard.tsx"));
-const AdminUnits = lazy(() => import("./pages/admin/AdminUnits.tsx"));
-const AdminBranchNew = lazy(() => import("./pages/admin/AdminBranchNew.tsx"));
-const AdminBranchCompliance = lazy(() => import("./pages/admin/AdminBranchCompliance.tsx"));
-const AdminProducts = lazy(() => import("./pages/admin/AdminProducts.tsx"));
-const AdminProductsCanary = lazy(() => import("./pages/admin/products/AdminProductsCanary.tsx"));
-const AdminProductEditorCanary = lazy(() => import("./pages/admin/products/AdminProductEditorCanary.tsx"));
-const AdminProductsImport = lazy(() => import("./pages/admin/AdminProductsImport.tsx"));
-const AdminProductsReconcile = lazy(() => import("./pages/admin/AdminProductsReconcile.tsx"));
-const AdminStock = lazy(() => import("./pages/admin/AdminStock.tsx"));
-const AdminSmartPurchasing = lazy(() => import("./pages/admin/AdminSmartPurchasing.tsx"));
-const AdminSuppliers = lazy(() => import("./pages/admin/AdminSuppliers.tsx"));
-const AdminPurchaseOperations = lazy(() => import("./pages/admin/AdminPurchaseOperations.tsx"));
-const AdminCustomers = lazy(() => import("./pages/admin/AdminCustomers.tsx"));
-const AdminRegistrations = lazy(() => import("./pages/admin/AdminRegistrations.tsx"));
-const AdminSellers = lazy(() => import("./pages/admin/AdminSellers.tsx"));
-const AdminCategories = lazy(() => import("./pages/admin/AdminCategories.tsx"));
-const AdminTaxonomy = lazy(() => import("./pages/admin/AdminTaxonomy.tsx"));
-const AdminBanners = lazy(() => import("./pages/admin/AdminBanners.tsx"));
-const AdminBannerGenerator = lazy(() => import("./pages/admin/AdminBannerGenerator.tsx"));
-const AdminPromoBanner = lazy(() => import("./pages/admin/AdminPromoBanner.tsx"));
-const AdminMosaic = lazy(() => import("./pages/admin/AdminMosaic.tsx"));
-const AdminHomeLayout = lazy(() => import("./pages/admin/AdminHomeLayout.tsx"));
-const AdminHomeShelves = lazy(() => import("./pages/admin/AdminHomeShelves.tsx"));
-const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns.tsx"));
-const AdminOffers = lazy(() => import("./pages/admin/AdminOffers.tsx"));
-const AdminPriceMonitor = lazy(() => import("./pages/admin/AdminPriceMonitor.tsx"));
-const AdminOrders = lazy(() => import("./pages/admin/AdminOrders.tsx"));
-const AdminAISales = lazy(() => import("./pages/admin/AdminAISales.tsx"));
-const AdminPayments = lazy(() => import("./pages/admin/AdminPayments.tsx"));
-const AdminAccountsPayable = lazy(() => import("./pages/admin/AdminAccountsPayable.tsx"));
-const AdminReceivablesCashFlow = lazy(() => import("./pages/admin/AdminReceivablesCashFlow.tsx"));
-const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions.tsx"));
-const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.tsx"));
-const AdminBackups = lazy(() => import("./pages/admin/AdminBackups.tsx"));
-const AdminHomeDiagnostics = lazy(() => import("./pages/admin/AdminHomeDiagnostics.tsx"));
-const AdminMenus = lazy(() => import("./pages/admin/AdminMenus.tsx"));
-const AdminDataQuality = lazy(() => import("./pages/admin/AdminDataQuality.tsx"));
-const AdminAudit = lazy(() => import("./pages/admin/AdminAudit.tsx"));
-const AdminArchiveProducts = lazy(() => import("./pages/admin/AdminArchiveProducts.tsx"));
-const AdminTrier = lazy(() => import("./pages/admin/AdminTrier.tsx"));
-const AdminTrierEcommerceSales = lazy(() => import("./pages/admin/AdminTrierEcommerceSales.tsx"));
-const AdminWhatsAppAgent = lazy(() => import("./pages/admin/AdminWhatsAppAgent.tsx"));
-const Pdv = lazy(() => import("./pages/admin/Pdv.tsx"));
-const PdvDashboard = lazy(() => import("./pages/admin/PdvDashboard.tsx"));
-const AdminMetaAds = lazy(() => import("./pages/admin/AdminMetaAds.tsx"));
+const Index = lazyWithRetry(() => import("./pages/Index.tsx"));
+const Category = lazyWithRetry(() => import("./pages/Category.tsx"));
+const Product = lazyWithRetry(() => import("./pages/Product.tsx"));
+const Collection = lazyWithRetry(() => import("./pages/Collection.tsx"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound.tsx"));
+const Cart = lazyWithRetry(() => import("./pages/Cart.tsx"));
+const Checkout = lazyWithRetry(() => import("./pages/Checkout.tsx"));
+const PixPayment = lazyWithRetry(() => import("./pages/PixPayment.tsx"));
+const OrderReturn = lazyWithRetry(() => import("./pages/OrderReturn.tsx"));
+const SendPrescription = lazyWithRetry(() => import("./pages/SendPrescription.tsx"));
+const Search = lazyWithRetry(() => import("./pages/Search.tsx"));
+const Departamentos = lazyWithRetry(() => import("./pages/Departamentos.tsx"));
+const Department = lazyWithRetry(() => import("./pages/Department.tsx"));
+const Campaign = lazyWithRetry(() => import("./pages/Campaign.tsx"));
+const Auth = lazyWithRetry(() => import("./pages/Auth.tsx"));
+const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword.tsx"));
+const Account = lazyWithRetry(() => import("./pages/Account.tsx"));
+const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy.tsx"));
+const Terms = lazyWithRetry(() => import("./pages/Terms.tsx"));
+const Returns = lazyWithRetry(() => import("./pages/Returns.tsx"));
+const RefundPolicy = lazyWithRetry(() => import("./pages/RefundPolicy.tsx"));
+const Contact = lazyWithRetry(() => import("./pages/Contact.tsx"));
+
+const AdminLayout = lazyWithRetry(() => import("./pages/admin/AdminLayout.tsx"));
+const AdminHome = lazyWithRetry(() => import("./pages/admin/AdminHome.tsx"));
+const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard.tsx"));
+const AdminCurveABC = lazyWithRetry(() => import("./pages/admin/AdminCurveABC.tsx"));
+const AdminSiteHub = lazyWithRetry(() => import("./pages/admin/AdminSiteHub.tsx"));
+const SellerDashboard = lazyWithRetry(() => import("./pages/admin/SellerDashboard.tsx"));
+const AdminUnits = lazyWithRetry(() => import("./pages/admin/AdminUnits.tsx"));
+const AdminBranchNew = lazyWithRetry(() => import("./pages/admin/AdminBranchNew.tsx"));
+const AdminBranchCompliance = lazyWithRetry(() => import("./pages/admin/AdminBranchCompliance.tsx"));
+const AdminProducts = lazyWithRetry(() => import("./pages/admin/AdminProducts.tsx"));
+const AdminProductsCanary = lazyWithRetry(() => import("./pages/admin/products/AdminProductsCanary.tsx"));
+const AdminProductEditorCanary = lazyWithRetry(() => import("./pages/admin/products/AdminProductEditorCanary.tsx"));
+const AdminProductsImport = lazyWithRetry(() => import("./pages/admin/AdminProductsImport.tsx"));
+const AdminProductsReconcile = lazyWithRetry(() => import("./pages/admin/AdminProductsReconcile.tsx"));
+const AdminStock = lazyWithRetry(() => import("./pages/admin/AdminStock.tsx"));
+const AdminSmartPurchasing = lazyWithRetry(() => import("./pages/admin/AdminSmartPurchasing.tsx"));
+const AdminCustomers = lazyWithRetry(() => import("./pages/admin/AdminCustomers.tsx"));
+const AdminRegistrations = lazyWithRetry(() => import("./pages/admin/AdminRegistrations.tsx"));
+const AdminSellers = lazyWithRetry(() => import("./pages/admin/AdminSellers.tsx"));
+const AdminCategories = lazyWithRetry(() => import("./pages/admin/AdminCategories.tsx"));
+const AdminTaxonomy = lazyWithRetry(() => import("./pages/admin/AdminTaxonomy.tsx"));
+const AdminBanners = lazyWithRetry(() => import("./pages/admin/AdminBanners.tsx"));
+const AdminBannerGenerator = lazyWithRetry(() => import("./pages/admin/AdminBannerGenerator.tsx"));
+const AdminPromoBanner = lazyWithRetry(() => import("./pages/admin/AdminPromoBanner.tsx"));
+const AdminMosaic = lazyWithRetry(() => import("./pages/admin/AdminMosaic.tsx"));
+const AdminHomeLayout = lazyWithRetry(() => import("./pages/admin/AdminHomeLayout.tsx"));
+const AdminHomeShelves = lazyWithRetry(() => import("./pages/admin/AdminHomeShelves.tsx"));
+const AdminCampaigns = lazyWithRetry(() => import("./pages/admin/AdminCampaigns.tsx"));
+const AdminOffers = lazyWithRetry(() => import("./pages/admin/AdminOffers.tsx"));
+const AdminPriceMonitor = lazyWithRetry(() => import("./pages/admin/AdminPriceMonitor.tsx"));
+const AdminOrders = lazyWithRetry(() => import("./pages/admin/AdminOrders.tsx"));
+const AdminAISales = lazyWithRetry(() => import("./pages/admin/AdminAISales.tsx"));
+const AdminPayments = lazyWithRetry(() => import("./pages/admin/AdminPayments.tsx"));
+const AdminPrescriptions = lazyWithRetry(() => import("./pages/admin/AdminPrescriptions.tsx"));
+const AdminSettings = lazyWithRetry(() => import("./pages/admin/AdminSettings.tsx"));
+const AdminBackups = lazyWithRetry(() => import("./pages/admin/AdminBackups.tsx"));
+const AdminHomeDiagnostics = lazyWithRetry(() => import("./pages/admin/AdminHomeDiagnostics.tsx"));
+const AdminMenus = lazyWithRetry(() => import("./pages/admin/AdminMenus.tsx"));
+const AdminDataQuality = lazyWithRetry(() => import("./pages/admin/AdminDataQuality.tsx"));
+const AdminAudit = lazyWithRetry(() => import("./pages/admin/AdminAudit.tsx"));
+const AdminArchiveProducts = lazyWithRetry(() => import("./pages/admin/AdminArchiveProducts.tsx"));
+const AdminTrier = lazyWithRetry(() => import("./pages/admin/AdminTrier.tsx"));
+const AdminTrierEcommerceSales = lazyWithRetry(() => import("./pages/admin/AdminTrierEcommerceSales.tsx"));
+const AdminWhatsAppAgent = lazyWithRetry(() => import("./pages/admin/AdminWhatsAppAgent.tsx"));
+const Pdv = lazyWithRetry(() => import("./pages/admin/Pdv.tsx"));
+const PdvDashboard = lazyWithRetry(() => import("./pages/admin/PdvDashboard.tsx"));
+const AdminMetaAds = lazyWithRetry(() => import("./pages/admin/AdminMetaAds.tsx"));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, gcTime: 10 * 60_000, retry: 1, refetchOnWindowFocus: "always", refetchOnReconnect: "always" } } });
 
@@ -153,8 +167,6 @@ const App = () => (
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
               <Route path="estoque" element={<AdminStock />} />
               <Route path="compras" element={<AdminSmartPurchasing />} />
-              <Route path="fornecedores" element={<AdminSuppliers />} />
-              <Route path="compras-operacionais" element={<AdminPurchaseOperations />} />
               <Route path="clientes" element={<AdminCustomers />} />
               <Route path="cadastros" element={<AdminRegistrations />} />
               <Route path="vendedores" element={<AdminSellers />} />
@@ -172,8 +184,6 @@ const App = () => (
               <Route path="pedidos" element={<AdminOrders />} />
               <Route path="ia-vendas" element={<AdminAISales />} />
               <Route path="pagamentos" element={<AdminPayments />} />
-              <Route path="contas-a-pagar" element={<AdminAccountsPayable />} />
-              <Route path="contas-a-receber" element={<AdminReceivablesCashFlow />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
               <Route path="config" element={<AdminSettings />} />
               <Route path="backups" element={<AdminBackups />} />
