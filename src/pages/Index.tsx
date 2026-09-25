@@ -59,14 +59,14 @@ function useShelfQuery(slug: string, shelf: string) {
 
       const { data: tagged } = await (supabase as any)
         .from("products").select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).or("stock.gt.0,stock_quantity.gt.0").contains("shelves", [shelf]).limit(12);
+        .eq("active", true).gt("stock", 0).contains("shelves", [shelf]).limit(12);
       if (tagged && tagged.length > 0) return tagged as Product[];
 
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", slug).maybeSingle();
       if (!cat) return [] as Product[];
       const { data } = await (supabase as any)
         .from("products").select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).or("stock.gt.0,stock_quantity.gt.0").eq("category_id", cat.id).limit(12);
+        .eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -82,7 +82,7 @@ export default function Index() {
   });
 
   const fetchShelf = (mod: (q: any) => any) => async () => {
-    let q = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or("stock.gt.0,stock_quantity.gt.0").limit(12);
+    let q = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).limit(12);
     q = mod(q);
     const { data } = await q;
     return (data || []) as Product[];
@@ -103,7 +103,7 @@ export default function Index() {
 
   const shelfBy = (slug: string) => async () => {
     // Prefer products explicitly tagged with the shelf, fallback to category
-    const { data: tagged } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or("stock.gt.0,stock_quantity.gt.0").contains("shelves", [slug]).limit(12);
+    const { data: tagged } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).contains("shelves", [slug]).limit(12);
     if (tagged && tagged.length > 0) return tagged as Product[];
     return null;
   };
@@ -119,7 +119,7 @@ export default function Index() {
       const tagged = await (supabase as any)
         .from("products")
         .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).or("stock.gt.0,stock_quantity.gt.0").gt("price", 0)
+        .eq("active", true).gt("stock", 0).gt("price", 0)
         .contains("shelves", ["ofertas-da-semana"])
         .limit(12);
       if (tagged.data && tagged.data.length > 0) return tagged.data as Product[];
@@ -127,7 +127,7 @@ export default function Index() {
       const onSale = await (supabase as any)
         .from("products")
         .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).or("stock.gt.0,stock_quantity.gt.0").gt("price", 0)
+        .eq("active", true).gt("stock", 0).gt("price", 0)
         .eq("on_sale", true)
         .or(`promotion_start.is.null,promotion_start.lte.${nowIso}`)
         .or(`promotion_end.is.null,promotion_end.gte.${nowIso}`)
@@ -137,7 +137,7 @@ export default function Index() {
       const promo = await (supabase as any)
         .from("products")
         .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).or("stock.gt.0,stock_quantity.gt.0").gt("price", 0)
+        .eq("active", true).gt("stock", 0).gt("price", 0)
         .not("promo_price", "is", null)
         .limit(24);
       const promoFiltered = (promo.data || []).filter((p: any) => p.promo_price != null && Number(p.promo_price) < Number(p.price)).slice(0, 12);
@@ -146,7 +146,7 @@ export default function Index() {
       const recent = await (supabase as any)
         .from("products")
         .select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).or("stock.gt.0,stock_quantity.gt.0").gt("price", 0)
+        .eq("active", true).gt("stock", 0).gt("price", 0)
         .order("updated_at", { ascending: false })
         .limit(12);
       return (recent.data || []) as Product[];
@@ -183,7 +183,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "higiene-pessoal").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or("stock.gt.0,stock_quantity.gt.0").eq("category_id", cat.id).limit(12);
+      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -196,7 +196,7 @@ export default function Index() {
       if (t) return t;
       const { data: cat } = await supabase.from("categories").select("id").eq("slug", "mamaes-e-bebes").maybeSingle();
       if (!cat) return [];
-      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).or("stock.gt.0,stock_quantity.gt.0").eq("category_id", cat.id).limit(12);
+      const { data } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true).gt("stock", 0).eq("category_id", cat.id).limit(12);
       return (data || []) as Product[];
     },
   });
@@ -258,90 +258,3 @@ export default function Index() {
           badge={s.badge || undefined}
           viewAllLink={s.view_all_link || undefined}
           products={s.products}
-          backgroundVariant={(s.background_variant || "white") as ShelfBg}
-        />
-      </Reveal>
-    );
-  });
-
-  const shelfKeys = Object.keys(shelfSections);
-  const shelvesBlock = <>{[...shelfKeys, ...Object.keys(customSections)].map((k) => <div key={k}>{shelfSections[k] ?? customSections[k]}</div>)}</>;
-
-  const locationBlock = (
-    <Reveal>
-      <section className="container py-4">
-        <div className="bg-card border rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow">
-          <div className="flex items-start gap-3">
-            <MapPin className="h-6 w-6 text-primary shrink-0" />
-            <div>
-              <div className="font-semibold">{settings?.address}</div>
-              <div className="text-sm text-muted-foreground mt-1">{settings?.hours}</div>
-              <Button asChild variant="link" className="px-0 mt-2">
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings?.address || "")}`} target="_blank" rel="noopener">Como chegar →</a>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </Reveal>
-  );
-
-  const SECTIONS: Record<string, React.ReactNode> = {
-    promo_ticker: <PromoTicker />,
-    hero_carousel: <HeroPromoCarousel slides={banners as any} />,
-    promo_mini_banner_row: <PromoMiniBannerRow />,
-    promo_mosaic: <PromoMosaic />,
-    campaign_shelf: <Reveal><CampaignShelf /></Reveal>,
-    benefit_cards: <Reveal><BenefitCards /></Reveal>,
-    department_carousel: <Reveal><DepartmentCarousel /></Reveal>,
-    product_shelves: shelvesBlock,
-    ...shelfSections,
-    ...customSections,
-    prescription_cta: <Reveal><PrescriptionCTA /></Reveal>,
-    google_rating: <Reveal><GoogleRatingBlock /></Reveal>,
-    location: locationBlock,
-  };
-
-  // Fallback seguro usado enquanto o layout oficial carrega ou se a consulta falhar.
-  // Assim a home abre imediatamente mesmo em rede móvel lenta, sem reativar seções antigas.
-  const safeFallbackOrder = [
-    "hero_carousel",
-    "campaign_shelf",
-    "shelf_offers",
-    "shelf_best_offers",
-    "shelf_bestsellers",
-    "shelf_meds",
-    "shelf_hygiene",
-    "shelf_babies",
-    "shelf_vitamins",
-    ...Object.keys(customSections),
-    "prescription_cta",
-    "google_rating",
-    "location",
-  ];
-
-  const order = layoutQuery.isSuccess
-    ? (layout || []).map((r) => r.section_key)
-    : safeFallbackOrder;
-
-  const seo = (
-    <Seo
-      title="Atacadão dos Medicamentos | Farmácia em Campina Grande - PB"
-      description="Farmácia Atacadão dos Medicamentos em Campina Grande - PB. Preço baixo todo dia, entrega local e atendimento pelo WhatsApp."
-      path="/"
-    />
-  );
-
-  return (
-    <Layout>
-      {seo}
-      {order.map((key) => (
-        <div key={key}>{SECTIONS[key] ?? null}</div>
-      ))}
-
-      <p className="container text-[11px] text-muted-foreground pb-6 text-center">
-        As informações dos produtos são meramente informativas. Consulte o farmacêutico.
-      </p>
-    </Layout>
-  );
-}
