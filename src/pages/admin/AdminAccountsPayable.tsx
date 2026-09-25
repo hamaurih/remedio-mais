@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CheckCircle2, CircleDollarSign, CreditCard, FilePlus2, Loader2, Plus, WalletCards } from "lucide-react";
+import { CheckCircle2, CircleDollarSign, CreditCard, Edit2, FilePlus2, Loader2, Plus, WalletCards, XCircle } from "lucide-react";
 
 const labels: Record<string, string> = {
   draft: "Rascunho", pending: "Pendente", approved: "Aprovada", partially_paid: "Parcial",
@@ -63,6 +63,11 @@ export default function AdminAccountsPayable() {
     const { error } = await (supabase as any).rpc("pay_accounts_payable", { _account_id: id, _payment_method: method, _paid_amount: null });
     if (error) toast.error(error.message); else { toast.success("Conta baixada como paga."); refresh(); }
   };
+  const cancel = async (id: string) => {
+    if (!window.confirm("Cancelar esta conta a pagar?")) return;
+    const { error } = await (supabase as any).rpc("cancel_accounts_payable", { _account_id: id });
+    if (error) toast.error(error.message); else { toast.success("Conta cancelada."); refresh(); }
+  };
   return <div className="p-6 space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="text-2xl font-extrabold">Contas a Pagar</h1><p className="text-sm text-muted-foreground mt-1">Controle de despesas, fornecedores, vencimentos e pagamentos do ERP.</p></div>
@@ -85,11 +90,11 @@ export default function AdminAccountsPayable() {
         <td className="p-3">{new Date(`${a.due_date}T12:00:00`).toLocaleDateString("pt-BR")}</td>
         <td className="p-3 font-semibold">{money(a.amount)}<div className="text-xs text-muted-foreground">Pago: {money(a.paid_amount)}</div></td>
         <td className="p-3"><Badge className={tone[a.status] || ""}>{labels[a.status] || a.status}</Badge></td>
-        <td className="p-3"><div className="flex gap-2">{["draft", "pending"].includes(a.status) && <Button size="sm" variant="outline" onClick={() => approve(a.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>}{["approved", "partially_paid"].includes(a.status) && <Button size="sm" onClick={() => pay(a.id)}><CreditCard className="h-4 w-4 mr-1" />Pagar</Button>}</div></td>
+        <td className="p-3"><div className="flex flex-wrap gap-2">{["draft", "pending"].includes(a.status) && <><Button size="sm" variant="outline" onClick={() => setEditing(a)}><Edit2 className="h-4 w-4 mr-1" />Editar</Button><Button size="sm" variant="outline" onClick={() => approve(a.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button><Button size="sm" variant="ghost" onClick={() => cancel(a.id)} title="Cancelar"><XCircle className="h-4 w-4" /></Button></>}{["approved", "partially_paid"].includes(a.status) && <Button size="sm" onClick={() => pay(a.id)}><CreditCard className="h-4 w-4 mr-1" />Pagar</Button>}</div></td>
       </tr>)}
       {!isLoading && !shown.length && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Nenhuma conta encontrada.</td></tr>}</tbody></table>
     </div>
-    <NewPayableDialog open={open} onOpenChange={setOpen} tenantId={tenantId} suppliers={suppliers} onSaved={refresh} />
+    <NewPayableDialog open={open} onOpenChange={setOpen} tenantId={tenantId} suppliers={suppliers} onSaved={refresh} />\n    <EditPayableDialog open={!!editing} onOpenChange={(v: boolean) => !v && setEditing(null)} account={editing} suppliers={suppliers} onSaved={() => { setEditing(null); refresh(); }} />
   </div>;
 }
 
@@ -110,4 +115,62 @@ function NewPayableDialog({ open, onOpenChange, tenantId, suppliers, onSaved }: 
     <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>Documento/NF</Label><Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} /></div><div className="space-y-1"><Label>Vencimento</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div></div>
     <div className="space-y-1"><Label>Valor total</Label><Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
   </div><DialogFooter><Button onClick={save} disabled={saving}>{saving ? "Salvando..." : "Criar conta"}</Button></DialogFooter></DialogContent></Dialog>;
+}
+
+function EditPayableDialog({ open, onOpenChange, account, suppliers, onSaved }: any) {
+  const [description, setDescription] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [amount, setAmount] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [costCenter, setCostCenter] = useState("");
+  const [notes, setNotes] = useState("");
+  const [installments, setInstallments] = useState("1");
+  const [interval, setInterval] = useState("30");
+  const [saving, setSaving] = useState(false);
+
+  useMemo(() => {
+    if (!account) return;
+    setDescription(account.description || "");
+    setDocumentNumber(account.document_number || "");
+    setDueDate(account.due_date || "");
+    setAmount(String(account.amount || ""));
+    setSupplier(account.supplier_id || "");
+    setCostCenter(account.cost_center || "");
+    setNotes(account.notes || "");
+    setInstallments("1");
+    setInterval("30");
+  }, [account]);
+
+  const save = async () => {
+    if (!account?.id || !description.trim() || !dueDate || Number(amount) <= 0) return toast.error("Preencha descrição, vencimento e valor.");
+    setSaving(true);
+    const update = await (supabase as any).rpc("update_accounts_payable", {
+      _account_id: account.id, _description: description, _document_number: documentNumber,
+      _due_date: dueDate, _amount: Number(amount), _supplier_id: supplier || null,
+      _cost_center: costCenter, _notes: notes,
+    });
+    if (!update.error) {
+      const parcel = await (supabase as any).rpc("set_accounts_payable_installments", {
+        _account_id: account.id, _installment_count: Number(installments), _first_due_date: dueDate, _interval_days: Number(interval),
+      });
+      if (parcel.error) update.error = parcel.error;
+    }
+    setSaving(false);
+    if (update.error) toast.error(update.error.message);
+    else { toast.success("Conta atualizada com vencimento e parcelas."); onOpenChange(false); onSaved(); }
+  };
+
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent>
+    <DialogHeader><DialogTitle><Edit2 className="h-5 w-5 inline mr-2" />Editar conta a pagar</DialogTitle></DialogHeader>
+    <div className="grid gap-3">
+      <div className="space-y-1"><Label>Fornecedor</Label><Select value={supplier || "none"} onValueChange={(v) => setSupplier(v === "none" ? "" : v)}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="none">Sem fornecedor</SelectItem>{suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.trade_name || s.legal_name}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1"><Label>Descrição</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+      <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>Documento/NF</Label><Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} /></div><div className="space-y-1"><Label>Primeiro vencimento</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div></div>
+      <div className="grid grid-cols-3 gap-3"><div className="space-y-1"><Label>Valor total</Label><Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div><div className="space-y-1"><Label>Parcelas</Label><Input type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} /></div><div className="space-y-1"><Label>Intervalo (dias)</Label><Input type="number" min="1" value={interval} onChange={(e) => setInterval(e.target.value)} /></div></div>
+      <div className="space-y-1"><Label>Centro de custo</Label><Input value={costCenter} onChange={(e) => setCostCenter(e.target.value)} placeholder="Ex.: Compras, Operação, Administrativo" /></div>
+      <div className="space-y-1"><Label>Observações</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+    </div>
+    <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "Salvando..." : "Salvar alterações"}</Button></DialogFooter>
+  </DialogContent></Dialog>;
 }
