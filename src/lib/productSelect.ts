@@ -12,7 +12,6 @@ export const PUBLIC_PRODUCT_SELECT = [
   "manufacturer",
   "active_ingredient",
   "stock",
-  "stock_quantity",
   "featured",
   "on_sale",
   "requires_prescription",
