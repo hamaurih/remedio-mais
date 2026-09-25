@@ -6,6 +6,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetaPixelProvider } from "@/components/MetaPixelProvider";
 import { useAuth } from "@/hooks/useAuth";
+import Index from "./pages/Index.tsx";
+import Auth from "./pages/Auth.tsx";
+import AdminLayout from "./pages/admin/AdminLayout.tsx";
+import AdminHome from "./pages/admin/AdminHome.tsx";
 
 const lazyWithRetry = <T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) =>
   lazy(async () => {
@@ -25,7 +29,6 @@ const lazyWithRetry = <T extends ComponentType<any>>(factory: () => Promise<{ de
     }
   });
 
-const Index = lazyWithRetry(() => import("./pages/Index.tsx"));
 const Category = lazyWithRetry(() => import("./pages/Category.tsx"));
 const Product = lazyWithRetry(() => import("./pages/Product.tsx"));
 const Collection = lazyWithRetry(() => import("./pages/Collection.tsx"));
@@ -39,7 +42,6 @@ const Search = lazyWithRetry(() => import("./pages/Search.tsx"));
 const Departamentos = lazyWithRetry(() => import("./pages/Departamentos.tsx"));
 const Department = lazyWithRetry(() => import("./pages/Department.tsx"));
 const Campaign = lazyWithRetry(() => import("./pages/Campaign.tsx"));
-const Auth = lazyWithRetry(() => import("./pages/Auth.tsx"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword.tsx"));
 const Account = lazyWithRetry(() => import("./pages/Account.tsx"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy.tsx"));
@@ -48,8 +50,6 @@ const Returns = lazyWithRetry(() => import("./pages/Returns.tsx"));
 const RefundPolicy = lazyWithRetry(() => import("./pages/RefundPolicy.tsx"));
 const Contact = lazyWithRetry(() => import("./pages/Contact.tsx"));
 
-const AdminLayout = lazyWithRetry(() => import("./pages/admin/AdminLayout.tsx"));
-const AdminHome = lazyWithRetry(() => import("./pages/admin/AdminHome.tsx"));
 const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard.tsx"));
 const AdminCurveABC = lazyWithRetry(() => import("./pages/admin/AdminCurveABC.tsx"));
 const AdminSiteHub = lazyWithRetry(() => import("./pages/admin/AdminSiteHub.tsx"));
