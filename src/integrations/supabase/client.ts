@@ -8,7 +8,10 @@ const OFFICIAL_HOSTS = new Set([
   'www.atacadaodosmedicamentos.com.br',
 ]);
 const OFFICIAL_SUPABASE_URL = 'https://jzltdocmvvdlyaukwzix.supabase.co';
-const OFFICIAL_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_geFYMQbAFOJ3d3qazu0RYA_Xa1pBcxL';
+// A produção usa a chave anon legada porque este projeto ainda depende de
+// Edge Functions e de clientes antigos que não enviam o cabeçalho moderno de
+// publishable key de forma consistente em todos os navegadores.
+const OFFICIAL_SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6bHRkb2NtdnZkbHlhdWt3eml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTUwOTQsImV4cCI6MjA5NTYzMTA5NH0.9nPn2NduNzxi2jMnNp_Vqo9CT_ye-YWRIqWNgnKkDi8';
 const isOfficialDomain = typeof window !== 'undefined' && OFFICIAL_HOSTS.has(window.location.hostname);
 
 // Produção oficial fica presa ao projeto Supabase de produção correto.
