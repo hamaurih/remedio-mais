@@ -24,6 +24,7 @@ const items: Item[] = [
   { to: "/admin/compras-operacionais", label: "Pedidos e Recebimentos", icon: Package, group: "Compras e Suprimentos", roles: ["admin"] },
   { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, group: "Compras e Suprimentos", roles: ["admin"] },
   { to: "/admin/contas-a-pagar", label: "Contas a Pagar", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
+  { to: "/admin/contas-a-receber", label: "Contas a Receber e Caixa", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
 
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, group: "Estoque", roles: ["admin"] },
 
