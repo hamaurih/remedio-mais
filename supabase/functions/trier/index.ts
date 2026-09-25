@@ -740,7 +740,7 @@ async function upsertProductFromTrier(
   if (!name) return { skipped: true, reason: "sem_nome", trier_id: trierId };
 
   const { data: existing, error: selErr } = await supabase.from("products")
-    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, discount_percentage, on_sale, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, lock_channel_discount, site_discount_percentage, whatsapp_discount_percentage, pdv_discount_percentage, site_price, whatsapp_price, pdv_price, pdv_promo_price, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, force_active, archived_at")
+    .select("id, name, barcode, image_url, gallery_images, description, short_description, category_id, shelves, featured, slug, seo_title, seo_description, seo_keywords, product_badge, active, price, promo_price, discount_percentage, on_sale, promotion_start, promotion_end, promotion_source, lock_base_price, lock_promotion, lock_manual_price, lock_manual_stock, lock_channel_discount, site_discount_percentage, whatsapp_discount_percentage, site_price, whatsapp_price, sync_with_trier, manual_override, manual_image, manual_description, manual_category, manual_active, manual_barcode, manual_name, manual_seo, manual_shelves, manual_disabled, stock_quantity, trier_stock_quantity, ecommerce_stock_quantity, trier_active, force_active, archived_at")
     .eq("trier_product_id", trierId).maybeSingle();
   if (selErr) return { failed: true, error: `select: ${selErr.message}`, trier_id: trierId, name };
 
@@ -957,8 +957,7 @@ async function upsertProductFromTrier(
 
 
   // Preços por canal com percentual travado: quando o admin trava o desconto (%)
-  // por canal, os preços de Site, IA/WhatsApp e Balcão/PDV são recalculados
-  // a partir do preço normal recebido do Trier.
+  // por canal, os preços de site/WhatsApp são recalculados a partir do preço normal.
   if (existing.lock_channel_discount === true) {
     const newBase = Number(candidate.price ?? existing.price ?? 0);
     const applyChannel = (pctField: string, priceField: string) => {
@@ -977,7 +976,6 @@ async function upsertProductFromTrier(
     };
     applyChannel("site_discount_percentage", "site_price");
     applyChannel("whatsapp_discount_percentage", "whatsapp_price");
-    applyChannel("pdv_discount_percentage", "pdv_price");
   }
 
 
@@ -2878,4 +2876,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
