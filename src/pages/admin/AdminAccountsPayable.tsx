@@ -27,6 +27,7 @@ export default function AdminAccountsPayable() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [filter, setFilter] = useState("all");
   const { data: tenantId } = useQuery({
     queryKey: ["payable-tenant", user?.id], enabled: !!user?.id,
@@ -94,7 +95,8 @@ export default function AdminAccountsPayable() {
       </tr>)}
       {!isLoading && !shown.length && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Nenhuma conta encontrada.</td></tr>}</tbody></table>
     </div>
-    <NewPayableDialog open={open} onOpenChange={setOpen} tenantId={tenantId} suppliers={suppliers} onSaved={refresh} />\n    <EditPayableDialog open={!!editing} onOpenChange={(v: boolean) => !v && setEditing(null)} account={editing} suppliers={suppliers} onSaved={() => { setEditing(null); refresh(); }} />
+    <NewPayableDialog open={open} onOpenChange={setOpen} tenantId={tenantId} suppliers={suppliers} onSaved={refresh} />
+    <EditPayableDialog open={!!editing} onOpenChange={(v: boolean) => !v && setEditing(null)} account={editing} suppliers={suppliers} onSaved={() => { setEditing(null); refresh(); }} />
   </div>;
 }
 
