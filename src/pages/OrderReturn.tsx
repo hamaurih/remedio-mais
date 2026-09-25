@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -36,16 +36,23 @@ export default function OrderReturn({ status }: { status: Status }) {
   const [order, setOrder] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const refreshingRef = useRef(false);
+  const lastGatewayCheckRef = useRef(0);
 
-  const refresh = async () => {
-    if (!orderId) return;
+  const refresh = async (forceGateway = false) => {
+    if (!orderId || refreshingRef.current || (!forceGateway && document.visibilityState === "hidden")) return;
+    refreshingRef.current = true;
     setLoading(true);
     try {
-      await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } });
-    } catch {
-      // O status ativo é opcional; a API de conta ainda retorna o último estado persistido.
-    }
-    try {
+      const nowMs = Date.now();
+      if (forceGateway || nowMs - lastGatewayCheckRef.current >= 60_000) {
+        lastGatewayCheckRef.current = nowMs;
+        try {
+          await supabase.functions.invoke("check-cielo-status", { body: { order_id: orderId } });
+        } catch {
+          // O status persistido ainda será consultado abaixo.
+        }
+      }
       const result = await customerAccount<any>("order-detail", { order_id: orderId });
       setOrder(result?.order || null);
       setEvents(result?.order?.order_events || []);
@@ -53,17 +60,22 @@ export default function OrderReturn({ status }: { status: Status }) {
       setOrder(null);
       setEvents([]);
     } finally {
+      refreshingRef.current = false;
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void refresh();
-    if (!orderId) return;
-    // Polling via API autenticada substitui Realtime/PostgREST direto do cliente.
-    const timer = window.setInterval(() => { void refresh(); }, 6000);
-    return () => window.clearInterval(timer);
-  }, [orderId]);
+    void refresh(true);
+    if (!orderId || ["approved", "rejected", "cancelled", "refunded"].includes(String(order?.payment_status))) return;
+    const timer = window.setInterval(() => { void refresh(false); }, 20_000);
+    const onVisibility = () => { if (document.visibilityState === "visible") void refresh(false); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [orderId, order?.payment_status]);
 
   const isPaid = order?.payment_status === "approved";
 
@@ -161,7 +173,7 @@ export default function OrderReturn({ status }: { status: Status }) {
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
-            {effective === "pending" && <Button onClick={refresh} variant="outline" className="flex-1">Verificar novamente</Button>}
+            {effective === "pending" && <Button onClick={() => void refresh(true)} variant="outline" className="flex-1">Verificar novamente</Button>}
             <Button asChild className="flex-1" variant={effective === "success" ? "default" : "outline"}>
               <Link to="/">Voltar à loja</Link>
             </Button>
