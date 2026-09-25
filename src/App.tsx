@@ -64,7 +64,7 @@ const AdminOffers = lazy(() => import("./pages/admin/AdminOffers.tsx"));
 const AdminPriceMonitor = lazy(() => import("./pages/admin/AdminPriceMonitor.tsx"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders.tsx"));
 const AdminAISales = lazy(() => import("./pages/admin/AdminAISales.tsx"));
-const AdminPayments = lazy(() => import("./pages/admin/AdminPayments.tsx"));
+const AdminPayments = lazy(() => import("./pages/admin/AdminPayments.tsx"));\nconst AdminAccountsPayable = lazy(() => import("./pages/admin/AdminAccountsPayable.tsx"));
 const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions.tsx"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.tsx"));
 const AdminBackups = lazy(() => import("./pages/admin/AdminBackups.tsx"));
@@ -169,7 +169,7 @@ const App = () => (
               <Route path="monitor-precos" element={<AdminPriceMonitor />} />
               <Route path="pedidos" element={<AdminOrders />} />
               <Route path="ia-vendas" element={<AdminAISales />} />
-              <Route path="pagamentos" element={<AdminPayments />} />
+              <Route path="pagamentos" element={<AdminPayments />} />\n              <Route path="contas-a-pagar" element={<AdminAccountsPayable />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
               <Route path="config" element={<AdminSettings />} />
               <Route path="backups" element={<AdminBackups />} />
