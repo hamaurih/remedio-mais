@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfDay, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { REFUNDED_PAYMENT_STATUSES, isRefundedPaymentStatus } from "@/lib/financialStatus";
 
 export const ADMIN_DASHBOARD_RANGES = [
   { key: "7", label: "7 dias" },
@@ -35,13 +36,13 @@ export function useAdminDashboardData() {
         headP(supabase.from("products").select("id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.")),
         headP(supabase.from("products").select("id", { count: "exact", head: true }).or("barcode.is.null,barcode.eq.").gt("stock", 0)),
         headP(supabase.from("orders").select("id", { count: "exact", head: true })),
-        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "approved")),
+        headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "approved").not("payment_status", "in", `(${REFUNDED_PAYMENT_STATUSES.join(",")})`)),
         headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "pending")),
         headP(supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "cancelled")),
         headP(supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", since)),
         supabase.from("orders").select("total"),
-        supabase.from("orders").select("total").eq("payment_status", "approved"),
-        supabase.from("orders").select("total").eq("payment_status", "approved").gte("created_at", since),
+        supabase.from("orders").select("total,payment_status").eq("payment_status", "approved").not("payment_status", "in", `(${REFUNDED_PAYMENT_STATUSES.join(",")})`),
+        supabase.from("orders").select("total,payment_status").eq("payment_status", "approved").not("payment_status", "in", `(${REFUNDED_PAYMENT_STATUSES.join(",")})`).gte("created_at", since),
         headP(supabase.from("profiles").select("id", { count: "exact", head: true })),
         headP(supabase.from("prescriptions").select("id", { count: "exact", head: true })),
         headP(supabase.from("prescriptions").select("id", { count: "exact", head: true }).in("status", ["recebida", "pendente"])),
@@ -98,7 +99,7 @@ export function useAdminDashboardData() {
         const date = format(new Date(order.created_at), "yyyy-MM-dd");
         if (!buckets[date]) return;
         buckets[date].pedidos += 1;
-        if (order.payment_status === "approved") buckets[date].receita += Number(order.total || 0);
+        if (order.payment_status === "approved" && !isRefundedPaymentStatus(order.payment_status)) buckets[date].receita += Number(order.total || 0);
       });
       return Object.values(buckets);
     },
@@ -111,7 +112,8 @@ export function useAdminDashboardData() {
         .from("orders")
         .select("id")
         .gte("created_at", since)
-        .in("payment_status", ["approved", "pending"]);
+        .in("payment_status", ["approved", "pending"])
+        .not("payment_status", "in", `(${REFUNDED_PAYMENT_STATUSES.join(",")})`);
       const ids = (orderRows || []).map((order: any) => order.id);
       if (!ids.length) return [] as any[];
       const { data: items } = await supabase
