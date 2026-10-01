@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { PAYMENT_LABELS, PosPaymentMethod, brl } from "@/lib/pos";
+import { REFUNDED_PAYMENT_STATUSES } from "@/lib/financialStatus";
 
 const db = supabase as any;
 
@@ -18,7 +19,7 @@ export default function PdvDashboard() {
       start.setHours(0, 0, 0, 0);
       const iso = start.toISOString();
       const [s, sess] = await Promise.all([
-        db.from("pos_sales").select("id,sale_number,total,operator_id,created_at,status").gte("created_at", iso).neq("status", "cancelled"),
+        db.from("pos_sales").select("id,sale_number,total,operator_id,created_at,status").gte("created_at", iso).not("status", "in", `(cancelled,${REFUNDED_PAYMENT_STATUSES.join(",")})`),
         db.from("cash_register_sessions").select("id").eq("status", "open"),
       ]);
       const rows = (s.data as any[]) || [];
