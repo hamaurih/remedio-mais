@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npx vite build",
   "redirects": [
     { "source": "/contato", "destination": "/fale-conosco", "permanent": true },
     { "source": "/termos", "destination": "/termos-de-uso", "permanent": true }
