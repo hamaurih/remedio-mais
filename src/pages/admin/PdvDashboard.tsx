@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { PAYMENT_LABELS, PosPaymentMethod, brl } from "@/lib/pos";
-import { REFUNDED_PAYMENT_STATUSES } from "@/lib/financialStatus";
+const REFUNDED_PAYMENT_STATUSES = ["refunded", "partially_refunded"];
 
 const db = supabase as any;
 
