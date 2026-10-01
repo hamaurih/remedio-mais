@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
-import { isRefundedPaymentStatus } from "@/lib/financialStatus";
+const isRefundedPaymentStatus = (status: unknown) => ["refunded", "partially_refunded"].includes(String(status || "").toLowerCase());
 
 type AiOrder = {
   id: string;
