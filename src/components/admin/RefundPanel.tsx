@@ -28,6 +28,7 @@ type Order = {
 const RR_LABEL: Record<string, { l: string; v: any }> = {
   pending: { l: "Pendente", v: "secondary" },
   processing: { l: "Processando", v: "secondary" },
+  approved: { l: "Reembolso aprovado", v: "default" },
   completed: { l: "Concluído", v: "default" },
   failed: { l: "Falhou", v: "destructive" },
   denied: { l: "Negado", v: "destructive" },
@@ -91,7 +92,7 @@ export function RefundPanel({ order }: { order: Order }) {
     if (error) { toast.error(error.message); return; }
     if ((data as any)?.error) { toast.error((data as any).error); return; }
     const status = (data as any)?.status;
-    toast.success(status === "completed" ? "Reembolso concluído" : "Solicitação registrada");
+    toast.success(["approved", "completed"].includes(status) ? "Reembolso concluído e lançado no caixa" : "Solicitação registrada");
     setReason(""); setAmount("");
     refetch();
     qc.invalidateQueries({ queryKey: ["admin_orders"] });
