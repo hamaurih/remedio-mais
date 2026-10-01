@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/store";
+import { isRefundedPaymentStatus } from "@/lib/financialStatus";
 
 type AiOrder = {
   id: string;
@@ -56,10 +57,10 @@ export default function AdminAISales() {
 
   const orders = query.data || [];
   const metrics = useMemo(() => {
-    const paid = orders.filter((o) => o.payment_status === "approved");
+    const paid = orders.filter((o) => o.payment_status === "approved" && !isRefundedPaymentStatus(o.payment_status));
     const total = paid.reduce((sum, o) => sum + Number(o.total || 0), 0);
     const completed = orders.filter((o) => ["entregue", "concluido"].includes(String(o.order_status || "").toLowerCase()) || String(o.status || "").toLowerCase() === "finalizado");
-    const cancelled = orders.filter((o) => ["cancelado", "cancelled"].includes(String(o.order_status || "").toLowerCase()) || ["cancelado", "cancelled"].includes(String(o.status || "").toLowerCase()));
+    const cancelled = orders.filter((o) => isRefundedPaymentStatus(o.payment_status) || ["cancelado", "cancelled"].includes(String(o.order_status || "").toLowerCase()) || ["cancelado", "cancelled"].includes(String(o.status || "").toLowerCase()));
     const notified = orders.filter((o) => o.seller_notification_status === "sent");
     const pendingNotification = orders.filter((o) => o.seller_notification_status === "pending");
     const blocked = orders.filter((o) => o.trier_eligible === false);
