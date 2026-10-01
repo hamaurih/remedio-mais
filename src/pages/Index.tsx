@@ -258,3 +258,95 @@ export default function Index() {
     customSections[customShelfSectionKey(s.shelf_key)] = (
       <Reveal>
         <ProductShelf
+          title={s.title}
+          subtitle={s.subtitle || undefined}
+          badge={s.badge || undefined}
+          viewAllLink={s.view_all_link || undefined}
+          products={s.products}
+          backgroundVariant={(s.background_variant || "white") as ShelfBg}
+        />
+      </Reveal>
+    );
+  });
+
+  const shelfKeys = Object.keys(shelfSections);
+  const shelvesBlock = <>{[...shelfKeys, ...Object.keys(customSections)].map((k) => <div key={k}>{shelfSections[k] ?? customSections[k]}</div>)}</>;
+
+  const locationBlock = (
+    <Reveal>
+      <section className="container py-4">
+        <div className="bg-card border rounded-2xl p-6 shadow-card hover:shadow-elevated transition-shadow">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-6 w-6 text-primary shrink-0" />
+            <div>
+              <div className="font-semibold">{settings?.address}</div>
+              <div className="text-sm text-muted-foreground mt-1">{settings?.hours}</div>
+              <Button asChild variant="link" className="px-0 mt-2">
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings?.address || "")}`} target="_blank" rel="noopener">Como chegar →</a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </Reveal>
+  );
+
+  const SECTIONS: Record<string, React.ReactNode> = {
+    promo_ticker: <PromoTicker />,
+    hero_carousel: <HeroPromoCarousel slides={banners as any} />,
+    promo_mini_banner_row: <PromoMiniBannerRow />,
+    promo_mosaic: <PromoMosaic />,
+    campaign_shelf: <Reveal><CampaignShelf /></Reveal>,
+    benefit_cards: <Reveal><BenefitCards /></Reveal>,
+    department_carousel: <Reveal><DepartmentCarousel /></Reveal>,
+    product_shelves: shelvesBlock,
+    ...shelfSections,
+    ...customSections,
+    prescription_cta: <Reveal><PrescriptionCTA /></Reveal>,
+    google_rating: <Reveal><GoogleRatingBlock /></Reveal>,
+    location: locationBlock,
+  };
+
+  // Fallback seguro usado enquanto o layout oficial carrega ou se a consulta falhar.
+  // Assim a home abre imediatamente mesmo em rede móvel lenta, sem reativar seções antigas.
+  const safeFallbackOrder = [
+    "hero_carousel",
+    "campaign_shelf",
+    "shelf_offers",
+    "shelf_best_offers",
+    "shelf_bestsellers",
+    "shelf_meds",
+    "shelf_hygiene",
+    "shelf_babies",
+    "shelf_vitamins",
+    ...Object.keys(customSections),
+    "prescription_cta",
+    "google_rating",
+    "location",
+  ];
+
+  const order = layoutQuery.isSuccess
+    ? (layout || []).map((r) => r.section_key)
+    : safeFallbackOrder;
+
+  const seo = (
+    <Seo
+      title="Atacadão dos Medicamentos | Farmácia em Campina Grande - PB"
+      description="Farmácia Atacadão dos Medicamentos em Campina Grande - PB. Preço baixo todo dia, entrega local e atendimento pelo WhatsApp."
+      path="/"
+    />
+  );
+
+  return (
+    <Layout>
+      {seo}
+      {order.map((key) => (
+        <div key={key}>{SECTIONS[key] ?? null}</div>
+      ))}
+
+      <p className="container text-[11px] text-muted-foreground pb-6 text-center">
+        As informações dos produtos são meramente informativas. Consulte o farmacêutico.
+      </p>
+    </Layout>
+  );
+}
