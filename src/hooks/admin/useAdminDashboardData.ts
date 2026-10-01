@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfDay, subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { REFUNDED_PAYMENT_STATUSES, isRefundedPaymentStatus } from "@/lib/financialStatus";
+const REFUNDED_PAYMENT_STATUSES = ["refunded", "partially_refunded"];
+const isRefundedPaymentStatus = (status: unknown) => REFUNDED_PAYMENT_STATUSES.includes(String(status || "").toLowerCase());
 
 export const ADMIN_DASHBOARD_RANGES = [
   { key: "7", label: "7 dias" },
