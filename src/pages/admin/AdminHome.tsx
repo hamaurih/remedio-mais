@@ -57,7 +57,7 @@ export default function AdminHome() {
       today.setHours(0, 0, 0, 0);
       const todayIso = today.toISOString();
       const [ordersToday, paidToday, pendingOrders, lowStock, pendingPrescriptions] = await Promise.all([
-        db.from("orders").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
+        db.from("orders").select("id", { count: "exact", head: true }).in("payment_status", ["approved", "partially_refunded"]).gte("created_at", todayIso),
         db.from("orders").select("total").eq("payment_status", "approved").gte("created_at", todayIso),
         db.from("orders").select("id", { count: "exact", head: true }).in("payment_status", ["pending", "processing"]),
         db.from("products").select("id", { count: "exact", head: true }).eq("active", true).lte("stock", 5),
@@ -83,7 +83,7 @@ export default function AdminHome() {
             <div className="flex flex-wrap gap-2"><Button asChild size="lg"><Link to="/admin/pdv"><CreditCard className="h-4 w-4 mr-2" />Abrir PDV</Link></Button><Button asChild size="lg" variant="outline"><Link to="/admin/curva-abc"><BarChart3 className="h-4 w-4 mr-2" />Curva ABC</Link></Button><Button asChild size="lg" variant="outline"><Link to="/admin/site"><Globe2 className="h-4 w-4 mr-2" />Gerenciar Site</Link></Button></div>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 border-t bg-muted/15">
-            <QuickKpi label="Vendas hoje" value={String(k?.ordersToday ?? "—")} icon={ShoppingCart} />
+            <QuickKpi label="Vendas líquidas hoje" value={String(k?.ordersToday ?? "—")} icon={ShoppingCart} />
             <QuickKpi label="Faturamento hoje" value={formatBRL(k?.revenueToday ?? 0)} icon={Landmark} />
             <QuickKpi label="Pedidos pendentes" value={String(k?.pendingOrders ?? "—")} icon={ReceiptText} alert={(k?.pendingOrders ?? 0) > 0} />
             <QuickKpi label="Estoque baixo" value={String(k?.lowStock ?? "—")} icon={Boxes} alert={(k?.lowStock ?? 0) > 0} />
