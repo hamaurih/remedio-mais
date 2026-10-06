@@ -36,6 +36,7 @@ const items: Item[] = [
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, group: "Cadastros", roles: ["admin"] },
 
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, group: "Integrações", roles: ["admin"] },
+  { to: "/admin/catalogo-ia", label: "Catálogo da IA", icon: Boxes, group: "Integrações", roles: ["admin"] },
   { to: "/admin/pagamentos", label: "Cielo e Pagamentos", icon: CreditCard, group: "Integrações", roles: ["admin"] },
   { to: "/admin/integrations/trier", label: "Trier", icon: Truck, group: "Integrações", roles: ["admin"] },
   { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Bot, group: "Integrações", roles: ["admin"] },
@@ -50,9 +51,6 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   const { user, isAdmin, isSeller, loading } = useAuth();
   const [canAccessPrescriptions, setCanAccessPrescriptions] = useState(false);
 
-  // A home e o admin compartilham o mesmo QueryClient. Ao entrar no admin,
-  // descartamos o snapshot de banners da home para que uma edição nunca seja
-  // seguida por um primeiro frame antigo ao retornar para a loja.
   useEffect(() => {
     qc.removeQueries({ queryKey: ["home_banners"], exact: true });
   }, [qc]);
