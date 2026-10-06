@@ -80,6 +80,7 @@ const AdminOffers = lazyWithRetry(() => import("./pages/admin/AdminOffers.tsx"))
 const AdminPriceMonitor = lazyWithRetry(() => import("./pages/admin/AdminPriceMonitor.tsx"));
 const AdminOrders = lazyWithRetry(() => import("./pages/admin/AdminOrders.tsx"));
 const AdminAISales = lazyWithRetry(() => import("./pages/admin/AdminAISales.tsx"));
+const AdminAICatalog = lazyWithRetry(() => import("./pages/admin/AdminAICatalog.tsx"));
 const AdminPayments = lazyWithRetry(() => import("./pages/admin/AdminPayments.tsx"));
 const AdminPrescriptions = lazyWithRetry(() => import("./pages/admin/AdminPrescriptions.tsx"));
 const AdminSettings = lazyWithRetry(() => import("./pages/admin/AdminSettings.tsx"));
@@ -96,9 +97,6 @@ const Pdv = lazyWithRetry(() => import("./pages/admin/Pdv.tsx"));
 const PdvDashboard = lazyWithRetry(() => import("./pages/admin/PdvDashboard.tsx"));
 const AdminMetaAds = lazyWithRetry(() => import("./pages/admin/AdminMetaAds.tsx"));
 
-// Evita tempestade de requisições ao retornar para a aba ou ao reconectar.
-// O painel possui atualizações específicas onde realmente são necessárias;
-// a loja pública não deve refazer todas as consultas simultaneamente.
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 60_000, gcTime: 10 * 60_000, retry: 0, refetchOnWindowFocus: false, refetchOnReconnect: false } } });
 
 function RouteFallback() {
@@ -186,6 +184,7 @@ const App = () => (
               <Route path="monitor-precos" element={<AdminPriceMonitor />} />
               <Route path="pedidos" element={<AdminOrders />} />
               <Route path="ia-vendas" element={<AdminAISales />} />
+              <Route path="catalogo-ia" element={<AdminAICatalog />} />
               <Route path="pagamentos" element={<AdminPayments />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
               <Route path="config" element={<AdminSettings />} />
