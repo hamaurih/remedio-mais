@@ -24,10 +24,12 @@ export interface HeroSizeSpec {
 export const HERO_SIZES: Record<HeroSizeVariant, HeroSizeSpec> = {
   "hero-grande": {
     label: "Hero grande",
-    description: "Impacto máximo na home — proporção cinema 16:5",
-    desktopAspect: "16 / 5",
-    minHeight: 360,
-    maxHeight: 520,
+    description: "Impacto máximo na home — proporção 3:1, sem cortar artes de campanha",
+    // As artes publicadas seguem 1600×533 (3:1). A proporção anterior 16:5
+    // deixava o contêiner mais baixo e cortava o topo e o rodapé das imagens.
+    desktopAspect: "3 / 1",
+    minHeight: 400,
+    maxHeight: 600,
     mobileAspect: "4 / 5",
     mobileMinHeight: 420,
     container: true,
