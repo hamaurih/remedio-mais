@@ -25,6 +25,11 @@ export function getCart(): CartItem[] {
 function save(items: CartItem[]) {
   localStorage.setItem(KEY, JSON.stringify(items));
   window.dispatchEvent(new Event(EVENT));
+  // First-party funnel: registra o carrinho no nosso próprio backend. O payload
+  // leva somente IDs técnicos, quantidade e preço; nomes/indicações não saem daqui.
+  void import("./cartFunnel").then((m) =>
+    m.trackCartFunnel(items.length ? "cart_changed" : "cleared", items),
+  ).catch(() => {});
 }
 
 export function isPrescriptionCartItem(item: CartItem) {
