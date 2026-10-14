@@ -81,6 +81,7 @@ const AdminPriceMonitor = lazyWithRetry(() => import("./pages/admin/AdminPriceMo
 const AdminOrders = lazyWithRetry(() => import("./pages/admin/AdminOrders.tsx"));
 const AdminAISales = lazyWithRetry(() => import("./pages/admin/AdminAISales.tsx"));
 const AdminAICatalog = lazyWithRetry(() => import("./pages/admin/AdminAICatalog.tsx"));
+const AdminCartFunnel = lazyWithRetry(() => import("./pages/admin/AdminCartFunnel.tsx"));
 const AdminPayments = lazyWithRetry(() => import("./pages/admin/AdminPayments.tsx"));
 const AdminPrescriptions = lazyWithRetry(() => import("./pages/admin/AdminPrescriptions.tsx"));
 const AdminSettings = lazyWithRetry(() => import("./pages/admin/AdminSettings.tsx"));
@@ -185,6 +186,7 @@ const App = () => (
               <Route path="pedidos" element={<AdminOrders />} />
               <Route path="ia-vendas" element={<AdminAISales />} />
               <Route path="catalogo-ia" element={<AdminAICatalog />} />
+              <Route path="funil-carrinhos" element={<AdminCartFunnel />} />
               <Route path="pagamentos" element={<AdminPayments />} />
               <Route path="receitas" element={<AdminPrescriptions />} />
               <Route path="config" element={<AdminSettings />} />
