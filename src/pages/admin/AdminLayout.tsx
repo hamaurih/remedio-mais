@@ -18,6 +18,7 @@ const items: Item[] = [
   { to: "/admin/pdv", label: "PDV e Balcão", icon: CreditCard, group: "Vendas", roles: ["admin", "seller"] },
   { to: "/admin/pedidos", label: "Vendas e Pedidos", icon: ShoppingBag, group: "Vendas", roles: ["admin", "seller"] },
   { to: "/admin/ia-vendas", label: "Vendas via WhatsApp/IA", icon: Bot, group: "Vendas", roles: ["admin", "seller"] },
+  { to: "/admin/funil-carrinhos", label: "Funil e Carrinhos", icon: Activity, group: "Vendas", roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, group: "Vendas", roles: ["admin", "seller"], requiresPrescriptionPermission: true },
 
   { to: "/admin/compras", label: "Compra inteligente", icon: ClipboardList, group: "Compras e Suprimentos", roles: ["admin"] },
