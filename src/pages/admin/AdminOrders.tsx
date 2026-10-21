@@ -247,7 +247,7 @@ export default function AdminOrders() {
                   <td className="p-3 font-medium">
                     {o.customer_name}
                     <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
-                    <CustomerPurchaseSummary order={o} orders={data || []} onOpen={() => setAnalysisOrder(o)} />
+                    <CustomerPurchaseSummary order={o} orders={data || []} onOpen={() => setAnalysisOrder(o)} showFinancial={isAdmin} />
                     {o.prescription_original_required && o.prescription_original_status !== "validated" && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> receita original pendente</div>}
                     {hasUnavailable && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> item indisponível</div>}
                   </td>
@@ -270,6 +270,7 @@ export default function AdminOrders() {
         orders={data || []}
         open={!!analysisOrder}
         onOpenChange={(open) => !open && setAnalysisOrder(null)}
+        showFinancial={isAdmin}
       />
 
       <Dialog open={!!view} onOpenChange={(v) => !v && setView(null)}>
