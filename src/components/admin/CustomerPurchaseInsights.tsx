@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatBRL } from "@/lib/store";
@@ -6,8 +7,8 @@ import { Clock3, Repeat2, ShoppingBag, Sparkles, TrendingUp } from "lucide-react
 
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString("pt-BR") : "—";
 
-export function CustomerPurchaseSummary({ order, orders, onOpen }: { order: any; orders: any[]; onOpen: () => void }) {
-  const insight = buildCustomerPurchaseInsights(order, orders);
+export function CustomerPurchaseSummary({ order, orders, onOpen, showFinancial = false }: { order: any; orders: any[]; onOpen: () => void; showFinancial?: boolean }) {
+  const insight = useMemo(() => buildCustomerPurchaseInsights(order, orders), [order, orders]);
   const purchaseLabel = insight.purchaseCount <= 1 && insight.priorPurchaseCount === 0
     ? "1ª compra"
     : `${insight.purchaseCount} compras`;
@@ -16,8 +17,7 @@ export function CustomerPurchaseSummary({ order, orders, onOpen }: { order: any;
     <div className="mt-1 space-y-0.5">
       <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
         <span>{purchaseLabel}</span>
-        <span>·</span>
-        <span>{formatBRL(insight.totalSpent)}</span>
+        {showFinancial && <><span>·</span><span>{formatBRL(insight.totalSpent)}</span></>}
         <Badge variant="outline" className="h-4 px-1.5 text-[9px]">{insight.profile}</Badge>
       </div>
       {insight.repeatedCurrentItemCount > 0 && (
@@ -35,14 +35,15 @@ export function CustomerPurchaseSummary({ order, orders, onOpen }: { order: any;
   );
 }
 
-export function CustomerPurchaseAnalysisDialog({ order, orders, open, onOpenChange }: {
+export function CustomerPurchaseAnalysisDialog({ order, orders, open, onOpenChange, showFinancial = false }: {
   order: any;
   orders: any[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  showFinancial?: boolean;
 }) {
-  if (!order) return null;
-  const insight = buildCustomerPurchaseInsights(order, orders);
+  const insight = useMemo(() => order ? buildCustomerPurchaseInsights(order, orders) : null, [order, orders]);
+  if (!order || !insight) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,10 +52,10 @@ export function CustomerPurchaseAnalysisDialog({ order, orders, open, onOpenChan
           <DialogTitle>Análise comercial · {order.customer_name || "Cliente"}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-3 sm:grid-cols-2 ${showFinancial ? "lg:grid-cols-4" : "lg:grid-cols-2"}`}>
           <Metric icon={ShoppingBag} label="Compras" value={String(insight.purchaseCount)} />
-          <Metric icon={TrendingUp} label="Total comprado" value={formatBRL(insight.totalSpent)} />
-          <Metric icon={TrendingUp} label="Ticket médio" value={formatBRL(insight.averageTicket)} />
+          {showFinancial && <Metric icon={TrendingUp} label="Total comprado" value={formatBRL(insight.totalSpent)} />}
+          {showFinancial && <Metric icon={TrendingUp} label="Ticket médio" value={formatBRL(insight.averageTicket)} />}
           <Metric icon={Clock3} label="Intervalo médio" value={insight.averagePurchaseIntervalDays ? `${insight.averagePurchaseIntervalDays} dias` : "Sem histórico"} />
         </div>
 
