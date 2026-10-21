@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Search, X, ArrowUp, ArrowDown, Plus, Save, LayoutList } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { isManualOnlyHomeShelf } from "@/lib/homeShelves";
 
 type Row = {
   id: string;
@@ -35,6 +36,7 @@ export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }:
   const [results, setResults] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const manualOnly = isManualOnlyHomeShelf(shelfKey);
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +118,9 @@ export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }:
           </DialogTitle>
           <DialogDescription>
             Escolha quais produtos aparecem nesta vitrine da home e em qual ordem (1º aparece primeiro).
-            Se a lista ficar vazia, o site volta a preencher a vitrine automaticamente.
+            {manualOnly
+              ? " Nesta vitrine, a seleção e a ordem são 100% manuais: o site não aplica preenchimento automático."
+              : " Se a lista ficar vazia, o site volta a preencher a vitrine automaticamente."}
           </DialogDescription>
         </DialogHeader>
 
@@ -144,7 +148,9 @@ export function ShelfReorderDialog({ open, onOpenChange, shelfKey, shelfTitle }:
         <div className="border rounded-lg divide-y max-h-[50vh] overflow-y-auto">
           {items.length === 0 && (
             <div className="p-8 text-sm text-muted-foreground text-center">
-              Vitrine automática. Adicione produtos acima para definir a ordem manualmente.
+              {manualOnly
+                ? "Vitrine manual sem produtos. Adicione os itens acima na ordem exata em que devem aparecer no site."
+                : "Vitrine automática. Adicione produtos acima para definir a ordem manualmente."}
             </div>
           )}
           {items.map((it, idx) => (
