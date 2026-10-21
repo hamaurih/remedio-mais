@@ -15,3 +15,18 @@ export const HOME_SHELVES: HomeShelfDef[] = [
   { key: "vitaminas-e-suplementos", title: "Vitaminas e Suplementos", description: "Categoria Vitaminas" },
   { key: "primeiros-socorros", title: "Primeiros Socorros", description: "Categoria Primeiros socorros" },
 ];
+
+
+/**
+ * Vitrines cuja seleção E ordem são exclusivamente definidas pelo administrador.
+ * A Home não aplica ranking, categoria, tag ou qualquer outro fallback automático.
+ * Produtos temporariamente indisponíveis são apenas omitidos sem alterar a ordem gravada.
+ */
+export const MANUAL_ONLY_HOME_SHELVES = new Set([
+  "ofertas-da-semana",
+  "higiene-e-beleza",
+  "mamaes-e-bebes",
+  "vitaminas-e-suplementos",
+]);
+
+export const isManualOnlyHomeShelf = (key: string) => MANUAL_ONLY_HOME_SHELVES.has(key);
