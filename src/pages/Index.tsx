@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Product as ProductType } from "@/components/ProductCard";
 import { fetchBestsellers, fetchCollectionProducts } from "@/lib/collections";
 import { productStock } from "@/lib/availability";
+import { isManualOnlyHomeShelf } from "@/lib/homeShelves";
 
 const HOME_PRODUCT_SELECT = [
   "id", "name", "slug", "price", "promo_price", "site_price", "site_promo_price",
@@ -119,6 +120,7 @@ export default function Index() {
       const nowIso = new Date().toISOString();
       // 0) curadoria manual
       const manual = await manualShelf("ofertas-da-semana");
+      if (isManualOnlyHomeShelf("ofertas-da-semana")) return manual || [];
       if (manual) return manual;
       // 1) shelf tag
       const tagged = await (supabase as any)
@@ -183,6 +185,7 @@ export default function Index() {
     queryKey: ["shelf_hygiene"],
     queryFn: async () => {
       const manual = await manualShelf("higiene-e-beleza");
+      if (isManualOnlyHomeShelf("higiene-e-beleza")) return manual || [];
       if (manual) return manual;
       const t = await shelfBy("higiene-e-beleza")();
       if (t) return t;
@@ -196,6 +199,7 @@ export default function Index() {
     queryKey: ["shelf_babies"],
     queryFn: async () => {
       const manual = await manualShelf("mamaes-e-bebes");
+      if (isManualOnlyHomeShelf("mamaes-e-bebes")) return manual || [];
       if (manual) return manual;
       const t = await shelfBy("mamaes-e-bebes")();
       if (t) return t;
@@ -205,7 +209,10 @@ export default function Index() {
       return (data || []) as Product[];
     },
   });
-  const vitamins = useShelfQuery("vitaminas", "vitaminas-e-suplementos");
+  const vitamins = useQuery({
+    queryKey: ["shelf_vitamins"],
+    queryFn: async () => (await manualShelf("vitaminas-e-suplementos")) || [],
+  });
   const firstaid = useShelfQuery("primeiros-socorros", "primeiros-socorros");
 
   const layoutQuery = useQuery({
