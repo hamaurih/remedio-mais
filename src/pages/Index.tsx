@@ -28,7 +28,7 @@ import { isManualOnlyHomeShelf } from "@/lib/homeShelves";
 const HOME_PRODUCT_SELECT = [
   "id", "name", "slug", "price", "promo_price", "site_price", "site_promo_price",
   "image_url", "manufacturer", "on_sale", "featured", "requires_prescription",
-  "controlled", "stock", "created_at", "has_variants", "cart_quantity_limit",
+  "controlled", "stock", "active", "created_at", "has_variants", "cart_quantity_limit",
 ].join(",");
 
 function Reveal({ children }: { children: React.ReactNode }) {
