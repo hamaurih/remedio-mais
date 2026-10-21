@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ShelfReorderDialog } from "@/components/admin/ShelfReorderDialog";
-import { HOME_SHELVES } from "@/lib/homeShelves";
+import { HOME_SHELVES, isManualOnlyHomeShelf } from "@/lib/homeShelves";
 import {
   customShelfSectionKey,
   slugifyShelfKey,
@@ -197,7 +197,7 @@ export default function AdminHomeShelves() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Escolha quais produtos aparecem em cada vitrine da página inicial e em qual ordem.
-            Vitrines sem produtos definidos continuam automáticas.
+            Ofertas da Semana, Higiene e Beleza, Mamães e Bebês e Vitaminas e Suplementos são manuais; as demais podem usar preenchimento automático quando vazias.
           </p>
         </div>
         <Button onClick={() => openEditor()}>
@@ -218,6 +218,10 @@ export default function AdminHomeShelves() {
                     {n > 0 ? (
                       <span className="text-primary font-semibold flex items-center gap-1">
                         <Settings2 className="h-3.5 w-3.5" /> {n} produto(s) fixados manualmente
+                      </span>
+                    ) : isManualOnlyHomeShelf(s.key) ? (
+                      <span className="text-amber-700 font-semibold flex items-center gap-1">
+                        <Settings2 className="h-3.5 w-3.5" /> Manual · sem produtos definidos
                       </span>
                     ) : (
                       <span className="text-muted-foreground flex items-center gap-1">
