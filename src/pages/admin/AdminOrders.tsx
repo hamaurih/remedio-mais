@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { MessageCircle, Copy, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { RefundPanel } from "@/components/admin/RefundPanel";
+import { CustomerPurchaseAnalysisDialog, CustomerPurchaseSummary } from "@/components/admin/CustomerPurchaseInsights";
 
 const PAYMENT_LABEL: Record<string, string> = {
   pending: "Pendente", approved: "Aprovado", rejected: "Recusado",
@@ -80,6 +81,7 @@ export default function AdminOrders() {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [view, setView] = useState<any>(null);
+  const [analysisOrder, setAnalysisOrder] = useState<any>(null);
   const [tab, setTab] = useState("todos");
 
   const { data } = useQuery({
@@ -242,7 +244,13 @@ export default function AdminOrders() {
                 <tr key={o.id} className="border-t">
                   <td className="p-3 text-xs font-mono">{o.id.slice(0, 6)}</td>
                   <td className="p-3 text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
-                  <td className="p-3 font-medium">{o.customer_name}<div className="text-xs text-muted-foreground">{o.customer_phone}</div>{o.prescription_original_required && o.prescription_original_status !== "validated" && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> receita original pendente</div>}{hasUnavailable && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> item indisponível</div>}</td>
+                  <td className="p-3 font-medium">
+                    {o.customer_name}
+                    <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
+                    <CustomerPurchaseSummary order={o} orders={data || []} onOpen={() => setAnalysisOrder(o)} />
+                    {o.prescription_original_required && o.prescription_original_status !== "validated" && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> receita original pendente</div>}
+                    {hasUnavailable && <div className="text-[10px] text-amber-700 flex items-center gap-1 mt-0.5"><AlertTriangle className="h-3 w-3" /> item indisponível</div>}
+                  </td>
                   <td className="p-3 text-xs">{o.delivery_method === "pickup" ? "Retirada" : "Entrega"}</td>
                   {isAdmin && <td className="p-3 price">{formatBRL(o.total)}</td>}
                   {isAdmin && <td className="p-3"><Badge variant="secondary">{PAYMENT_LABEL[o.payment_status] || o.payment_status || "—"}</Badge></td>}
@@ -256,6 +264,13 @@ export default function AdminOrders() {
           </tbody>
         </table>
       </div>
+
+      <CustomerPurchaseAnalysisDialog
+        order={analysisOrder}
+        orders={data || []}
+        open={!!analysisOrder}
+        onOpenChange={(open) => !open && setAnalysisOrder(null)}
+      />
 
       <Dialog open={!!view} onOpenChange={(v) => !v && setView(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
