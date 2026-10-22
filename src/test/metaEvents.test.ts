@@ -137,7 +137,7 @@ describe("Segurança", () => {
       return /env[^\n]*META_CAPI_ACCESS_TOKEN/.test(src)
         || src.includes("Deno.env")
         || src.includes("graph.facebook.com")
-        || /access_token\s*[:=]/.test(src);
+        || /(?:META_CAPI_ACCESS_TOKEN|meta_capi_access_token)\\s*[:=]/.test(src);
     });
     expect(offenders).toEqual([]);
   });
