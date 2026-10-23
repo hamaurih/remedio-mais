@@ -48,6 +48,9 @@ export default function AdminSettings() {
       pix_discount_percentage: Number(s.pix_discount_percentage || 0),
       prescription_email_notify: !!s.prescription_email_notify,
       prescription_email_to: (s.prescription_email_to || "").trim() || null,
+      whatsapp_response_time_minutes: s.whatsapp_response_time_minutes
+        ? Math.max(1, Math.min(1440, Number(s.whatsapp_response_time_minutes)))
+        : null,
     };
 
     const { error } = await supabase.from("store_settings").upsert(payload);
@@ -106,6 +109,11 @@ export default function AdminSettings() {
             <div className="space-y-1"><Label>E-mail de contato</Label><Input type="email" value={s.contact_email || ""} onChange={set("contact_email")} placeholder="contato@..." /></div>
             <div className="space-y-1"><Label>Endereço</Label><Textarea value={s.address || ""} onChange={set("address")} /></div>
             <div className="space-y-1"><Label>Horário de funcionamento</Label><Input value={s.hours || ""} onChange={set("hours")} placeholder="Seg a Sáb, 7h às 22h" /></div>
+            <div className="space-y-1">
+              <Label>Prazo médio de resposta no WhatsApp (minutos)</Label>
+              <Input type="number" min={1} max={1440} value={s.whatsapp_response_time_minutes ?? ""} onChange={set("whatsapp_response_time_minutes")} placeholder="Ex.: 10" />
+              <p className="text-xs text-muted-foreground">Só informe um prazo que a equipe consiga cumprir. Enquanto ficar vazio, o site não promete tempo de resposta.</p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
               <div className="space-y-1"><Label>Instagram (URL)</Label><Input value={s.instagram || ""} onChange={set("instagram")} placeholder="https://instagram.com/..." /></div>
               <div className="space-y-1"><Label>Facebook (URL)</Label><Input value={s.facebook || ""} onChange={set("facebook")} placeholder="https://facebook.com/..." /></div>
