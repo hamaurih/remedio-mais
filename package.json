@@ -7,8 +7,8 @@
     "node": "22.x"
   },
   "scripts": {
-    "predev": "tsx scripts/generate-sitemap.ts",
-    "prebuild": "tsx scripts/generate-sitemap.ts",
+    "predev": "node scripts/generate-sitemap.mjs",
+    "prebuild": "node scripts/generate-sitemap.mjs",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
@@ -101,7 +101,6 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
-    "vitest": "^3.2.4",
-    "tsx": "^4.20.6"
+    "vitest": "^3.2.4"
   }
 }
