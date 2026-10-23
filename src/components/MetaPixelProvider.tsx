@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { initMetaPixel, trackPageView } from "@/lib/metaEvents";
+import { gaPageView, initGoogleAnalytics } from "@/lib/googleAnalytics";
 import { getCart } from "@/lib/store";
 import { trackCartFunnel } from "@/lib/cartFunnel";
 
@@ -12,12 +13,18 @@ import { trackCartFunnel } from "@/lib/cartFunnel";
 export function MetaPixelProvider() {
   const location = useLocation();
 
-  useEffect(() => { void initMetaPixel(); }, []);
+  useEffect(() => {
+    void initMetaPixel();
+    void initGoogleAnalytics();
+  }, []);
 
   useEffect(() => {
     const path = location.pathname + location.search;
     // Pequeno atraso para garantir que o fbevents.js já tenha inicializado.
-    const t = window.setTimeout(() => trackPageView(path), 0);
+    const t = window.setTimeout(() => {
+      trackPageView(path);
+      gaPageView(path);
+    }, 0);
 
     const cart = getCart();
     if (cart.length > 0) {
