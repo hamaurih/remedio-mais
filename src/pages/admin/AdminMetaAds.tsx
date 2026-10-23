@@ -298,6 +298,11 @@ export default function AdminMetaAds() {
               ? (/^G-[A-Z0-9]+$/.test((form.ga_measurement_id || "").trim().toUpperCase()) ? "configurado" : "aguardando Measurement ID")
               : "desativado"}
           </div>
+
+          <Button onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Salvar Google Analytics 4
+          </Button>
         </CardContent>
       </Card>
 
