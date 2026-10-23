@@ -35,6 +35,11 @@ export default function Contact() {
           <div>
             <div className="text-xs uppercase tracking-wide text-muted-foreground font-bold">Atendimento WhatsApp</div>
             <div className="font-bold">{formatPhone(waRaw)}</div>
+            {Number(s?.whatsapp_response_time_minutes || 0) > 0 && (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Respondemos normalmente em até {Number(s?.whatsapp_response_time_minutes)} min durante o horário de atendimento.
+              </div>
+            )}
           </div>
         </a>
 
