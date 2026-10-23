@@ -18,6 +18,7 @@ import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
 import { liveCheckProducts } from "@/lib/liveStock";
 import { notifyCartAddition } from "@/lib/cartLiveNotify";
 import { Seo } from "@/components/Seo";
+import { SeoBreadcrumbs } from "@/components/SeoBreadcrumbs";
 import { trackViewContent } from "@/lib/metaEvents";
 
 export default function Product() {
@@ -195,9 +196,14 @@ export default function Product() {
         }}
       />
       <div className="container py-6">
-        <nav className="text-xs text-muted-foreground mb-4">
-          <Link to="/" className="hover:text-primary">Início</Link> / <span>{p.name}</span>
-        </nav>
+        <SeoBreadcrumbs
+          className="mb-4"
+          items={[
+            { name: "Início", path: "/" },
+            ...((p as any).category_name ? [{ name: String((p as any).category_name) }] : []),
+            { name: p.name },
+          ]}
+        />
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-secondary/40 rounded-2xl p-8 flex items-center justify-center">
             <img src={displayImage} alt={p.name} width={420} height={420} decoding="async" fetchPriority="high" className="max-h-[420px] object-contain" />
