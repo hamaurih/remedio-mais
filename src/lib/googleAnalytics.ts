@@ -14,7 +14,14 @@ declare global {
   }
 }
 
-let config: GaConfig = { enabled: false, measurement_id: null, consent_required: true };
+const ENV_GA_ID = String(import.meta.env.VITE_GA_MEASUREMENT_ID || "").trim().toUpperCase();
+const ENV_GA_ENABLED = String(import.meta.env.VITE_GA_ENABLED || "").toLowerCase() === "true";
+
+let config: GaConfig = {
+  enabled: ENV_GA_ENABLED && /^G-[A-Z0-9]+$/.test(ENV_GA_ID),
+  measurement_id: /^G-[A-Z0-9]+$/.test(ENV_GA_ID) ? ENV_GA_ID : null,
+  consent_required: true,
+};
 let configLoaded = false;
 let loading: Promise<GaConfig> | null = null;
 let initialized = false;
@@ -31,9 +38,11 @@ export async function loadGaConfig(): Promise<GaConfig> {
     try {
       const { data } = await (supabase as any).rpc("public_ga_config");
       if (data && typeof data === "object") {
+        const dbId = String(data.measurement_id || "").trim().toUpperCase();
+        const dbValid = /^G-[A-Z0-9]+$/.test(dbId);
         config = {
-          enabled: !!data.enabled,
-          measurement_id: data.measurement_id ?? null,
+          enabled: !!data.enabled || (ENV_GA_ENABLED && /^G-[A-Z0-9]+$/.test(ENV_GA_ID)),
+          measurement_id: dbValid ? dbId : (/^G-[A-Z0-9]+$/.test(ENV_GA_ID) ? ENV_GA_ID : null),
           consent_required: data.consent_required !== false,
         };
       }
