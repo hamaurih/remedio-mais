@@ -4,45 +4,48 @@
 
 Preview branches estavam chegando a `MIGRATIONS_FAILED` durante o replay da cadeia de migrations.
 
-A investigação confirmou que o problema não estava no ERP Core novo. O bloco histórico de recuperação de 24/08 continha migrations `restore_backup_*` que restauravam dados de produção, incluindo usuários, pedidos, produtos, itens e logs.
-
-Esses restores dependiam de IDs existentes no banco original. Em uma branch vazia, o replay podia encontrar FKs ausentes, por exemplo `products.category_id`.
+A investigação confirmou que o problema estava no bloco histórico de recuperação de 24/08: migrations `restore_backup_*` restauravam dados de produção e dependiam de IDs que só existiam no banco original.
 
 ## Diagnóstico
 
-Foram encontrados 119 migrations `restore_backup_*` ainda registrados no histórico remoto.
+Foram encontrados 119 migrations `restore_backup_*` no histórico remoto da produção.
 
-Validação realizada:
-- 119 são DML de recuperação de dados;
-- 0 contêm DDL estrutural `CREATE/ALTER/DROP/TRUNCATE`.
+Validação:
+- 119 eram DML de recuperação de dados;
+- 0 continham DDL estrutural `CREATE/ALTER/DROP/TRUNCATE`.
 
-Logo, eles não são necessários para reconstruir o schema de uma preview branch.
+Logo, esses restores não eram necessários para reconstruir o schema de uma preview branch.
 
 ## Correção aplicada
 
-Migration de produção: `20261023234259_neutralize_restore_backup_branch_replay`.
+Foi executada uma operação administrativa one-shot no histórico remoto:
 
-Ela:
-1. cria `private.migration_replay_archive_20261023`;
-2. arquiva os statements originais dos 119 restores;
-3. remove acesso de `public/anon/authenticated` ao arquivo;
-4. mantém version/name/status das migrations;
-5. substitui apenas os statements de replay por um `SELECT 1` inofensivo.
+1. os statements originais dos 119 restores foram arquivados em `private.migration_replay_archive_20261023`;
+2. o acesso de `public`, `anon` e `authenticated` ao arquivo foi revogado;
+3. o replay dos 119 restores foi substituído por `SELECT 1`;
+4. a própria migration administrativa de reparo também foi neutralizada para replay futuro.
+
+Importante: esta operação NÃO fica em `supabase/migrations`, porque migrations normais da aplicação não devem consultar `supabase_migrations.schema_migrations`.
 
 ## Efeito
 
-A correção não remove usuários, não remove pedidos, não altera produtos, estoque, Trier, Cielo ou o site. Ela altera somente o que futuras preview branches reexecutam.
+A correção não remove usuários, pedidos, produtos ou logs já restaurados. Também não altera preço, estoque, Cielo, Trier ou o site. Ela muda somente o que futuras preview branches reexecutam.
 
-## Nova política
+## Política permanente
 
-Recuperações de dados de produção não devem voltar a ser adicionadas em `supabase/migrations`.
+`supabase/migrations` deve conter somente schema, funções, policies, índices e alterações determinísticas.
 
-`supabase/migrations` fica reservado para schema, funções, policies, índices e alterações determinísticas. Backup/restore operacional deve usar fluxo separado e nunca replay automático de CI/CD.
+Backup/restore operacional de dados de produção deve usar fluxo separado e nunca ser incluído no replay normal de CI/CD.
 
-O teste `supabaseMigrationPolicy.test.ts` bloqueia arquivos `restore_backup_*` no diretório normal de migrations e INSERT direto em `auth.users` por migrations normais.
+Os testes automatizados agora bloqueiam:
+- arquivos `restore_backup_*` em `supabase/migrations`;
+- INSERT direto em `auth.users` em migrations normais;
+- migrations de aplicação acopladas a `supabase_migrations.schema_migrations`.
 
-## Próxima validação
+## Critério de aceite
 
-Criar uma preview branch descartável depois do reparo e exigir a sequência `CREATING_PROJECT -> RUNNING_MIGRATIONS -> FUNCTIONS_DEPLOYED`, sem `MIGRATIONS_FAILED`.
+O Supabase Branching só será considerado confiável para CI/CD automático quando uma preview branch nova completar:
 
-Somente após esse teste o Supabase Branching deve ser considerado confiável para CI/CD automático.
+`CREATING_PROJECT -> RUNNING_MIGRATIONS -> FUNCTIONS_DEPLOYED`
+
+sem entrar em `MIGRATIONS_FAILED`.
