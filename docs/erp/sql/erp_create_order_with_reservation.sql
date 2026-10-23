@@ -1,4 +1,20 @@
 -- CANDIDATO DE HOMOLOGAÇÃO.
+-- Compatibilidade mínima da branch de homologação com o contrato atual.
+-- Estas alterações são idempotentes e destinam-se exclusivamente ao staging.
+alter table public.orders add column if not exists source text not null default 'site';
+alter table public.orders add column if not exists created_by text;
+alter table public.orders add column if not exists external_idempotency_key text;
+alter table public.orders add column if not exists trier_eligible boolean not null default true;
+alter table public.orders add column if not exists order_code text;
+
+create unique index if not exists orders_external_idempotency_unique
+  on public.orders(external_idempotency_key)
+  where external_idempotency_key is not null;
+
+create unique index if not exists orders_order_code_unique
+  on public.orders(order_code)
+  where order_code is not null;
+
 -- NÃO executar em produção sem passar pela branch Supabase de homologação.
 --
 -- Objetivo: criar pedido + itens + reservas de estoque em uma única transação.
@@ -25,7 +41,8 @@ declare
   v_discount numeric := greatest(coalesce((_payload->>'discount')::numeric,0),0);
   v_subtotal numeric := 0;
   v_total numeric := 0;
-  v_order_id uuid;
+  v_order_id uuid := gen_random_uuid();
+  v_order_code text := 'ERP-' || to_char(clock_timestamp(),'YYMMDD') || '-' || upper(substr(replace(v_order_id::text,'-',''),1,6));
   v_existing uuid;
   v_expires_at timestamptz := now() + interval '15 minutes';
   it jsonb;
@@ -145,6 +162,7 @@ begin
 
   -- Staging: cria pedido pendente, sem Cielo e sem Trier.
   insert into public.orders(
+    id,order_code,
     customer_name,customer_phone,customer_email,customer_cpf,
     tenant_id,store_id,
     subtotal,discount,delivery_fee,total,
@@ -155,6 +173,7 @@ begin
     trier_eligible,trier_status
   )
   values(
+    v_order_id,v_order_code,
     v_customer_name,v_customer_phone,v_customer_email,v_customer_cpf,
     v_tenant_id,v_store_id,
     v_subtotal,v_discount,v_delivery_fee,v_total,
