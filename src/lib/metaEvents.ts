@@ -5,6 +5,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isMarketingAllowed, onConsentChange } from "./metaConsent";
 import { getFbc, getFbp, loadMetaPixel, isPixelLoaded, newEventId, pixelTrack, stableEventId } from "./metaPixel";
+import { gaViewItem, gaAddToCart, gaBeginCheckout, gaAddPaymentInfo, gaPurchase } from "./googleAnalytics";
 
 export type MetaConfig = { enabled: boolean; pixel_id: string | null; consent_required: boolean };
 
@@ -95,6 +96,7 @@ export function __resetPageViewDedupe() {
 
 // ------------------------------------------------------------- ViewContent
 export function trackViewContent(p: { id: string; name: string; price: number; trier_product_id?: string | null }) {
+  gaViewItem(p.trier_product_id || p.id, Number(p.price) || 0);
   return track("ViewContent", {
     content_type: "product",
     content_ids: [contentId(p)],
@@ -114,6 +116,7 @@ export function trackSearch(term: string) {
 // --------------------------------------------------------------- AddToCart
 export function trackAddToCart(item: { id: string; product_id?: string | null; name: string; price: number; quantity: number }) {
   const id = item.product_id || item.id;
+  gaAddToCart(id, (Number(item.price) || 0) * item.quantity, item.quantity);
   const contents: Contents = [{ id, quantity: item.quantity, item_price: Number(item.price) || 0 }];
   return track("AddToCart", {
     content_type: "product",
@@ -131,6 +134,7 @@ export function trackInitiateCheckout(items: Array<{ id: string; product_id?: st
     quantity: i.quantity,
     item_price: Number(i.price) || 0,
   }));
+  gaBeginCheckout(contents, Number(value) || 0);
   return track("InitiateCheckout", {
     content_type: "product",
     content_ids: contents.map((c) => c.id),
@@ -143,6 +147,7 @@ export function trackInitiateCheckout(items: Array<{ id: string; product_id?: st
 // --------------------------------------------------------- AddPaymentInfo
 export function trackAddPaymentInfo(method: "pix" | "credit_card", value: number) {
   // Apenas o tipo de meio de pagamento — nunca número de cartão, CVV ou titular.
+  gaAddPaymentInfo(method, Number(value) || 0);
   return track("AddPaymentInfo", {
     payment_method: method,
     value: Number(value) || 0,
@@ -156,6 +161,7 @@ export function trackAddPaymentInfo(method: "pix" | "credit_card", value: number
  * então a Meta deduplica browser × webhook × polling Pix.
  */
 export function trackPurchase(order: { id: string; total: number; items: Contents }) {
+  gaPurchase({ id: order.id, total: order.total });
   if (!pixelAllowed()) return;
   const eventId = stableEventId("purchase", order.id);
   const key = `meta:purchase:${order.id}`;
