@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Seo } from "@/components/Seo";
+import { SeoBreadcrumbs } from "@/components/SeoBreadcrumbs";
 import { ProductCard, Product } from "@/components/ProductCard";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -111,6 +112,14 @@ export default function Department() {
         path={`/departamento/${slug}`}
       />
       <div className="container py-6">
+        <SeoBreadcrumbs
+          className="mb-3"
+          items={[
+            { name: "Início", path: "/" },
+            { name: "Departamentos", path: "/departamentos" },
+            { name: dept?.name || "Departamento" },
+          ]}
+        />
         <div className="flex items-end justify-between gap-3 mb-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold" style={{ color: dept?.band_color || undefined }}>
