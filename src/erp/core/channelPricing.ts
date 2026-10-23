@@ -40,11 +40,14 @@ export function resolveChannelPrice(
   let resolved: { source: PriceSource; value: number };
 
   if (channel === "site" || channel === "marketplace" || channel === "b2b") {
+    // Compatibilidade inicial com o site atual (resolveSitePrice):
+    // site_promo_price -> promo_price -> site_price -> price.
+    // price_base fica fora deste canal durante o shadow/cutover para não
+    // introduzir alteração comercial silenciosa.
     resolved = pick([
       ["site_promo_price", promoAllowed ? positive(input.site_promo_price) : null],
-      ["site_price", positive(input.site_price)],
       ["promo_price", genericPromo],
-      ["price_base", positive(input.price_base)],
+      ["site_price", positive(input.site_price)],
       ["price", positive(input.price)],
     ]);
   } else if (channel === "whatsapp_ia" || channel === "whatsapp_humano" || channel === "telefone") {
