@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: supabase-preview-schema-v3-${{ github.event.pull_request.number }}
+  group: supabase-preview-schema-v4-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
     name: Validate complete Supabase preview
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: staging
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_ID: jzltdocmvvdlyaukwzix
@@ -37,11 +38,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_ACCESS_TOKEN"
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "Missing staging environment secret SUPABASE_ACCESS_TOKEN." >&2
+            exit 1
+          fi
           test "$SUPABASE_PROJECT_ID" = "jzltdocmvvdlyaukwzix"
 
       - name: Link parent Supabase project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! OUTPUT="$(supabase link --project-ref "$SUPABASE_PROJECT_ID" 2>&1)"; then
+            printf '%s\n' "$OUTPUT" >&2
+            echo "Supabase CLI authentication failed. Rotate the staging environment secret SUPABASE_ACCESS_TOKEN." >&2
+            exit 1
+          fi
 
       - name: Resolve preview branch credentials
         shell: bash
