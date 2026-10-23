@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: supabase-preview-schema-${{ github.event.pull_request.number }}
+  group: supabase-preview-schema-v2-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
