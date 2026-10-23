@@ -41,6 +41,9 @@ jobs:
           test -n "$SUPABASE_ACCESS_TOKEN"
           test "$SUPABASE_PROJECT_ID" = "jzltdocmvvdlyaukwzix"
 
+      - name: Link parent Supabase project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
       - name: Resolve preview branch credentials
         shell: bash
         run: |
