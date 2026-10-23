@@ -1,0 +1,124 @@
+name: Supabase Preview Schema Gate
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-preview-schema-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-preview-schema-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-preview:
+    name: Validate complete Supabase preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_PROJECT_ID"
+
+      - name: Resolve preview branch credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/supabase-branch.env
+          for attempt in $(seq 1 40); do
+            if supabase --experimental branches get "$GITHUB_HEAD_REF" -o env > /tmp/supabase-branch.env 2>/tmp/supabase-branch.err; then
+              if grep -q '^POSTGRES_URL_NON_POOLING=' /tmp/supabase-branch.env; then
+                cat /tmp/supabase-branch.env >> "$GITHUB_ENV"
+                exit 0
+              fi
+            fi
+            sleep 15
+          done
+          cat /tmp/supabase-branch.err || true
+          echo "Supabase preview branch did not become queryable." >&2
+          exit 1
+
+      - name: Wait for complete migration replay
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPECTED_LATEST="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort | tail -1 | cut -c1-14)"
+          test -n "$EXPECTED_LATEST"
+
+          for attempt in $(seq 1 60); do
+            ACTUAL_LATEST="$(psql "$POSTGRES_URL_NON_POOLING" -Atqc "select coalesce(max(version),'') from supabase_migrations.schema_migrations" 2>/dev/null || true)"
+            if [ "$ACTUAL_LATEST" = "$EXPECTED_LATEST" ]; then
+              echo "Migration replay complete at $ACTUAL_LATEST"
+              exit 0
+            fi
+            echo "Replay not complete yet: actual=$ACTUAL_LATEST expected=$EXPECTED_LATEST"
+            sleep 10
+          done
+
+          echo "Preview branch did not replay through latest migration $EXPECTED_LATEST." >&2
+          exit 1
+
+      - name: Validate ERP schema contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$POSTGRES_URL_NON_POOLING" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.inventory_balances') is null then raise exception 'missing inventory_balances'; end if;
+            if to_regclass('public.inventory_ledger') is null then raise exception 'missing inventory_ledger'; end if;
+            if to_regclass('public.order_inventory_reservations') is null then raise exception 'missing order_inventory_reservations'; end if;
+            if to_regclass('public.accounts_payable') is null then raise exception 'missing accounts_payable'; end if;
+            if to_regclass('public.accounts_receivable') is null then raise exception 'missing accounts_receivable'; end if;
+            if to_regclass('public.cart_funnel_sessions') is null then raise exception 'missing cart_funnel_sessions'; end if;
+
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema='public' and table_name='orders' and column_name='source'
+            ) then raise exception 'missing orders.source'; end if;
+
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema='public' and table_name='orders' and column_name='external_idempotency_key'
+            ) then raise exception 'missing orders.external_idempotency_key'; end if;
+
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema='public' and table_name='orders' and column_name='trier_eligible'
+            ) then raise exception 'missing orders.trier_eligible'; end if;
+
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema='public' and table_name='marketing_settings' and column_name='ga_measurement_id'
+            ) then raise exception 'missing marketing_settings.ga_measurement_id'; end if;
+          end
+          $$;
+          SQL
+
+      - name: Show migration alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase migration list --db-url "$POSTGRES_URL_NON_POOLING"
