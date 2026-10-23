@@ -20,6 +20,9 @@ type Settings = {
   meta_test_event_code: string | null;
   meta_capi_enabled: boolean;
   meta_consent_required: boolean;
+  ga_enabled: boolean;
+  ga_measurement_id: string | null;
+  ga_consent_required: boolean;
   updated_at?: string;
 };
 
@@ -58,7 +61,7 @@ export default function AdminMetaAds() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("marketing_settings")
-        .select("meta_enabled, meta_pixel_id, meta_test_event_code, meta_capi_enabled, meta_consent_required, updated_at")
+        .select("meta_enabled, meta_pixel_id, meta_test_event_code, meta_capi_enabled, meta_consent_required, ga_enabled, ga_measurement_id, ga_consent_required, updated_at")
         .eq("id", 1)
         .maybeSingle();
       if (error) throw error;
@@ -111,8 +114,13 @@ export default function AdminMetaAds() {
   const save = async () => {
     if (!form) return;
     const pixel = (form.meta_pixel_id || "").trim();
-    if (form.meta_enabled && !/^\d{10,20}$/.test(pixel)) {
-      toast.error("Informe um Pixel/Dataset ID válido (apenas números).");
+    if (form.meta_enabled && !/^\d{10,20}(,\d{10,20})*$/.test(pixel)) {
+      toast.error("Informe um Pixel/Dataset ID válido (apenas números; múltiplos IDs separados por vírgula).");
+      return;
+    }
+    const gaId = (form.ga_measurement_id || "").trim().toUpperCase();
+    if (form.ga_enabled && !/^G-[A-Z0-9]+$/.test(gaId)) {
+      toast.error("Informe um Measurement ID GA4 válido, no formato G-XXXXXXXXXX.");
       return;
     }
     setSaving(true);
@@ -122,10 +130,13 @@ export default function AdminMetaAds() {
       meta_test_event_code: (form.meta_test_event_code || "").trim() || null,
       meta_capi_enabled: form.meta_capi_enabled,
       meta_consent_required: form.meta_consent_required,
+      ga_enabled: form.ga_enabled,
+      ga_measurement_id: gaId || null,
+      ga_consent_required: form.ga_consent_required,
     }).eq("id", 1);
     setSaving(false);
     if (error) { toast.error(`Não foi possível salvar: ${error.message}`); return; }
-    toast.success("Configuração Meta salva. Recarregue o site para aplicar o Pixel.");
+    toast.success("Configuração de marketing salva. Recarregue o site para aplicar as alterações.");
     qc.invalidateQueries({ queryKey: ["marketing-settings"] });
     qc.invalidateQueries({ queryKey: ["meta-capi-status"] });
   };
@@ -243,6 +254,50 @@ export default function AdminMetaAds() {
           <Button onClick={save} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Salvar configuração
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Google Analytics 4</CardTitle>
+          <CardDescription>
+            Mensuração do funil do site: page_view, view_item, add_to_cart, begin_checkout, add_payment_info e purchase.
+            Em compras, o GA4 recebe apenas dados comerciais mínimos; não recebe nomes de medicamentos no evento Purchase.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="ga_enabled">Google Analytics 4 ativo</Label>
+              <p className="text-xs text-muted-foreground">Ative depois de informar o Measurement ID da propriedade GA4.</p>
+            </div>
+            <Switch id="ga_enabled" checked={form.ga_enabled}
+              onCheckedChange={(v) => setForm({ ...form, ga_enabled: v })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ga_id">Measurement ID</Label>
+            <Input id="ga_id" placeholder="G-XXXXXXXXXX"
+              value={form.ga_measurement_id ?? ""}
+              onChange={(e) => setForm({ ...form, ga_measurement_id: e.target.value.toUpperCase().replace(/\s/g, "") })} />
+            <p className="text-xs text-muted-foreground">Google Analytics → Administrador → Fluxos de dados → Web → ID da métrica.</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="ga_consent">Exigir consentimento de marketing</Label>
+              <p className="text-xs text-muted-foreground">Recomendado para manter o carregamento do GA4 condicionado ao consentimento do visitante.</p>
+            </div>
+            <Switch id="ga_consent" checked={form.ga_consent_required}
+              onCheckedChange={(v) => setForm({ ...form, ga_consent_required: v })} />
+          </div>
+
+          <div className="rounded-lg border p-3 text-xs">
+            <strong>Status:</strong>{" "}
+            {form.ga_enabled
+              ? (/^G-[A-Z0-9]+$/.test((form.ga_measurement_id || "").trim().toUpperCase()) ? "configurado" : "aguardando Measurement ID")
+              : "desativado"}
+          </div>
         </CardContent>
       </Card>
 
