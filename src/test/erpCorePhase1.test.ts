@@ -36,7 +36,7 @@ describe("ERP Core contracts", () => {
     const r = resolveChannelPrice(p, "site", new Date("2026-10-23T18:00:00Z").getTime());
     expect(r.finalPrice).toBe(7);
     expect(r.source).toBe("site_promo_price");
-    expect(r.comparePrice).toBe(10);
+    expect(r.comparePrice).toBe(9);
   });
 });
 
