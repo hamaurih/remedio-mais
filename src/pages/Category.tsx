@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Seo } from "@/components/Seo";
+import { SeoBreadcrumbs } from "@/components/SeoBreadcrumbs";
 import { ProductCard, Product } from "@/components/ProductCard";
 import { useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
 import {
   ProductFilters,
   MobileFilters,
@@ -125,13 +125,14 @@ export default function Category() {
       />
       <div className="container py-6 flex items-end justify-between gap-3">
         <div>
-          {subcategory && cat && (
-            <nav className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-              <Link to={`/categoria/${cat.slug}`} className="hover:text-primary">{cat.name}</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span>{subcategory.name}</span>
-            </nav>
-          )}
+          <SeoBreadcrumbs
+            className="mb-2"
+            items={[
+              { name: "Início", path: "/" },
+              ...(cat ? [{ name: cat.name, path: subcategory ? `/categoria/${cat.slug}` : undefined }] : []),
+              ...(subcategory ? [{ name: subcategory.name }] : []),
+            ]}
+          />
           <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>
           <p className="text-muted-foreground text-sm mt-1">{count} produtos</p>
           {subcategory?.description && <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{subcategory.description}</p>}
