@@ -23,6 +23,7 @@ export type StoreSettings = {
   tiktok: string | null;
   footer_text: string | null;
   sanitary_notice: string | null;
+  whatsapp_response_time_minutes: number | null;
 };
 
 export function useStoreSettings() {
@@ -52,6 +53,7 @@ export function useStoreSettings() {
           tiktok: null,
           footer_text: null,
           sanitary_notice: null,
+          whatsapp_response_time_minutes: null,
         } as StoreSettings),
   });
 }
