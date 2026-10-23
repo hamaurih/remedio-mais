@@ -72,6 +72,15 @@ function normalizeLastmod(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function isSeoSafeSlug(value: unknown) {
+  const slug = String(value || "").trim();
+  if (!slug) return false;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return false;
+  if (/^zzzzzz(?:-|$)/.test(slug)) return false;
+  if (/^(?:teste|test)(?:-|$)/.test(slug)) return false;
+  return true;
+}
+
 function generateSitemap(entries: SitemapEntry[]) {
   const uniqueEntries = Array.from(new Map(entries.map((entry) => [entry.path, entry])).values());
   const urls = uniqueEntries.map((e) => {
@@ -101,12 +110,16 @@ async function main() {
 
   const categories = await fetchRows("categories", "select=slug&active=eq.true&limit=500");
   for (const c of categories) {
-    if (c?.slug) entries.push({ path: `/categoria/${c.slug}`, changefreq: "daily", priority: "0.8" });
+    if (isSeoSafeSlug(c?.slug)) {
+      entries.push({ path: `/categoria/${c.slug}`, changefreq: "daily", priority: "0.8" });
+    }
   }
 
   const departments = await fetchRows("departments", "select=slug&active=eq.true&limit=200");
   for (const d of departments) {
-    if (d?.slug) entries.push({ path: `/departamento/${d.slug}`, changefreq: "weekly", priority: "0.7" });
+    if (isSeoSafeSlug(d?.slug)) {
+      entries.push({ path: `/departamento/${d.slug}`, changefreq: "weekly", priority: "0.7" });
+    }
   }
 
   // PostgREST limita a 1000 linhas por requisição — paginamos.
@@ -117,7 +130,7 @@ async function main() {
       `select=slug,updated_at&active=eq.true&archived_at=is.null&stock=gt.0&order=updated_at.desc&limit=1000&offset=${page * 1000}`,
     );
     for (const p of products) {
-      if (p?.slug) {
+      if (isSeoSafeSlug(p?.slug)) {
         entries.push({
           path: `/produto/${p.slug}`,
           lastmod: p.updated_at,
