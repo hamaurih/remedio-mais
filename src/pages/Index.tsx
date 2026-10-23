@@ -14,6 +14,7 @@ import { CampaignShelf } from "@/components/CampaignShelf";
 import { DepartmentCarousel } from "@/components/DepartmentCarousel";
 import { PrescriptionCTA } from "@/components/PrescriptionCTA";
 import { GoogleRatingBlock } from "@/components/GoogleRatingBlock";
+import { HomeTopCta } from "@/components/HomeTopCta";
 import { Link } from "react-router-dom";
 import { PromoTicker } from "@/components/PromoTicker";
 import { MapPin } from "lucide-react";
@@ -347,6 +348,7 @@ export default function Index() {
   return (
     <Layout>
       {seo}
+      <HomeTopCta />
       {order.map((key) => (
         <div key={key}>{SECTIONS[key] ?? null}</div>
       ))}
