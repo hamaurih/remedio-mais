@@ -1,3 +1,4 @@
+import "./lib/sentry-monitoring";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
