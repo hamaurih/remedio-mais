@@ -2,7 +2,7 @@
 // e cria o pedido pendente. Reutilizado por create-cielo-pix e create-cielo-card.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { safeError } from "./mask.ts";
-import { isValidCpf, normalizeCpf } from "./cpf.ts";
+import { isValidCpf, normalizeCpf } from "./cpf.ts";\nimport { evaluateOrderCanary, parseOrderCanaryConfig } from "./erp/order-canary.ts";
 
 export type CartItem = {
   id: string;
@@ -173,6 +173,39 @@ export async function prepareOrder(
       prescription_id: ci.prescription_id ?? null,
       prescription_condition: prescriptionCondition,
     });
+  }
+
+  // Canário seguro: apenas mede elegibilidade. Nesta fase a rota real é SEMPRE legado.
+  const canaryDecision = evaluateOrderCanary({
+    config: parseOrderCanaryConfig({
+      ERP_ORDER_CANARY_MODE: Deno.env.get("ERP_ORDER_CANARY_MODE") || undefined,
+      ERP_ORDER_CANARY_PERCENT: Deno.env.get("ERP_ORDER_CANARY_PERCENT") || undefined,
+      ERP_ORDER_CANARY_CHANNELS: Deno.env.get("ERP_ORDER_CANARY_CHANNELS") || undefined,
+      ERP_ORDER_CANARY_SALT: Deno.env.get("ERP_ORDER_CANARY_SALT") || undefined,
+    }),
+    stableKey: userId,
+    channel: "site",
+    deliveryType: body.delivery_type,
+    items: orderItems.map((item) => ({
+      variant_id: item.variant_id,
+      requires_prescription: item.requires_prescription,
+      controlled: item.controlled,
+    })),
+  });
+
+  if (canaryDecision.mode === "observe") {
+    console.info("[erp-order-canary]", JSON.stringify({
+      route: canaryDecision.route,
+      would_route: canaryDecision.would_route,
+      candidate: canaryDecision.candidate,
+      selected: canaryDecision.selected,
+      bucket: canaryDecision.bucket,
+      percent: canaryDecision.percent,
+      reason: canaryDecision.reason,
+      payment_method: paymentMethod,
+      delivery_type: body.delivery_type,
+      item_count: orderItems.length,
+    }));
   }
 
   // Frete
