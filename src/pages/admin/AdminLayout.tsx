@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -159,11 +159,9 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
     .map((group) => ({ group, items: visible.filter((item) => item.group === group) }))
     .filter((section) => section.items.length);
 
-  const currentItem = useMemo(() => {
-    return [...visible]
-      .sort((a, b) => b.to.length - a.to.length)
-      .find((item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)));
-  }, [location.pathname, visible]);
+  const currentItem = [...visible]
+    .sort((a, b) => b.to.length - a.to.length)
+    .find((item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)));
 
   const pageTitle = currentItem?.label || (isAdmin ? "Administração" : "Vendedor");
   const pageGroup = currentItem?.group || "Painel";
