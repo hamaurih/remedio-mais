@@ -19,6 +19,7 @@ create unique index if not exists orders_order_code_unique
 --
 -- Objetivo: criar pedido + itens + reservas de estoque em uma única transação.
 -- Segurança: SECURITY INVOKER; execução somente service_role.
+-- Preço: o payload recebido aqui já deve ter sido precificado no servidor pela Edge Function.
 
 create or replace function public.erp_create_order_with_reservation(_payload jsonb)
 returns jsonb
@@ -44,7 +45,8 @@ declare
   v_order_id uuid := gen_random_uuid();
   v_order_code text := 'ERP-' || to_char(clock_timestamp(),'YYMMDD') || '-' || upper(substr(replace(v_order_id::text,'-',''),1,6));
   v_existing uuid;
-  v_expires_at timestamptz := now() + interval '15 minutes';
+  v_reservation_minutes integer := 30;
+  v_expires_at timestamptz;
   it jsonb;
   p record;
   b record;
@@ -102,6 +104,27 @@ begin
   if jsonb_array_length(coalesce(_payload->'items','[]'::jsonb)) = 0 then
     raise exception 'items_required';
   end if;
+
+  if jsonb_array_length(coalesce(_payload->'items','[]'::jsonb)) > 100 then
+    raise exception 'too_many_items';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(_payload->'items') x
+    group by x->>'product_id'
+    having count(*) > 1
+  ) then
+    raise exception 'duplicate_product';
+  end if;
+
+  select fp.reservation_minutes
+    into v_reservation_minutes
+  from public.fulfillment_policies fp
+  where fp.tenant_id=v_tenant_id;
+
+  v_reservation_minutes := greatest(5, least(coalesce(v_reservation_minutes,30),240));
+  v_expires_at := now() + make_interval(mins=>v_reservation_minutes);
 
   -- 1) Primeiro bloqueia todos os saldos por product_id em ordem estável.
   for p in
@@ -227,7 +250,11 @@ begin
       0,v_qty,
       'order',v_order_id::text,'Reserva ERP homologação',
       v_item_key,
-      jsonb_build_object('environment','staging','channel',v_channel)
+      jsonb_build_object(
+        'environment','staging',
+        'channel',v_channel,
+        'reservation_minutes',v_reservation_minutes
+      )
     );
   end loop;
 
@@ -239,6 +266,7 @@ begin
     'discount',v_discount,
     'delivery_fee',v_delivery_fee,
     'total',v_total,
+    'reservation_minutes',v_reservation_minutes,
     'reservation_expires_at',v_expires_at
   );
 end;
@@ -248,3 +276,46 @@ revoke all on function public.erp_create_order_with_reservation(jsonb) from publ
 revoke all on function public.erp_create_order_with_reservation(jsonb) from anon;
 revoke all on function public.erp_create_order_with_reservation(jsonb) from authenticated;
 grant execute on function public.erp_create_order_with_reservation(jsonb) to service_role;
+
+-- Liberação de reservas vencidas.
+-- A função apenas orquestra a rotina existente release_order_inventory_internal.
+create or replace function public.erp_expire_due_reservations(_limit integer default 100)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  r record;
+  v_result jsonb;
+  v_orders integer := 0;
+  v_items integer := 0;
+  v_limit integer := greatest(1, least(coalesce(_limit,100),200));
+begin
+  for r in
+    select oir.order_id, min(oir.expires_at) as expires_at
+    from public.order_inventory_reservations oir
+    where oir.status='active'
+      and oir.expires_at <= now()
+    group by oir.order_id
+    order by min(oir.expires_at), oir.order_id
+    limit v_limit
+  loop
+    select public.release_order_inventory_internal(r.order_id,'expired')
+      into v_result;
+    v_orders := v_orders + 1;
+    v_items := v_items + coalesce((v_result->>'released_items')::integer,0);
+  end loop;
+
+  return jsonb_build_object(
+    'ok',true,
+    'expired_orders',v_orders,
+    'released_items',v_items
+  );
+end;
+$$;
+
+revoke all on function public.erp_expire_due_reservations(integer) from public;
+revoke all on function public.erp_expire_due_reservations(integer) from anon;
+revoke all on function public.erp_expire_due_reservations(integer) from authenticated;
+grant execute on function public.erp_expire_due_reservations(integer) to service_role;
