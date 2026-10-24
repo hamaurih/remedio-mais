@@ -2,7 +2,8 @@
 // e cria o pedido pendente. Reutilizado por create-cielo-pix e create-cielo-card.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { safeError } from "./mask.ts";
-import { isValidCpf, normalizeCpf } from "./cpf.ts";\nimport { evaluateOrderCanary, parseOrderCanaryConfig } from "./erp/order-canary.ts";
+import { isValidCpf, normalizeCpf } from "./cpf.ts";
+import { evaluateOrderCanary, parseOrderCanaryConfig } from "./erp/order-canary.ts";
 
 export type CartItem = {
   id: string;
