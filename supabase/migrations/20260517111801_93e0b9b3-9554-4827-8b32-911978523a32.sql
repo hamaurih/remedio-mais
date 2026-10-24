@@ -141,8 +141,13 @@ ALTER TABLE public.orders
 -- =========================================================
 -- Remove old hourly cron job if exists
 -- =========================================================
-DO $$
+DO $
 BEGIN
-  PERFORM cron.unschedule('trier-sync-hourly');
-EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+    BEGIN
+      EXECUTE 'SELECT cron.unschedule(''trier-sync-hourly'')';
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+END $;
