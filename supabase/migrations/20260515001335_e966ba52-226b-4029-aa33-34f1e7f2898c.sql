@@ -171,7 +171,10 @@ CREATE POLICY "settings_admin_write" ON public.store_settings FOR ALL TO authent
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('products', 'products', true),
   ('banners', 'banners', true),
-  ('prescriptions', 'prescriptions', false);
+  ('prescriptions', 'prescriptions', false)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    public = EXCLUDED.public;
 
 CREATE POLICY "products_public_read" ON storage.objects FOR SELECT USING (bucket_id = 'products');
 CREATE POLICY "banners_public_read" ON storage.objects FOR SELECT USING (bucket_id = 'banners');
