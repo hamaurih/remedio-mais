@@ -83,6 +83,25 @@ declare
   v_line numeric;
   v_item_key text;
 begin
+  if v_idempotency is null then
+    raise exception 'idempotency_key_required';
+  end if;
+
+  -- Retentativas de uma chave já persistida continuam idempotentes mesmo se o
+  -- kill switch for acionado depois da primeira criação. Não há escrita aqui.
+  select id into v_existing
+  from public.orders
+  where external_idempotency_key = v_idempotency
+  limit 1;
+
+  if v_existing is not null then
+    return jsonb_build_object(
+      'ok', true,
+      'duplicate', true,
+      'order_id', v_existing
+    );
+  end if;
+
   select f.enabled, f.allowed_channels
     into v_db_enabled, v_db_channels
   from public.erp_runtime_flags f
@@ -95,23 +114,6 @@ begin
   if cardinality(coalesce(v_db_channels,'{}'::text[])) = 0
      or not (v_channel = any(v_db_channels)) then
     raise exception 'erp_order_channel_db_disabled:%', v_channel;
-  end if;
-
-  if v_idempotency is null then
-    raise exception 'idempotency_key_required';
-  end if;
-
-  select id into v_existing
-  from public.orders
-  where external_idempotency_key = v_idempotency
-  limit 1;
-
-  if v_existing is not null then
-    return jsonb_build_object(
-      'ok', true,
-      'duplicate', true,
-      'order_id', v_existing
-    );
   end if;
 
   if v_channel = 'site' then
