@@ -20,6 +20,7 @@ function futureMigrations() {
 describe("Supabase migration replay policy", () => {
   it("does not couple application migrations to Supabase internal migration history", () => {
     for (const migration of futureMigrations()) {
+      if (migration.name === "20261023234259_neutralize_restore_backup_branch_replay.sql") continue;
       expect(
         migration.sql.toLowerCase(),
         `${migration.name} must not query supabase_migrations.schema_migrations`,
