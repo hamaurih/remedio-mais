@@ -138,11 +138,4 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS trier_last_status_check_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS trier_error_message TEXT;
 
--- =========================================================
--- Remove old hourly cron job if exists
--- =========================================================
-DO $$
-BEGIN
-  PERFORM cron.unschedule('trier-sync-hourly');
-EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+-- Fresh preview branches do not need legacy cron cleanup.
