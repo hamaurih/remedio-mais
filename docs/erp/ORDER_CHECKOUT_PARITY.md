@@ -93,3 +93,23 @@ A progressão recomendada depois de homologação é:
 6. 100%.
 
 A progressão depende de métricas de erro, divergência de estoque, duplicidade, falha Cielo e envio Trier, não apenas de tempo.
+
+
+## Falha de rede não é rejeição
+
+Timeout ou erro de transporte após o POST para a Cielo é ambíguo: a autorização pode ter sido criada antes da conexão cair.
+
+Para pedidos ERP:
+
+- não liberamos a reserva em falha de rede ambígua;
+- o pedido vai para `payment_review`;
+- a reserva permanece até confirmação oficial ou expiração;
+- se uma aprovação chegar depois de a reserva ter sido liberada/expirada, o settlement falha e o Trier fica bloqueado para revisão.
+
+Pedidos legados preservam o comportamento atual enquanto o canário não está ativo.
+
+## Janela Pix
+
+O QR Pix atual é criado com expiração de 30 minutos.
+
+O Order Command força reserva mínima de 35 minutos para Pix, mesmo que a política geral de fulfillment esteja abaixo disso. Isso evita liberar estoque enquanto o QR ainda pode ser pago.
