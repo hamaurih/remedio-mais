@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { MessageCircle, Copy, AlertTriangle } from "lucide-react";
+import { MessageCircle, Copy, AlertTriangle, CheckCircle2, Clock3, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { RefundPanel } from "@/components/admin/RefundPanel";
 import { CustomerPurchaseAnalysisDialog, CustomerPurchaseSummary } from "@/components/admin/CustomerPurchaseInsights";
+import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel } from "@/components/admin/ErpPageShell";
 
 const PAYMENT_LABEL: Record<string, string> = {
   pending: "Pendente", approved: "Aprovado", rejected: "Recusado",
@@ -220,21 +221,33 @@ export default function AdminOrders() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-baseline justify-between mb-4">
-        <h1 className="text-2xl font-extrabold">Pedidos</h1>
-        {!isAdmin && <Badge variant="outline">Visão vendedor</Badge>}
+    <ErpPage>
+      <ErpPageHeader
+        title="Vendas e Pedidos"
+        description="Acompanhe pagamento, separação, entrega, receitas e exceções operacionais em uma única fila."
+        eyebrow="Operação"
+        icon={ShoppingBag}
+        actions={!isAdmin ? <Badge variant="outline">Visão vendedor</Badge> : undefined}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ErpMetricCard label="Pedidos" value={counts.todos || 0} icon={ShoppingBag} />
+        <ErpMetricCard label="Pagos" value={counts.pagos || 0} icon={CheckCircle2} tone="success" />
+        <ErpMetricCard label="Aguardando pagamento" value={counts.aguardando_pagamento || 0} icon={Clock3} tone={(counts.aguardando_pagamento || 0) > 0 ? "warning" : "default"} />
+        <ErpMetricCard label="Em revisão" value={counts.pagamento_revisao || 0} icon={AlertTriangle} tone={(counts.pagamento_revisao || 0) > 0 ? "warning" : "default"} />
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      <ErpPanel className="p-4">
+        <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${tab === t.key ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent"}`}>
             {t.label} <span className="opacity-70 ml-1">{counts[t.key] || 0}</span>
           </button>
         ))}
-      </div>
+        </div>
+      </ErpPanel>
 
-      <div className="bg-card border rounded-xl shadow-card overflow-x-auto">
+      <ErpPanel className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left"><tr><th className="p-3">#</th><th className="p-3">Data</th><th className="p-3">Cliente</th><th className="p-3">Tipo</th>{isAdmin && <th className="p-3">Total</th>}{isAdmin && <th className="p-3">Pagamento</th>}<th className="p-3">Separação</th><th className="p-3">Status</th><th></th></tr></thead>
           <tbody>
@@ -263,7 +276,7 @@ export default function AdminOrders() {
             {filtered.length === 0 && <tr><td colSpan={isAdmin ? 9 : 7} className="p-8 text-center text-muted-foreground">Nenhum pedido neste filtro.</td></tr>}
           </tbody>
         </table>
-      </div>
+      </ErpPanel>
 
       <CustomerPurchaseAnalysisDialog
         order={analysisOrder}
@@ -296,7 +309,7 @@ export default function AdminOrders() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </ErpPage>
   );
 }
 
