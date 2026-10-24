@@ -34,10 +34,51 @@ describe("admin ERP layout refresh", () => {
     expect(dashboard).toContain("rounded-2xl border bg-card");
   });
 
-  it("does not modify checkout or payment source files in this visual branch", () => {
-    const layout = readFileSync("src/pages/admin/AdminLayout.tsx", "utf8");
-    expect(layout).not.toContain("create-cielo-card");
-    expect(layout).not.toContain("erp_create_order_with_reservation");
-    expect(layout).not.toContain("send-order-to-trier");
+  it("wires the existing purchase and finance pages into the admin router", () => {
+    const app = readFileSync("src/App.tsx", "utf8");
+
+    expect(app).toContain('import("./pages/admin/AdminPurchaseOperations.tsx")');
+    expect(app).toContain('import("./pages/admin/AdminAccountsPayable.tsx")');
+    expect(app).toContain('import("./pages/admin/AdminReceivablesCashFlow.tsx")');
+    expect(app).toContain('path="compras-operacionais"');
+    expect(app).toContain('path="contas-a-pagar"');
+    expect(app).toContain('path="contas-a-receber"');
+  });
+
+  it("uses the shared ERP page shell on operational workspaces", () => {
+    for (const path of [
+      "src/pages/admin/AdminOrders.tsx",
+      "src/pages/admin/AdminStock.tsx",
+      "src/pages/admin/products/AdminProductsIntegrated.tsx",
+      "src/pages/admin/AdminSmartPurchasing.tsx",
+      "src/pages/admin/AdminPurchaseOperations.tsx",
+      "src/pages/admin/AdminAccountsPayable.tsx",
+      "src/pages/admin/AdminReceivablesCashFlow.tsx",
+    ]) {
+      const source = readFileSync(path, "utf8");
+      expect(source).toContain("ErpPage");
+      expect(source).toContain("ErpPageHeader");
+    }
+  });
+
+  it("keeps visual work isolated from checkout/payment/order-command implementation", () => {
+    const files = [
+      "src/pages/admin/AdminLayout.tsx",
+      "src/pages/admin/AdminHome.tsx",
+      "src/pages/admin/AdminDashboard.tsx",
+      "src/pages/admin/AdminOrders.tsx",
+      "src/pages/admin/AdminStock.tsx",
+      "src/pages/admin/products/AdminProductsIntegrated.tsx",
+      "src/pages/admin/AdminSmartPurchasing.tsx",
+      "src/pages/admin/AdminPurchaseOperations.tsx",
+      "src/pages/admin/AdminAccountsPayable.tsx",
+      "src/pages/admin/AdminReceivablesCashFlow.tsx",
+    ];
+
+    for (const path of files) {
+      const source = readFileSync(path, "utf8");
+      expect(source).not.toContain("erp_create_order_with_reservation");
+      expect(source).not.toContain("ERP_ORDER_COMMAND_ENABLED");
+    }
   });
 });
