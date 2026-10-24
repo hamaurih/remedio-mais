@@ -138,16 +138,4 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS trier_last_status_check_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS trier_error_message TEXT;
 
--- =========================================================
--- Remove old hourly cron job if exists
--- =========================================================
-DO $
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
-    BEGIN
-      EXECUTE 'SELECT cron.unschedule(''trier-sync-hourly'')';
-    EXCEPTION WHEN OTHERS THEN
-      NULL;
-    END;
-  END IF;
-END $;
+-- Fresh preview branches do not need legacy cron cleanup.
