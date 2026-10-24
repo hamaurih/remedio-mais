@@ -143,7 +143,8 @@ describe("ERP checkout parity", () => {
     expect(sql).toContain("case when v_trier_eligible then 'pending' else 'not_required' end");
     expect(sql).toContain("grant select on table");
     expect(sql).toContain("grant insert on table");
-    expect(sql).toContain("grant update,delete on table public.orders to service_role");\n    expect(sql).toContain("grant update on table public.inventory_balances to service_role");
+    expect(sql).toContain("grant update,delete on table public.orders to service_role");
+    expect(sql).toContain("grant update on table public.inventory_balances to service_role");
   });
 
   it("staging resolve preço, variante e receita antes de chamar o RPC", () => {
