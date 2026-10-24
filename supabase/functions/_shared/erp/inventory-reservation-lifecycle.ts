@@ -51,3 +51,18 @@ export async function settleOrderInventoryForPayment(
 
   return { ok: true, active_items: 0 };
 }
+
+
+export async function releaseInventoryBeforeOrderDelete(
+  admin: SupabaseClient,
+  orderId: string,
+  reason: "payment_failed" | "cancelled" = "payment_failed",
+): Promise<InventoryLifecycleResult> {
+  const result = await releaseOrderInventoryIfReserved(admin, orderId, reason);
+  if (!result.ok) return result;
+
+  const { error } = await admin.from("orders").delete().eq("id", orderId);
+  if (error) return { ok: false, error: error.message };
+
+  return result;
+}
