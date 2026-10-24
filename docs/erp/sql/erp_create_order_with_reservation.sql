@@ -90,6 +90,17 @@ create unique index if not exists variant_inventory_ledger_idempotency_uq
 create index if not exists variant_inventory_ledger_store_variant_created_idx
   on public.variant_inventory_ledger(store_id,variant_id,created_at desc);
 
+-- Índices de cobertura para FKs das tabelas de estoque por variante.
+create index if not exists variant_inventory_balances_store_idx
+  on public.variant_inventory_balances(store_id);
+create index if not exists variant_inventory_balances_variant_idx
+  on public.variant_inventory_balances(variant_id);
+create index if not exists variant_inventory_ledger_tenant_idx
+  on public.variant_inventory_ledger(tenant_id);
+create index if not exists variant_inventory_ledger_variant_idx
+  on public.variant_inventory_ledger(variant_id);
+
+
 alter table public.variant_inventory_balances enable row level security;
 alter table public.variant_inventory_ledger enable row level security;
 revoke all on table public.variant_inventory_balances from public,anon,authenticated;
