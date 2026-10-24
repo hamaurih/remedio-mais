@@ -7,7 +7,12 @@ describe("Cielo credential isolation", () => {
     expect(helper).toContain("CIELO_SANDBOX_MERCHANT_ID");
     expect(helper).toContain("CIELO_SANDBOX_MERCHANT_KEY");
     expect(helper).toContain('environment === "sandbox"');
-    expect(helper).not.toContain('envMerchantId || String(idRes.data || "").trim()');
+    expect(helper).toContain("idVault: \"CIELO_SANDBOX_MERCHANT_ID\"");
+    expect(helper).toContain("keyVault: \"CIELO_SANDBOX_MERCHANT_KEY\"");
+    expect(helper).toContain("idVault: \"CIELO_MERCHANT_ID\"");
+    expect(helper).toContain("keyVault: \"CIELO_MERCHANT_KEY\"");
+    expect(helper).toContain('p_name: names.idVault');
+    expect(helper).toContain('p_name: names.keyVault');
   });
 
   it("admin saves credentials into the currently selected environment", () => {
