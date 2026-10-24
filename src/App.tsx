@@ -64,6 +64,9 @@ const AdminProductsImport = lazyWithRetry(() => import("./pages/admin/AdminProdu
 const AdminProductsReconcile = lazyWithRetry(() => import("./pages/admin/AdminProductsReconcile.tsx"));
 const AdminStock = lazyWithRetry(() => import("./pages/admin/AdminStock.tsx"));
 const AdminSmartPurchasing = lazyWithRetry(() => import("./pages/admin/AdminSmartPurchasing.tsx"));
+const AdminPurchaseOperations = lazyWithRetry(() => import("./pages/admin/AdminPurchaseOperations.tsx"));
+const AdminAccountsPayable = lazyWithRetry(() => import("./pages/admin/AdminAccountsPayable.tsx"));
+const AdminReceivablesCashFlow = lazyWithRetry(() => import("./pages/admin/AdminReceivablesCashFlow.tsx"));
 const AdminCustomers = lazyWithRetry(() => import("./pages/admin/AdminCustomers.tsx"));
 const AdminRegistrations = lazyWithRetry(() => import("./pages/admin/AdminRegistrations.tsx"));
 const AdminSellers = lazyWithRetry(() => import("./pages/admin/AdminSellers.tsx"));
@@ -169,6 +172,9 @@ const App = () => (
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
               <Route path="estoque" element={<AdminStock />} />
               <Route path="compras" element={<AdminSmartPurchasing />} />
+              <Route path="compras-operacionais" element={<AdminPurchaseOperations />} />
+              <Route path="contas-a-pagar" element={<AdminAccountsPayable />} />
+              <Route path="contas-a-receber" element={<AdminReceivablesCashFlow />} />
               <Route path="clientes" element={<AdminCustomers />} />
               <Route path="cadastros" element={<AdminRegistrations />} />
               <Route path="vendedores" element={<AdminSellers />} />
