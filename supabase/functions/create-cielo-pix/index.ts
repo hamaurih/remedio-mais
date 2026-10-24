@@ -4,6 +4,7 @@ import { safeLog, safeError } from "../_shared/mask.ts";
 import { prepareOrder, jsonResp } from "../_shared/prepare-order.ts";
 import { CIELO_BASES, toCents, mapCieloStatus, type CieloEnv } from "../_shared/cielo.ts";
 import { getCieloCredentials } from "../_shared/cielo-credentials.ts";
+import { releaseOrderInventoryIfReserved, settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,7 @@ Deno.serve(async (req) => {
 
   const { merchantId: MERCHANT_ID, merchantKey: MERCHANT_KEY } = await getCieloCredentials(admin);
   if (!MERCHANT_ID || !MERCHANT_KEY) {
+    await releaseOrderInventoryIfReserved(admin, order.id, "payment_failed");
     await admin.from("orders").delete().eq("id", order.id);
     return jsonResp({ success: false, error: "Cielo não configurada (credenciais ausentes)." }, 500);
   }
@@ -47,6 +49,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     safeError("[cielo-pix] network error", { message: (e as Error).message });
     await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    await releaseOrderInventoryIfReserved(admin, order.id, "payment_failed");
     return jsonResp({ success: false, error: "Falha ao contatar Cielo." }, 502);
   }
 
@@ -56,6 +59,7 @@ Deno.serve(async (req) => {
   if (!res.ok) {
     safeError("[cielo-pix] rejected", { status: res.status, body: cielo });
     await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    await releaseOrderInventoryIfReserved(admin, order.id, "cielo_rejected");
     const firstErr = Array.isArray(cielo) ? cielo[0] : cielo;
     return jsonResp({ success: false, error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento Pix.", details: cielo }, 502);
   }
@@ -66,10 +70,26 @@ Deno.serve(async (req) => {
   const paymentId = pay.PaymentId as string | undefined;
   const statusCode = Number(pay.Status ?? 12);
   const status = mapCieloStatus(statusCode);
-  if (!qr || !qrBase64 || !paymentId) return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
+  if (!qr || !qrBase64 || !paymentId) {
+    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    await releaseOrderInventoryIfReserved(admin, order.id, "cielo_rejected");
+    return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
+  }
 
   const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000).toISOString();
   await admin.from("orders").update({ cielo_payment_id: paymentId, cielo_status: statusCode, pix_qr_code: qr, pix_qr_code_base64: qrBase64, pix_expires_at: expiresAt, payment_status: status, external_reference: order.id }).eq("id", order.id);
+  if (status === "approved" || status === "rejected" || status === "cancelled") {
+    const inventory = await settleOrderInventoryForPayment(admin, order.id, status);
+    if (!inventory.ok) {
+      safeError("[cielo-pix] inventory settlement failed", { order_id: order.id, status, error: inventory.error });
+      await admin.from("payment_errors").insert({
+        stage: "cielo_pix_inventory_settlement",
+        message: inventory.error || "inventory_settlement_failed",
+        order_id: order.id,
+        payload_summary: { payment_status: status },
+      });
+    }
+  }
   safeLog("[cielo-pix] success", { order_id: order.id, paymentId, statusCode });
   return jsonResp({ success: true, order_id: order.id, payment_id: paymentId, status, qr_code: qr, qr_code_base64: qrBase64, expires_at: expiresAt, total });
 });
