@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { normalizeOrderCommandPayload } from "../../supabase/functions/_shared/erp/order-command-contract";
+import { resolveSiteDeliveryFee } from "../../supabase/functions/_shared/erp/site-delivery-pricing";
 
 describe("ERP checkout parity", () => {
   it("normaliza o contrato completo do checkout sem confiar em strings livres", () => {
@@ -106,6 +107,35 @@ describe("ERP checkout parity", () => {
     expect(sql).toContain("rx.product_id=p.id");
     expect(sql).toContain("invalid_prescription");
     expect(sql).toContain("pending_collection");
+  });
+
+  it("calcula frete do site no servidor e ignora desconto livre", () => {
+    expect(resolveSiteDeliveryFee(
+      { type: "pickup" },
+      { delivery_fee: 9.9, delivery_mode: "flat" },
+    )).toEqual({ ok: true, fee: 0, distance_km: null, mode: "pickup" });
+
+    expect(resolveSiteDeliveryFee(
+      { type: "delivery" },
+      { delivery_fee: 7.5, delivery_mode: "flat" },
+    )).toEqual({ ok: true, fee: 7.5, distance_km: null, mode: "flat" });
+
+    const code = readFileSync("supabase/functions/erp-order-command-staging/index.ts", "utf8");
+    expect(code).toContain("resolveSiteDeliveryFee");
+    expect(code).toContain("deliveryFee = deliveryPricing.fee");
+    expect(code).toContain("discount = 0");
+  });
+
+  it("deriva elegibilidade Trier somente do ambiente protegido do banco", () => {
+    const sql = readFileSync(
+      "supabase/migrations/20261024025000_erp_order_command_guarded_foundation.sql",
+      "utf8",
+    );
+
+    expect(sql).toContain("v_db_environment");
+    expect(sql).toContain("v_trier_eligible:=(v_db_environment='production')");
+    expect(sql).toContain("erp_site_canary");
+    expect(sql).toContain("case when v_trier_eligible then 'pending' else 'not_required' end");
   });
 
   it("staging resolve preço, variante e receita antes de chamar o RPC", () => {
