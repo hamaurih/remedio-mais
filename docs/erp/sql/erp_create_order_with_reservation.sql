@@ -15,6 +15,32 @@ create unique index if not exists orders_order_code_unique
   on public.orders(order_code)
   where order_code is not null;
 
+
+-- Segunda trava: mesmo com Edge Function mal configurada, o banco nasce bloqueado.
+create table if not exists public.erp_runtime_flags (
+  flag_key text primary key,
+  enabled boolean not null default false,
+  environment text not null default 'production',
+  allowed_channels text[] not null default '{}'::text[],
+  canary_percent numeric(5,2) not null default 0
+    check (canary_percent >= 0 and canary_percent <= 100),
+  metadata jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.erp_runtime_flags enable row level security;
+revoke all on table public.erp_runtime_flags from public, anon, authenticated;
+grant select, update on table public.erp_runtime_flags to service_role;
+
+insert into public.erp_runtime_flags(
+  flag_key,enabled,environment,allowed_channels,canary_percent,metadata
+)
+values(
+  'order_command_write',false,'production','{}'::text[],0,
+  jsonb_build_object('created_by','migration','safety','default_off')
+)
+on conflict (flag_key) do nothing;
+
 -- NÃO executar em produção sem passar pela branch Supabase de homologação.
 --
 -- Objetivo: criar pedido + itens + reservas de estoque em uma única transação.
@@ -45,6 +71,8 @@ declare
   v_order_id uuid := gen_random_uuid();
   v_order_code text := 'ERP-' || to_char(clock_timestamp(),'YYMMDD') || '-' || upper(substr(replace(v_order_id::text,'-',''),1,6));
   v_existing uuid;
+  v_db_enabled boolean := false;
+  v_db_channels text[] := '{}'::text[];
   v_reservation_minutes integer := 30;
   v_expires_at timestamptz;
   it jsonb;
@@ -55,6 +83,20 @@ declare
   v_line numeric;
   v_item_key text;
 begin
+  select f.enabled, f.allowed_channels
+    into v_db_enabled, v_db_channels
+  from public.erp_runtime_flags f
+  where f.flag_key='order_command_write';
+
+  if coalesce(v_db_enabled,false) is not true then
+    raise exception 'erp_order_command_db_disabled';
+  end if;
+
+  if cardinality(coalesce(v_db_channels,'{}'::text[])) = 0
+     or not (v_channel = any(v_db_channels)) then
+    raise exception 'erp_order_channel_db_disabled:%', v_channel;
+  end if;
+
   if v_idempotency is null then
     raise exception 'idempotency_key_required';
   end if;
