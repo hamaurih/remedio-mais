@@ -4,7 +4,7 @@ import { safeLog, safeError } from "../_shared/mask.ts";
 import { prepareOrder, jsonResp } from "../_shared/prepare-order.ts";
 import { CIELO_BASES, toCents, mapCieloStatus, type CieloEnv } from "../_shared/cielo.ts";
 import { getCieloCredentials } from "../_shared/cielo-credentials.ts";
-import { releaseOrderInventoryIfReserved, settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
+import { releaseInventoryBeforeOrderDelete, releaseOrderInventoryIfReserved, settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -21,8 +21,16 @@ Deno.serve(async (req) => {
 
   const { merchantId: MERCHANT_ID, merchantKey: MERCHANT_KEY } = await getCieloCredentials(admin);
   if (!MERCHANT_ID || !MERCHANT_KEY) {
-    await releaseOrderInventoryIfReserved(admin, order.id, "payment_failed");
-    await admin.from("orders").delete().eq("id", order.id);
+    const rollback = await releaseInventoryBeforeOrderDelete(admin, order.id, "payment_failed");
+    if (!rollback.ok) {
+      safeError("[cielo-pix] rollback before delete failed", { order_id: order.id, error: rollback.error });
+      await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+      await admin.from("payment_errors").insert({
+        stage: "cielo_pix_precharge_rollback",
+        message: rollback.error || "inventory_release_failed",
+        order_id: order.id,
+      });
+    }
     return jsonResp({ success: false, error: "Cielo não configurada (credenciais ausentes)." }, 500);
   }
 
