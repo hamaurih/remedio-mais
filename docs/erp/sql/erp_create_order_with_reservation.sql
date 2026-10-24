@@ -211,7 +211,9 @@ declare
   v_order_code text := 'ERP-' || to_char(clock_timestamp(),'YYMMDD') || '-' || upper(substr(replace(v_order_id::text,'-',''),1,6));
   v_existing uuid;
   v_db_enabled boolean := false;
+  v_db_environment text := 'production';
   v_db_channels text[] := '{}'::text[];
+  v_trier_eligible boolean := false;
   v_reservation_minutes integer := 30;
   v_expires_at timestamptz;
   v_prescription_original_required boolean := false;
@@ -241,8 +243,8 @@ begin
     return jsonb_build_object('ok',true,'duplicate',true,'order_id',v_existing);
   end if;
 
-  select f.enabled,f.allowed_channels
-    into v_db_enabled,v_db_channels
+  select f.enabled,f.environment,f.allowed_channels
+    into v_db_enabled,v_db_environment,v_db_channels
   from public.erp_runtime_flags f
   where f.flag_key='order_command_write';
 
@@ -255,7 +257,9 @@ begin
   end if;
 
   if v_channel='site' then
-    v_db_channel:='site'; v_source:='erp_staging_site';
+    v_db_channel:='site';
+    v_source:=case when v_db_environment='production' then 'erp_site_canary' else 'erp_staging_site' end;
+    v_trier_eligible:=(v_db_environment='production');
   elsif v_channel='pdv' then
     v_db_channel:='pdv'; v_source:='erp_staging_pdv';
   elsif v_channel in ('whatsapp_ia','whatsapp_humano') then
@@ -445,7 +449,7 @@ begin
     case when v_prescription_original_required then 'pending_collection' else 'not_required' end,
     left(v_meta_fbp,128),left(v_meta_fbc,256),
     v_db_channel,v_source,nullif(_payload->>'created_by',''),v_idempotency,
-    false,'not_required',false
+    v_trier_eligible,case when v_trier_eligible then 'pending' else 'not_required' end,false
   )
   returning id into v_order_id;
 
