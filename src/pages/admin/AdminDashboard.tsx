@@ -29,13 +29,13 @@ export default function AdminDashboard() {
   const k = kpis.data;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px]">
-      <div className="flex items-end justify-between flex-wrap gap-3">
+    <div className="mx-auto max-w-[1480px] space-y-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm md:flex-row md:items-end md:justify-between md:p-6">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Painel BI</h1>
-          <p className="text-sm text-muted-foreground">Visão executiva: vendas, catálogo, estoque e operação.</p>
+          <h1 className="text-2xl font-black tracking-tight md:text-3xl">BI Executivo</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Indicadores de vendas, estoque, catálogo e saúde operacional em uma única visão.</p>
         </div>
-        <div className="flex gap-1 bg-secondary/60 p-1 rounded-lg">
+        <div className="flex w-fit gap-1 rounded-xl border bg-muted/40 p-1">
           {ADMIN_DASHBOARD_RANGES.map((r) => (
             <button
               key={r.key}
@@ -50,7 +50,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 md:gap-4">
         <KpiCard
           icon={DollarSign}
           label={`Receita (${days}d)`}
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 md:gap-4">
         <KpiCard icon={Boxes} label="Valor em estoque" value={formatBRL(k?.stockValue ?? 0)} hint="ativos · stock × preço" />
         <KpiCard icon={Package} label="Catálogo ativo" value={k?.prodActive ?? "—"} hint={`${k?.prodAll ?? 0} cadastrados`} />
         <KpiCard
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
         } : undefined}
       />
 
-      <div className="grid lg:grid-cols-3 gap-4">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Últimos pedidos</CardTitle>
@@ -173,7 +173,7 @@ function KpiCard({
   icon: Icon, label, value, hint, accent, warn,
 }: { icon: any; label: string; value: any; hint?: string; accent?: boolean; warn?: boolean }) {
   return (
-    <div className={`rounded-xl border p-5 shadow-card transition-all hover:shadow-lg ${
+    <div className={`rounded-2xl border p-4 shadow-sm transition-all hover:shadow-md md:p-5 ${
       accent ? "bg-gradient-to-br from-primary/10 via-card to-card border-primary/30" :
       warn ? "border-amber-500/40 bg-amber-50/40" : "bg-card"
     }`}>
