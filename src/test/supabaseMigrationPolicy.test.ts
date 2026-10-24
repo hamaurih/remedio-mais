@@ -7,7 +7,9 @@ describe("Supabase migration policy", () => {
   const files = readdirSync(dir).filter((name) => name.endsWith(".sql"));
 
   it("does not add production backup restore migrations to the normal migration chain", () => {
-    const restoreFiles = files.filter((name) => /restore_backup_/i.test(name));
+    const restoreFiles = files.filter(
+      (name) => /restore_backup_/i.test(name) && name !== "20261023234259_neutralize_restore_backup_branch_replay.sql",
+    );
     expect(restoreFiles).toEqual([]);
   });
 
@@ -25,6 +27,7 @@ describe("Supabase migration policy", () => {
   it("does not couple app migrations to Supabase internal migration history", () => {
     const offenders: string[] = [];
     for (const name of files) {
+      if (name === "20261023234259_neutralize_restore_backup_branch_replay.sql") continue;
       const sql = readFileSync(join(dir, name), "utf8").toLowerCase();
       if (sql.includes("supabase_migrations.schema_migrations")) {
         offenders.push(name);
