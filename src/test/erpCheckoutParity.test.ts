@@ -137,6 +137,9 @@ describe("ERP checkout parity", () => {
     expect(sql).toContain("v_trier_eligible:=(v_db_environment='production')");
     expect(sql).toContain("erp_site_canary");
     expect(sql).toContain("case when v_trier_eligible then 'pending' else 'not_required' end");
+    expect(sql).toContain("grant select on table");
+    expect(sql).toContain("grant insert on table");
+    expect(sql).toContain("grant update,delete on table public.orders to service_role");
   });
 
   it("staging resolve preço, variante e receita antes de chamar o RPC", () => {
