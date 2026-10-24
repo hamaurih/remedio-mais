@@ -89,5 +89,6 @@ describe("ERP Order Canary safe observation", () => {
     expect(sql).toContain("erp_order_channel_db_disabled");
     expect(sql).toContain("security invoker");
     expect(sql).toContain("grant execute on function public.erp_create_order_with_reservation(jsonb) to service_role");
+    expect(sql.indexOf("select id into v_existing")).toBeLessThan(sql.indexOf("erp_order_command_db_disabled"));
   });
 });
