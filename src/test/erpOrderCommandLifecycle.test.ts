@@ -24,9 +24,9 @@ describe("ERP Order Command lifecycle", () => {
   it("precifica no servidor e não confia em unit_price enviado pelo cliente", () => {
     const code = readFileSync("supabase/functions/erp-order-command-staging/index.ts", "utf8");
     expect(code).toContain("buildProductReadModel");
-    expect(code).toContain("validateOrderDryRun");
+    expect(code).toContain("normalizeOrderCommandPayload");
     expect(code).toContain("server_priced: true");
-    expect(code).toContain("unit_price: item.unit_price");
+    expect(code).toContain("unit_price: unitPrice");
     expect(code).not.toContain("const unitPrice = Number(item?.unit_price)");
   });
 
@@ -45,7 +45,7 @@ describe("ERP Order Command lifecycle", () => {
     expect(sql).toContain("public.fulfillment_policies");
     expect(sql).toContain("reservation_minutes");
     expect(sql).not.toContain("interval '15 minutes'");
-    expect(sql).toContain("duplicate_product");
+    expect(sql).toContain("duplicate_item");
     expect(sql).toContain("erp_expire_due_reservations");
     expect(sql).toContain("release_order_inventory_internal");
   });
