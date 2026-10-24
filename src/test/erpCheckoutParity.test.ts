@@ -93,6 +93,10 @@ describe("ERP checkout parity", () => {
     expect(sql).toContain("variant_inventory_balance_missing");
     expect(sql).toContain("insufficient_variant_stock");
     expect(sql).toContain("order_inventory_reservation_active_variant_uq");
+    expect(sql).toContain("variant_inventory_balances_store_idx");
+    expect(sql).toContain("variant_inventory_balances_variant_idx");
+    expect(sql).toContain("variant_inventory_ledger_tenant_idx");
+    expect(sql).toContain("variant_inventory_ledger_variant_idx");
     expect(sql).not.toContain("min(id) as store_id");
     expect(sql).not.toContain("as $\ndeclare");
     expect(sql).not.toContain("end;\n$;");
