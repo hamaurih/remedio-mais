@@ -155,7 +155,8 @@ describe("ERP checkout parity", () => {
     const status = readFileSync("supabase/functions/check-cielo-status/index.ts", "utf8");
     const reconcile = readFileSync("supabase/functions/cielo-reconcile-pending/index.ts", "utf8");
 
-    expect(pix).toContain("releaseOrderInventoryIfReserved");
+    expect(pix).toContain("releaseInventoryBeforeOrderDelete");
+    expect(card).toContain("releaseInventoryBeforeOrderDelete");
     expect(card).toContain("settleOrderInventoryForPayment");
     expect(card).toContain('status==="approved"&&inventory.ok');
     expect(webhook).toContain("settleOrderInventoryForPayment");
