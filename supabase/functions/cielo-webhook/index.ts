@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCieloCredentials } from "../_shared/cielo-credentials.ts";
 import { CIELO_BASES, mapCieloStatus, type CieloEnv } from "../_shared/cielo.ts";
 import { safeError, maskId } from "../_shared/mask.ts";
+import { settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_BYTES = 4096;
@@ -45,10 +46,19 @@ Deno.serve(async(req)=>{
     if(firstApproval){update.order_status="pago";update.status="em_atendimento";update.paid_at=new Date().toISOString();}
     if((newStatus==="cancelled"||newStatus==="rejected")&&!order.cancelled_at)update.cancelled_at=new Date().toISOString();
     await admin.from("orders").update(update).eq("id",order.id); await admin.from("payment_events").update({processed:true,order_id:order.id}).eq("external_id",externalId);
-    if(firstApproval){
+    const inventory=await settleOrderInventoryForPayment(admin,order.id,newStatus);
+    if(!inventory.ok){
+      safeError("[cielo-webhook] inventory settlement failed",{order_id:order.id,status:newStatus,error:inventory.error});
+      await admin.from("payment_errors").insert({stage:"cielo_webhook_inventory_settlement",message:inventory.error||"inventory_settlement_failed",order_id:order.id,payload_summary:{payment_status:newStatus}});
+      await admin.from("admin_notifications").insert({type:"payment_review",title:"Pagamento aprovado com estoque em revisão",message:`Pedido #${String(order.id).slice(0,6)} exige conferência da reserva de estoque.`,order_id:order.id});
+    }
+    if(firstApproval&&inventory.ok){
       await admin.from("admin_notifications").insert({type:"order_paid",title:"Produto vendido",message:`Pedido #${String(order.id).slice(0,6)} pago e confirmado pela Cielo.`,order_id:order.id});
       try{const {data:tset}=await admin.from("trier_settings").select("auto_send_orders_enabled").eq("id",1).maybeSingle();if((tset as any)?.auto_send_orders_enabled&&order.sales_channel==="site")fetch(`${SUPABASE_URL}/functions/v1/send-order-to-trier`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SERVICE}`,"x-internal-source":"cielo-webhook"},body:JSON.stringify({order_id:order.id})}).catch(()=>{});}catch{}
       fetch(`${SUPABASE_URL}/functions/v1/meta-conversions-api`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SERVICE}`,"x-internal-source":"cielo-webhook"},body:JSON.stringify({action:"purchase",order_id:order.id})}).catch(()=>{});
+    }
+    if(firstApproval&&!inventory.ok){
+      fetch(`${SUPABASE_URL}/functions/v1/meta-conversions-api`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SERVICE}`,"x-internal-source":"cielo-webhook-inventory-review"},body:JSON.stringify({action:"purchase",order_id:order.id})}).catch(()=>{});
     }
     return ok();
   }catch(e){safeError("[cielo-webhook] unexpected",{message:e instanceof Error?e.message:"unknown"});return ok();}
