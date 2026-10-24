@@ -317,6 +317,11 @@ begin
   from public.fulfillment_policies fp
   where fp.tenant_id=v_tenant_id;
   v_reservation_minutes:=greatest(5,least(coalesce(v_reservation_minutes,30),240));
+  -- O QR Pix atual expira em 30 minutos. Mantemos uma margem operacional
+  -- para impedir liberação do estoque enquanto o pagamento ainda pode concluir.
+  if v_payment_method='pix' then
+    v_reservation_minutes:=greatest(v_reservation_minutes,35);
+  end if;
   v_expires_at:=now()+make_interval(mins=>v_reservation_minutes);
 
   -- Locks estáveis para produtos sem variante.
