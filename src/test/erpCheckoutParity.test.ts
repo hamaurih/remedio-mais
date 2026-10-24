@@ -165,6 +165,29 @@ describe("ERP checkout parity", () => {
     expect(status).toContain("firstApproval&&inventory.ok");
     expect(reconcile).toContain("settleOrderInventoryForPayment");
     expect(reconcile).toContain("first&&inventory.ok");
+    expect(pix).toContain("cielo_pix_network_ambiguous");
+    expect(card).toContain("cielo_card_network_ambiguous");
+    expect(pix).toContain("payment_review");
+    expect(card).toContain("payment_review");
+  });
+
+  it("não permite aprovação ERP sem reserva ainda comittable", () => {
+    const lifecycle = readFileSync(
+      "supabase/functions/_shared/erp/inventory-reservation-lifecycle.ts",
+      "utf8",
+    );
+    expect(lifecycle).toContain("erp_reservation_missing");
+    expect(lifecycle).toContain("erp_reservation_no_longer_committable");
+    expect(lifecycle).toContain("erp_inventory_commit_incomplete");
+  });
+
+  it("mantém reserva Pix além da expiração de 30 minutos do QR", () => {
+    const sql = readFileSync(
+      "supabase/migrations/20261024025000_erp_order_command_guarded_foundation.sql",
+      "utf8",
+    );
+    expect(sql).toContain("v_payment_method='pix'");
+    expect(sql).toContain("greatest(v_reservation_minutes,35)");
   });
 
   it("canário real continua desativado nesta branch", () => {
