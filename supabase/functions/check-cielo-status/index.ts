@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCieloCredentials } from "../_shared/cielo-credentials.ts";
+import { settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,10 +54,18 @@ Deno.serve(async(req)=>{
     if(firstApproval){update.order_status="pago";update.status="em_atendimento";update.paid_at=new Date().toISOString()}
     else if(["cancelled","rejected"].includes(paymentStatus)&&!order.cancelled_at) update.cancelled_at=new Date().toISOString();
     const {error:updateError}=await admin.from("orders").update(update).eq("id",order.id); if(updateError) return json({error:"Falha ao atualizar conciliação"},500);
-    if(firstApproval){
+    const inventory=await settleOrderInventoryForPayment(admin,order.id,paymentStatus);
+    if(!inventory.ok){
+      await admin.from("payment_errors").insert({stage:"check_cielo_inventory_settlement",message:inventory.error||"inventory_settlement_failed",order_id:order.id,payload_summary:{payment_status:paymentStatus}});
+      await admin.from("admin_notifications").insert({type:"payment_review",title:"Pagamento aprovado com estoque em revisão",message:`Pedido #${String(order.id).slice(0,6)} exige conferência da reserva de estoque.`,order_id:order.id});
+    }
+    if(firstApproval&&inventory.ok){
       await admin.from("admin_notifications").insert({type:"order_paid",title:"Produto vendido",message:`Pedido #${String(order.id).slice(0,6)} pago e confirmado pela Cielo.`,order_id:order.id});
       try{const {data:tset}=await admin.from("trier_settings").select("auto_send_orders_enabled").eq("id",1).maybeSingle(); if((tset as any)?.auto_send_orders_enabled&&order.sales_channel==="site") fetch(`${SUPABASE_URL}/functions/v1/send-order-to-trier`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SERVICE}`,"x-internal-source":"check-cielo-status"},body:JSON.stringify({order_id:order.id})}).catch(()=>{});}catch{}
       fetch(`${SUPABASE_URL}/functions/v1/meta-conversions-api`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SERVICE}`,"x-internal-source":"check-cielo-status"},body:JSON.stringify({action:"purchase",order_id:order.id})}).catch(()=>{});
+    }
+    if(firstApproval&&!inventory.ok){
+      fetch(`${SUPABASE_URL}/functions/v1/meta-conversions-api`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${SERVICE}`,"x-internal-source":"check-cielo-status-inventory-review"},body:JSON.stringify({action:"purchase",order_id:order.id})}).catch(()=>{});
     }
     return json({order_id:order.id,payment_status:paymentStatus,cielo_status:code,reconciliation:"ok"});
   }catch(e){console.error("[check-cielo] unexpected",e instanceof Error?e.message:"unknown");return json({error:"Falha interna de conciliação"},500)}
