@@ -150,7 +150,7 @@ for each row execute function private.apply_variant_inventory_ledger_balance();
 -- possui exatamente uma loja ativa de fulfillment. Em ambientes multi-loja,
 -- nenhuma distribuição é inventada.
 with single_store as (
-  select tenant_id,min(id) as store_id
+  select tenant_id,max(id::text)::uuid as store_id
   from public.stores
   where active=true and ecommerce_fulfillment_enabled=true
   group by tenant_id
