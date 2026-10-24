@@ -74,7 +74,7 @@ describe("ERP Order Canary safe observation", () => {
   it("prepare-order continua sem chamar o novo RPC", () => {
     const code = readFileSync("supabase/functions/_shared/prepare-order.ts", "utf8");
     expect(code).toContain("evaluateOrderCanary");
-    expect(code).toContain('route: "legacy"');
+    expect(code).toContain("canaryDecision.route");
     expect(code).not.toContain("erp_create_order_with_reservation");
     expect(code).toContain('admin.from("orders").insert');
   });
