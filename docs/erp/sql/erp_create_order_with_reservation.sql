@@ -712,5 +712,5 @@ grant insert on table
   public.variant_inventory_ledger
 to service_role;
 
-grant update,delete on table public.orders to service_role;
+grant update,delete on table public.orders to service_role;\ngrant update on table public.inventory_balances to service_role;
 
