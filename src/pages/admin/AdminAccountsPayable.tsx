@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CheckCircle2, CircleDollarSign, CreditCard, Edit2, FilePlus2, Loader2, Plus, WalletCards, XCircle } from "lucide-react";
+import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel } from "@/components/admin/ErpPageShell";
+import { AlertTriangle, CheckCircle2, CircleDollarSign, CreditCard, Edit2, FilePlus2, Loader2, Plus, WalletCards, XCircle } from "lucide-react";
 
 const labels: Record<string, string> = {
   draft: "Rascunho", pending: "Pendente", approved: "Aprovada", partially_paid: "Parcial",
@@ -69,23 +70,28 @@ export default function AdminAccountsPayable() {
     const { error } = await (supabase as any).rpc("cancel_accounts_payable", { _account_id: id });
     if (error) toast.error(error.message); else { toast.success("Conta cancelada."); refresh(); }
   };
-  return <div className="p-6 space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="text-2xl font-extrabold">Contas a Pagar</h1><p className="text-sm text-muted-foreground mt-1">Controle de despesas, fornecedores, vencimentos e pagamentos do ERP.</p></div>
-      <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />Nova conta</Button>
+  return <ErpPage>
+    <ErpPageHeader
+      title="Contas a Pagar"
+      description="Controle despesas, fornecedores, vencimentos, aprovações e baixas sem perder a visão do caixa comprometido."
+      eyebrow="Financeiro"
+      icon={WalletCards}
+      actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />Nova conta</Button>}
+    />
+    <div className="grid gap-3 md:grid-cols-3">
+      <ErpMetricCard label="Em aberto" value={money(totals.open)} icon={WalletCards} />
+      <ErpMetricCard label="Aprovado / vencido" value={money(totals.due)} icon={AlertTriangle} tone={totals.due > 0 ? "warning" : "default"} />
+      <ErpMetricCard label="Pago no período carregado" value={money(totals.paid)} icon={CheckCircle2} tone="success" />
     </div>
-    <div className="grid gap-4 md:grid-cols-3">
-      <Metric icon={WalletCards} label="Em aberto" value={money(totals.open)} />
-      <Metric icon={CircleDollarSign} label="Aprovado / vencido" value={money(totals.due)} />
-      <Metric icon={CheckCircle2} label="Pago no período carregado" value={money(totals.paid)} />
-    </div>
-    <div className="bg-card border rounded-xl p-4 flex flex-wrap gap-2">
-      {["all", "draft", "approved", "overdue", "paid"].map((s) => <Button key={s} size="sm" variant={filter === s ? "default" : "outline"} onClick={() => setFilter(s)}>{s === "all" ? "Todas" : labels[s]}</Button>)}
-    </div>
-    <div className="bg-card border rounded-xl overflow-x-auto">
-      <table className="w-full text-sm"><thead className="bg-secondary text-left"><tr><th className="p-3">Descrição</th><th className="p-3">Fornecedor</th><th className="p-3">Vencimento</th><th className="p-3">Valor</th><th className="p-3">Status</th><th className="p-3">Ação</th></tr></thead>
+    <ErpPanel className="p-4">
+      <div className="flex flex-wrap gap-2">
+        {["all", "draft", "approved", "overdue", "paid"].map((s) => <Button key={s} size="sm" variant={filter === s ? "default" : "outline"} onClick={() => setFilter(s)}>{s === "all" ? "Todas" : labels[s]}</Button>)}
+      </div>
+    </ErpPanel>
+    <ErpPanel className="overflow-x-auto">
+      <table className="w-full text-sm"><thead className="bg-secondary/70 text-left"><tr><th className="p-3">Descrição</th><th className="p-3">Fornecedor</th><th className="p-3">Vencimento</th><th className="p-3">Valor</th><th className="p-3">Status</th><th className="p-3">Ação</th></tr></thead>
       <tbody>{isLoading && <tr><td colSpan={6} className="p-10 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></td></tr>}
-      {!isLoading && shown.map((a: any) => <tr key={a.id} className="border-t">
+      {!isLoading && shown.map((a: any) => <tr key={a.id} className="border-t hover:bg-muted/20">
         <td className="p-3"><div className="font-medium">{a.description}</div><div className="text-xs text-muted-foreground">{a.document_number ? `NF ${a.document_number}` : a.goods_receipt_id ? "Gerada do recebimento" : "Lançamento manual"}</div></td>
         <td className="p-3">{a.suppliers?.trade_name || a.suppliers?.legal_name || "—"}</td>
         <td className="p-3">{new Date(`${a.due_date}T12:00:00`).toLocaleDateString("pt-BR")}</td>
@@ -94,13 +100,11 @@ export default function AdminAccountsPayable() {
         <td className="p-3"><div className="flex flex-wrap gap-2">{["draft", "pending"].includes(a.status) && <><Button size="sm" variant="outline" onClick={() => setEditing(a)}><Edit2 className="h-4 w-4 mr-1" />Editar</Button><Button size="sm" variant="outline" onClick={() => approve(a.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button><Button size="sm" variant="ghost" onClick={() => cancel(a.id)} title="Cancelar"><XCircle className="h-4 w-4" /></Button></>}{["approved", "partially_paid"].includes(a.status) && <Button size="sm" onClick={() => pay(a.id)}><CreditCard className="h-4 w-4 mr-1" />Pagar</Button>}</div></td>
       </tr>)}
       {!isLoading && !shown.length && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Nenhuma conta encontrada.</td></tr>}</tbody></table>
-    </div>
+    </ErpPanel>
     <NewPayableDialog open={open} onOpenChange={setOpen} tenantId={tenantId} suppliers={suppliers} onSaved={refresh} />
     <EditPayableDialog open={!!editing} onOpenChange={(v: boolean) => !v && setEditing(null)} account={editing} suppliers={suppliers} onSaved={() => { setEditing(null); refresh(); }} />
-  </div>;
+  </ErpPage>;
 }
-
-function Metric({ icon: Icon, label, value }: any) { return <div className="bg-card border rounded-xl p-4 flex items-center gap-3"><div className="rounded-lg bg-primary/10 p-2"><Icon className="h-5 w-5 text-primary" /></div><div><div className="text-xs text-muted-foreground">{label}</div><div className="text-xl font-extrabold">{value}</div></div></div>; }
 
 function NewPayableDialog({ open, onOpenChange, tenantId, suppliers, onSaved }: any) {
   const [supplier, setSupplier] = useState(""); const [description, setDescription] = useState(""); const [documentNumber, setDocumentNumber] = useState(""); const [dueDate, setDueDate] = useState(""); const [amount, setAmount] = useState(""); const [saving, setSaving] = useState(false);
