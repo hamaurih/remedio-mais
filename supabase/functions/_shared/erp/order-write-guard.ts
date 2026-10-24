@@ -20,6 +20,20 @@ export function extractSupabaseProjectRef(url: string): string {
   }
 }
 
+export function isOrderChannelEnabled(channel: string, rawAllowedChannels: string): boolean {
+  const normalized = String(channel || "").trim().toLowerCase();
+  if (!normalized) return false;
+
+  const allowed = new Set(
+    String(rawAllowedChannels || "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+  return allowed.has(normalized);
+}
+
 export function evaluateOrderWriteGuard(input: OrderWriteGuardInput): OrderWriteGuardResult {
   if (!input.enabled) return { allowed: false, reason: "disabled" };
   if (input.environment.trim().toLowerCase() !== "staging") {
