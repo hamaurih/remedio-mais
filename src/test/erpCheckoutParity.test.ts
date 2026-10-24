@@ -92,6 +92,8 @@ describe("ERP checkout parity", () => {
     expect(sql).toContain("variant_inventory_balance_missing");
     expect(sql).toContain("insufficient_variant_stock");
     expect(sql).toContain("order_inventory_reservation_active_variant_uq");
+    expect(sql).not.toContain("as $\ndeclare");
+    expect(sql).not.toContain("end;\n$;");
   });
 
   it("valida receita contra usuário e produto no banco", () => {
