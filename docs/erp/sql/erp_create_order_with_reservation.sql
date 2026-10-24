@@ -102,7 +102,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=''
-as $
+as $$
 declare
   v_on_hand numeric;
   v_reserved numeric;
@@ -138,7 +138,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 revoke all on function private.apply_variant_inventory_ledger_balance() from public,anon,authenticated;
 
 drop trigger if exists trg_variant_inventory_ledger_apply_balance on public.variant_inventory_ledger;
@@ -530,7 +530,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path=''
-as $
+as $$
 declare
   r public.order_inventory_reservations%rowtype;
   v_count integer:=0;
@@ -580,7 +580,7 @@ begin
 
   return jsonb_build_object('ok',true,'committed_items',v_count);
 end;
-$;
+$$;
 revoke all on function public.commit_order_inventory_internal(uuid) from public,anon,authenticated;
 grant execute on function public.commit_order_inventory_internal(uuid) to service_role;
 
@@ -589,7 +589,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path=''
-as $
+as $$
 declare
   r public.order_inventory_reservations%rowtype;
   v_count integer:=0;
@@ -635,7 +635,7 @@ begin
 
   return jsonb_build_object('ok',true,'released_items',v_count);
 end;
-$;
+$$;
 revoke all on function public.release_order_inventory_internal(uuid,text) from public,anon,authenticated;
 grant execute on function public.release_order_inventory_internal(uuid,text) to service_role;
 
