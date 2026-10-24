@@ -4,7 +4,7 @@ import { safeLog, safeError } from "../_shared/mask.ts";
 import { prepareOrder, jsonResp } from "../_shared/prepare-order.ts";
 import { CIELO_BASES, toCents, mapCieloStatus, type CieloEnv } from "../_shared/cielo.ts";
 import { getCieloCredentials } from "../_shared/cielo-credentials.ts";
-import { releaseInventoryBeforeOrderDelete, releaseOrderInventoryIfReserved, settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
+import { isErpOrderSource, releaseInventoryBeforeOrderDelete, releaseOrderInventoryIfReserved, settleOrderInventoryForPayment } from "../_shared/erp/inventory-reservation-lifecycle.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -56,8 +56,17 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     safeError("[cielo-pix] network error", { message: (e as Error).message });
-    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
-    await releaseOrderInventoryIfReserved(admin, order.id, "payment_failed");
+    if (isErpOrderSource(order.source)) {
+      await admin.from("orders").update({ payment_status: "payment_review" }).eq("id", order.id);
+      await admin.from("payment_errors").insert({
+        stage: "cielo_pix_network_ambiguous",
+        message: "Falha de transporte após tentativa de criação do Pix; reserva mantida para reconciliação.",
+        order_id: order.id,
+      });
+    } else {
+      // Preserva o comportamento legado para pedidos atuais.
+      await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    }
     return jsonResp({ success: false, error: "Falha ao contatar Cielo." }, 502);
   }
 
@@ -79,8 +88,14 @@ Deno.serve(async (req) => {
   const statusCode = Number(pay.Status ?? 12);
   const status = mapCieloStatus(statusCode);
   if (!qr || !qrBase64 || !paymentId) {
-    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
-    await releaseOrderInventoryIfReserved(admin, order.id, "cielo_rejected");
+    if (isErpOrderSource(order.source)) {
+      await admin.from("orders").update({ payment_status: "payment_review" }).eq("id", order.id);
+      await admin.from("payment_errors").insert({
+        stage: "cielo_pix_incomplete_response",
+        message: "Resposta Cielo sem identificadores completos; reserva mantida para revisão.",
+        order_id: order.id,
+      });
+    }
     return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
   }
 
