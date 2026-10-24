@@ -689,4 +689,28 @@ $$;
 revoke all on function public.erp_expire_due_reservations(integer) from public;
 revoke all on function public.erp_expire_due_reservations(integer) from anon;
 revoke all on function public.erp_expire_due_reservations(integer) from authenticated;
-grant execute on function public.erp_expire_due_reservations(integer) to service_role;
+grant execute on function public.erp_expire_due_reservations(integer) to service_role;\n
+-- Privilégios mínimos para o caminho server-side do Order Command.
+-- Mantemos SECURITY INVOKER: service_role só recebe o que o fluxo precisa.
+grant select on table
+  public.orders,
+  public.order_inventory_reservations,
+  public.stores,
+  public.fulfillment_policies,
+  public.inventory_balances,
+  public.products,
+  public.product_variants,
+  public.variant_inventory_balances,
+  public.prescriptions
+to service_role;
+
+grant insert on table
+  public.orders,
+  public.order_items,
+  public.order_inventory_reservations,
+  public.inventory_ledger,
+  public.variant_inventory_ledger
+to service_role;
+
+grant update,delete on table public.orders to service_role;
+
