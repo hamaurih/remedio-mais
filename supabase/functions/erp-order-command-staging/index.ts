@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildProductReadModel } from "../_shared/erp/product-service.ts";
 import { normalizeOrderCommandPayload } from "../_shared/erp/order-command-contract.ts";
+import { resolveSiteDeliveryFee } from "../_shared/erp/site-delivery-pricing.ts";
 import {
   evaluateOrderWriteGuard,
   isOrderChannelEnabled,
@@ -241,8 +242,44 @@ async function resolveCreatePayload(body: any, actorId: string) {
     });
   }
 
-  const deliveryFee = Math.max(0, Number(body?.delivery_fee || 0));
-  const discount = Math.max(0, Number(body?.discount || 0));
+  let deliveryFee = Math.max(0, Number(body?.delivery_fee || 0));
+  let discount = Math.max(0, Number(body?.discount || 0));
+
+  // Site: frete e desconto são sempre resolvidos no servidor.
+  if (channel === "site") {
+    const { data: deliverySettings, error: deliverySettingsError } = await admin
+      .from("store_settings")
+      .select("delivery_fee,delivery_mode,delivery_max_km,delivery_fee_zones,store_lat,store_lng")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (deliverySettingsError) {
+      return { error: "delivery_settings_query_failed", status: 500, detail: deliverySettingsError.message };
+    }
+
+    const deliveryPricing = resolveSiteDeliveryFee(
+      {
+        type: deliveryType as "pickup" | "delivery",
+        lat: body?.delivery?.lat ?? null,
+        lng: body?.delivery?.lng ?? null,
+      },
+      (deliverySettings || {}) as any,
+    );
+
+    if (!deliveryPricing.ok) {
+      return {
+        error: deliveryPricing.error,
+        status: 409,
+        distance_km: "distance_km" in deliveryPricing ? deliveryPricing.distance_km : null,
+      };
+    }
+
+    deliveryFee = deliveryPricing.fee;
+
+    // O checkout atual não aceita desconto livre do cliente.
+    discount = 0;
+  }
+
   const total = Math.max(0, Number((subtotal - discount + deliveryFee).toFixed(2)));
 
   const payload = normalizeOrderCommandPayload({
