@@ -11,8 +11,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { AlertCircle, Activity, KeyRound, Loader2, Send, ShieldCheck } from "lucide-react";
+import { AlertCircle, Activity, BarChart3, KeyRound, Loader2, Send, ShieldCheck } from "lucide-react";
 import { getMetaConfig, isPixelLoaded } from "@/lib/metaEvents";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 type Settings = {
   meta_enabled: boolean;
@@ -180,13 +181,13 @@ export default function AdminMetaAds() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-extrabold">Meta Ads — Pixel + Conversions API</h1>
-        <p className="text-sm text-muted-foreground">
-          Mensuração e otimização de campanhas. O access token da CAPI fica somente em secret do backend.
-        </p>
-      </div>
+    <ErpPage>
+      <ErpPageHeader
+        title="Meta Ads e Analytics"
+        description="Mensuração e otimização de campanhas com Pixel, Conversions API e Google Analytics 4."
+        eyebrow="Integrações"
+        icon={BarChart3}
+      />
 
       {!status?.token_configured && (
         <Alert variant="destructive">
@@ -199,7 +200,7 @@ export default function AdminMetaAds() {
         </Alert>
       )}
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle>Configuração</CardTitle>
           <CardDescription>Preencha com os dados reais do seu Events Manager.</CardDescription>
@@ -257,7 +258,7 @@ export default function AdminMetaAds() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle>Google Analytics 4</CardTitle>
           <CardDescription>
@@ -306,7 +307,7 @@ export default function AdminMetaAds() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Activity className="h-4 w-4" /> Diagnóstico</CardTitle>
         </CardHeader>
@@ -322,7 +323,7 @@ export default function AdminMetaAds() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Send className="h-4 w-4" /> Testes</CardTitle>
           <CardDescription>
@@ -361,7 +362,7 @@ export default function AdminMetaAds() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Eventos recentes enviados</CardTitle>
           <CardDescription>Sem token e sem dados pessoais em claro — respostas mascaradas.</CardDescription>
@@ -407,7 +408,7 @@ export default function AdminMetaAds() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </ErpPage>
   );
 }
 
