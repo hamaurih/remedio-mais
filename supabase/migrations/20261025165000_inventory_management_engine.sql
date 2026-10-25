@@ -27,7 +27,6 @@ begin
   from public.tenant_memberships tm
   left join public.stores member_store
     on member_store.id = tm.store_id
-   and member_store.active = true
   left join lateral (
     select st.id, st.name
       from public.stores st
