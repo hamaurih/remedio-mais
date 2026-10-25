@@ -62,30 +62,30 @@ const items: Item[] = [
   { to: "/admin/vendedor", label: "Início", icon: LayoutDashboard, group: "Vendas", end: true, roles: ["seller"] },
 
   { to: "/admin/pdv", label: "PDV e Balcão", icon: CreditCard, group: "Vendas", roles: ["admin", "seller"] },
-  { to: "/admin/pedidos", label: "Vendas e Pedidos", icon: ShoppingBag, group: "Vendas", roles: ["admin", "seller"] },
-  { to: "/admin/ia-vendas", label: "Vendas via WhatsApp/IA", icon: Bot, group: "Vendas", roles: ["admin", "seller"] },
-  { to: "/admin/funil-carrinhos", label: "Funil e Carrinhos", icon: Activity, group: "Vendas", roles: ["admin"] },
+  { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, group: "Vendas", roles: ["admin", "seller"] },
+  { to: "/admin/ia-vendas", label: "WhatsApp / IA", icon: Bot, group: "Vendas", roles: ["admin", "seller"] },
+  { to: "/admin/funil-carrinhos", label: "Carrinhos e Funil", icon: Activity, group: "Vendas", roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, group: "Vendas", roles: ["admin", "seller"], requiresPrescriptionPermission: true },
 
   { to: "/admin/compras", label: "Compra inteligente", icon: ClipboardList, group: "Compras e Suprimentos", roles: ["admin"] },
-  { to: "/admin/compras-operacionais", label: "Pedidos e Recebimentos", icon: Package, group: "Compras e Suprimentos", roles: ["admin"] },
+  { to: "/admin/compras-operacionais", label: "Compras e Entradas", icon: Package, group: "Compras e Suprimentos", roles: ["admin"] },
   { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, group: "Compras e Suprimentos", roles: ["admin"] },
 
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, group: "Estoque", roles: ["admin"] },
 
   { to: "/admin/contas-a-pagar", label: "Contas a Pagar", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
-  { to: "/admin/contas-a-receber", label: "Contas a Receber e Caixa", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
+  { to: "/admin/contas-a-receber", label: "Receber e Caixa", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
 
   { to: "/admin/produtos", label: "Produtos e Preços", icon: Package, group: "Cadastros", roles: ["admin"] },
   { to: "/admin/taxonomia", label: "Grupos e Subgrupos", icon: Layers3, group: "Cadastros", roles: ["admin"] },
   { to: "/admin/unidades", label: "Matriz e Filiais", icon: Building2, group: "Cadastros", roles: ["admin"] },
   { to: "/admin/clientes", label: "Clientes", icon: Users, group: "Cadastros", roles: ["admin"] },
-  { to: "/admin/cadastros", label: "Cadastros do Site", icon: UserPlus, group: "Cadastros", roles: ["admin"] },
+  { to: "/admin/cadastros", label: "Contas do Site", icon: UserPlus, group: "Cadastros", roles: ["admin"] },
   { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, group: "Cadastros", roles: ["admin"] },
 
   { to: "/admin/site", label: "Site e E-commerce", icon: Globe2, group: "Integrações", roles: ["admin"] },
   { to: "/admin/catalogo-ia", label: "Catálogo da IA", icon: Boxes, group: "Integrações", roles: ["admin"] },
-  { to: "/admin/pagamentos", label: "Cielo e Pagamentos", icon: CreditCard, group: "Integrações", roles: ["admin"] },
+  { to: "/admin/pagamentos", label: "Pagamentos / Cielo", icon: CreditCard, group: "Integrações", roles: ["admin"] },
   { to: "/admin/integrations/trier", label: "Trier", icon: Truck, group: "Integrações", roles: ["admin"] },
   { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Bot, group: "Integrações", roles: ["admin"] },
   { to: "/admin/integrations/meta-ads", label: "Meta Ads", icon: Activity, group: "Integrações", roles: ["admin"] },
