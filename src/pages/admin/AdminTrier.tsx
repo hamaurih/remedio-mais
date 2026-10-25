@@ -261,7 +261,7 @@ export default function AdminTrier() {
   };
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[900px]">
       <ErpPageHeader
         title="Trier Drogarias"
         description="Integração operacional com o Webservice Trier para produtos, estoque, preços, mapeamentos, pedidos e diagnóstico."
