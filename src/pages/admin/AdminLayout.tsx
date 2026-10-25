@@ -17,6 +17,7 @@ import {
   Bot,
   Boxes,
   Building2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -113,6 +114,7 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   const [canAccessPrescriptions, setCanAccessPrescriptions] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set(["Visão Geral", "Vendas", "Compras e Suprimentos", "Estoque", "Financeiro"]));
 
   useEffect(() => {
     qc.removeQueries({ queryKey: ["home_banners"], exact: true });
@@ -170,46 +172,69 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   const pageTitle = currentItem?.label || (isAdmin ? "Administração" : "Vendedor");
   const pageGroup = currentItem?.group || "Painel";
 
+  const toggleGroup = (group: string) => {
+    setOpenGroups((current) => {
+      const next = new Set(current);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  };
+
   const renderNav = (mobile = false) => (
     <nav className="flex-1 overflow-y-auto px-2.5 py-4">
-      <div className="space-y-5">
-        {visibleGroups.map((section) => (
-          <div key={section.group}>
-            {!collapsed || mobile ? (
-              <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/80">
-                {section.group}
-              </div>
-            ) : (
-              <div className="mx-auto mb-2 h-px w-8 bg-border" />
-            )}
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const link = (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => mobile && setMobileOpen(false)}
-                    title={collapsed && !mobile ? item.label : undefined}
-                    className={({ isActive }) =>
-                      [
-                        "group flex items-center rounded-xl text-sm font-medium transition-all",
-                        collapsed && !mobile ? "h-10 justify-center px-2" : "min-h-10 gap-3 px-3",
-                        isActive
-                          ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/15 shadow-sm"
-                          : "text-foreground/75 hover:bg-accent/70 hover:text-foreground",
-                      ].join(" ")
-                    }
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {(!collapsed || mobile) && <span className="truncate">{item.label}</span>}
-                  </NavLink>
-                );
-                return mobile ? <SheetClose asChild key={item.to}>{link}</SheetClose> : link;
-              })}
+      <div className="space-y-2">
+        {visibleGroups.map((section) => {
+          const compact = collapsed && !mobile;
+          const isGroupOpen = compact || section.group === pageGroup || openGroups.has(section.group);
+
+          return (
+            <div key={section.group}>
+              {!compact ? (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(section.group)}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground"
+                  aria-expanded={isGroupOpen}
+                >
+                  <span>{section.group}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isGroupOpen ? "rotate-0" : "-rotate-90"}`} />
+                </button>
+              ) : (
+                <div className="mx-auto my-2 h-px w-8 bg-border" />
+              )}
+
+              {isGroupOpen && (
+                <div className="mt-1 space-y-1">
+                  {section.items.map((item) => {
+                    const link = (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        onClick={() => mobile && setMobileOpen(false)}
+                        title={compact ? item.label : undefined}
+                        className={({ isActive }) =>
+                          [
+                            "group flex items-center rounded-xl text-sm font-medium transition-all",
+                            compact ? "h-10 justify-center px-2" : "min-h-10 gap-3 px-3",
+                            isActive
+                              ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/15 shadow-sm"
+                              : "text-foreground/75 hover:bg-accent/70 hover:text-foreground",
+                          ].join(" ")
+                        }
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!compact && <span className="truncate">{item.label}</span>}
+                      </NavLink>
+                    );
+                    return mobile ? <SheetClose asChild key={item.to}>{link}</SheetClose> : link;
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </nav>
   );
