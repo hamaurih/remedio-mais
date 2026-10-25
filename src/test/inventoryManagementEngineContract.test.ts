@@ -21,7 +21,7 @@ describe("inventory management SQL engine contract", () => {
     expect(sql).toContain("0.7");
     expect(sql).toContain("0.3");
     expect(sql).toContain("lead_time_days");
-    expect(sql).toContain("coalesce(s.lead_time_days, 3)");
+    expect(sql).toContain("coalesce(sup.lead_time_days, 3)");
     expect(sql).toContain("80");
     expect(sql).toContain("95");
   });
