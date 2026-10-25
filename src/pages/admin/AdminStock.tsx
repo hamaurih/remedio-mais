@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AlertTriangle, Plus } from "lucide-react";
+import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel, ErpPanelHeader } from "@/components/admin/ErpPageShell";
+import { AlertTriangle, Boxes, Link2, PackageCheck, Plus } from "lucide-react";
 
 const TYPES = ["entrada", "saida", "ajuste", "reserva", "cancelamento"] as const;
 const TYPE_LABEL: Record<string, string> = {
@@ -73,23 +74,29 @@ export default function AdminStock() {
   }, [products, q]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold">Estoque</h1>
-        <Button onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-2" />Novo movimento</Button>
+    <ErpPage className="[&_table]:min-w-[900px]">
+      <ErpPageHeader
+        title="Estoque"
+        description="Consulte disponibilidade, integração com o Trier, estoque crítico e movimentações manuais sem misturar visão operacional com cadastro de produto."
+        eyebrow="Operação"
+        icon={Boxes}
+        actions={<Button onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-2" />Novo movimento</Button>}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ErpMetricCard label="Vendáveis" value={health?.vendaveis ?? "—"} icon={PackageCheck} hint="Ativo + estoque + preço" />
+        <ErpMetricCard label="Mapeados ao Trier" value={health?.mapeados ?? "—"} icon={Link2} />
+        <ErpMetricCard label="Órfãos" value={health?.orfaos ?? "—"} icon={AlertTriangle} tone={(health?.orfaos ?? 0) > 0 ? "warning" : "default"} hint="Desativados / sem vínculo" />
+        <ErpMetricCard label="Ativos sem estoque" value={health?.ativos_sem_estoque ?? "—"} icon={AlertTriangle} tone={(health?.ativos_sem_estoque ?? 0) > 0 ? "warning" : "default"} />
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card title="Vendáveis (ativo + estoque + preço)" value={health?.vendaveis ?? "—"} />
-        <Card title="Mapeados ao Trier" value={health?.mapeados ?? "—"} />
-        <Card title="Órfãos (desativados)" value={health?.orfaos ?? "—"} warn />
-        <Card title="Ativos sem estoque" value={health?.ativos_sem_estoque ?? "—"} warn />
-      </div>
-
-      <div className="bg-card border rounded-xl shadow-card p-5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="font-bold">Produtos</div>
-          <div className="flex items-center gap-2">
+      <ErpPanel>
+        <ErpPanelHeader
+          title="Produtos e disponibilidade"
+          description="Pesquise por nome, EAN, SKU ou código Trier e filtre o estado do mapeamento."
+          actions={
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Mapeamento</span>
             <span className="text-xs text-muted-foreground">Filtro:</span>
             <Select value={mappingFilter} onValueChange={setMappingFilter}>
               <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
@@ -101,9 +108,12 @@ export default function AdminStock() {
                 <SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+            </div>
+          }
+        />
+        <div className="border-b p-4">
+          <Input placeholder="Buscar por nome, SKU, código Trier ou código de barras..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <Input placeholder="Buscar por nome, SKU, código Trier ou código de barras..." value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-secondary text-left">
@@ -153,11 +163,13 @@ export default function AdminStock() {
             </tbody>
           </table>
         </div>
-      </div>
+      </ErpPanel>
 
-      <div className="bg-card border rounded-xl shadow-card p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="font-bold">Movimentações recentes</div>
+      <ErpPanel>
+        <ErpPanelHeader
+          title="Movimentações recentes"
+          description="Entradas, saídas, ajustes, reservas e cancelamentos registrados."
+          actions={
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -165,7 +177,8 @@ export default function AdminStock() {
               {TYPES.map((t) => <SelectItem key={t} value={t}>{TYPE_LABEL[t]}</SelectItem>)}
             </SelectContent>
           </Select>
-        </div>
+          }
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-secondary text-left">
@@ -195,7 +208,7 @@ export default function AdminStock() {
             </tbody>
           </table>
         </div>
-      </div>
+      </ErpPanel>
 
       <NewMovementDialog
         open={openNew}
@@ -207,16 +220,7 @@ export default function AdminStock() {
           qc.invalidateQueries({ queryKey: ["products_health_summary"] });
         }}
       />
-    </div>
-  );
-}
-
-function Card({ title, value, warn }: { title: string; value: any; warn?: boolean }) {
-  return (
-    <div className="bg-card border rounded-xl p-5 shadow-card">
-      <div className="text-xs text-muted-foreground">{title}</div>
-      <div className={`text-3xl font-extrabold mt-2 ${warn && (value ?? 0) > 0 ? "text-primary" : ""}`}>{value}</div>
-    </div>
+    </ErpPage>
   );
 }
 

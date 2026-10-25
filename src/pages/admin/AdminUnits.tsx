@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, CheckCircle2, FileCheck2, Plus, RefreshCw, ShieldAlert, Store } from "lucide-react";
 import { toast } from "sonner";
+import { ErpMetricCard, ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 type Unit = {
   id: string;
@@ -60,18 +61,14 @@ export default function AdminUnits() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Estrutura empresarial</p>
-          <h1 className="text-2xl md:text-3xl font-extrabold">Matriz e Filiais</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-3xl">Cadastre as unidades e mantenha o dossiê societário, fiscal, sanitário, CRF e ANVISA organizado dentro do sistema.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Atualizar</Button>
-          <Button asChild><Link to="/admin/unidades/nova"><Plus className="h-4 w-4 mr-2" /> Cadastrar filial</Link></Button>
-        </div>
-      </div>
+    <ErpPage>
+      <ErpPageHeader
+        title="Matriz e Filiais"
+        description="Cadastre unidades e mantenha o dossiê societário, fiscal, sanitário, CRF e ANVISA organizado no ERP."
+        eyebrow="Estrutura empresarial"
+        icon={Building2}
+        actions={<><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Atualizar</Button><Button asChild><Link to="/admin/unidades/nova"><Plus className="h-4 w-4 mr-2" /> Cadastrar filial</Link></Button></>}
+      />
 
       <Card className="border-amber-200 bg-amber-50/50">
         <CardContent className="pt-5 flex gap-3 text-sm">
@@ -80,11 +77,11 @@ export default function AdminUnits() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Unidades" value={summary.total} icon={Building2} />
-        <Metric label="Matriz" value={summary.matriz} icon={Building2} />
-        <Metric label="Filiais" value={summary.filiais} icon={Store} />
-        <Metric label="Dossiê regular" value={summary.regulares} icon={CheckCircle2} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ErpMetricCard label="Unidades" value={summary.total} icon={Building2} />
+        <ErpMetricCard label="Matriz" value={summary.matriz} icon={Building2} />
+        <ErpMetricCard label="Filiais" value={summary.filiais} icon={Store} />
+        <ErpMetricCard label="Dossiê regular" value={summary.regulares} icon={CheckCircle2} tone="success" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -121,10 +118,6 @@ export default function AdminUnits() {
       </div>
 
       {!loading && units.length === 0 && <Card><CardContent className="py-10 text-center text-muted-foreground">Nenhuma unidade cadastrada.</CardContent></Card>}
-    </div>
+    </ErpPage>
   );
-}
-
-function Metric({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {
-  return <Card><CardHeader className="pb-3"><div className="flex items-center justify-between"><CardDescription>{label}</CardDescription><Icon className="h-5 w-5 text-primary" /></div><CardTitle className="text-2xl">{value}</CardTitle></CardHeader></Card>;
 }

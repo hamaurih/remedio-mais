@@ -16,8 +16,10 @@ import {
   EyeOff,
   ShieldAlert,
   Pencil,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 import {
   computeQualityScore,
   getPublicationStatus,
@@ -261,14 +263,13 @@ export default function AdminDataQuality() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl">
-      <div>
-        <h1 className="text-2xl font-extrabold">Qualidade de Dados</h1>
-        <p className="text-sm text-muted-foreground">
-          A análise principal foca apenas em produtos vendáveis (ativos e com estoque). Produtos sem estoque não aparecem no site
-          e são listados separadamente. Imagem padrão é aceitável — só bloqueia se não houver nenhuma imagem exibível.
-        </p>
-      </div>
+    <ErpPage className="[&_table]:min-w-[980px]">
+      <ErpPageHeader
+        title="Qualidade de Dados"
+        description="Analise a qualidade do catálogo vendável, identifique cadastros incompletos e corrija dados sem confundir falta de estoque com erro de cadastro."
+        eyebrow="Administração e segurança"
+        icon={ShieldCheck}
+      />
 
       {/* Overview cards — restritos a produtos vendáveis */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -438,7 +439,7 @@ export default function AdminDataQuality() {
           <p><b>Modo rigoroso</b> é opcional e desligado por padrão.</p>
         </CardContent>
       </Card>
-    </div>
+    </ErpPage>
   );
 }
 

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, RefreshCw, Plug, Package, Boxes, Tag, ShoppingCart, FileText, ListChecks, Send, Eye } from "lucide-react";
 import { formatBRL } from "@/lib/store";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 const TABS = ["overview", "config", "products", "stock", "prices", "mapping", "divergences", "orders", "status", "seguranca", "diagnostico", "logs"] as const;
 type Tab = typeof TABS[number];
@@ -260,19 +261,21 @@ export default function AdminTrier() {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-2xl font-extrabold flex items-center gap-2"><Plug className="h-6 w-6 text-primary" /> Trier Drogarias</h1>
-          <p className="text-sm text-muted-foreground">Integração oficial com o Webservice Trier 1.5.23</p>
-        </div>
-        <div className="flex gap-2 text-xs">
-          {settings?.last_connection_status === "ok" && <Badge variant="secondary" className="bg-whatsapp/10 text-whatsapp">Conectado</Badge>}
-          {settings?.last_connection_status === "error" && <Badge variant="destructive">Falha</Badge>}
-          {!settings?.last_connection_status && <Badge variant="outline">Nunca testado</Badge>}
-          <Badge variant="outline">{(settings as any)?.environment === "producao" ? "PRODUÇÃO" : (settings as any)?.environment === "homologacao" ? "Homologação" : "Gateway"}</Badge>
-        </div>
-      </div>
+    <ErpPage className="[&_table]:min-w-[900px]">
+      <ErpPageHeader
+        title="Trier Drogarias"
+        description="Integração operacional com o Webservice Trier para produtos, estoque, preços, mapeamentos, pedidos e diagnóstico."
+        eyebrow="Integrações"
+        icon={Plug}
+        actions={
+          <>
+            {settings?.last_connection_status === "ok" && <Badge variant="secondary" className="bg-whatsapp/10 text-whatsapp">Conectado</Badge>}
+            {settings?.last_connection_status === "error" && <Badge variant="destructive">Falha</Badge>}
+            {!settings?.last_connection_status && <Badge variant="outline">Nunca testado</Badge>}
+            <Badge variant="outline">{(settings as any)?.environment === "producao" ? "PRODUÇÃO" : (settings as any)?.environment === "homologacao" ? "Homologação" : "Gateway"}</Badge>
+          </>
+        }
+      />
 
       <Tabs value={tab} onValueChange={(v) => { setTab(v as Tab); setSearchParams({ tab: v }); }}>
         <TabsList className="flex-wrap h-auto">
@@ -906,7 +909,7 @@ export default function AdminTrier() {
           })()}
         </DialogContent>
       </Dialog>
-    </div>
+    </ErpPage>
   );
 }
 

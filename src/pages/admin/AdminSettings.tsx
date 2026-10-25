@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GoogleMapsCredentialPanel } from "@/components/admin/GoogleMapsCredentialPanel";
 import { toast } from "sonner";
-import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { ErpPage, ErpPageHeader, ErpPanel } from "@/components/admin/ErpPageShell";
+import { Loader2, MapPin, Plus, Settings2, Trash2 } from "lucide-react";
 
 type Zone = { min_km: number; max_km: number; fee: number; label?: string };
 
@@ -90,9 +91,14 @@ export default function AdminSettings() {
 
   if (loading) return <div className="p-6">Carregando...</div>;
   return (
-    <div className="p-6 max-w-3xl">
-      <h1 className="text-2xl font-extrabold mb-6">Configurações da loja</h1>
-      <div className="bg-card border rounded-xl p-6 shadow-card">
+    <ErpPage>
+      <ErpPageHeader
+        title="Configurações da Loja"
+        description="Parâmetros institucionais, entrega, Home, receitas e informações legais usados pelo site e pela operação."
+        eyebrow="Administração e segurança"
+        icon={Settings2}
+      />
+      <ErpPanel className="p-5 md:p-6">
         <Tabs defaultValue="loja">
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="loja">Loja</TabsTrigger>
@@ -271,7 +277,7 @@ export default function AdminSettings() {
         </Tabs>
 
         <Button className="mt-6" onClick={save}>Salvar tudo</Button>
-      </div>
-    </div>
+      </ErpPanel>
+    </ErpPage>
   );
 }

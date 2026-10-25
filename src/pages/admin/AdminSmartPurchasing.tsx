@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { AlertTriangle, Boxes, Download, PackageOpen, RefreshCw, Search, ShoppingCart, Truck } from "lucide-react";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 type Priority = "ruptura" | "critico" | "estoque_baixo" | "repor" | "ok";
 
@@ -151,25 +152,24 @@ export default function AdminSmartPurchasing() {
   const hasCosts = num(summary?.costed_items) > 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-extrabold">Compra inteligente</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-            Reposição calculada com giro real do Trier e estoque disponível da unidade. Nenhum pedido é enviado automaticamente: esta tela gera recomendação para conferência.
-          </p>
-          {data?.store?.name && <div className="text-xs font-semibold mt-2">Unidade: {data.store.name}</div>}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} /> Atualizar
-          </Button>
-          <Button onClick={exportCsv} disabled={!rows.length}><Download className="h-4 w-4 mr-2" /> Exportar lista</Button>
-        </div>
-      </div>
+    <ErpPage>
+      <ErpPageHeader
+        title="Compra inteligente"
+        description="Reposição calculada com giro real do Trier e estoque disponível. A tela gera recomendações para conferência e não envia pedidos automaticamente."
+        eyebrow="Compras e suprimentos"
+        icon={ShoppingCart}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} /> Atualizar
+            </Button>
+            <Button onClick={exportCsv} disabled={!rows.length}><Download className="h-4 w-4 mr-2" /> Exportar lista</Button>
+          </>
+        }
+      />
+      {data?.store?.name && (
+        <div className="text-xs font-semibold text-muted-foreground">Unidade analisada: <span className="text-foreground">{data.store.name}</span></div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
@@ -185,7 +185,7 @@ export default function AdminSmartPurchasing() {
         <Metric title="Custo estimado" value={hasCosts ? brl(summary?.estimated_cost) : "Sem custos cadastrados"} icon={Truck} small={!hasCosts} />
       </div>
 
-      <div className="bg-card border rounded-xl shadow-card p-4 grid gap-4 lg:grid-cols-[220px_220px_1fr]">
+      <div className="rounded-2xl border bg-card p-4 shadow-sm grid gap-4 lg:grid-cols-[220px_220px_1fr]">
         <div>
           <label className="text-xs font-semibold">Cobertura alvo</label>
           <Select value={String(targetDays)} onValueChange={(v) => setTargetDays(Number(v))}>
@@ -209,7 +209,7 @@ export default function AdminSmartPurchasing() {
         </div>
       </div>
 
-      <div className="bg-card border rounded-xl shadow-card overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="p-4 border-b grid gap-3 md:grid-cols-[1fr_190px]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -268,22 +268,22 @@ export default function AdminSmartPurchasing() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-3 text-xs text-muted-foreground">
-        <div className="border rounded-xl p-4 bg-card">
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
           <div className="font-bold text-foreground mb-1">Qualidade dos dados</div>
           Giro Trier atualizado em {dt(data?.freshness?.rotation_synced_at)}. Venda mais recente considerada: {dt(data?.freshness?.latest_sale_at)}.
         </div>
-        <div className="border rounded-xl p-4 bg-card">
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
           <div className="font-bold text-foreground mb-1">Fornecedores</div>
           {num(summary?.supplier_linked_items)} item(ns) da lista têm fornecedor vinculado e {num(summary?.costed_items)} têm custo de compra. O próximo bloco da Fase 2 conecta fornecedores, custo e geração de pedido de compra.
         </div>
       </div>
-    </div>
+    </ErpPage>
   );
 }
 
 function Metric({ title, value, icon: Icon, danger, small }: { title: string; value: any; icon: any; danger?: boolean; small?: boolean }) {
   return (
-    <div className="bg-card border rounded-xl p-4 shadow-card">
+    <div className="rounded-2xl border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>{title}</span><Icon className="h-4 w-4" /></div>
       <div className={`mt-2 font-extrabold ${small ? "text-sm" : "text-2xl"} ${danger && Number(value || 0) > 0 ? "text-red-700" : ""}`}>{value}</div>
     </div>

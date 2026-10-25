@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Star, Trash2, Upload, Zap } from "lucide-react";
+import { MoreHorizontal, Package, Plus, Star, Trash2, Upload, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
@@ -22,6 +23,7 @@ import { AdminProductRegulatoryTab } from "@/components/admin/products/editor/Ad
 import { AdminProductSeoTab } from "@/components/admin/products/editor/AdminProductSeoTab";
 import { useAdminProductsList } from "@/hooks/admin/useAdminProductsList";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 const empty: any = {
   id: "", name: "", slug: "", category_id: "", short_description: "", description: "",
@@ -310,26 +312,43 @@ export default function AdminProductsIntegrated() {
   };
 
   return (
-    <div className="p-6">
+    <ErpPage>
       {confirmDialog}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-extrabold">Produtos</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" disabled={bulkBusy} onClick={forceActivateAllTrierInactive}>
-            <Zap className="h-4 w-4 mr-2" /> {bulkBusy ? "Ativando..." : "Ativar inativos no Trier"}
-          </Button>
-          <Button variant="outline" onClick={() => setReorderOpen(true)}>
-            <Star className="h-4 w-4 mr-2" /> Organizar Mais Vendidos
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</Link>
-          </Button>
-          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
-        </div>
-      </div>
+      <ErpPageHeader
+        title="Produtos e Preços"
+        description="Administre catálogo, publicação, preço, estoque, variantes e dados comerciais sem misturar as rotinas de importação e reconciliação."
+        eyebrow="Cadastros"
+        icon={Package}
+        actions={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <MoreHorizontal className="h-4 w-4 mr-2" /> Mais ações
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setReorderOpen(true)}>
+                  <Star className="h-4 w-4 mr-2" /> Organizar mais vendidos
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar produtos</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={bulkBusy}
+                  onClick={forceActivateAllTrierInactive}
+                >
+                  <Zap className="h-4 w-4 mr-2" /> {bulkBusy ? "Ativando..." : "Ativar inativos no Trier"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo produto</Button>
+          </>
+        }
+      />
 
       <BestsellersReorderDialog open={reorderOpen} onOpenChange={setReorderOpen} />
 
@@ -462,6 +481,6 @@ export default function AdminProductsIntegrated() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </ErpPage>
   );
 }

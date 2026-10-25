@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Download, ImageOff, PackageCheck, Search, Sparkles, FileJson, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
+import { ErpMetricCard, ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 type ProductRow = {
   id: string;
@@ -192,52 +193,22 @@ export default function AdminAICatalog() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl font-extrabold">Catálogo da IA</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-            Exportação limpa para o catálogo do agente A&S Business. Entram somente produtos ativos, não bloqueados, com estoque e preço válidos.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={exportJSON} disabled={query.isLoading || !exportRows.length}>
-            <FileJson className="h-4 w-4 mr-2" /> Exportar JSON
-          </Button>
-          <Button onClick={exportCSV} disabled={query.isLoading || !exportRows.length}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar CSV para A&S
-          </Button>
-        </div>
-      </div>
+    <ErpPage>
+      <ErpPageHeader
+        title="Catálogo da IA"
+        description="Exportação limpa para o catálogo do agente A&S Business. Entram somente produtos ativos, não bloqueados, com estoque e preço válidos."
+        eyebrow="Integrações"
+        icon={Sparkles}
+        actions={<><Button variant="outline" onClick={exportJSON} disabled={query.isLoading || !exportRows.length}><FileJson className="h-4 w-4 mr-2" /> Exportar JSON</Button><Button onClick={exportCSV} disabled={query.isLoading || !exportRows.length}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar CSV para A&S</Button></>}
+      />
 
       <div className="grid gap-3 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Produtos disponíveis para IA</CardTitle></CardHeader>
-          <CardContent className="flex items-end justify-between">
-            <div className="text-3xl font-extrabold">{query.isLoading ? "—" : catalog.length.toLocaleString("pt-BR")}</div>
-            <PackageCheck className="h-7 w-7 text-muted-foreground" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Com foto</CardTitle></CardHeader>
-          <CardContent className="flex items-end justify-between">
-            <div className="text-3xl font-extrabold">{query.isLoading ? "—" : withImage.toLocaleString("pt-BR")}</div>
-            <Download className="h-7 w-7 text-muted-foreground" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Sem foto</CardTitle></CardHeader>
-          <CardContent className="flex items-end justify-between">
-            <div className="text-3xl font-extrabold">{query.isLoading ? "—" : withoutImage.toLocaleString("pt-BR")}</div>
-            <ImageOff className="h-7 w-7 text-muted-foreground" />
-          </CardContent>
-        </Card>
+        <ErpMetricCard label="Produtos disponíveis para IA" value={query.isLoading ? "—" : catalog.length.toLocaleString("pt-BR")} icon={PackageCheck} />
+        <ErpMetricCard label="Com foto" value={query.isLoading ? "—" : withImage.toLocaleString("pt-BR")} icon={Download} tone="success" />
+        <ErpMetricCard label="Sem foto" value={query.isLoading ? "—" : withoutImage.toLocaleString("pt-BR")} icon={ImageOff} tone={withoutImage > 0 ? "warning" : "default"} />
       </div>
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardContent className="pt-5 space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="relative flex-1 max-w-xl">
@@ -293,6 +264,6 @@ export default function AdminAICatalog() {
           {filtered.length > 500 && <p className="text-xs text-muted-foreground">Pré-visualização limitada aos primeiros 500 itens. A exportação inclui todos os {exportRows.length.toLocaleString("pt-BR")} produtos elegíveis.</p>}
         </CardContent>
       </Card>
-    </div>
+    </ErpPage>
   );
 }

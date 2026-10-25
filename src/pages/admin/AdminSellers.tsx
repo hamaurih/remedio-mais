@@ -4,15 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Trash2, UserPlus, Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel, ErpPanelHeader } from "@/components/admin/ErpPageShell";
 
 type Seller = {
   user_id: string;
@@ -76,16 +76,27 @@ export default function AdminSellers() {
     qc.invalidateQueries({ queryKey: ["admin_sellers"] });
   };
 
-  return (
-    <div className="p-6 max-w-6xl">
-      <h1 className="text-2xl font-extrabold mb-2">Vendedores</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Vendedores recebem alertas operacionais de vendas. O acesso e a aprovação de receitas são permissões sensíveis e podem ser controladas por conta.
-      </p>
+  const prescriptionAccess = (sellers || []).filter((seller) => seller.can_view_prescriptions).length;
+  const refundAccess = (sellers || []).filter((seller) => seller.can_request_refund || seller.can_execute_refund).length;
 
-      <Card className="p-4 mb-6">
-        <div className="text-sm font-semibold mb-2">Convidar por email</div>
-        <div className="flex gap-2">
+  return (
+    <ErpPage className="[&_table]:min-w-[820px]">
+      <ErpPageHeader
+        title="Vendedores"
+        description="Controle acesso da equipe comercial e permissões sensíveis de reembolso e receitas."
+        eyebrow="Cadastros"
+        icon={Users}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <ErpMetricCard label="Vendedores ativos" value={sellers?.length || 0} icon={Users} />
+        <ErpMetricCard label="Com acesso a receitas" value={prescriptionAccess} icon={ShieldCheck} />
+        <ErpMetricCard label="Com permissão de reembolso" value={refundAccess} icon={ShieldCheck} />
+      </div>
+
+      <ErpPanel>
+        <ErpPanelHeader title="Conceder acesso" description="Informe o e-mail de uma conta existente para liberar o painel do vendedor." />
+        <div className="flex gap-2 p-4">
           <Input
             type="email"
             placeholder="email@exemplo.com"
@@ -98,10 +109,10 @@ export default function AdminSellers() {
             Conceder acesso
           </Button>
         </div>
-      </Card>
+      </ErpPanel>
 
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b text-sm font-semibold">Vendedores ativos</div>
+      <ErpPanel>
+        <ErpPanelHeader title="Vendedores ativos" description="Permissões podem ser ajustadas individualmente e têm efeito imediato." />
         {isLoading ? (
           <div className="p-6 text-center text-muted-foreground">Carregando...</div>
         ) : !sellers?.length ? (
@@ -121,7 +132,7 @@ export default function AdminSellers() {
               </thead>
               <tbody>
                 {sellers.map((seller) => (
-                  <tr key={seller.user_id} className="border-t">
+                  <tr key={seller.user_id} className="border-t hover:bg-muted/20">
                     <td className="p-3">
                       <div className="font-medium">{seller.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{seller.email}</div>
@@ -170,7 +181,7 @@ export default function AdminSellers() {
             </table>
           </div>
         )}
-      </Card>
-    </div>
+      </ErpPanel>
+    </ErpPage>
   );
 }

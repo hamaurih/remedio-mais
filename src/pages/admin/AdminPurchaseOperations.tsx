@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle2, ClipboardList, PackageCheck, Plus } from "lucide-react";
+import { ErpMetricCard, ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
+import { CheckCircle2, ClipboardList, PackageCheck, Plus, Truck } from "lucide-react";
 
 const statusLabel: Record<string, string> = { draft: "Rascunho", pending: "Pendente", approved: "Aprovado", received: "Recebido", partially_received: "Parcial", cancelled: "Cancelado", checked: "Conferido", posted: "Lançado" };
 
@@ -24,14 +25,30 @@ export default function AdminPurchaseOperations() {
   const refresh = () => { qc.invalidateQueries({ queryKey: ["purchase-orders"] }); qc.invalidateQueries({ queryKey: ["goods-receipts"] }); };
   const approve = async (id: string) => { const { error } = await (supabase as any).rpc("approve_purchase_order", { _order_id: id }); if (error) toast.error(error.message); else { toast.success("Pedido aprovado."); refresh(); } };
   const post = async (id: string) => { const { error } = await (supabase as any).rpc("post_goods_receipt", { _receipt_id: id }); if (error) toast.error(error.message); else { toast.success("Entrada lançada no estoque."); refresh(); } };
-  return <div className="p-6 space-y-6"><div className="flex items-center justify-between"><div><h1 className="text-2xl font-extrabold">Compras e recebimentos</h1><p className="text-sm text-muted-foreground mt-1">Fluxo próprio do ERP: pedido, aprovação, conferência e entrada no estoque.</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => setOpenReceipt(true)}><PackageCheck className="h-4 w-4 mr-2" />Nova entrada</Button><Button onClick={() => setOpenOrder(true)}><Plus className="h-4 w-4 mr-2" />Novo pedido</Button></div></div>
-    <Tabs defaultValue="orders"><TabsList><TabsTrigger value="orders"><ClipboardList className="h-4 w-4 mr-2" />Pedidos de compra ({orders.length})</TabsTrigger><TabsTrigger value="receipts"><PackageCheck className="h-4 w-4 mr-2" />Recebimentos ({receipts.length})</TabsTrigger></TabsList>
-      <TabsContent value="orders"><Table><thead><tr><th>Pedido</th><th>Fornecedor</th><th>Loja</th><th>Total</th><th>Status</th><th>Ação</th></tr></thead><tbody>{orders.map((o: any) => <tr key={o.id}><td>#{o.number}</td><td>{o.suppliers?.trade_name || o.suppliers?.legal_name || "—"}</td><td>{o.stores?.name || "—"}</td><td>R$ {Number(o.total || 0).toFixed(2)}</td><td><Badge>{statusLabel[o.status] || o.status}</Badge></td><td>{["draft", "pending"].includes(o.status) && <Button size="sm" variant="outline" onClick={() => approve(o.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>}</td></tr>)}{!orders.length && <Empty />}</tbody></Table></TabsContent>
-      <TabsContent value="receipts"><Table><thead><tr><th>Recebimento</th><th>Fornecedor</th><th>Nota fiscal</th><th>Total</th><th>Status</th><th>Ação</th></tr></thead><tbody>{receipts.map((r: any) => <tr key={r.id}><td>{new Date(r.received_at).toLocaleDateString("pt-BR")}</td><td>{r.suppliers?.trade_name || r.suppliers?.legal_name || "—"}</td><td>{r.supplier_invoice_number || "—"}</td><td>R$ {Number(r.total_cost || 0).toFixed(2)}</td><td><Badge>{statusLabel[r.status] || r.status}</Badge></td><td>{["draft", "checked"].includes(r.status) && <Button size="sm" onClick={() => post(r.id)}>Lançar no estoque</Button>}</td></tr>)}{!receipts.length && <Empty />}</tbody></Table></TabsContent>
-    </Tabs><OrderDialog open={openOrder} onOpenChange={setOpenOrder} tenantId={tenantId} stores={stores} suppliers={suppliers} onSaved={refresh} /><ReceiptDialog open={openReceipt} onOpenChange={setOpenReceipt} tenantId={tenantId} stores={stores} suppliers={suppliers} orders={orders} onSaved={refresh} /></div>;
+  const pendingOrders = orders.filter((o: any) => ["draft", "pending"].includes(o.status)).length;
+  const openReceipts = receipts.filter((r: any) => ["draft", "checked"].includes(r.status)).length;
+  const purchaseValue = orders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
+  return <ErpPage className="[&_table]:min-w-[860px]">
+    <ErpPageHeader
+      title="Compras e Recebimentos"
+      description="Acompanhe pedido de compra, aprovação, conferência e entrada de mercadorias no estoque em um único fluxo."
+      eyebrow="Compras e suprimentos"
+      icon={ClipboardList}
+      actions={<><Button variant="outline" onClick={() => setOpenReceipt(true)}><PackageCheck className="h-4 w-4 mr-2" />Nova entrada</Button><Button onClick={() => setOpenOrder(true)}><Plus className="h-4 w-4 mr-2" />Novo pedido</Button></>}
+    />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <ErpMetricCard label="Pedidos de compra" value={orders.length} icon={ClipboardList} />
+      <ErpMetricCard label="Aguardando aprovação" value={pendingOrders} icon={CheckCircle2} tone={pendingOrders > 0 ? "warning" : "default"} />
+      <ErpMetricCard label="Recebimentos em aberto" value={openReceipts} icon={PackageCheck} tone={openReceipts > 0 ? "warning" : "default"} />
+      <ErpMetricCard label="Valor dos pedidos" value={purchaseValue.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})} icon={Truck} />
+    </div>
+    <Tabs defaultValue="orders" className="space-y-4"><TabsList className="h-auto flex-wrap"><TabsTrigger value="orders"><ClipboardList className="h-4 w-4 mr-2" />Pedidos de compra ({orders.length})</TabsTrigger><TabsTrigger value="receipts"><PackageCheck className="h-4 w-4 mr-2" />Recebimentos ({receipts.length})</TabsTrigger></TabsList>
+      <TabsContent value="orders"><Table><thead className="bg-secondary/70 text-left"><tr><th>Pedido</th><th>Fornecedor</th><th>Loja</th><th>Total</th><th>Status</th><th>Ação</th></tr></thead><tbody>{orders.map((o: any) => <tr key={o.id} className="border-t hover:bg-muted/20"><td>#{o.number}</td><td>{o.suppliers?.trade_name || o.suppliers?.legal_name || "—"}</td><td>{o.stores?.name || "—"}</td><td>R$ {Number(o.total || 0).toFixed(2)}</td><td><Badge>{statusLabel[o.status] || o.status}</Badge></td><td>{["draft", "pending"].includes(o.status) && <Button size="sm" variant="outline" onClick={() => approve(o.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>}</td></tr>)}{!orders.length && <Empty />}</tbody></Table></TabsContent>
+      <TabsContent value="receipts"><Table><thead className="bg-secondary/70 text-left"><tr><th>Recebimento</th><th>Fornecedor</th><th>Nota fiscal</th><th>Total</th><th>Status</th><th>Ação</th></tr></thead><tbody>{receipts.map((r: any) => <tr key={r.id} className="border-t hover:bg-muted/20"><td>{new Date(r.received_at).toLocaleDateString("pt-BR")}</td><td>{r.suppliers?.trade_name || r.suppliers?.legal_name || "—"}</td><td>{r.supplier_invoice_number || "—"}</td><td>R$ {Number(r.total_cost || 0).toFixed(2)}</td><td><Badge>{statusLabel[r.status] || r.status}</Badge></td><td>{["draft", "checked"].includes(r.status) && <Button size="sm" onClick={() => post(r.id)}>Lançar no estoque</Button>}</td></tr>)}{!receipts.length && <Empty />}</tbody></Table></TabsContent>
+    </Tabs><OrderDialog open={openOrder} onOpenChange={setOpenOrder} tenantId={tenantId} stores={stores} suppliers={suppliers} onSaved={refresh} /><ReceiptDialog open={openReceipt} onOpenChange={setOpenReceipt} tenantId={tenantId} stores={stores} suppliers={suppliers} orders={orders} onSaved={refresh} /></ErpPage>;
 }
 
-function Table({ children }: { children: ReactNode }) { return <div className="bg-card border rounded-xl overflow-x-auto"><table className="w-full text-sm"><thead className="bg-secondary text-left">{children}</thead></table></div>; }
+function Table({ children }: { children: ReactNode }) { return <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm"><table className="w-full text-sm">{children}</table></div>; }
 function Empty() { return <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Nenhum registro cadastrado.</td></tr>; }
 function Field({ label, value, onChange, type = "text" }: any) { return <div className="space-y-1"><Label>{label}</Label><Input type={type} value={value} onChange={(e) => onChange(e.target.value)} /></div>; }
 function SelectField({ label, value, onChange, options }: any) { return <div className="space-y-1"><Label>{label}</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={value} onChange={(e) => onChange(e.target.value)}><option value="">Selecione...</option>{options.map((o: any) => <option key={o.id} value={o.id}>{o.name || o.trade_name || o.legal_name}</option>)}</select></div>; }

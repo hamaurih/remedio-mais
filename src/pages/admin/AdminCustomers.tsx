@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL } from "@/lib/store";
+import { Search, Users } from "lucide-react";
+import { ErpPage, ErpPageHeader, ErpPanel } from "@/components/admin/ErpPageShell";
 
 export default function AdminCustomers() {
   const [q, setQ] = useState("");
@@ -31,14 +33,24 @@ export default function AdminCustomers() {
   }, [data, q]);
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-extrabold">Clientes</h1>
+    <ErpPage className="[&_table]:min-w-[760px]">
+      <ErpPageHeader
+        title="Clientes"
+        description="Consulte cadastro, contato, endereços e histórico de pedidos dos clientes da farmácia."
+        eyebrow="Cadastros"
+        icon={Users}
+      />
 
-      <div className="bg-card border rounded-xl shadow-card p-5 space-y-3">
-        <Input placeholder="Buscar por nome, e-mail, telefone ou CPF..." value={q} onChange={(e) => setQ(e.target.value)} />
+      <ErpPanel>
+        <div className="border-b p-4">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input className="border-0 shadow-none" placeholder="Buscar por nome, e-mail, telefone ou CPF..." value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-secondary text-left">
+            <thead className="bg-secondary/70 text-left">
               <tr>
                 <th className="p-2">Nome</th>
                 <th className="p-2">E-mail</th>
@@ -50,7 +62,7 @@ export default function AdminCustomers() {
             </thead>
             <tbody>
               {filtered.map((c: any) => (
-                <tr key={c.id} className="border-t">
+                <tr key={c.id} className="border-t hover:bg-muted/20">
                   <td className="p-2 font-medium">{c.full_name || "—"}</td>
                   <td className="p-2 text-xs">{c.email || "—"}</td>
                   <td className="p-2 text-xs">{c.phone || "—"}</td>
@@ -65,7 +77,7 @@ export default function AdminCustomers() {
             </tbody>
           </table>
         </div>
-      </div>
+      </ErpPanel>
 
       <Dialog open={!!view} onOpenChange={(v) => !v && setView(null)}>
         <DialogContent className="max-w-2xl">
@@ -73,7 +85,7 @@ export default function AdminCustomers() {
           {view && <CustomerDetail customer={view} />}
         </DialogContent>
       </Dialog>
-    </div>
+    </ErpPage>
   );
 }
 
