@@ -88,12 +88,12 @@ export default function AdminHome() {
       today.setHours(0, 0, 0, 0);
       const todayIso = today.toISOString();
 
-      const [ordersToday, paidToday, pendingOrders, lowStock, pendingPrescriptions] = await Promise.all([
+      const [ordersToday, paidToday, pendingOrders, pendingPrescriptions, inventoryManagement] = await Promise.all([
         db.from("orders").select("id", { count: "exact", head: true }).in("payment_status", ["approved", "partially_refunded"]).gte("created_at", todayIso),
         db.from("orders").select("total").eq("payment_status", "approved").gte("created_at", todayIso),
         db.from("orders").select("id", { count: "exact", head: true }).in("payment_status", ["pending", "processing"]),
-        db.from("products").select("id", { count: "exact", head: true }).eq("active", true).lte("stock", 5),
         db.from("prescriptions").select("id", { count: "exact", head: true }).in("status", ["recebida", "pendente", "under_review"]),
+        db.rpc("admin_inventory_management", { _abc_days: 90, _limit: 1 }),
       ]);
 
       const revenueToday = (paidToday.data || []).reduce(
@@ -101,12 +101,17 @@ export default function AdminHome() {
         0,
       );
 
+      const inventorySummary = inventoryManagement.data?.summary || {};
       return {
         ordersToday: ordersToday.count || 0,
         revenueToday,
         pendingOrders: pendingOrders.count || 0,
-        lowStock: lowStock.count || 0,
         pendingPrescriptions: pendingPrescriptions.count || 0,
+        ruptureCount: Number(inventorySummary.rupture_count || 0),
+        criticalCount: Number(inventorySummary.critical_count || 0),
+        replenishmentCount: Number(inventorySummary.replenishment_count || 0),
+        excessCount: Number(inventorySummary.excess_count || 0),
+        noRotationCount: Number(inventorySummary.no_rotation_count || 0),
       };
     },
     refetchInterval: 60_000,
@@ -121,10 +126,34 @@ export default function AdminHome() {
       icon: ReceiptText,
     },
     {
-      label: "Itens com estoque baixo",
-      value: k?.lowStock ?? 0,
+      label: "Rupturas de estoque",
+      value: k?.ruptureCount ?? 0,
+      to: "/admin/estoque",
+      icon: AlertTriangle,
+    },
+    {
+      label: "Estoque crítico",
+      value: k?.criticalCount ?? 0,
       to: "/admin/estoque",
       icon: Boxes,
+    },
+    {
+      label: "Itens para repor",
+      value: k?.replenishmentCount ?? 0,
+      to: "/admin/compras",
+      icon: ShoppingCart,
+    },
+    {
+      label: "Excesso de estoque",
+      value: k?.excessCount ?? 0,
+      to: "/admin/estoque",
+      icon: Boxes,
+    },
+    {
+      label: "Sem giro recente",
+      value: k?.noRotationCount ?? 0,
+      to: "/admin/estoque",
+      icon: Package,
     },
     {
       label: "Receitas pendentes",
