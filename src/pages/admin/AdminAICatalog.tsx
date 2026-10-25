@@ -208,30 +208,6 @@ export default function AdminAICatalog() {
         <ErpMetricCard label="Sem foto" value={query.isLoading ? "—" : withoutImage.toLocaleString("pt-BR")} icon={ImageOff} tone={withoutImage > 0 ? "warning" : "default"} />
       </div>
 
-      <div className="hidden">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Produtos disponíveis para IA</CardTitle></CardHeader>
-          <CardContent className="flex items-end justify-between">
-            <div className="text-3xl font-extrabold">{query.isLoading ? "—" : catalog.length.toLocaleString("pt-BR")}</div>
-            <PackageCheck className="h-7 w-7 text-muted-foreground" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Com foto</CardTitle></CardHeader>
-          <CardContent className="flex items-end justify-between">
-            <div className="text-3xl font-extrabold">{query.isLoading ? "—" : withImage.toLocaleString("pt-BR")}</div>
-            <Download className="h-7 w-7 text-muted-foreground" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Sem foto</CardTitle></CardHeader>
-          <CardContent className="flex items-end justify-between">
-            <div className="text-3xl font-extrabold">{query.isLoading ? "—" : withoutImage.toLocaleString("pt-BR")}</div>
-            <ImageOff className="h-7 w-7 text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="rounded-2xl">
         <CardContent className="pt-5 space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
