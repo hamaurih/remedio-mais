@@ -19,6 +19,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   CreditCard,
   FileText,
@@ -30,6 +31,7 @@ import {
   Menu,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Store,
   Truck,
@@ -87,6 +89,8 @@ const items: Item[] = [
   { to: "/admin/integrations/whatsapp-agent", label: "Agente WhatsApp", icon: Bot, group: "Integrações", roles: ["admin"] },
   { to: "/admin/integrations/meta-ads", label: "Meta Ads", icon: Activity, group: "Integrações", roles: ["admin"] },
 
+  { to: "/admin/qualidade-dados", label: "Qualidade de Dados", icon: ShieldCheck, group: "Administração e Segurança", roles: ["admin"] },
+  { to: "/admin/auditoria", label: "Auditoria do Site", icon: ClipboardCheck, group: "Administração e Segurança", roles: ["admin"] },
   { to: "/admin/config", label: "Configurações", icon: Settings, group: "Administração e Segurança", roles: ["admin"] },
   { to: "/admin/backups", label: "Backup e Recuperação", icon: HardDriveDownload, group: "Administração e Segurança", roles: ["admin"] },
 ];
