@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
+import { Bot, Copy, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 
 const FN_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/public-catalog-search`;
 
@@ -45,16 +46,15 @@ export default function AdminWhatsAppAgent() {
   const keyConfigured = agentKey.trim().length >= 8;
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl">
-      <header>
-        <h1 className="text-2xl font-bold">Agente WhatsApp</h1>
-        <p className="text-sm text-muted-foreground">
-          Teste a API segura usada pelo agente externo para consultar o catálogo.
-          A chave fica armazenada como secret de backend (<code>WHATSAPP_AGENT_API_KEY</code>) e nunca trafega pelo frontend em produção.
-        </p>
-      </header>
+    <ErpPage>
+      <ErpPageHeader
+        title="Agente WhatsApp"
+        description="Teste a API segura usada pelo agente externo para consultar catálogo, preço e disponibilidade sem expor secrets do backend."
+        eyebrow="Integrações"
+        icon={Bot}
+      />
 
-      <section className="border rounded-lg p-4 space-y-3 bg-card">
+      <section className="rounded-2xl border bg-card p-5 shadow-sm space-y-3">
         <h2 className="font-bold">Endpoint</h2>
         <div className="flex items-center gap-2">
           <Input readOnly value={FN_URL} className="font-mono text-xs" />
@@ -66,7 +66,7 @@ export default function AdminWhatsAppAgent() {
         </div>
       </section>
 
-      <section className="border rounded-lg p-4 space-y-3 bg-card">
+      <section className="rounded-2xl border bg-card p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-bold">Chave do agente</h2>
           <div className={`text-xs flex items-center gap-1 ${keyConfigured ? "text-emerald-700" : "text-amber-700"}`}>
@@ -81,7 +81,7 @@ export default function AdminWhatsAppAgent() {
         </p>
       </section>
 
-      <section className="border rounded-lg p-4 space-y-3 bg-card">
+      <section className="rounded-2xl border bg-card p-5 shadow-sm space-y-3">
         <h2 className="font-bold">Testar consulta</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2 space-y-1">
@@ -104,7 +104,7 @@ export default function AdminWhatsAppAgent() {
       </section>
 
       {resp && (
-        <section className="border rounded-lg p-4 space-y-3 bg-card">
+        <section className="rounded-2xl border bg-card p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-bold">Resposta</h2>
             <span className="text-xs">HTTP {resp.status}</span>
@@ -143,7 +143,7 @@ export default function AdminWhatsAppAgent() {
         </section>
       )}
 
-      <section className="border rounded-lg p-4 space-y-3 bg-card text-sm">
+      <section className="rounded-2xl border bg-card p-5 shadow-sm space-y-3 text-sm">
         <h2 className="font-bold">Configuração da ferramenta no agente</h2>
         <p className="text-xs text-muted-foreground">Copie este preset para a sua plataforma de agente (n8n, Typebot, Z-API + GPT, etc).</p>
         <pre className="p-3 bg-muted rounded overflow-auto text-[11px]">{`Nome: consultar_estoque_farmacia
@@ -165,6 +165,6 @@ Body:
           <p>Quando o cliente perguntar sobre produto, preço, desconto, estoque, imagem, marca ou disponibilidade, use a ferramenta <code>consultar_estoque_farmacia</code> antes de responder. Nunca invente preço. Nunca invente estoque. Nunca ofereça produto sem estoque. Produtos controlados ou com <code>requires_prescription=true</code> só podem ser liberados após receita. A venda continua pela conversa do WhatsApp — não envie link de compra do site como CTA principal.</p>
         </div>
       </section>
-    </div>
+    </ErpPage>
   );
 }
