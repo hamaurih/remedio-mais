@@ -47,7 +47,7 @@ export default function AdminSuppliers() {
   const activeCount = suppliers.filter((s: any) => s.active).length;
   const withContact = suppliers.filter((s: any) => s.email || s.phone).length;
 
-  return <ErpPage>
+  return <ErpPage className="[&_table]:min-w-[760px]">
     <ErpPageHeader
       title="Fornecedores"
       description="Cadastro de fornecedores usado por compras, custos, recebimentos e contas a pagar."
