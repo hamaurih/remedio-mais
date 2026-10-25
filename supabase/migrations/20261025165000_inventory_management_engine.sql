@@ -21,10 +21,13 @@ begin
   end if;
 
   select tm.tenant_id,
-         coalesce(tm.store_id, s.id),
-         coalesce(s.name, 'Unidade principal')
+         coalesce(member_store.id, s.id),
+         coalesce(member_store.name, s.name, 'Unidade principal')
     into v_tenant_id, v_store_id, v_store_name
   from public.tenant_memberships tm
+  left join public.stores member_store
+    on member_store.id = tm.store_id
+   and member_store.active = true
   left join lateral (
     select st.id, st.name
       from public.stores st
