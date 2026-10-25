@@ -205,7 +205,7 @@ export default function AdminRegistrations() {
   }
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[1180px]">
       <ErpPageHeader
         title="Cadastros do Site"
         description="Todas as contas criadas no e-commerce, inclusive usuários que ainda não fizeram pedido."
