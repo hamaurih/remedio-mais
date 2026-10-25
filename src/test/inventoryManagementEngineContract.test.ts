@@ -26,6 +26,12 @@ describe("inventory management SQL engine contract", () => {
     expect(sql).toContain("95");
   });
 
+  it("prefers the member store name before falling back to the tenant headquarters", () => {
+    const sql = readFileSync(migrationPath, "utf8");
+    expect(sql).toContain("member_store");
+    expect(sql).toContain("coalesce(member_store.name, s.name, 'Unidade principal')");
+  });
+
   it("returns one shared summary for operational inventory states", () => {
     const sql = readFileSync(migrationPath, "utf8");
     for (const key of [
