@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertTriangle, XCircle, Trash2, Loader2, ExternalLink, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertTriangle, ClipboardCheck, XCircle, Trash2, Loader2, ExternalLink, RefreshCw } from "lucide-react";
+import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 
 type Status = "ok" | "warn" | "error" | "empty";
 
@@ -281,20 +282,14 @@ export default function AdminAudit() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold">Auditoria do Site</h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Diagnóstico completo do que está funcionando, o que precisa melhorar, o que está quebrado e o que está apenas
-            ocupando espaço. Use este painel para decidir por onde começar antes de colocar o site em uso real.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-          Atualizar
-        </Button>
-      </div>
+    <ErpPage>
+      <ErpPageHeader
+        title="Auditoria do Site"
+        description="Diagnóstico do que está funcionando, do que precisa de atenção e do que pode ser simplificado antes de impactar a operação."
+        eyebrow="Administração e segurança"
+        icon={ClipboardCheck}
+        actions={<Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />Atualizar</Button>}
+      />
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground flex items-center gap-2">
@@ -325,7 +320,7 @@ export default function AdminAudit() {
           </Card>
         </>
       )}
-    </div>
+    </ErpPage>
   );
 }
 
