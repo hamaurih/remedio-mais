@@ -33,7 +33,7 @@ export default function AdminCustomers() {
   }, [data, q]);
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[760px]">
       <ErpPageHeader
         title="Clientes"
         description="Consulte cadastro, contato, endereços e histórico de pedidos dos clientes da farmácia."
