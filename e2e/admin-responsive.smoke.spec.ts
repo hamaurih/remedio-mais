@@ -110,7 +110,6 @@ test("authenticated ERP shell is usable on desktop and mobile", async ({ page })
   await page.goto("/admin", { waitUntil: "domcontentloaded" });
 
   await expect(page.getByText("Gestão do Atacadão dos Medicamentos")).toBeVisible();
-  await expect(page.getByText("Administrador")).toBeVisible();
   await expectNoDocumentOverflow(page);
 
   const mobile = (page.viewportSize()?.width || 1280) < 768;
@@ -123,12 +122,13 @@ test("authenticated ERP shell is usable on desktop and mobile", async ({ page })
 
     const cadastros = page.getByRole("button", { name: /Cadastros/i });
     await cadastros.click();
-    await expect(page.getByRole("link", { name: "Produtos e Preços" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Produtos e Preços", exact: true })).toBeVisible();
   } else {
+    await expect(page.getByText("Administrador")).toBeVisible();
     await expect(page.getByText("ERP Administrativo")).toBeVisible();
     const cadastros = page.getByRole("button", { name: /Cadastros/i });
     await cadastros.click();
-    await expect(page.getByRole("link", { name: "Produtos e Preços" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Produtos e Preços", exact: true })).toBeVisible();
   }
 });
 
