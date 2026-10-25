@@ -40,9 +40,11 @@ describe("admin ERP layout refresh", () => {
     expect(app).toContain('import("./pages/admin/AdminPurchaseOperations.tsx")');
     expect(app).toContain('import("./pages/admin/AdminAccountsPayable.tsx")');
     expect(app).toContain('import("./pages/admin/AdminReceivablesCashFlow.tsx")');
+    expect(app).toContain('import("./pages/admin/AdminSuppliers.tsx")');
     expect(app).toContain('path="compras-operacionais"');
     expect(app).toContain('path="contas-a-pagar"');
     expect(app).toContain('path="contas-a-receber"');
+    expect(app).toContain('path="fornecedores"');
   });
 
   it("uses the shared ERP page shell on operational workspaces", () => {
@@ -54,11 +56,41 @@ describe("admin ERP layout refresh", () => {
       "src/pages/admin/AdminPurchaseOperations.tsx",
       "src/pages/admin/AdminAccountsPayable.tsx",
       "src/pages/admin/AdminReceivablesCashFlow.tsx",
+      "src/pages/admin/AdminSuppliers.tsx",
+      "src/pages/admin/AdminCustomers.tsx",
+      "src/pages/admin/AdminRegistrations.tsx",
+      "src/pages/admin/AdminSellers.tsx",
+      "src/pages/admin/AdminUnits.tsx",
+      "src/pages/admin/AdminSettings.tsx",
+      "src/pages/admin/AdminPayments.tsx",
+      "src/pages/admin/AdminWhatsAppAgent.tsx",
     ]) {
       const source = readFileSync(path, "utf8");
       expect(source).toContain("ErpPage");
       expect(source).toContain("ErpPageHeader");
     }
+  });
+
+  it("keeps every sidebar destination backed by an admin route", () => {
+    const layout = readFileSync("src/pages/admin/AdminLayout.tsx", "utf8");
+    const app = readFileSync("src/App.tsx", "utf8");
+    const menu = [...layout.matchAll(/to:\s*"([^"]+)"/g)]
+      .map((match) => match[1])
+      .filter((path) => path.startsWith("/admin"));
+    const routes = [...app.matchAll(/<Route path="([^"]+)"/g)].map((match) => match[1]);
+
+    const unresolved = menu.filter((menuPath) => {
+      const relative = menuPath.replace(/^\/admin\/?/, "");
+      if (!relative) return false;
+      return !routes.some((route) => {
+        if (route === relative) return true;
+        if (!route.includes(":")) return false;
+        const prefix = route.replace(/\/:([^/]+)/g, "");
+        return relative.startsWith(prefix);
+      });
+    });
+
+    expect(unresolved).toEqual([]);
   });
 
   it("keeps visual work isolated from checkout/payment/order-command implementation", () => {
