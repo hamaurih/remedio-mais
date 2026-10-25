@@ -221,7 +221,7 @@ export default function AdminOrders() {
   };
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[980px]">
       <ErpPageHeader
         title="Vendas e Pedidos"
         description="Acompanhe pagamento, separação, entrega, receitas e exceções operacionais em uma única fila."
