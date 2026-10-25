@@ -70,7 +70,7 @@ export default function AdminAccountsPayable() {
     const { error } = await (supabase as any).rpc("cancel_accounts_payable", { _account_id: id });
     if (error) toast.error(error.message); else { toast.success("Conta cancelada."); refresh(); }
   };
-  return <ErpPage>
+  return <ErpPage className="[&_table]:min-w-[860px]">
     <ErpPageHeader
       title="Contas a Pagar"
       description="Controle despesas, fornecedores, vencimentos, aprovações e baixas sem perder a visão do caixa comprometido."
