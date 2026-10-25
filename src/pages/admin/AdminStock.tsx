@@ -74,7 +74,7 @@ export default function AdminStock() {
   }, [products, q]);
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[900px]">
       <ErpPageHeader
         title="Estoque"
         description="Consulte disponibilidade, integração com o Trier, estoque crítico e movimentações manuais sem misturar visão operacional com cadastro de produto."
