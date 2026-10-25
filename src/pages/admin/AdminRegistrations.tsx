@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatBRL } from "@/lib/store";
 import { toast } from "sonner";
+import { ErpMetricCard, ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
 import {
   CheckCircle2,
   Clock3,
@@ -204,19 +205,19 @@ export default function AdminRegistrations() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight">Cadastros do site</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Todas as contas criadas no e-commerce, inclusive usuários que ainda não fizeram pedido.
-        </p>
-      </div>
+    <ErpPage>
+      <ErpPageHeader
+        title="Cadastros do Site"
+        description="Todas as contas criadas no e-commerce, inclusive usuários que ainda não fizeram pedido."
+        eyebrow="Cadastros"
+        icon={UserPlus}
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Total cadastrados" value={stats.total} icon={Users} />
-        <StatCard title="Com pedidos" value={stats.buyers} icon={ShoppingBag} />
-        <StatCard title="Ainda não compraram" value={stats.prospects} icon={UserPlus} />
-        <StatCard title="E-mail confirmado" value={stats.confirmed} icon={CheckCircle2} />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <ErpMetricCard label="Total cadastrados" value={stats.total} icon={Users} />
+        <ErpMetricCard label="Com pedidos" value={stats.buyers} icon={ShoppingBag} />
+        <ErpMetricCard label="Ainda não compraram" value={stats.prospects} icon={UserPlus} />
+        <ErpMetricCard label="E-mail confirmado" value={stats.confirmed} icon={CheckCircle2} tone="success" />
       </div>
 
       <Card className="rounded-2xl">
@@ -454,23 +455,7 @@ export default function AdminRegistrations() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon: Icon }: { title: string; value: number; icon: any }) {
-  return (
-    <Card className="rounded-2xl">
-      <CardContent className="p-5 flex items-center justify-between">
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground">{title}</div>
-          <div className="text-2xl font-black mt-1">{value}</div>
-        </div>
-        <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary grid place-items-center">
-          <Icon className="h-5 w-5" />
-        </div>
-      </CardContent>
-    </Card>
+    </ErpPage>
   );
 }
 
