@@ -101,3 +101,73 @@ export function calculateInventoryPolicy(input: InventoryPolicyInput): Inventory
     status,
   };
 }
+
+export type InventoryManagementRow = {
+  product_id: string;
+  product_name: string;
+  trier_product_id?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  category_name?: string | null;
+  department_name?: string | null;
+  laboratory?: string | null;
+  requires_prescription?: boolean;
+  controlled?: boolean;
+  abc_class: AbcClass;
+  abc_value: number;
+  abc_units: number;
+  reference_price: number;
+  on_hand_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  minimum_stock: number;
+  units_30d: number;
+  units_90d: number;
+  units_180d: number;
+  units_365d: number;
+  avg_daily_units: number;
+  coverage_days?: number | null;
+  lead_time_days: number;
+  lead_time_source: "supplier" | "default";
+  safety_days: number;
+  target_coverage_days: number;
+  reorder_point: number;
+  target_stock: number;
+  status: InventoryStatus;
+  suggested_qty: number;
+  last_sale_at?: string | null;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+  last_cost?: number | null;
+  minimum_order_qty?: number | null;
+  estimated_line_cost?: number | null;
+};
+
+export type InventoryManagementPayload = {
+  store: { id: string; name: string };
+  parameters: {
+    abc_days: number;
+    default_lead_time_days: number;
+    excess_factor: number;
+    class_policy: Record<AbcClass, { safety_days: number; coverage_days: number }>;
+  };
+  freshness: { rotation_synced_at?: string | null; latest_sale_at?: string | null };
+  summary: {
+    rupture_count: number;
+    critical_count: number;
+    replenishment_count: number;
+    excess_count: number;
+    no_rotation_count: number;
+    ok_count: number;
+    suggested_units: number;
+    estimated_cost: number;
+    supplier_linked_items: number;
+    lead_time_configured_items: number;
+    abc_a_count: number;
+    abc_b_count: number;
+    abc_c_count: number;
+    abc_total_value: number;
+    abc_total_units: number;
+  };
+  rows: InventoryManagementRow[];
+};
