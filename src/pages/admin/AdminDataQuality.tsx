@@ -263,7 +263,7 @@ export default function AdminDataQuality() {
   }
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[980px]">
       <ErpPageHeader
         title="Qualidade de Dados"
         description="Analise a qualidade do catálogo vendável, identifique cadastros incompletos e corrija dados sem confundir falta de estoque com erro de cadastro."
