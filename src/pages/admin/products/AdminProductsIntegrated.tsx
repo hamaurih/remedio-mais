@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Package, Plus, Star, Trash2, Upload, Zap } from "lucide-react";
+import { MoreHorizontal, Package, Plus, Star, Trash2, Upload, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ProductVariantsManager } from "@/components/admin/ProductVariantsManager";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 import { BestsellersReorderDialog } from "@/components/admin/BestsellersReorderDialog";
@@ -320,18 +321,30 @@ export default function AdminProductsIntegrated() {
         icon={Package}
         actions={
           <>
-            <Button variant="outline" disabled={bulkBusy} onClick={forceActivateAllTrierInactive}>
-              <Zap className="h-4 w-4 mr-2" /> {bulkBusy ? "Ativando..." : "Ativar inativos no Trier"}
-            </Button>
-            <Button variant="outline" onClick={() => setReorderOpen(true)}>
-              <Star className="h-4 w-4 mr-2" /> Mais vendidos
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar</Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <MoreHorizontal className="h-4 w-4 mr-2" /> Mais ações
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setReorderOpen(true)}>
+                  <Star className="h-4 w-4 mr-2" /> Organizar mais vendidos
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/produtos/reconciliar"><Upload className="h-4 w-4 mr-2" /> Reconciliar produtos</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/produtos/importar"><Upload className="h-4 w-4 mr-2" /> Importar produtos</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={bulkBusy}
+                  onClick={forceActivateAllTrierInactive}
+                >
+                  <Zap className="h-4 w-4 mr-2" /> {bulkBusy ? "Ativando..." : "Ativar inativos no Trier"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo produto</Button>
           </>
         }
