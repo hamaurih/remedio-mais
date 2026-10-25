@@ -10,66 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { AlertTriangle, Boxes, Download, PackageOpen, RefreshCw, Search, ShoppingCart, Truck } from "lucide-react";
 import { ErpPage, ErpPageHeader } from "@/components/admin/ErpPageShell";
+import {
+  INVENTORY_STATUS_LABEL,
+  type InventoryManagementPayload,
+  type InventoryManagementRow,
+  type InventoryStatus,
+} from "@/lib/inventoryPolicy";
 
-type Priority = "ruptura" | "critico" | "estoque_baixo" | "repor" | "ok";
-
-type Recommendation = {
-  product_id: string;
-  product_name: string;
-  trier_product_id?: string | null;
-  sku?: string | null;
-  barcode?: string | null;
-  category_name?: string | null;
-  laboratory?: string | null;
-  requires_prescription?: boolean;
-  controlled?: boolean;
-  available_stock: number;
-  on_hand_stock: number;
-  reserved_stock: number;
-  minimum_stock: number;
-  units_30d: number;
-  units_90d: number;
-  avg_daily_units: number;
-  coverage_days?: number | null;
-  last_sale_at?: string | null;
-  priority: Priority;
-  suggested_qty: number;
-  supplier_id?: string | null;
-  supplier_name?: string | null;
-  last_cost?: number | null;
-  estimated_line_cost?: number | null;
-};
-
-type Payload = {
-  store: { id: string; name: string };
-  parameters: { target_days: number; critical_days: number };
-  freshness: { rotation_synced_at?: string | null; latest_sale_at?: string | null };
-  summary: {
-    rupture_count: number;
-    critical_count: number;
-    low_stock_count: number;
-    replenishment_count: number;
-    suggested_units: number;
-    estimated_cost: number;
-    costed_items: number;
-    supplier_linked_items: number;
-  };
-  rows: Recommendation[];
-};
-
-const PRIORITY_LABEL: Record<Priority, string> = {
-  ruptura: "Ruptura",
-  critico: "Crítico",
-  estoque_baixo: "Estoque baixo",
-  repor: "Repor",
-  ok: "OK",
-};
-
-const PRIORITY_VARIANT: Record<Priority, "default" | "secondary" | "destructive" | "outline"> = {
+const STATUS_VARIANT: Record<InventoryStatus, "default" | "secondary" | "destructive" | "outline"> = {
   ruptura: "destructive",
   critico: "destructive",
-  estoque_baixo: "outline",
   repor: "secondary",
+  excesso: "outline",
+  sem_giro: "outline",
   ok: "default",
 };
 
@@ -88,28 +41,24 @@ function dt(value?: string | null) {
 }
 
 function csvCell(value: unknown) {
-  const text = String(value ?? "").replace(/"/g, '""');
-  return `"${text}"`;
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
 export default function AdminSmartPurchasing() {
   const { isAdmin, loading } = useAuth();
-  const [targetDays, setTargetDays] = useState(14);
-  const [criticalDays, setCriticalDays] = useState(7);
-  const [priority, setPriority] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("comprar");
   const [search, setSearch] = useState("");
 
-  const { data, isFetching, error, refetch } = useQuery<Payload>({
-    queryKey: ["smart-purchasing", targetDays, criticalDays],
+  const { data, isFetching, error, refetch } = useQuery<InventoryManagementPayload>({
+    queryKey: ["admin_inventory_management", 90],
     enabled: isAdmin,
     queryFn: async () => {
-      const { data: result, error: rpcError } = await (supabase as any).rpc("admin_replenishment_recommendations", {
-        _target_days: targetDays,
-        _critical_days: criticalDays,
-        _limit: 500,
+      const { data: result, error: rpcError } = await (supabase as any).rpc("admin_inventory_management", {
+        _abc_days: 90,
+        _limit: 1000,
       });
       if (rpcError) throw rpcError;
-      return result as Payload;
+      return result as InventoryManagementPayload;
     },
     staleTime: 60_000,
   });
@@ -117,12 +66,21 @@ export default function AdminSmartPurchasing() {
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (data?.rows || []).filter((row) => {
-      if (priority !== "all" && row.priority !== priority) return false;
+      if (statusFilter === "comprar" && num(row.suggested_qty) <= 0) return false;
+      if (statusFilter !== "all" && statusFilter !== "comprar" && row.status !== statusFilter) return false;
       if (!term) return true;
-      return [row.product_name, row.trier_product_id, row.sku, row.barcode, row.category_name, row.laboratory, row.supplier_name]
-        .some((v) => String(v || "").toLowerCase().includes(term));
+      return [
+        row.product_name,
+        row.trier_product_id,
+        row.sku,
+        row.barcode,
+        row.category_name,
+        row.laboratory,
+        row.supplier_name,
+        row.abc_class,
+      ].some((value) => String(value || "").toLowerCase().includes(term));
     });
-  }, [data?.rows, priority, search]);
+  }, [data?.rows, search, statusFilter]);
 
   if (loading) return <div className="p-8 text-center">Carregando...</div>;
   if (!isAdmin) return <Navigate to="/admin" replace />;
@@ -132,30 +90,37 @@ export default function AdminSmartPurchasing() {
       toast.error("Não há itens para exportar com os filtros atuais.");
       return;
     }
-    const header = ["Prioridade", "Produto", "Código Trier", "Estoque disponível", "Vendas 30d", "Vendas 90d", "Cobertura dias", "Sugestão compra", "Fornecedor", "Último custo", "Custo estimado"];
-    const lines = rows.map((r) => [
-      PRIORITY_LABEL[r.priority], r.product_name, r.trier_product_id || "", r.available_stock, r.units_30d, r.units_90d,
-      r.coverage_days ?? "", r.suggested_qty, r.supplier_name || "", r.last_cost ?? "", r.estimated_line_cost ?? "",
+
+    const header = [
+      "Situação", "ABC", "Produto", "Código Trier", "Estoque disponível", "Giro/dia", "Cobertura dias",
+      "Lead time", "Fonte lead time", "Ponto reposição", "Estoque alvo", "Comprar", "Fornecedor", "Custo estimado",
+    ];
+    const lines = rows.map((row) => [
+      INVENTORY_STATUS_LABEL[row.status], row.abc_class, row.product_name, row.trier_product_id || "",
+      row.available_stock, row.avg_daily_units, row.coverage_days ?? "", row.lead_time_days,
+      row.lead_time_source === "supplier" ? "Fornecedor" : "Estimado", row.reorder_point, row.target_stock,
+      row.suggested_qty, row.supplier_name || "", row.estimated_line_cost ?? "",
     ].map(csvCell).join(";"));
+
     const blob = new Blob(["\ufeff", header.map(csvCell).join(";"), "\n", lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `reposicao-inteligente-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `reposicao-inteligente-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
     URL.revokeObjectURL(url);
   };
 
   const summary = data?.summary;
-  const hasCosts = num(summary?.costed_items) > 0;
+  const hasCosts = num(summary?.estimated_cost) > 0;
 
   return (
     <ErpPage>
       <ErpPageHeader
         title="Compra inteligente"
-        description="Reposição calculada com giro real do Trier e estoque disponível. A tela gera recomendações para conferência e não envia pedidos automaticamente."
+        description="Reposição calculada por giro Trier, Curva ABC, cobertura, reservas, lead time e estoque de segurança. A recomendação não cria pedido automaticamente."
         eyebrow="Compras e suprimentos"
         icon={ShoppingCart}
         actions={
@@ -167,9 +132,6 @@ export default function AdminSmartPurchasing() {
           </>
         }
       />
-      {data?.store?.name && (
-        <div className="text-xs font-semibold text-muted-foreground">Unidade analisada: <span className="text-foreground">{data.store.name}</span></div>
-      )}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
@@ -179,89 +141,92 @@ export default function AdminSmartPurchasing() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
         <Metric title="Rupturas" value={summary?.rupture_count ?? "—"} icon={AlertTriangle} danger />
-        <Metric title={`Críticos ≤ ${criticalDays} dias`} value={summary?.critical_count ?? "—"} icon={PackageOpen} danger />
+        <Metric title="Críticos" value={summary?.critical_count ?? "—"} icon={PackageOpen} danger />
         <Metric title="Itens para repor" value={summary?.replenishment_count ?? "—"} icon={Boxes} />
         <Metric title="Unidades sugeridas" value={summary?.suggested_units ?? "—"} icon={ShoppingCart} />
         <Metric title="Custo estimado" value={hasCosts ? brl(summary?.estimated_cost) : "Sem custos cadastrados"} icon={Truck} small={!hasCosts} />
       </div>
 
-      <div className="rounded-2xl border bg-card p-4 shadow-sm grid gap-4 lg:grid-cols-[220px_220px_1fr]">
-        <div>
-          <label className="text-xs font-semibold">Cobertura alvo</label>
-          <Select value={String(targetDays)} onValueChange={(v) => setTargetDays(Number(v))}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[7, 14, 21, 30].map((days) => <SelectItem key={days} value={String(days)}>{days} dias</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <div className="rounded-2xl border bg-card p-4 shadow-sm">
+        <div className="font-bold text-sm">Política automática por Curva ABC</div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {(["A", "B", "C"] as const).map((abc) => {
+            const policy = data?.parameters?.class_policy?.[abc];
+            return (
+              <div key={abc} className="rounded-xl border bg-muted/20 p-3 text-sm">
+                <div className="font-black">Classe {abc}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Segurança {policy?.safety_days ?? "—"} dias · cobertura adicional {policy?.coverage_days ?? "—"} dias
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div>
-          <label className="text-xs font-semibold">Faixa crítica</label>
-          <Select value={String(criticalDays)} onValueChange={(v) => setCriticalDays(Number(v))}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[3, 5, 7, 10].map((days) => <SelectItem key={days} value={String(days)}>{days} dias</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="text-xs text-muted-foreground flex items-end pb-2">
-          A demanda diária usa as vendas dos últimos 30 dias; quando não há venda no período, usa a média de 90 dias. A sugestão cobre o horizonte escolhido e nunca fica abaixo do estoque mínimo.
+        <div className="mt-3 text-xs text-muted-foreground">
+          O lead time real do fornecedor é usado quando cadastrado. Sem fornecedor, o motor usa {data?.parameters?.default_lead_time_days ?? 3} dias como estimativa e identifica a fonte como estimada.
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="p-4 border-b grid gap-3 md:grid-cols-[1fr_190px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar produto, código Trier, EAN, laboratório ou fornecedor" />
-          </div>
-          <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as prioridades</SelectItem>
-              <SelectItem value="ruptura">Ruptura</SelectItem>
-              <SelectItem value="critico">Crítico</SelectItem>
-              <SelectItem value="estoque_baixo">Estoque baixo</SelectItem>
-              <SelectItem value="repor">Repor</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="rounded-2xl border bg-card p-4 shadow-sm grid gap-3 md:grid-cols-[1fr_220px]">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar produto, código Trier, EAN, laboratório, fornecedor ou classe ABC" />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="comprar">Precisa comprar</SelectItem>
+            <SelectItem value="ruptura">Ruptura</SelectItem>
+            <SelectItem value="critico">Crítico</SelectItem>
+            <SelectItem value="repor">Repor</SelectItem>
+            <SelectItem value="excesso">Excesso</SelectItem>
+            <SelectItem value="sem_giro">Sem giro</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1100px]">
+          <table className="w-full text-sm min-w-[1280px]">
             <thead className="bg-secondary text-left">
               <tr>
-                <th className="p-3">Prioridade</th>
+                <th className="p-3">Situação</th>
+                <th className="p-3 text-center">ABC</th>
                 <th className="p-3">Produto</th>
-                <th className="p-3 text-right">Estoque</th>
-                <th className="p-3 text-right">Vendas 30d</th>
+                <th className="p-3 text-right">Disponível</th>
+                <th className="p-3 text-right">Giro/dia</th>
                 <th className="p-3 text-right">Cobertura</th>
+                <th className="p-3 text-right">Lead time</th>
+                <th className="p-3 text-right">Ponto / Alvo</th>
                 <th className="p-3 text-right">Comprar</th>
                 <th className="p-3">Fornecedor</th>
-                <th className="p-3 text-right">Custo estimado</th>
+                <th className="p-3 text-right">Custo</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.product_id} className="border-t align-top">
-                  <td className="p-3"><Badge variant={PRIORITY_VARIANT[row.priority]}>{PRIORITY_LABEL[row.priority]}</Badge></td>
+              {rows.map((row: InventoryManagementRow) => (
+                <tr key={row.product_id} className="border-t align-top hover:bg-muted/20">
+                  <td className="p-3"><Badge variant={STATUS_VARIANT[row.status]}>{INVENTORY_STATUS_LABEL[row.status]}</Badge></td>
+                  <td className="p-3 text-center"><Badge variant="outline" className="font-black">{row.abc_class}</Badge></td>
                   <td className="p-3 max-w-[360px]">
                     <div className="font-semibold">{row.product_name}</div>
                     <div className="text-[11px] text-muted-foreground mt-1">Cód. Trier: {row.trier_product_id || "—"}{row.laboratory ? ` · ${row.laboratory}` : ""}</div>
-                    {(row.controlled || row.requires_prescription) && <div className="text-[11px] text-amber-700 font-semibold mt-1">Medicamento com controle de dispensação</div>}
                   </td>
-                  <td className="p-3 text-right">
-                    <div className="font-bold">{num(row.available_stock).toLocaleString("pt-BR")}</div>
-                    {num(row.reserved_stock) > 0 && <div className="text-[11px] text-muted-foreground">{num(row.reserved_stock)} reservado</div>}
-                  </td>
-                  <td className="p-3 text-right font-semibold">{num(row.units_30d).toLocaleString("pt-BR")}</td>
+                  <td className="p-3 text-right font-bold">{num(row.available_stock).toLocaleString("pt-BR")}</td>
+                  <td className="p-3 text-right">{num(row.avg_daily_units).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</td>
                   <td className="p-3 text-right">{row.coverage_days == null ? "—" : `${num(row.coverage_days).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} d`}</td>
+                  <td className="p-3 text-right">
+                    <div>{row.lead_time_days} d</div>
+                    <div className="text-[10px] text-muted-foreground">{row.lead_time_source === "supplier" ? "fornecedor" : "estimado"}</div>
+                  </td>
+                  <td className="p-3 text-right">{num(row.reorder_point).toLocaleString("pt-BR")} / {num(row.target_stock).toLocaleString("pt-BR")}</td>
                   <td className="p-3 text-right text-lg font-extrabold text-primary">{num(row.suggested_qty).toLocaleString("pt-BR")}</td>
                   <td className="p-3">{row.supplier_name || <span className="text-xs text-muted-foreground">Não cadastrado</span>}</td>
                   <td className="p-3 text-right">{row.estimated_line_cost == null ? "—" : brl(row.estimated_line_cost)}</td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">Nenhum item encontrado com os filtros atuais.</td></tr>}
+              {!rows.length && <tr><td colSpan={11} className="p-10 text-center text-muted-foreground">Nenhum item encontrado com os filtros atuais.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -269,12 +234,12 @@ export default function AdminSmartPurchasing() {
 
       <div className="grid lg:grid-cols-2 gap-3 text-xs text-muted-foreground">
         <div className="rounded-2xl border bg-card p-4 shadow-sm">
-          <div className="font-bold text-foreground mb-1">Qualidade dos dados</div>
+          <div className="font-bold text-foreground mb-1">Qualidade do giro</div>
           Giro Trier atualizado em {dt(data?.freshness?.rotation_synced_at)}. Venda mais recente considerada: {dt(data?.freshness?.latest_sale_at)}.
         </div>
         <div className="rounded-2xl border bg-card p-4 shadow-sm">
-          <div className="font-bold text-foreground mb-1">Fornecedores</div>
-          {num(summary?.supplier_linked_items)} item(ns) da lista têm fornecedor vinculado e {num(summary?.costed_items)} têm custo de compra. O próximo bloco da Fase 2 conecta fornecedores, custo e geração de pedido de compra.
+          <div className="font-bold text-foreground mb-1">Fornecedores e lead time</div>
+          {num(summary?.supplier_linked_items)} item(ns) têm fornecedor vinculado e {num(summary?.lead_time_configured_items)} usam prazo real. Os demais usam o lead time padrão até o cadastro ser concluído.
         </div>
       </div>
     </ErpPage>
