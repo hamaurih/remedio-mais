@@ -49,24 +49,6 @@ async function mockAdminSession(page: Page) {
     });
   });
 
-  await page.route("**/functions/v1/customer-account", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        ok: true,
-        profile: {
-          id: USER_ID,
-          full_name: "Admin UI Review",
-          email: "admin-ui-review@example.test",
-          phone: null,
-          cpf: null,
-        },
-        roles: ["admin"],
-      }),
-    });
-  });
-
   await page.route("**/rest/v1/**", async (route) => {
     const request = route.request();
     const headers = {
@@ -88,6 +70,25 @@ async function mockAdminSession(page: Page) {
   });
 
   await page.route("**/functions/v1/**", async (route) => {
+    if (route.request().url().includes("/functions/v1/customer-account")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          profile: {
+            id: USER_ID,
+            full_name: "Admin UI Review",
+            email: "admin-ui-review@example.test",
+            phone: null,
+            cpf: null,
+          },
+          roles: ["admin"],
+        }),
+      });
+      return;
+    }
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",
