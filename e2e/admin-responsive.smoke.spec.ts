@@ -118,7 +118,8 @@ test("authenticated ERP shell is usable on desktop and mobile", async ({ page })
     const menuButton = page.getByRole("button", { name: "Abrir menu" });
     await expect(menuButton).toBeVisible();
     await menuButton.click();
-    await expect(page.getByText("ERP Administrativo")).toBeVisible();
+    const mobileDialog = page.getByRole("dialog");
+    await expect(mobileDialog.getByText("ERP Administrativo")).toBeVisible();
 
     const cadastros = page.getByRole("button", { name: /Cadastros/i });
     await cadastros.click();
