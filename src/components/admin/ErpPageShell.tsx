@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-export function ErpPage({ children }: { children: ReactNode }) {
+export function ErpPage({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className="mx-auto max-w-[1480px] space-y-6 p-4 md:p-6 lg:p-8">
+    <div className={`mx-auto max-w-[1480px] space-y-6 p-4 md:p-6 lg:p-8 ${className}`}>
       {children}
     </div>
   );
