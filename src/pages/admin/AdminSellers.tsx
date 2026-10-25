@@ -80,7 +80,7 @@ export default function AdminSellers() {
   const refundAccess = (sellers || []).filter((seller) => seller.can_request_refund || seller.can_execute_refund).length;
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[820px]">
       <ErpPageHeader
         title="Vendedores"
         description="Controle acesso da equipe comercial e permissões sensíveis de reembolso e receitas."
