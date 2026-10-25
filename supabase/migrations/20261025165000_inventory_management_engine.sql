@@ -263,7 +263,9 @@ begin
       'lead_time_configured_items', (select count(*) from normalized where lead_time_source = 'supplier'),
       'abc_a_count', (select count(*) from normalized where abc_class = 'A'),
       'abc_b_count', (select count(*) from normalized where abc_class = 'B'),
-      'abc_c_count', (select count(*) from normalized where abc_class = 'C')
+      'abc_c_count', (select count(*) from normalized where abc_class = 'C'),
+      'abc_total_value', (select round(coalesce(sum(abc_value), 0), 2) from normalized),
+      'abc_total_units', (select coalesce(sum(abc_units), 0) from normalized)
     ),
     'rows', coalesce((
       select jsonb_agg(jsonb_build_object(
