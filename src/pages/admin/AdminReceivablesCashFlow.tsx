@@ -27,7 +27,7 @@ export default function AdminReceivablesCashFlow(){
   const approve=async(id:string)=>{const {error}=await (supabase as any).rpc("approve_accounts_receivable",{_account_id:id});if(error)toast.error(error.message);else{toast.success("Conta aprovada.");refresh();}};
   const receive=async(id:string)=>{const method=window.prompt("Forma de recebimento (Pix, cartão, dinheiro ou transferência):","Pix");if(!method)return;const {error}=await (supabase as any).rpc("receive_accounts_receivable",{_account_id:id,_payment_method:method,_received_amount:null});if(error)toast.error(error.message);else{toast.success("Recebimento registrado e lançado no caixa.");refresh();}};
   const cancel=async(id:string)=>{if(!window.confirm("Cancelar esta conta a receber?"))return;const {error}=await (supabase as any).rpc("cancel_accounts_receivable",{_account_id:id});if(error)toast.error(error.message);else{toast.success("Conta cancelada.");refresh();}};
-  return <ErpPage>
+  return <ErpPage className="[&_table]:min-w-[820px]">
     <ErpPageHeader
       title="Contas a Receber e Fluxo de Caixa"
       description="Acompanhe valores a receber, entradas, saídas e baixas financeiras com separação clara entre contas e movimentação de caixa."
