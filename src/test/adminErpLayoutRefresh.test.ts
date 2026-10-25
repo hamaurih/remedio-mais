@@ -64,6 +64,11 @@ describe("admin ERP layout refresh", () => {
       "src/pages/admin/AdminSettings.tsx",
       "src/pages/admin/AdminPayments.tsx",
       "src/pages/admin/AdminWhatsAppAgent.tsx",
+      "src/pages/admin/AdminAICatalog.tsx",
+      "src/pages/admin/AdminMetaAds.tsx",
+      "src/pages/admin/AdminTrier.tsx",
+      "src/pages/admin/AdminAudit.tsx",
+      "src/pages/admin/AdminDataQuality.tsx",
     ]) {
       const source = readFileSync(path, "utf8");
       expect(source).toContain("ErpPage");
