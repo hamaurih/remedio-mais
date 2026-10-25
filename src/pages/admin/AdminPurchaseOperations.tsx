@@ -28,7 +28,7 @@ export default function AdminPurchaseOperations() {
   const pendingOrders = orders.filter((o: any) => ["draft", "pending"].includes(o.status)).length;
   const openReceipts = receipts.filter((r: any) => ["draft", "checked"].includes(r.status)).length;
   const purchaseValue = orders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
-  return <ErpPage>
+  return <ErpPage className="[&_table]:min-w-[860px]">
     <ErpPageHeader
       title="Compras e Recebimentos"
       description="Acompanhe pedido de compra, aprovação, conferência e entrada de mercadorias no estoque em um único fluxo."
