@@ -181,7 +181,7 @@ export default function AdminMetaAds() {
   }
 
   return (
-    <ErpPage>
+    <ErpPage className="[&_table]:min-w-[760px]">
       <ErpPageHeader
         title="Meta Ads e Analytics"
         description="Mensuração e otimização de campanhas com Pixel, Conversions API e Google Analytics 4."
