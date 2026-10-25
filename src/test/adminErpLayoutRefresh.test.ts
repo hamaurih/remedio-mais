@@ -13,6 +13,10 @@ describe("admin ERP layout refresh", () => {
     expect(layout).toContain("Abrir menu");
     expect(layout).toContain("Recolher menu");
     expect(layout).toContain("NotificationsBell");
+    expect(layout).toContain("openGroups");
+    expect(layout).toContain("toggleGroup");
+    expect(layout).toContain("aria-expanded={isGroupOpen}");
+    expect(layout).toContain("ChevronDown");
   });
 
   it("organizes the home around operation, finance and structure", () => {
@@ -74,6 +78,34 @@ describe("admin ERP layout refresh", () => {
       expect(source).toContain("ErpPage");
       expect(source).toContain("ErpPageHeader");
     }
+  });
+
+
+  it("keeps dense ERP tables readable on small screens", () => {
+    const expectations: Array<[string, string]> = [
+      ["src/pages/admin/AdminOrders.tsx", "min-w-[980px]"],
+      ["src/pages/admin/AdminStock.tsx", "min-w-[900px]"],
+      ["src/pages/admin/AdminPurchaseOperations.tsx", "min-w-[860px]"],
+      ["src/pages/admin/AdminAccountsPayable.tsx", "min-w-[860px]"],
+      ["src/pages/admin/AdminReceivablesCashFlow.tsx", "min-w-[820px]"],
+      ["src/pages/admin/AdminTrier.tsx", "min-w-[900px]"],
+      ["src/pages/admin/AdminDataQuality.tsx", "min-w-[980px]"],
+    ];
+
+    for (const [path, width] of expectations) {
+      const source = readFileSync(path, "utf8");
+      expect(source).toContain(width);
+      expect(source).toMatch(/overflow-x-auto|overflow-auto/);
+    }
+  });
+
+  it("reduces header action overload on products", () => {
+    const products = readFileSync("src/pages/admin/products/AdminProductsIntegrated.tsx", "utf8");
+    expect(products).toContain("Mais ações");
+    expect(products).toContain("DropdownMenu");
+    expect(products).toContain("Novo produto");
+    expect(products).toContain("Reconciliar produtos");
+    expect(products).toContain("Importar produtos");
   });
 
   it("keeps every sidebar destination backed by an admin route", () => {
