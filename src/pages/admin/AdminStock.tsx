@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel, ErpPanelHeader } from "@/components/admin/ErpPageShell";
-import { AlertTriangle, Boxes, Link2, PackageCheck, Plus } from "lucide-react";
+import { AlertTriangle, Boxes, Link2, PackageCheck, Plus, ShoppingCart } from "lucide-react";
+import { INVENTORY_STATUS_LABEL, type InventoryManagementPayload } from "@/lib/inventoryPolicy";
 
 const TYPES = ["entrada", "saida", "ajuste", "reserva", "cancelamento"] as const;
 const TYPE_LABEL: Record<string, string> = {
@@ -32,10 +33,25 @@ export default function AdminStock() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [mappingFilter, setMappingFilter] = useState<string>("mapped");
   const [openNew, setOpenNew] = useState(false);
+  const [riskFilter, setRiskFilter] = useState("attention");
+  const [riskSearch, setRiskSearch] = useState("");
 
   const { data: health } = useQuery({
     queryKey: ["products_health_summary"],
     queryFn: async () => (await (supabase as any).from("products_health_summary").select("*").maybeSingle()).data,
+  });
+
+  const { data: inventoryManagement } = useQuery<InventoryManagementPayload>({
+    queryKey: ["admin_inventory_management", 90],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("admin_inventory_management", {
+        _abc_days: 90,
+        _limit: 1000,
+      });
+      if (error) throw error;
+      return data as InventoryManagementPayload;
+    },
+    staleTime: 60_000,
   });
 
   const { data: products } = useQuery({
@@ -64,6 +80,17 @@ export default function AdminStock() {
     },
   });
 
+  const riskRows = useMemo(() => {
+    const term = riskSearch.trim().toLowerCase();
+    return (inventoryManagement?.rows || []).filter((row) => {
+      if (riskFilter === "attention" && !["ruptura", "critico", "repor"].includes(row.status)) return false;
+      if (riskFilter !== "all" && riskFilter !== "attention" && row.status !== riskFilter) return false;
+      if (!term) return true;
+      return [row.product_name, row.sku, row.barcode, row.trier_product_id, row.laboratory, row.abc_class]
+        .some((value) => String(value || "").toLowerCase().includes(term));
+    }).slice(0, 300);
+  }, [inventoryManagement?.rows, riskFilter, riskSearch]);
+
   const filteredProducts = useMemo(() => {
     const t = q.toLowerCase().trim();
     const list = (products || []) as any[];
@@ -89,6 +116,83 @@ export default function AdminStock() {
         <ErpMetricCard label="Órfãos" value={health?.orfaos ?? "—"} icon={AlertTriangle} tone={(health?.orfaos ?? 0) > 0 ? "warning" : "default"} hint="Desativados / sem vínculo" />
         <ErpMetricCard label="Ativos sem estoque" value={health?.ativos_sem_estoque ?? "—"} icon={AlertTriangle} tone={(health?.ativos_sem_estoque ?? 0) > 0 ? "warning" : "default"} />
       </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <ErpMetricCard label="Rupturas" value={inventoryManagement?.summary?.rupture_count ?? "—"} icon={AlertTriangle} tone={(inventoryManagement?.summary?.rupture_count ?? 0) > 0 ? "danger" : "default"} hint="Sem estoque com demanda" />
+        <ErpMetricCard label="Críticos" value={inventoryManagement?.summary?.critical_count ?? "—"} icon={AlertTriangle} tone={(inventoryManagement?.summary?.critical_count ?? 0) > 0 ? "warning" : "default"} hint="Abaixo do ponto de reposição" />
+        <ErpMetricCard label="Para repor" value={inventoryManagement?.summary?.replenishment_count ?? "—"} icon={ShoppingCart} hint="Abaixo do estoque-alvo" />
+        <ErpMetricCard label="Excesso" value={inventoryManagement?.summary?.excess_count ?? "—"} icon={Boxes} hint="Acima de 2× o estoque-alvo" />
+        <ErpMetricCard label="Sem giro" value={inventoryManagement?.summary?.no_rotation_count ?? "—"} icon={Boxes} hint="Estoque sem saída recente" />
+      </div>
+
+      <ErpPanel>
+        <ErpPanelHeader
+          title="Gestão inteligente de estoque"
+          description="Prioridade calculada por Curva ABC, giro Trier, cobertura, lead time, reservas e estoque de segurança."
+          actions={
+            <Select value={riskFilter} onValueChange={setRiskFilter}>
+              <SelectTrigger className="h-8 w-[190px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="attention">Precisa de atenção</SelectItem>
+                <SelectItem value="ruptura">Ruptura</SelectItem>
+                <SelectItem value="critico">Crítico</SelectItem>
+                <SelectItem value="repor">Repor</SelectItem>
+                <SelectItem value="excesso">Excesso</SelectItem>
+                <SelectItem value="sem_giro">Sem giro</SelectItem>
+                <SelectItem value="ok">OK</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+        />
+        <div className="border-b p-4">
+          <Input placeholder="Buscar produto, EAN, SKU, código Trier, laboratório ou classe ABC..." value={riskSearch} onChange={(e) => setRiskSearch(e.target.value)} />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[1280px]">
+            <thead className="bg-secondary text-left">
+              <tr>
+                <th className="p-2">Situação</th>
+                <th className="p-2 text-center">ABC</th>
+                <th className="p-2">Produto</th>
+                <th className="p-2 text-right">Disponível</th>
+                <th className="p-2 text-right">Giro/dia</th>
+                <th className="p-2 text-right">Cobertura</th>
+                <th className="p-2 text-right">Lead time</th>
+                <th className="p-2 text-right">Ponto reposição</th>
+                <th className="p-2 text-right">Estoque-alvo</th>
+                <th className="p-2 text-right">Comprar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {riskRows.map((row) => (
+                <tr key={row.product_id} className="border-t hover:bg-muted/20">
+                  <td className="p-2">
+                    <Badge variant={row.status === "ruptura" || row.status === "critico" ? "destructive" : row.status === "repor" ? "secondary" : "outline"}>
+                      {INVENTORY_STATUS_LABEL[row.status]}
+                    </Badge>
+                  </td>
+                  <td className="p-2 text-center"><Badge variant="outline" className="font-black">{row.abc_class}</Badge></td>
+                  <td className="p-2">
+                    <div className="font-semibold">{row.product_name}</div>
+                    <div className="text-[11px] text-muted-foreground">{row.trier_product_id || row.barcode || row.sku || "—"}</div>
+                  </td>
+                  <td className="p-2 text-right font-bold">{Number(row.available_stock || 0).toLocaleString("pt-BR")}</td>
+                  <td className="p-2 text-right">{Number(row.avg_daily_units || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</td>
+                  <td className="p-2 text-right">{row.coverage_days == null ? "—" : `${Number(row.coverage_days).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} d`}</td>
+                  <td className="p-2 text-right">
+                    {row.lead_time_days} d
+                    {row.lead_time_source === "default" && <div className="text-[10px] text-muted-foreground">estimado</div>}
+                  </td>
+                  <td className="p-2 text-right">{Number(row.reorder_point || 0).toLocaleString("pt-BR")}</td>
+                  <td className="p-2 text-right">{Number(row.target_stock || 0).toLocaleString("pt-BR")}</td>
+                  <td className="p-2 text-right font-black text-primary">{Number(row.suggested_qty || 0).toLocaleString("pt-BR")}</td>
+                </tr>
+              ))}
+              {riskRows.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nenhum item com os filtros atuais.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </ErpPanel>
 
       <ErpPanel>
         <ErpPanelHeader
