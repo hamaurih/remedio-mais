@@ -11,8 +11,10 @@ describe("inventory control SQL contract", () => {
     expect(sql).toContain("create table if not exists public.inventory_counts");
     expect(sql).toContain("create table if not exists public.inventory_count_items");
     expect(sql).toContain("enable row level security");
-    expect(sql).toContain("inventory_loss_events_manage_v1");
-    expect(sql).toContain("inventory_counts_manage_v1");
+    expect(sql).toContain("inventory_loss_events_insert_v1");
+    expect(sql).toContain("inventory_loss_events_update_v1");
+    expect(sql).toContain("inventory_counts_insert_v1");
+    expect(sql).toContain("inventory_counts_update_v1");
   });
 
   it("uses the internal inventory ledger as the canonical write path", () => {
