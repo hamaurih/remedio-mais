@@ -33,6 +33,7 @@ export default function Checkout() {
   const { user, loading } = useAuth();
   const { data: settings } = useStoreSettings();
   const nav = useNavigate();
+  const paymentCompletedRef = useRef(false);
 
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -211,11 +212,11 @@ export default function Checkout() {
   }, [user, loading, nav]);
 
   useEffect(() => {
-    if (items.length === 0) nav("/carrinho", { replace: true });
+    if (!paymentCompletedRef.current && items.length === 0) nav("/carrinho", { replace: true });
   }, [items.length, nav]);
 
   useEffect(() => {
-    if (items.length > 0 && checkoutItems.length === 0) nav("/carrinho", { replace: true });
+    if (!paymentCompletedRef.current && items.length > 0 && checkoutItems.length === 0) nav("/carrinho", { replace: true });
   }, [items.length, checkoutItems.length, nav]);
 
   const icSent = useRef(false);
@@ -373,6 +374,8 @@ export default function Checkout() {
       await parseInvokeError(error, data);
       if (data?.status === "approved") {
         const orderId = data.order_id;
+        if (!orderId) throw new Error("Pagamento aprovado, mas o pedido não foi identificado.");
+        paymentCompletedRef.current = true;
         clearCart();
         toast.success("Pagamento aprovado!");
         nav(`/pedido/sucesso?order=${orderId}`, { replace: true });
