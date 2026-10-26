@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel, ErpPanelHeader } from "@/components/admin/ErpPageShell";
-import { Boxes, CheckCircle2, Clock3, LockKeyhole, RotateCcw, Search, ShieldCheck, ShoppingBag } from "lucide-react";
+import { Boxes, CheckCircle2, Clock3, LockKeyhole, RotateCcw, Search, ShieldCheck, FlaskConical } from "lucide-react";
 
 const CHANNEL_LABEL: Record<string,string> = {
   site: "Site", whatsapp: "WhatsApp", balcao: "Balcão", telefone: "Telefone",
@@ -32,6 +32,19 @@ export default function AdminOrderCommand() {
     staleTime:15_000,
   });
 
+  const { data: pilots = [], refetch: refetchPilots } = useQuery({
+    queryKey:["order_command_pilot_orders"],
+    queryFn: async () => {
+      const { data,error } = await (supabase as any)
+        .from("order_command_pilot_orders")
+        .select("order_id,enabled,enrolled_at,disabled_at,notes");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const pilotByOrder = useMemo(() => new Map(pilots.map((p:any) => [p.order_id,p])),[pilots]);
+
   const { data: orders = [], refetch: refetchOrders } = useQuery({
     queryKey:["admin_order_command_orders"],
     queryFn: async () => {
@@ -55,14 +68,33 @@ export default function AdminOrderCommand() {
   },[orders,search]);
 
   const refresh = async () => {
-    await Promise.all([refetchOverview(),refetchOrders()]);
+    await Promise.all([refetchOverview(),refetchOrders(),refetchPilots()]);
     qc.invalidateQueries({queryKey:["admin_orders"]});
     qc.invalidateQueries({queryKey:["admin_inventory_management"]});
   };
 
+  const setPilot = async (order:any, enabled:boolean) => {
+    const message = enabled
+      ? `Incluir o pedido ${order.order_code || order.id.slice(0,6)} no piloto do Order Command? Isso habilita comandos somente para este pedido.`
+      : `Remover o pedido ${order.order_code || order.id.slice(0,6)} do piloto?`;
+    if (!window.confirm(message)) return;
+
+    setBusy(`${order.id}:pilot`);
+    const { error } = await (supabase as any).rpc("admin_set_order_command_pilot",{
+      _order_id:order.id,
+      _enabled:enabled,
+      _notes: enabled ? "Piloto controlado por pedido" : "Removido manualmente do piloto",
+    });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(enabled ? "Pedido incluído no piloto." : "Pedido removido do piloto.");
+    await refresh();
+  };
+
   const command = async (order:any, action:"reserve"|"commit"|"release") => {
-    if (!overview?.enabled) {
-      toast.warning("Order Command está em modo shadow/desligado.");
+    const pilot = pilotByOrder.get(order.id) as any;
+    if (!overview?.enabled && !pilot?.enabled) {
+      toast.warning("Este pedido não está habilitado no piloto do Order Command.");
       return;
     }
     if (action === "commit" && order.payment_status !== "approved") {
@@ -80,48 +112,32 @@ export default function AdminOrderCommand() {
     const { data,error } = await (supabase as any).rpc("admin_order_inventory_command",{
       _order_id:order.id,
       _action:action,
-      _reason: action === "release" ? "manual_admin" : null,
+      _reason: action === "release" ? "manual_admin_pilot" : null,
     });
     setBusy(null);
     if (error) return toast.error(error.message);
     if (data?.ok === false) {
       toast.error(data?.reason === "insufficient_inventory" ? "Estoque interno insuficiente para reservar o pedido." : "Comando não concluído.");
     } else {
-      toast.success(action === "reserve" ? "Estoque reservado." : action === "commit" ? "Estoque baixado." : "Reserva liberada.");
+      toast.success(action === "reserve" ? "Estoque reservado." : action === "commit" ? "Estoque baixado e piloto encerrado." : "Reserva liberada e piloto encerrado.");
     }
-    await refresh();
-  };
-
-  const toggleFlag = async () => {
-    const next = !overview?.enabled;
-    const message = next
-      ? "Ativar o Order Command permitirá reservas e baixas no estoque interno. O Trier não será alterado. Confirmar?"
-      : "Desativar o Order Command impedirá novos comandos manuais. Reservas existentes não serão alteradas automaticamente. Confirmar?";
-    if (!window.confirm(message)) return;
-    const { error } = await (supabase as any).rpc("admin_set_order_command_enabled",{_enabled:next});
-    if (error) return toast.error(error.message);
-    toast.success(next ? "Order Command ativado em modo controlado." : "Order Command voltou ao modo shadow.");
     await refresh();
   };
 
   const c = overview?.counts || {};
 
   return (
-    <ErpPage className="[&_table]:min-w-[1100px]">
+    <ErpPage className="[&_table]:min-w-[1180px]">
       <ErpPageHeader
         title="Order Command"
-        description="Núcleo controlado de reservas e baixa do estoque interno por pedido e canal. Não altera o Trier."
+        description="Cutover controlado por pedido. O modo global permanece Shadow; somente pedidos inscritos no piloto podem movimentar o estoque interno."
         eyebrow="Vendas e estoque"
         icon={LockKeyhole}
-        actions={
-          <Button variant={overview?.enabled ? "destructive" : "default"} onClick={toggleFlag}>
-            {overview?.enabled ? "Voltar para shadow" : "Ativar modo controlado"}
-          </Button>
-        }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <ErpMetricCard label="Modo" value={overview?.enabled ? "Controlado" : "Shadow"} icon={ShieldCheck} tone={overview?.enabled ? "warning" : "default"} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <ErpMetricCard label="Modo global" value={overview?.enabled ? "Controlado" : "Shadow"} icon={ShieldCheck} tone={overview?.enabled ? "warning" : "default"} />
+        <ErpMetricCard label="Pedidos piloto" value={overview?.pilot_count ?? 0} icon={FlaskConical} tone={(overview?.pilot_count ?? 0) > 0 ? "warning" : "default"} />
         <ErpMetricCard label="Reservados" value={c.reserved ?? "—"} icon={Clock3} />
         <ErpMetricCard label="Reservas ativas" value={c.active_reservations ?? "—"} icon={Boxes} />
         <ErpMetricCard label="Baixados" value={c.committed ?? "—"} icon={CheckCircle2} />
@@ -129,16 +145,16 @@ export default function AdminOrderCommand() {
       </div>
 
       <div className="rounded-xl border bg-card p-4 text-sm">
-        <div className="font-bold">Cutover protegido</div>
+        <div className="font-bold">Piloto por pedido</div>
         <div className="mt-1 text-muted-foreground">
-          Enquanto estiver em Shadow, nenhum comando desta tela modifica o estoque. Quando ativado, somente o estoque interno do ERP é reservado/baixado/liberado. Checkout, Cielo e integração Trier permanecem fora deste módulo.
+          O Order Command global continua em Shadow. Para testar produção, inclua manualmente um pedido no piloto; somente esse pedido poderá reservar, baixar ou liberar estoque interno. Ao baixar ou liberar, ele sai do piloto automaticamente. Checkout, Cielo e Trier permanecem fora deste cutover.
         </div>
       </div>
 
       <ErpPanel>
         <ErpPanelHeader
-          title="Pedidos por canal"
-          description="Site, WhatsApp/IA, balcão, PDV, telefone e vendedor compartilham o mesmo estado de inventário."
+          title="Pedidos disponíveis para piloto"
+          description="Selecione poucos pedidos reais e acompanhe o estado de estoque individualmente."
         />
         <div className="border-b p-4">
           <div className="relative">
@@ -151,28 +167,39 @@ export default function AdminOrderCommand() {
             <thead className="bg-secondary/70 text-left">
               <tr>
                 <th className="p-3">Pedido</th><th className="p-3">Cliente</th><th className="p-3">Canal</th>
-                <th className="p-3">Pagamento</th><th className="p-3">Estoque</th><th className="p-3">Itens</th>
-                <th className="p-3">Criado</th><th className="p-3">Comandos</th>
+                <th className="p-3">Pagamento</th><th className="p-3">Piloto</th><th className="p-3">Estoque</th>
+                <th className="p-3">Itens</th><th className="p-3">Criado</th><th className="p-3">Comandos</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((o:any) => {
                 const activeItems = (o.order_items || []).filter((i:any)=>i.item_status !== "removido");
+                const pilot = pilotByOrder.get(o.id) as any;
+                const pilotEnabled = !!pilot?.enabled;
                 return (
                   <tr key={o.id} className="border-t align-top">
                     <td className="p-3 font-mono text-xs">{o.order_code || o.id.slice(0,8)}</td>
                     <td className="p-3 font-medium">{o.customer_name}</td>
                     <td className="p-3"><Badge variant="outline">{CHANNEL_LABEL[o.sales_channel] || o.sales_channel || o.source || "—"}</Badge></td>
                     <td className="p-3"><Badge variant={o.payment_status === "approved" ? "default" : "secondary"}>{o.payment_status || "—"}</Badge></td>
+                    <td className="p-3"><Badge variant={pilotEnabled ? "secondary" : "outline"}>{pilotEnabled ? "Piloto ativo" : "Fora do piloto"}</Badge></td>
                     <td className="p-3"><Badge variant={o.inventory_state === "failed" ? "destructive" : o.inventory_state === "reserved" ? "secondary" : "outline"}>{STATE_LABEL[o.inventory_state] || o.inventory_state || "Sem reserva"}</Badge></td>
                     <td className="p-3 text-right">{activeItems.reduce((s:number,i:any)=>s+Number(i.quantity||0),0)}</td>
                     <td className="p-3 text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2">
-                        {["none","released","failed",null,undefined].includes(o.inventory_state) && <Button size="sm" variant="outline" disabled={!overview?.enabled || busy===`${o.id}:reserve`} onClick={()=>command(o,"reserve")}>Reservar</Button>}
-                        {o.inventory_state === "reserved" && <>
-                          <Button size="sm" disabled={!overview?.enabled || o.payment_status !== "approved" || busy===`${o.id}:commit`} onClick={()=>command(o,"commit")}>Baixar</Button>
-                          <Button size="sm" variant="outline" disabled={!overview?.enabled || busy===`${o.id}:release`} onClick={()=>command(o,"release")}>Liberar</Button>
+                        {!overview?.enabled && !pilotEnabled && o.inventory_state !== "committed" && (
+                          <Button size="sm" variant="outline" disabled={busy===`${o.id}:pilot`} onClick={()=>setPilot(o,true)}>Entrar no piloto</Button>
+                        )}
+                        {!overview?.enabled && pilotEnabled && o.inventory_state !== "reserved" && (
+                          <Button size="sm" variant="ghost" disabled={busy===`${o.id}:pilot`} onClick={()=>setPilot(o,false)}>Retirar do piloto</Button>
+                        )}
+                        {(["none","released","failed",null,undefined] as any[]).includes(o.inventory_state) && (overview?.enabled || pilotEnabled) && (
+                          <Button size="sm" variant="outline" disabled={busy===`${o.id}:reserve`} onClick={()=>command(o,"reserve")}>Reservar</Button>
+                        )}
+                        {o.inventory_state === "reserved" && (overview?.enabled || pilotEnabled) && <>
+                          <Button size="sm" disabled={o.payment_status !== "approved" || busy===`${o.id}:commit`} onClick={()=>command(o,"commit")}>Baixar</Button>
+                          <Button size="sm" variant="outline" disabled={busy===`${o.id}:release`} onClick={()=>command(o,"release")}>Liberar</Button>
                         </>}
                         {o.inventory_state === "committed" && <span className="text-xs text-muted-foreground">Baixa concluída</span>}
                       </div>
@@ -180,7 +207,7 @@ export default function AdminOrderCommand() {
                   </tr>
                 );
               })}
-              {!filtered.length && <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">Nenhum pedido encontrado.</td></tr>}
+              {!filtered.length && <tr><td colSpan={9} className="p-10 text-center text-muted-foreground">Nenhum pedido encontrado.</td></tr>}
             </tbody>
           </table>
         </div>
