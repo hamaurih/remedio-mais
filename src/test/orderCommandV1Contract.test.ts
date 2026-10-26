@@ -5,9 +5,11 @@ const migration = readFileSync("supabase/migrations/20261025223000_order_command
 const page = readFileSync("src/pages/admin/AdminOrderCommand.tsx","utf8");
 
 describe("order command v1 contract", () => {
-  it("starts disabled in shadow mode", () => {
+  it("starts disabled in shadow mode and fails closed if the flag row is missing", () => {
     expect(migration).toContain("'order_command_v1',false");
     expect(migration).toContain("'mode','shadow'");
+    expect(migration).toContain("select coalesce((");
+    expect(migration).toContain("),false)");
     expect(page).toContain("Order Command está em modo shadow/desligado");
   });
 
