@@ -23,3 +23,15 @@ describe("card payment success redirect", () => {
     expect(checkout).toContain('/pedido/sucesso?order=');
   });
 });
+
+
+describe("account order tracking route", () => {
+  const account = readFileSync("src/pages/Account.tsx","utf8");
+
+  it("opens pending Pix on the Pix page and paid orders on tracking", () => {
+    expect(account).toContain('o.payment_method === "pix"');
+    expect(account).toContain('/pedido/pix/${o.id}');
+    expect(account).toContain('/pedido/sucesso?order=${o.id}');
+    expect(account).not.toContain('onClick={() => nav(`/pedido/pix/${o.id}`)}');
+  });
+});
