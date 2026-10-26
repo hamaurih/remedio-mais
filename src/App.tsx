@@ -63,6 +63,7 @@ const AdminProductEditorCanary = lazyWithRetry(() => import("./pages/admin/produ
 const AdminProductsImport = lazyWithRetry(() => import("./pages/admin/AdminProductsImport.tsx"));
 const AdminProductsReconcile = lazyWithRetry(() => import("./pages/admin/AdminProductsReconcile.tsx"));
 const AdminStock = lazyWithRetry(() => import("./pages/admin/AdminStock.tsx"));
+const AdminInventoryControl = lazyWithRetry(() => import("./pages/admin/AdminInventoryControl.tsx"));
 const AdminSmartPurchasing = lazyWithRetry(() => import("./pages/admin/AdminSmartPurchasing.tsx"));
 const AdminPurchaseOperations = lazyWithRetry(() => import("./pages/admin/AdminPurchaseOperations.tsx"));
 const AdminSuppliers = lazyWithRetry(() => import("./pages/admin/AdminSuppliers.tsx"));
@@ -172,6 +173,7 @@ const App = () => (
               <Route path="produtos/importar" element={<AdminProductsImport />} />
               <Route path="produtos/reconciliar" element={<AdminProductsReconcile />} />
               <Route path="estoque" element={<AdminStock />} />
+              <Route path="estoque-controle" element={<AdminInventoryControl />} />
               <Route path="compras" element={<AdminSmartPurchasing />} />
               <Route path="compras-operacionais" element={<AdminPurchaseOperations />} />
               <Route path="fornecedores" element={<AdminSuppliers />} />

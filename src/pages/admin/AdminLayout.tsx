@@ -72,6 +72,7 @@ const items: Item[] = [
   { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, group: "Compras e Suprimentos", roles: ["admin"] },
 
   { to: "/admin/estoque", label: "Estoque", icon: Boxes, group: "Estoque", roles: ["admin"] },
+  { to: "/admin/estoque-controle", label: "Lotes, Validade e Inventário", icon: ClipboardCheck, group: "Estoque", roles: ["admin"] },
 
   { to: "/admin/contas-a-pagar", label: "Contas a Pagar", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
   { to: "/admin/contas-a-receber", label: "Receber e Caixa", icon: WalletCards, group: "Financeiro", roles: ["admin"] },
