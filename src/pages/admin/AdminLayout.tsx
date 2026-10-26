@@ -27,6 +27,7 @@ import {
   Globe2,
   HardDriveDownload,
   LayoutDashboard,
+  LockKeyhole,
   Layers3,
   LogOut,
   Menu,
@@ -63,6 +64,7 @@ const items: Item[] = [
 
   { to: "/admin/pdv", label: "PDV e Balcão", icon: CreditCard, group: "Vendas", roles: ["admin", "seller"] },
   { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, group: "Vendas", roles: ["admin", "seller"] },
+  { to: "/admin/order-command", label: "Order Command", icon: LockKeyhole, group: "Vendas", roles: ["admin"] },
   { to: "/admin/ia-vendas", label: "WhatsApp / IA", icon: Bot, group: "Vendas", roles: ["admin", "seller"] },
   { to: "/admin/funil-carrinhos", label: "Carrinhos e Funil", icon: Activity, group: "Vendas", roles: ["admin"] },
   { to: "/admin/receitas", label: "Receitas", icon: FileText, group: "Vendas", roles: ["admin", "seller"], requiresPrescriptionPermission: true },
