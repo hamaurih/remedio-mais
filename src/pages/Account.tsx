@@ -275,12 +275,16 @@ export default function Account() {
           <TabsContent value="pedidos" className="pt-4 space-y-2">
             {orders.length === 0 ? (
               <Card className="p-6 text-center text-sm text-muted-foreground">Você ainda não fez pedidos.</Card>
-            ) : orders.map((o: any) => (
-              <Card key={o.id} className="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/40" onClick={() => nav(`/pedido/pix/${o.id}`)}>
-                <div><div className="font-semibold">Pedido #{o.id.slice(0, 8)}</div><div className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString("pt-BR")}</div></div>
-                <div className="text-right"><div className="font-bold">{formatBRL(Number(o.total || 0))}</div><Badge variant="secondary">{o.order_status || o.status || o.payment_status}</Badge></div>
-              </Card>
-            ))}
+            ) : orders.map((o: any) => {
+              const isPendingPix = o.payment_method === "pix" && !["approved", "refunded", "cancelled", "rejected"].includes(String(o.payment_status || ""));
+              const destination = isPendingPix ? `/pedido/pix/${o.id}` : `/pedido/sucesso?order=${o.id}`;
+              return (
+                <Card key={o.id} className="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/40" onClick={() => nav(destination)}>
+                  <div><div className="font-semibold">Pedido #{o.id.slice(0, 8)}</div><div className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString("pt-BR")}</div></div>
+                  <div className="text-right"><div className="font-bold">{formatBRL(Number(o.total || 0))}</div><Badge variant="secondary">{o.order_status || o.status || o.payment_status}</Badge></div>
+                </Card>
+              );
+            })}
           </TabsContent>
         </Tabs>
       </div>
