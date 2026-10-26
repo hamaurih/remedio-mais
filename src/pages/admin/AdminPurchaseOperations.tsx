@@ -126,7 +126,7 @@ export default function AdminPurchaseOperations() {
   const divergentReceipts = receipts.filter((r: any) => Number(r.discrepancy_count || 0) > 0 && r.status !== "posted").length;
 
   return (
-    <ErpPage className="[&_table]:min-w-[920px]">
+    <ErpPage className="[&_table]:min-w-[860px]">
       <ErpPageHeader
         title="Compras e Recebimentos"
         description="Pedido aprovado, conferência item a item, divergências, lote, validade e lançamento seguro no estoque."
