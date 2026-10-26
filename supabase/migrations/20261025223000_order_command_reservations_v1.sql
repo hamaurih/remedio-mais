@@ -191,9 +191,13 @@ begin
     raise exception 'Sem permissão para operar reservas deste pedido';
   end if;
 
-  select coalesce(enabled,false) into v_enabled
-  from public.erp_feature_flags
-  where tenant_id=v_order.tenant_id and key='order_command_v1';
+  select coalesce((
+    select f.enabled
+    from public.erp_feature_flags f
+    where f.tenant_id=v_order.tenant_id and f.key='order_command_v1'
+    limit 1
+  ),false)
+  into v_enabled;
 
   if _action='status' then
     return jsonb_build_object(
