@@ -73,8 +73,12 @@ create policy inventory_loss_events_member_read_v1
 on public.inventory_loss_events for select to authenticated
 using (private.is_tenant_member(tenant_id,auth.uid()));
 
-create policy inventory_loss_events_manage_v1
-on public.inventory_loss_events for all to authenticated
+create policy inventory_loss_events_insert_v1
+on public.inventory_loss_events for insert to authenticated
+with check (private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager','inventory']));
+
+create policy inventory_loss_events_update_v1
+on public.inventory_loss_events for update to authenticated
 using (private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager','inventory']))
 with check (private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager','inventory']));
 
@@ -82,8 +86,12 @@ create policy inventory_counts_member_read_v1
 on public.inventory_counts for select to authenticated
 using (private.is_tenant_member(tenant_id,auth.uid()));
 
-create policy inventory_counts_manage_v1
-on public.inventory_counts for all to authenticated
+create policy inventory_counts_insert_v1
+on public.inventory_counts for insert to authenticated
+with check (private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager','inventory']));
+
+create policy inventory_counts_update_v1
+on public.inventory_counts for update to authenticated
 using (private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager','inventory']))
 with check (private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager','inventory']));
 
@@ -97,8 +105,18 @@ using (
   )
 );
 
-create policy inventory_count_items_manage_v1
-on public.inventory_count_items for all to authenticated
+create policy inventory_count_items_insert_v1
+on public.inventory_count_items for insert to authenticated
+with check (
+  exists (
+    select 1 from public.inventory_counts c
+    where c.id=inventory_count_items.count_id
+      and private.has_tenant_role(c.tenant_id,auth.uid(),array['owner','admin','manager','inventory'])
+  )
+);
+
+create policy inventory_count_items_update_v1
+on public.inventory_count_items for update to authenticated
 using (
   exists (
     select 1 from public.inventory_counts c
