@@ -10,7 +10,7 @@ describe("order command v1 contract", () => {
     expect(migration).toContain("'mode','shadow'");
     expect(migration).toContain("select coalesce((");
     expect(migration).toContain("),false)");
-    expect(page).toContain("Order Command está em modo shadow/desligado");
+    expect(page).toContain("O Order Command global continua em Shadow");
   });
 
   it("supports site whatsapp counter pdv phone seller and ai channels", () => {
