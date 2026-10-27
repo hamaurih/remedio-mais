@@ -87,7 +87,7 @@ export default function AdminOrders() {
 
   const { data } = useQuery({
     queryKey: ["admin_orders"],
-    queryFn: async () => (await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false })).data || [],
+    queryFn: async () => (await supabase.from("orders").select("*, order_items(*, product:products!order_items_product_id_fkey(image_url))").order("created_at", { ascending: false })).data || [],
   });
 
   const updateStatus = async (id: string, status: string) => {
@@ -115,7 +115,7 @@ export default function AdminOrders() {
       toast.success("Item atualizado");
       qc.invalidateQueries({ queryKey: ["admin_orders"] });
       if (view) {
-        const refreshed = await supabase.from("orders").select("*, order_items(*)").eq("id", view.id).maybeSingle();
+        const refreshed = await supabase.from("orders").select("*, order_items(*, product:products!order_items_product_id_fkey(image_url))").eq("id", view.id).maybeSingle();
         if (refreshed.data) setView(refreshed.data);
       }
     }
@@ -124,6 +124,67 @@ export default function AdminOrders() {
   const updateItemNotes = async (itemId: string, notes: string) => {
     const { error } = await supabase.from("order_items").update({ item_notes: notes }).eq("id", itemId);
     if (error) toast.error(error.message); else toast.success("Observação salva");
+  };
+
+  const refundExpiredItem = async (order: any, item: any) => {
+    if (!isAdmin) {
+      toast.error("Apenas administrador pode executar estorno por item.");
+      return;
+    }
+    if (!order?.cielo_payment_id) {
+      toast.error("Este pedido não possui ID de pagamento Cielo.");
+      return;
+    }
+    if (!["approved", "partially_refunded"].includes(String(order.payment_status || ""))) {
+      toast.error("Pedido não está em estado reembolsável.");
+      return;
+    }
+    const itemAmount = Math.round(Number(item.unit_price || 0) * Number(item.quantity || 0) * 100) / 100;
+    if (!Number.isFinite(itemAmount) || itemAmount <= 0) {
+      toast.error("Não foi possível calcular o valor deste item.");
+      return;
+    }
+    const activeItems = (order.order_items || []).filter((it: any) => it.item_status !== "removido");
+    const isLastActiveItem = activeItems.length === 1 && activeItems[0]?.id === item.id;
+    const message = isLastActiveItem
+      ? `O item ${item.product_name} está vencido. Confirmar estorno TOTAL do saldo reembolsável deste pedido? O item só será removido após confirmação da Cielo.`
+      : `O item ${item.product_name} está vencido. Confirmar estorno de ${formatBRL(itemAmount)}? O item só será removido após confirmação da Cielo.`;
+    if (!window.confirm(message)) return;
+
+    const { data: refundData, error: refundError } = await supabase.functions.invoke("refund-cielo", {
+      body: {
+        order_id: order.id,
+        amount: isLastActiveItem ? undefined : itemAmount,
+        reason: `Produto vencido durante separação: ${item.product_name}`,
+        idempotency_key: `expired-item:${order.id}:${item.id}`,
+        mode: "execute",
+      },
+    });
+    if (refundError || (refundData as any)?.error) {
+      const detail = (refundData as any)?.detail || (refundData as any)?.error || refundError?.message || "Falha no estorno";
+      toast.error(`Estorno não concluído: ${detail}`);
+      return;
+    }
+
+    const previousNotes = String(item.item_notes || "").trim();
+    const notes = [previousNotes, "Produto vencido identificado durante a separação. Estorno Cielo concluído."].filter(Boolean).join("\n");
+    const { error: itemError } = await supabase
+      .from("order_items")
+      .update({ item_status: "removido", item_notes: notes })
+      .eq("id", item.id);
+    if (itemError) {
+      toast.warning("Estorno concluído na Cielo, mas o item precisa de conferência manual no pedido.");
+    } else {
+      toast.success(isLastActiveItem ? "Pedido estornado e item vencido removido." : `Estorno de ${formatBRL(itemAmount)} concluído e item vencido removido.`);
+    }
+
+    await qc.invalidateQueries({ queryKey: ["admin_orders"] });
+    const refreshed = await supabase
+      .from("orders")
+      .select("*, order_items(*, product:products!order_items_product_id_fkey(image_url))")
+      .eq("id", order.id)
+      .maybeSingle();
+    if (refreshed.data) setView(refreshed.data);
   };
 
   const updatePrescriptionOriginal = async (order: any, status: "validated" | "rejected" | "pending_collection") => {
@@ -194,7 +255,7 @@ export default function AdminOrders() {
     } else {
       toast.success(status === "rejected" ? "Receita original recusada; pedido mantido bloqueado." : "Pedido voltou a aguardar a receita original.");
     }
-    const refreshed = await supabase.from("orders").select("*, order_items(*)").eq("id", order.id).maybeSingle();
+    const refreshed = await supabase.from("orders").select("*, order_items(*, product:products!order_items_product_id_fkey(image_url))").eq("id", order.id).maybeSingle();
     if (refreshed.data) setView(refreshed.data);
     await qc.invalidateQueries({ queryKey: ["admin_orders"] });
   };
@@ -292,7 +353,7 @@ export default function AdminOrders() {
           {view && (
             <Tabs defaultValue="separacao">
               <TabsList className="grid grid-cols-4 w-full"><TabsTrigger value="separacao">Separação</TabsTrigger><TabsTrigger value="resumo">Resumo</TabsTrigger><TabsTrigger value="reembolso">Reembolso</TabsTrigger><TabsTrigger value="historico">Histórico</TabsTrigger></TabsList>
-              <TabsContent value="separacao" className="pt-3 space-y-2"><div className="text-xs text-muted-foreground mb-2">Marque o status de cada item conforme separar o pedido.</div>{view.order_items?.map((it: any) => <ItemRow key={it.id} item={it} onStatus={updateItemStatus} onNotes={updateItemNotes} />)}</TabsContent>
+              <TabsContent value="separacao" className="pt-3 space-y-2"><div className="text-xs text-muted-foreground mb-2">Marque o status de cada item conforme separar o pedido.</div>{view.order_items?.map((it: any) => <ItemRow key={it.id} item={it} order={view} onStatus={updateItemStatus} onNotes={updateItemNotes} onExpiredRefund={refundExpiredItem} canRefund={isAdmin} />)}</TabsContent>
               <TabsContent value="resumo" className="space-y-2 text-sm pt-3">
                 <div><strong>Cliente:</strong> {view.customer_name}</div><div><strong>Telefone:</strong> {view.customer_phone}</div>
                 {isAdmin && <div className="flex gap-2 flex-wrap"><Badge variant="secondary">Pgto: {PAYMENT_LABEL[view.payment_status] || view.payment_status}</Badge><Badge variant="outline">Separação: {FULFILL_LABEL[view.fulfillment_status] || view.fulfillment_status}</Badge></div>}
@@ -313,17 +374,47 @@ export default function AdminOrders() {
   );
 }
 
-function ItemRow({ item, onStatus, onNotes }: { item: any; onStatus: (id: string, s: string) => void; onNotes: (id: string, n: string) => void }) {
+function ItemRow({ item, order, onStatus, onNotes, onExpiredRefund, canRefund }: { item: any; order: any; onStatus: (id: string, s: string) => void; onNotes: (id: string, n: string) => void; onExpiredRefund: (order: any, item: any) => void; canRefund: boolean }) {
   const [notes, setNotes] = useState(item.item_notes || "");
   const status = item.item_status || "disponivel";
   const unitPrice = Number(item.unit_price || 0);
   const itemTotal = unitPrice * Number(item.quantity || 0);
+  const snapshotImage = String(item.product_image_url || "").trim();
+  const currentImage = String(item.product?.image_url || "").trim();
   return (
     <div className="border rounded-lg p-3">
-      <div className="flex items-start gap-3">{item.product_image_url && <img src={item.product_image_url} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded object-cover border" />}<div className="flex-1 min-w-0"><div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>{item.variant_label && <div className="text-xs text-muted-foreground">{item.variant_label}</div>}<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs"><span className="text-muted-foreground">{formatBRL(unitPrice)} / un.</span><span className="font-semibold text-foreground">Total: {formatBRL(itemTotal)}</span></div></div><Badge className={`text-[10px] ${ITEM_BADGE[status] || ""}`} variant="outline">{ITEM_STATUSES.find((s) => s.v === status)?.l || status}</Badge></div>
-      <div className="flex flex-wrap gap-1 mt-2">{ITEM_STATUSES.map((s) => <button key={s.v} onClick={() => onStatus(item.id, s.v)} className={`px-2 py-1 rounded text-[11px] font-medium border ${status === s.v ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"}`}>{s.l}</button>)}</div>
+      <div className="flex items-start gap-3"><ItemProductImage snapshot={snapshotImage} fallback={currentImage} name={item.product_name} /><div className="flex-1 min-w-0"><div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>{item.variant_label && <div className="text-xs text-muted-foreground">{item.variant_label}</div>}<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs"><span className="text-muted-foreground">{formatBRL(unitPrice)} / un.</span><span className="font-semibold text-foreground">Total: {formatBRL(itemTotal)}</span></div></div><Badge className={`text-[10px] ${ITEM_BADGE[status] || ""}`} variant="outline">{ITEM_STATUSES.find((s) => s.v === status)?.l || status}</Badge></div>
+      <div className="flex flex-wrap gap-1 mt-2">{ITEM_STATUSES.map((s) => <button key={s.v} onClick={() => onStatus(item.id, s.v)} className={`px-2 py-1 rounded text-[11px] font-medium border ${status === s.v ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"}`}>{s.l}</button>)}{canRefund && status !== "removido" && ["approved", "partially_refunded"].includes(String(order?.payment_status || "")) && <button onClick={() => onExpiredRefund(order, item)} className="px-2 py-1 rounded text-[11px] font-semibold border border-red-300 text-red-700 bg-red-50 hover:bg-red-100">Vencido / Estornar item</button>}</div>
       {(status === "indisponivel" || status === "substituir" || notes) && <div className="mt-2 flex gap-2"><Textarea placeholder="Observação (ex: marca alternativa, motivo da indisponibilidade)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="text-xs" /><Button size="sm" variant="outline" onClick={() => onNotes(item.id, notes)}>Salvar</Button></div>}
     </div>
+  );
+}
+
+
+function ItemProductImage({ snapshot, fallback, name }: { snapshot: string; fallback: string; name: string }) {
+  const [src, setSrc] = useState(snapshot || fallback);
+  const [triedFallback, setTriedFallback] = useState(!snapshot || snapshot === fallback);
+
+  if (!src) {
+    return <div className="w-14 h-14 rounded border bg-muted flex items-center justify-center text-[9px] text-muted-foreground text-center px-1 shrink-0">Sem foto</div>;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name || "Produto"}
+      loading="lazy"
+      decoding="async"
+      className="w-14 h-14 rounded object-contain bg-white border shrink-0"
+      onError={() => {
+        if (!triedFallback && fallback && fallback !== src) {
+          setTriedFallback(true);
+          setSrc(fallback);
+        } else {
+          setSrc("");
+        }
+      }}
+    />
   );
 }
 
