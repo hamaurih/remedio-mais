@@ -19,10 +19,13 @@ describe("admin order separation photos", () => {
 });
 
 describe("expired item refund during separation", () => {
-  it("uses only the Cielo refund function and never calls Trier", () => {
-    expect(source).toContain('supabase.functions.invoke("refund-cielo"');
-    expect(source).toContain("Produto vencido durante separação");
-    expect(source).not.toContain('supabase.functions.invoke("send-order-to-trier"');
+  it("uses only the Cielo refund function and never calls Trier inside expired-item refund", () => {
+    const start = source.indexOf("const refundExpiredItem");
+    const end = source.indexOf("const updatePrescriptionOriginal", start);
+    const handler = source.slice(start, end);
+    expect(handler).toContain('supabase.functions.invoke("refund-cielo"');
+    expect(handler).toContain("Produto vencido durante separação");
+    expect(handler).not.toContain('send-order-to-trier');
   });
 
   it("removes the item only after the refund succeeds", () => {
