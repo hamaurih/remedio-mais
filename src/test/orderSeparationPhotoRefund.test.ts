@@ -43,3 +43,5 @@ describe("expired item refund during separation", () => {
     expect(source).toContain("Vencido / Estornar item");
   });
 });
+
+// Regression guard: separation photos and expired-item refunds must stay independent from Trier.
