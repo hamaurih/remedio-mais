@@ -51,6 +51,7 @@ const RefundPolicy = lazyWithRetry(() => import("./pages/RefundPolicy.tsx"));
 const Contact = lazyWithRetry(() => import("./pages/Contact.tsx"));
 
 const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard.tsx"));
+const AdminTaxMigration = lazyWithRetry(() => import("./pages/admin/AdminTaxMigration.tsx"));
 const AdminCurveABC = lazyWithRetry(() => import("./pages/admin/AdminCurveABC.tsx"));
 const AdminSiteHub = lazyWithRetry(() => import("./pages/admin/AdminSiteHub.tsx"));
 const SellerDashboard = lazyWithRetry(() => import("./pages/admin/SellerDashboard.tsx"));
@@ -160,6 +161,7 @@ const App = () => (
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminEntry />} />
               <Route path="bi" element={<AdminDashboard />} />
+              <Route path="migracao-tributaria" element={<AdminTaxMigration />} />
               <Route path="curva-abc" element={<AdminCurveABC />} />
               <Route path="site" element={<AdminSiteHub />} />
               <Route path="vendedor" element={<SellerDashboard />} />
