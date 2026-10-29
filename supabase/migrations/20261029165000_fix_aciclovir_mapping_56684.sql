@@ -1,3 +1,4 @@
+-- allow-production-data-migration after review.
 -- Corrige exclusivamente o mapeamento local do ACICLOVIR 200MG C/25CP.
 -- Correspondência comprovada por consulta Trier por EAN em 2026-10-29:
 -- EAN 7896004770772 -> codigo 56684.
