@@ -11,9 +11,15 @@ import {
   CBS_GO_LIVE,
   migrationCountdown,
   parseTaxChecklist,
-  simulateTaxPrice,
+  simulateProductTax,
+  classifyTaxProduct,
+  loadTaxCatalog,
+  summarizeTaxCatalog,
+  taxMargin,
+  TaxProduct,
   taxMigrationMode,
 } from "@/lib/taxMigration";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AdminTaxMigration from "@/pages/admin/AdminTaxMigration";
 
 const auth = vi.hoisted(() => ({
@@ -23,8 +29,49 @@ const auth = vi.hoisted(() => ({
 }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth }));
 
+const med: TaxProduct = {
+  id: "1",
+  name: "Medicamento fiscal",
+  price: 100,
+  ncm: "30049099",
+  cest: "1300100",
+  fiscal_list: "positiva",
+  art146_zero: false,
+};
+const general: TaxProduct = {
+  id: "2",
+  name: "Higiene",
+  price: 100,
+  ncm: "33049990",
+  is_medicine: false,
+  icms_st: false,
+  monofasico: false,
+};
+const remote = vi.hoisted(() => ({ fail: false, empty: false }));
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        order: () => ({
+          range: async () =>
+            remote.fail
+              ? { data: null, error: new Error("offline") }
+              : {
+                  data: remote.empty
+                    ? []
+                    : [med, general, { id: "3", name: "Pendente", price: 10 }],
+                  error: null,
+                },
+        }),
+      }),
+    }),
+  },
+}));
+
 beforeEach(() => {
   localStorage.clear();
+  remote.fail = false;
+  remote.empty = false;
   auth.user = { id: "admin-a" };
   auth.isAdmin = true;
   auth.loading = false;
@@ -55,17 +102,47 @@ describe("tax migration boundaries", () => {
     });
   });
 
-  it("keeps 2026 informative and rounds each tax in cents", () => {
-    expect(simulateTaxPrice("100,00")).toEqual({
-      base: 10000,
+  it("calculates each product, regimes, ICMS continuity, zero and settlement", () => {
+    const r = simulateProductTax(med, "100", "presumido")!;
+    expect(r).toMatchObject({
+      todayRate: 0,
+      futureRate: 4.52,
+      futureAmount: 452,
+      splitAmount: 452,
+      sellerAmount: 9548,
       cbs2026: 90,
       ibs2026: 10,
-      cbs2027: 1130,
-      total2026: 10000,
-      total2027: 11130,
     });
-    expect(simulateTaxPrice("0")?.total2027).toBe(0);
-    expect(simulateTaxPrice("19.99")?.total2027).toBe(2225);
+    expect(simulateProductTax(general, "100", "presumido")).toMatchObject({
+      todayRate: 23.65,
+      futureRate: 31.3,
+      futureAmount: 3130,
+      splitAmount: 1130,
+      sellerAmount: 8870,
+    });
+    expect(simulateProductTax(general, "100", "real")?.todayRate).toBe(29.25);
+    expect(
+      simulateProductTax({ ...med, fiscal_list: "neutra" }, "100", "real")
+        ?.todayRate,
+    ).toBe(9.25);
+    expect(
+      simulateProductTax({ ...med, art146_zero: true }, "100", "real")
+        ?.futureAmount,
+    ).toBe(0);
+    expect(simulateProductTax(med, "100", "real", false, 50)).toMatchObject({
+      futureRate: 4.58,
+      splitAmount: 229,
+      sellerAmount: 9771,
+    });
+    expect(taxMargin(r, "80")).toMatchObject({
+      beforeTax: 2000,
+      todayProfit: 2000,
+      futureProfit: 1548,
+    });
+    expect(taxMargin(r, "80")!.futureMargin).toBeCloseTo(15.48);
+    expect(taxMargin(r, "80")!.profitConsumed).toBeCloseTo(22.6);
+    expect(taxMargin(r, "110")!.futureProfit).toBeLessThan(0);
+    expect(taxMargin(r, "")).toBeNull();
     for (const input of [
       "",
       "-1",
@@ -75,7 +152,47 @@ describe("tax migration boundaries", () => {
       "1,234",
       "1000001",
     ])
-      expect(simulateTaxPrice(input)).toBeNull();
+      expect(simulateProductTax(med, input, "real")).toBeNull();
+    expect(simulateProductTax(med, "100", "real", true, NaN)).toBeNull();
+  });
+  it("blocks missing and conflicting evidence; never interprets tarja as fiscal list", () => {
+    for (const p of [
+      { id: "x", name: "x", price: 1 },
+      { ...med, ncm: null },
+      { ...med, art146_zero: null },
+      { ...med, monofasico: false },
+      { ...med, icms_st: false },
+      { ...med, is_medicine: false },
+      { ...med, fiscal_list: null, medicine_list_type: "positiva" },
+    ]) {
+      expect(classifyTaxProduct(p as TaxProduct).review).toBe(true);
+      expect(simulateProductTax(p as TaxProduct, "100", "real")).toBeNull();
+    }
+  });
+  it("loads 4501 products and excludes pending items from averages without partial success", async () => {
+    const data = Array.from({ length: 4501 }, (_, i) => ({
+      ...(i % 2 ? general : med),
+      id: String(i),
+    }));
+    const fetch = vi.fn(async (from: number, to: number) =>
+      data.slice(from, to + 1),
+    );
+    const loaded = await loadTaxCatalog(fetch);
+    expect(loaded).toHaveLength(4501);
+    expect(fetch).toHaveBeenCalledTimes(10);
+    expect(
+      summarizeTaxCatalog(
+        [...loaded, { id: "pending", name: "?", price: 10 }],
+        "presumido",
+      ),
+    ).toMatchObject({ total: 4502, classified: 4501, review: 1 });
+    expect(summarizeTaxCatalog([], "real").todayAverage).toBeNull();
+    await expect(
+      loadTaxCatalog(async (from) => {
+        if (from) throw Error("page failed");
+        return data.slice(0, 500);
+      }),
+    ).rejects.toThrow("page failed");
   });
 
   it("rejects corrupt storage and ignores obsolete checklist keys", () => {
@@ -88,21 +205,45 @@ describe("tax migration boundaries", () => {
 
 const mount = () =>
   render(
-    <MemoryRouter>
-      <AdminTaxMigration />
-    </MemoryRouter>,
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter>
+        <AdminTaxMigration />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 
-it("shows understandable empty and invalid price states, and real calculated results", () => {
+it("shows catalog summary, three scenarios, margin, alert and review", async () => {
   mount();
-  const input = screen.getByLabelText("Preço base (R$)");
+  await screen.findByText(/3 produtos · 2 classificados · 1 em revisão/);
+  fireEvent.click(screen.getByRole("button", { name: /Medicamento fiscal/ }));
+  expect(screen.getByText("HOJE")).toBeInTheDocument();
+  expect(screen.getByText("2027 reforma")).toBeInTheDocument();
   expect(
-    screen.getByText("Digite um preço para comparar os dois cenários."),
+    screen.getByRole("heading", { name: "Split Payment" }),
   ).toBeInTheDocument();
-  fireEvent.change(input, { target: { value: "-1" } });
-  expect(input).toHaveAttribute("aria-invalid", "true");
-  fireEvent.change(input, { target: { value: "100,00" } });
-  expect(screen.getByText("Preço final: R$ 111,30")).toBeInTheDocument();
+  expect(screen.getByText(/Esse item subiu 4,52 pontos/)).toBeInTheDocument();
+  fireEvent.change(
+    screen.getByLabelText("Custo unitário para simular margem (R$)"),
+    { target: { value: "80" } },
+  );
+  expect(screen.getByText(/2027 e Split Payment: lucro/)).toHaveTextContent(
+    "15,48%",
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Pendente/ }));
+  expect(screen.getByText(/Classificação em revisão/)).toBeInTheDocument();
+});
+it("reports catalog failure and supports retry, and empty catalog", async () => {
+  remote.fail = true;
+  mount();
+  await screen.findByText("Não foi possível carregar o catálogo completo");
+  remote.fail = false;
+  remote.empty = true;
+  fireEvent.click(screen.getByRole("button", { name: "Recarregar catálogo" }));
+  await screen.findByText("Catálogo vazio.");
 });
 
 it("persists the checklist and isolates administrators", async () => {
@@ -116,9 +257,15 @@ it("persists the checklist and isolates administrators", async () => {
   expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).toBeChecked();
   auth.user = { id: "admin-b" };
   again.rerender(
-    <MemoryRouter>
-      <AdminTaxMigration />
-    </MemoryRouter>,
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter>
+        <AdminTaxMigration />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
   await waitFor(() =>
     expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).not.toBeChecked(),
