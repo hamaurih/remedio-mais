@@ -25,9 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import {
-  parseTaxChecklist,
   simulateProductTax,
   classifyTaxProduct,
   loadTaxCatalog,
@@ -35,113 +33,12 @@ import {
   taxMargin,
   parseTaxBase,
   TaxProduct,
-  TAX_CHECKLIST,
   tax_migration_preview,
   taxMigrationMode,
 } from "@/lib/taxMigration";
 
 const money = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-function MigrationChecklist({ userId }: { userId: string }) {
-  const storageKey = `remedio-mais:tax-migration:v1:${userId}`;
-  const [checked, setChecked] = useState<string[]>([]);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = useCallback(() => {
-    try {
-      setChecked(parseTaxChecklist(localStorage.getItem(storageKey)));
-      setError("");
-      setReady(true);
-    } catch {
-      setError(
-        "Não foi possível ler o checklist local. Verifique o armazenamento do navegador e tente novamente.",
-      );
-      setReady(false);
-    }
-  }, [storageKey]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  function toggle(id: string, value: boolean) {
-    const next = value
-      ? [...checked.filter((entry) => entry !== id), id]
-      : checked.filter((entry) => entry !== id);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setChecked(next);
-      setError("");
-    } catch {
-      setError(
-        "Não foi possível salvar. A alteração não foi aplicada; libere o armazenamento e tente marcar novamente.",
-      );
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Checklist de preparação</CardTitle>
-        <CardDescription>
-          Marcações deste administrador, salvas somente neste navegador. Marcar
-          um item não configura o sistema fiscal.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!ready && !error && <p role="status">Carregando checklist...</p>}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Armazenamento local indisponível</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-            <Button className="mt-3" variant="outline" onClick={load}>
-              Tentar novamente
-            </Button>
-          </Alert>
-        )}
-        <p className="text-sm text-muted-foreground" role="status">
-          {checked.length} de {TAX_CHECKLIST.length} itens concluídos
-          {ready && checked.length === 0 ? " — nenhum item marcado." : "."}
-        </p>
-        <Progress
-          value={(checked.length / TAX_CHECKLIST.length) * 100}
-          aria-label="Preparação concluída"
-        />
-        {TAX_CHECKLIST.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-start gap-3 rounded-lg border p-4"
-          >
-            <Checkbox
-              id={`tax-${item.id}`}
-              className="mt-1"
-              checked={checked.includes(item.id)}
-              disabled={!ready}
-              onCheckedChange={(value) => toggle(item.id, value === true)}
-              aria-describedby={`tax-${item.id}-detail`}
-            />
-            <div>
-              <Label
-                htmlFor={`tax-${item.id}`}
-                className="cursor-pointer leading-relaxed"
-              >
-                {item.label}
-              </Label>
-              <p
-                id={`tax-${item.id}-detail`}
-                className="mt-1 text-sm text-muted-foreground"
-              >
-                {item.detail}
-              </p>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function AdminTaxMigration() {
   const { user, isAdmin, loading } = useAuth();
@@ -493,15 +390,17 @@ function MigrationSimulator({ userId }: { userId: string }) {
                 <CardTitle>Split Payment</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p>
-                  Taxa na liquidação: {result ? pct(result.splitRate) : "—"}
+                <p className="text-lg font-semibold">
+                  Alíquota deste produto na liquidação:{" "}
+                  {result ? pct(result.splitRate) : "—"}
                 </p>
                 <p>
-                  Retido na hora da venda / liquidação:{" "}
+                  Valor retido na hora da venda:{" "}
                   {result ? money(result.splitAmount) : "—"}
                 </p>
                 <p className="text-xl font-bold">
-                  Cai na conta: {result ? money(result.sellerAmount) : "—"}
+                  Cai na conta do vendedor:{" "}
+                  {result ? money(result.sellerAmount) : "—"}
                 </p>
                 <p>
                   Saldo de imposto a reservar depois:{" "}
@@ -562,7 +461,6 @@ function MigrationSimulator({ userId }: { userId: string }) {
           </Card>
         </>
       )}
-      <MigrationChecklist userId={userId} />
     </ErpPage>
   );
 }

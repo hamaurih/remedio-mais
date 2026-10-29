@@ -6,6 +6,28 @@ const ACCESS_TOKEN =
   "eyJzdWIiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJleHAiOjIwMDAwMDAwMDAsImF1ZCI6ImF1dGhlbnRpY2F0ZWQiLCJyb2xlIjoiYXV0aGVudGljYXRlZCJ9." +
   "ui-review";
 
+const CATALOG = [
+  {
+    id: "1",
+    name: "Medicamento fiscal",
+    price: 100,
+    ncm: "30049099",
+    cest: "1300100",
+    fiscal_list: "positiva",
+    art146_zero: false,
+  },
+  {
+    id: "2",
+    name: "Higiene",
+    price: 100,
+    ncm: "33049990",
+    is_medicine: false,
+    icms_st: false,
+    monofasico: false,
+  },
+  { id: "3", name: "Pendente", price: 10 },
+];
+
 async function mockAdminSession(page: Page) {
   await page.addInitScript(({ userId, accessToken }) => {
     const user = {
@@ -18,7 +40,6 @@ async function mockAdminSession(page: Page) {
       app_metadata: { provider: "email", providers: ["email"] },
       created_at: new Date().toISOString(),
     };
-
     localStorage.setItem(
       "sb-jzltdocmvvdlyaukwzix-auth-token",
       JSON.stringify({
@@ -51,6 +72,7 @@ async function mockAdminSession(page: Page) {
 
   await page.route("**/rest/v1/**", async (route) => {
     const request = route.request();
+    const url = request.url();
     const headers = {
       "content-type": "application/json",
       "content-range": "*/0",
@@ -59,13 +81,30 @@ async function mockAdminSession(page: Page) {
       await route.fulfill({ status: 200, headers });
       return;
     }
-
+    if (url.includes("/rest/v1/products")) {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "content-range": `0-${CATALOG.length - 1}/${CATALOG.length}`,
+        },
+        body: JSON.stringify(CATALOG),
+      });
+      return;
+    }
     const accept = request.headers()["accept"] || "";
     const objectResponse = accept.includes("application/vnd.pgrst.object+json");
     await route.fulfill({
       status: objectResponse ? 406 : 200,
       headers,
-      body: objectResponse ? JSON.stringify({ code: "PGRST116", details: null, hint: null, message: "0 rows" }) : "[]",
+      body: objectResponse
+        ? JSON.stringify({
+            code: "PGRST116",
+            details: null,
+            hint: null,
+            message: "0 rows",
+          })
+        : "[]",
     });
   });
 
@@ -88,7 +127,6 @@ async function mockAdminSession(page: Page) {
       });
       return;
     }
-
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -105,22 +143,70 @@ async function expectNoDocumentOverflow(page: Page) {
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 2);
 }
 
-test("tax migration supports simulation and persists local preparation", async ({ page }) => {
+test("tax migration shows per-product Split Payment and catalog summary", async ({
+  page,
+}) => {
   await mockAdminSession(page);
   await page.goto("/admin/migracao-tributaria");
-  await expect(page.getByRole("heading", { name: "Migração IBS/CBS", exact: true })).toBeVisible();
-  await expect(page.getByText("Demonstração", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Migração IBS/CBS", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Simulação", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Resumo geral do catálogo", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Checklist de preparação")).toHaveCount(0);
+  await expect(
+    page.getByText(
+      "3 produtos · 2 classificados · 1 em revisão · 2 com mudança de alíquota",
+    ),
+  ).toBeVisible();
   await expectNoDocumentOverflow(page);
-  await page.getByLabel("Preço base (R$)").fill("100,00");
-  await expect(page.getByText("Preço final: R$ 111,30")).toBeVisible();
-  await page.getByLabel("Campos IBS/CBS na NF-e", { exact: true }).click();
-  await expect(page.getByText("1 de 5 itens concluídos.")).toBeVisible();
-  await page.reload();
-  await expect(page.getByLabel("Campos IBS/CBS na NF-e", { exact: true })).toBeChecked();
+
+  await page.getByRole("button", { name: /Medicamento fiscal/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "HOJE", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "2027 reforma", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Split Payment", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Alíquota deste produto na liquidação:", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("4,52%", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Valor retido na hora da venda:", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Cai na conta do vendedor:", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("Alerta de mudança de alíquota")).toBeVisible();
+
+  await page.getByLabel("Custo unitário para simular margem (R$)").fill("80,00");
+  await expect(
+    page.getByRole("heading", {
+      name: "Impacto no preço final e na margem",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Imposto de 2027 consome", { exact: false }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /Higiene/ }).click();
+  await expect(
+    page.getByText("Alíquota deste produto na liquidação:", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("11,3%", { exact: true }).first()).toBeVisible();
+
   await expectNoDocumentOverflow(page);
-  await page.screenshot({ path: `/tmp/tax-migration-${page.viewportSize()?.width}.png`, fullPage: true });
   if ((page.viewportSize()?.width || 1280) < 768) {
     await page.getByRole("button", { name: "Abrir menu" }).click();
   }
-  await expect(page.getByRole("link", { name: "Migração IBS/CBS", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Migração IBS/CBS", exact: true }),
+  ).toBeVisible();
 });

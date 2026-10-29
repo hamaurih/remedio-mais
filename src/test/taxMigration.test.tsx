@@ -10,7 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CBS_GO_LIVE,
   migrationCountdown,
-  parseTaxChecklist,
   simulateProductTax,
   classifyTaxProduct,
   loadTaxCatalog,
@@ -195,12 +194,6 @@ describe("tax migration boundaries", () => {
     ).rejects.toThrow("page failed");
   });
 
-  it("rejects corrupt storage and ignores obsolete checklist keys", () => {
-    expect(parseTaxChecklist(null)).toEqual([]);
-    expect(parseTaxChecklist('["nfe","nfe","obsolete"]')).toEqual(["nfe"]);
-    expect(() => parseTaxChecklist("{")).toThrow();
-    expect(() => parseTaxChecklist("[true]")).toThrow();
-  });
 });
 
 const mount = () =>
@@ -225,6 +218,13 @@ it("shows catalog summary, three scenarios, margin, alert and review", async () 
   expect(
     screen.getByRole("heading", { name: "Split Payment" }),
   ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Alíquota deste produto na liquidação/),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/Alíquota deste produto na liquidação:\s*4,52%/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Cai na conta do vendedor/),
+  ).toBeInTheDocument();
   expect(screen.getByText(/Esse item subiu 4,52 pontos/)).toBeInTheDocument();
   fireEvent.change(
     screen.getByLabelText("Custo unitário para simular margem (R$)"),
@@ -246,52 +246,8 @@ it("reports catalog failure and supports retry, and empty catalog", async () => 
   await screen.findByText("Catálogo vazio.");
 });
 
-it("persists the checklist and isolates administrators", async () => {
-  const view = mount();
-  fireEvent.click(screen.getByLabelText("Campos IBS/CBS na NF-e"));
-  expect(localStorage.getItem("remedio-mais:tax-migration:v1:admin-a")).toBe(
-    '["nfe"]',
-  );
-  view.unmount();
-  const again = mount();
-  expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).toBeChecked();
-  auth.user = { id: "admin-b" };
-  again.rerender(
-    <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
-    >
-      <MemoryRouter>
-        <AdminTaxMigration />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-  await waitFor(() =>
-    expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).not.toBeChecked(),
-  );
-});
 
-it("reports failed saves without showing a false success", () => {
-  mount();
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new Error("quota");
-  });
-  fireEvent.click(screen.getByLabelText("Campos IBS/CBS na NF-e"));
-  expect(screen.getByText(/Não foi possível salvar/)).toBeInTheDocument();
-  expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).not.toBeChecked();
-});
 
-it("offers retry when storage cannot be read", () => {
-  const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-    throw new Error("blocked");
-  });
-  mount();
-  expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).toBeDisabled();
-  read.mockRestore();
-  fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
-  expect(screen.getByLabelText("Campos IBS/CBS na NF-e")).toBeEnabled();
-});
 
 it("does not expose the page to a seller visiting its URL", () => {
   auth.isAdmin = false;
