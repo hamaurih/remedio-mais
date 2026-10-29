@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
+import { TAX_MIGRATION_VISIBLE } from "@/lib/taxMigration";
 
 type Role = "admin" | "seller";
 type Item = {
@@ -57,6 +58,7 @@ type Item = {
 };
 
 const items: Item[] = [
+  ...(TAX_MIGRATION_VISIBLE ? [{ to: "/admin/migracao-tributaria", label: "Migração IBS/CBS", icon: FileText, group: "Financeiro", roles: ["admin"] as Role[] }] : []),
   { to: "/admin", label: "Início", icon: LayoutDashboard, group: "Visão Geral", end: true, roles: ["admin"] },
   { to: "/admin/bi", label: "BI Executivo", icon: Activity, group: "Visão Geral", roles: ["admin"] },
   { to: "/admin/curva-abc", label: "Curva ABC", icon: BarChart3, group: "Visão Geral", roles: ["admin"] },
