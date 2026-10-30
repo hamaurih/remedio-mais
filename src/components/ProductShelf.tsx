@@ -82,12 +82,12 @@ export const ProductShelf = memo(function ProductShelf({
                 </span>
               )}
             </h2>
-            {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+            {subtitle && <p className={cn("text-sm mt-1", backgroundVariant === "highlight" ? "text-highlight-foreground" : "text-muted-foreground")}>{subtitle}</p>}
           </div>
           {viewAllLink && (
             <Link
               to={viewAllLink}
-              className="text-sm text-primary font-bold hover:underline whitespace-nowrap"
+              className={cn("text-sm font-bold hover:underline whitespace-nowrap", backgroundVariant === "highlight" ? "text-highlight-foreground underline underline-offset-4" : "text-primary")}
             >
               Ver todos →
             </Link>
@@ -104,7 +104,7 @@ export const ProductShelf = memo(function ProductShelf({
             ))}
           </div>
         ) : products.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">
+          <div className={cn("text-sm py-8 text-center", backgroundVariant === "highlight" ? "text-highlight-foreground" : "text-muted-foreground")}>
             Nenhum produto disponível no momento.
           </div>
         ) : (

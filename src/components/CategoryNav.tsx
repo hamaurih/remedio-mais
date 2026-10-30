@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -13,7 +13,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Menu, ChevronDown } from "lucide-react";
+import { Menu, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import { usePublicBootstrap } from "@/hooks/usePublicBootstrap";
@@ -162,6 +163,32 @@ function MegaMenuMobile({ groups }: { groups: MegaGroupRich[] }) {
 }
 
 export function CategoryNav() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState({ left: false, right: false });
+  const updateOverflow = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 1;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setOverflow(current => current.left === left && current.right === right ? current : { left, right });
+  };
+  const scrollCategories = (direction: number) => {
+    const el = scrollRef.current;
+    el?.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: "smooth" });
+  };
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateOverflow();
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    window.addEventListener("resize", updateOverflow);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverflow);
+    };
+  }, []);
   const { data: bootstrap } = usePublicBootstrap();
   const live = (bootstrap?.categories ?? []) as Category[];
   const depts = bootstrap?.departments ?? [];
@@ -261,30 +288,55 @@ export function CategoryNav() {
           <MegaMenuMobile groups={groups} />
         </div>
 
-        <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-          <ul className="flex gap-2 md:gap-3 whitespace-nowrap text-base md:text-lg items-center">
-            {chipList.map((c) => {
-              const highlighted = isHighlightChip(c);
-              return (
-                <li key={c.key} className="snap-start">
-                  <Link
-                    to={c.href}
-                    className={cn(
-                      "inline-block px-3 md:px-4 py-1.5 rounded-full font-semibold relative group transition-all",
-                      highlighted
-                        ? "bg-highlight text-highlight-foreground shadow-[0_2px_10px_-2px_hsl(var(--highlight)/0.5)] hover:brightness-105 hover:shadow-[0_4px_14px_-2px_hsl(var(--highlight)/0.6)]"
-                        : "hover:bg-accent hover:text-accent-foreground transition-colors"
-                    )}
-                  >
-                    <span className={cn("relative z-10", highlighted && "drop-shadow-sm")}>{c.label}</span>
-                    {!highlighted && (
-                      <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <div className="flex-1 min-w-0 flex items-center md:gap-1">
+          <div className="hidden md:block w-10 shrink-0">
+            {overflow.left && (
+              <Button type="button" variant="ghost" size="icon" aria-label="Categorias anteriores" onClick={() => scrollCategories(-1)}>
+                <ChevronLeft aria-hidden="true" />
+              </Button>
+            )}
+          </div>
+          <div ref={scrollRef} role="region" aria-label="Categorias da loja" tabIndex={0}
+            onScroll={updateOverflow}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                event.preventDefault();
+                scrollCategories(event.key === "ArrowLeft" ? -1 : 1);
+              }
+            }}
+            className="flex-1 min-w-0 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <ul className="flex w-max min-w-full gap-2 md:gap-3 whitespace-nowrap text-base md:text-lg items-center">
+              {chipList.map((c) => {
+                const highlighted = isHighlightChip(c);
+                return (
+                  <li key={c.key} className="snap-start">
+                    <Link
+                      to={c.href}
+                      className={cn(
+                        "inline-block px-3 md:px-4 py-1.5 rounded-full font-semibold relative group transition-all",
+                        highlighted
+                          ? "bg-highlight text-highlight-foreground shadow-[0_2px_10px_-2px_hsl(var(--highlight)/0.5)] hover:brightness-105 hover:shadow-[0_4px_14px_-2px_hsl(var(--highlight)/0.6)]"
+                          : "hover:bg-accent hover:text-accent-foreground transition-colors"
+                      )}
+                    >
+                      <span className={cn("relative z-10", highlighted && "drop-shadow-sm")}>{c.label}</span>
+                      {!highlighted && (
+                        <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 origin-center transition-transform duration-200" />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="hidden md:block w-10 shrink-0">
+            {overflow.right && (
+              <Button type="button" variant="ghost" size="icon" aria-label="Mais categorias" onClick={() => scrollCategories(1)}>
+                <ChevronRight aria-hidden="true" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </nav>
