@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { Calculator } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,13 +18,21 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import {
-  CBS_GO_LIVE,
-  migrationCountdown,
-  parseTaxChecklist,
-  simulateTaxPrice,
-  TAX_CHECKLIST,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  simulateProductTax,
+  classifyTaxProduct,
+  loadTaxCatalog,
+  summarizeTaxCatalog,
+  taxMargin,
+  parseTaxBase,
+  TaxProduct,
   tax_migration_preview,
   taxMigrationMode,
 } from "@/lib/taxMigration";
@@ -30,115 +40,9 @@ import {
 const money = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function MigrationChecklist({ userId }: { userId: string }) {
-  const storageKey = `remedio-mais:tax-migration:v1:${userId}`;
-  const [checked, setChecked] = useState<string[]>([]);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = useCallback(() => {
-    try {
-      setChecked(parseTaxChecklist(localStorage.getItem(storageKey)));
-      setError("");
-      setReady(true);
-    } catch {
-      setError(
-        "Não foi possível ler o checklist local. Verifique o armazenamento do navegador e tente novamente.",
-      );
-      setReady(false);
-    }
-  }, [storageKey]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  function toggle(id: string, value: boolean) {
-    const next = value
-      ? [...checked.filter((entry) => entry !== id), id]
-      : checked.filter((entry) => entry !== id);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setChecked(next);
-      setError("");
-    } catch {
-      setError(
-        "Não foi possível salvar. A alteração não foi aplicada; libere o armazenamento e tente marcar novamente.",
-      );
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Checklist de preparação</CardTitle>
-        <CardDescription>
-          Marcações deste administrador, salvas somente neste navegador. Marcar
-          um item não configura o sistema fiscal.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!ready && !error && <p role="status">Carregando checklist...</p>}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Armazenamento local indisponível</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-            <Button className="mt-3" variant="outline" onClick={load}>
-              Tentar novamente
-            </Button>
-          </Alert>
-        )}
-        <p className="text-sm text-muted-foreground" role="status">
-          {checked.length} de {TAX_CHECKLIST.length} itens concluídos
-          {ready && checked.length === 0 ? " — nenhum item marcado." : "."}
-        </p>
-        <Progress
-          value={(checked.length / TAX_CHECKLIST.length) * 100}
-          aria-label="Preparação concluída"
-        />
-        {TAX_CHECKLIST.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-start gap-3 rounded-lg border p-4"
-          >
-            <Checkbox
-              id={`tax-${item.id}`}
-              className="mt-1"
-              checked={checked.includes(item.id)}
-              disabled={!ready}
-              onCheckedChange={(value) => toggle(item.id, value === true)}
-              aria-describedby={`tax-${item.id}-detail`}
-            />
-            <div>
-              <Label
-                htmlFor={`tax-${item.id}`}
-                className="cursor-pointer leading-relaxed"
-              >
-                {item.label}
-              </Label>
-              <p
-                id={`tax-${item.id}-detail`}
-                className="mt-1 text-sm text-muted-foreground"
-              >
-                {item.detail}
-              </p>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function AdminTaxMigration() {
   const { user, isAdmin, loading } = useAuth();
-  const [now, setNow] = useState(Date.now);
-  const [price, setPrice] = useState("");
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const mode = taxMigrationMode(tax_migration_preview, now);
+  const mode = taxMigrationMode(tax_migration_preview, Date.now());
   if (loading)
     return (
       <ErpPage>
@@ -147,165 +51,416 @@ export default function AdminTaxMigration() {
     );
   if (!isAdmin || !user || mode === "off")
     return <Navigate to="/admin" replace />;
-  const result = simulateTaxPrice(price);
-  const invalid = price !== "" && !result;
-  const countdown = migrationCountdown(now);
+  return <MigrationSimulator key={user.id} userId={user.id} />;
+}
 
+function MigrationSimulator({ userId }: { userId: string }) {
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<string>("");
+  const [price, setPrice] = useState("");
+  const [cost, setCost] = useState("");
+  const [regime, setRegime] = useState<"presumido" | "real">("presumido");
+  const [reducedIbs, setReducedIbs] = useState(true);
+  const [split, setSplit] = useState("100");
+  const [onlyChanges, setOnlyChanges] = useState(false);
+  const catalog = useQuery({
+    queryKey: ["tax-migration-catalog", userId],
+    queryFn: () =>
+      loadTaxCatalog(async (from, to) => {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order("id")
+          .range(from, to);
+        if (error) throw error;
+        return data as TaxProduct[];
+      }),
+  });
+  const products = catalog.data ?? [];
+  const summary = summarizeTaxCatalog(products, regime, reducedIbs);
+  const product = products.find((p) => p.id === selected);
+  const classification = product ? classifyTaxProduct(product) : null;
+  const splitValue =
+    split.trim() === "" ? NaN : Number(split.replace(",", "."));
+  const validSplit =
+    Number.isFinite(splitValue) && splitValue >= 0 && splitValue <= 100;
+  const result = product
+    ? simulateProductTax(product, price, regime, reducedIbs, splitValue)
+    : null;
+  const margin = result ? taxMargin(result, cost) : null;
+  const changedIds = new Set(summary.changes.map((row) => row.product.id));
+  const matching = products.filter(
+    (p) =>
+      (!onlyChanges || changedIds.has(p.id)) &&
+      `${p.name} ${p.barcode ?? ""} ${p.sku ?? ""} ${p.ncm ?? ""}`
+        .toLocaleLowerCase()
+        .includes(search.toLocaleLowerCase()),
+  );
+  const pct = (value: number | null) =>
+    value === null
+      ? "Indisponível"
+      : `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+  const delta = result
+    ? Number((result.futureRate - result.todayRate).toFixed(2))
+    : 0;
   return (
     <ErpPage>
       <ErpPageHeader
         title="Migração IBS/CBS"
-        eyebrow="Financeiro · Ajuste tributário"
+        eyebrow="Remédio Mais · Campina Grande/PB"
         icon={Calculator}
-        description="Prepare a transição tributária e explore cenários de preço."
-        actions={
-          <Badge variant="secondary">
-            {mode === "demo" ? "Demonstração" : "Efetivo (somente UI)"}
-          </Badge>
-        }
+        description="Balcão, site e delivery · simulação informativa por produto"
+        actions={<Badge variant="secondary">Simulação</Badge>}
       />
       <Alert>
         <AlertTitle>
           Simulação informativa — nenhuma cobrança é realizada
         </AlertTitle>
         <AlertDescription>
-          Em 2026, esta página é demonstrativa. A partir de 01/01/2027, o modo
-          efetivo altera somente a apresentação. Nenhum valor é enviado ao
-          checkout, à NF-e ou a integrações ERP.
+          Hipóteses editáveis, sem créditos. Não altera checkout, NF-e, ERP ou
+          Trier. Hoje e 2027 mostram imposto estimado reservado; Split Payment
+          mostra retenção na liquidação. Confirme o enquadramento com a
+          contabilidade.
         </AlertDescription>
       </Alert>
       <Card>
         <CardHeader>
-          <CardTitle>
-            {now < CBS_GO_LIVE ? "Fase de migração" : "Marco de 2027 alcançado"}
-          </CardTitle>
+          <CardTitle>Resumo geral do catálogo</CardTitle>
           <CardDescription>
-            Início previsto da CBS efetiva: 01/01/2027, à meia-noite de
-            Brasília. A data não ativa cobrança neste sistema.
+            Média simples por item, sem ponderação por vendas. Pendências nunca
+            contam como taxa zero.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div
-            className="grid grid-cols-2 gap-3 sm:grid-cols-4"
-            role="timer"
-            aria-label="Tempo até 2027"
-          >
-            {Object.entries({
-              Dias: countdown.days,
-              Horas: countdown.hours,
-              Minutos: countdown.minutes,
-              Segundos: countdown.seconds,
-            }).map(([label, value]) => (
-              <div key={label} className="rounded-lg bg-muted p-4 text-center">
-                <div className="text-3xl font-bold tabular-nums text-primary">
-                  {String(value).padStart(2, "0")}
-                </div>
-                <div className="text-sm text-muted-foreground">{label}</div>
-              </div>
-            ))}
-          </div>
+        <CardContent className="space-y-3" aria-live="polite">
+          {catalog.isPending ? (
+            <p role="status">Carregando catálogo completo...</p>
+          ) : catalog.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>
+                Não foi possível carregar o catálogo completo
+              </AlertTitle>
+              <AlertDescription>
+                Totais parciais não são exibidos.{" "}
+                <Button onClick={() => catalog.refetch()}>
+                  Recarregar catálogo
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <p>
+                {summary.total} produtos · {summary.classified} classificados ·{" "}
+                {summary.review} em revisão · {summary.changes.length} com
+                mudança de alíquota
+              </p>
+              {!summary.total && <p>Catálogo vazio.</p>}
+              <p>
+                Média de retenção estimada: hoje {pct(summary.todayAverage)} →
+                2027 {pct(summary.futureAverage)}
+              </p>
+              <p>
+                {summary.review
+                  ? "Média parcial: catálogo inteiro ainda sem média fiscal confiável. Base: somente os itens classificados."
+                  : "Cobertura completa do catálogo carregado."}
+              </p>
+              {!!summary.review && (
+                <p role="status">
+                  Revise NCM, CEST, monofásico e art. 146 nos cadastros fiscais.
+                  Tarja e nome não comprovam benefício.
+                </p>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Simulador de preço</CardTitle>
-          <CardDescription>
-            Comparação simplificada com a mesma base de preço, sem créditos ou
-            regimes específicos.
-          </CardDescription>
+          <CardTitle>Parâmetros da simulação</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="max-w-sm space-y-2">
-            <Label htmlFor="tax-price">Preço base (R$)</Label>
-            <Input
-              id="tax-price"
-              inputMode="decimal"
-              placeholder="Ex.: 100,00"
-              value={price}
-              onChange={(event) => setPrice(event.target.value)}
-              aria-invalid={invalid}
-              aria-describedby="tax-price-help"
-            />
-            <p
-              id="tax-price-help"
-              className={
-                invalid
-                  ? "text-sm text-destructive"
-                  : "text-sm text-muted-foreground"
-              }
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="regime">Regime PIS/COFINS</Label>
+            <Select
+              value={regime}
+              onValueChange={(value) => setRegime(value as typeof regime)}
             >
-              {invalid
-                ? "Informe um valor entre 0 e 1.000.000, com até duas casas decimais, sem separador de milhar."
-                : "Digite um preço para comparar os dois cenários."}
-            </p>
+              <SelectTrigger id="regime">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="presumido">
+                  Lucro Presumido · 3,65%
+                </SelectItem>
+                <SelectItem value="real">Lucro Real · 9,25%</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid gap-4 md:grid-cols-2" aria-live="polite">
-            <Card>
-              <CardHeader>
-                <CardTitle>2026 · Informativo</CardTitle>
-                <CardDescription>CBS 0,9% + IBS 0,1%</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p>CBS destacada: {result ? money(result.cbs2026) : "—"}</p>
-                <p>IBS destacado: {result ? money(result.ibs2026) : "—"}</p>
-                <p className="text-muted-foreground">
-                  Destaque de teste, sem repasse ao cliente nesta simulação.
-                </p>
-                <p className="text-xl font-bold">
-                  Preço final: {result ? money(result.total2026) : "—"}
-                </p>
-                <p>Impacto no preço: {result ? money(0) : "—"}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>2027 · Cenário de referência</CardTitle>
-                <CardDescription>
-                  CBS 11,3% · referência TCU de 28/10/2026
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p>CBS simulada: {result ? money(result.cbs2027) : "—"}</p>
-                <p className="text-muted-foreground">
-                  Hipótese de repasse integral: preço base + CBS de referência.
-                </p>
-                <p className="text-xl font-bold">
-                  Preço final: {result ? money(result.total2027) : "—"}
-                </p>
-                <p>
-                  Impacto no preço:{" "}
-                  {result ? `+ ${money(result.cbs2027)} (11,3%)` : "—"}
-                </p>
-              </CardContent>
-            </Card>
+          <div>
+            <Label htmlFor="split">
+              Split Payment · % do IBS/CBS retido na liquidação
+            </Label>
+            <Input
+              id="split"
+              inputMode="decimal"
+              value={split}
+              onChange={(e) => setSplit(e.target.value)}
+              aria-invalid={!validSplit}
+            />
+            {!validSplit && <p role="alert">Informe de 0 a 100%.</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="ibs"
+              checked={reducedIbs}
+              onCheckedChange={(v) => setReducedIbs(v === true)}
+            />
+            <Label htmlFor="ibs">
+              Reduzir IBS dos medicamentos para 0,04% (senão 0,1%)
+            </Label>
           </div>
           <p className="text-sm text-muted-foreground">
-            A referência de 11,3% está sujeita a resolução do Senado. Este
-            cenário considera apenas a CBS solicitada, sem IBS de 2027,
-            substituição de PIS/Cofins, créditos, reduções ou alíquota zero de
-            medicamentos. Não representa o preço fiscal definitivo.
+            CBS geral de referência 11,2%; medicamento com redução de 60%:
+            4,48%. ICMS não ST de 20% permanece em 2027. Split Payment é
+            hipótese de liquidação, sujeito à regulamentação.
           </p>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <a
-              className="text-primary underline"
-              href="https://portal.tcu.gov.br/imprensa/noticias/tcu-calcula-aliquota-de-referencia-de-113-para-novo-tributo-sobre-consumo"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Referência TCU · 28/10/2026
-            </a>
-            <a
-              className="text-primary underline"
-              href="https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/reforma-tributaria-do-consumo/entenda"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Transição · Receita Federal
-            </a>
-          </div>
         </CardContent>
       </Card>
-      <MigrationChecklist key={user.id} userId={user.id} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Buscar produto</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Label htmlFor="search">Nome, código de barras, SKU ou NCM</Label>
+          <Input
+            id="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            disabled={!catalog.data}
+          />
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="changes"
+              checked={onlyChanges}
+              onCheckedChange={(v) => setOnlyChanges(v === true)}
+            />
+            <Label htmlFor="changes">
+              Somente alertas de mudança ({summary.changes.length})
+            </Label>
+          </div>
+          <p>
+            {matching.length} resultados
+            {matching.length > 50 ? " · refine a busca (mostrando 50)" : ""}
+          </p>
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {matching.slice(0, 50).map((p) => (
+              <Button
+                key={p.id}
+                variant={selected === p.id ? "secondary" : "outline"}
+                className="h-auto w-full justify-start whitespace-normal text-left"
+                onClick={() => {
+                  setSelected(p.id);
+                  setPrice(
+                    Number.isFinite(p.price) && p.price >= 0
+                      ? p.price.toFixed(2)
+                      : "",
+                  );
+                  setCost("");
+                }}
+              >
+                {p.name} ·{" "}
+                {classifyTaxProduct(p).review
+                  ? "Revisão"
+                  : changedIds.has(p.id)
+                    ? "Alíquota mudou"
+                    : "Classificado"}
+              </Button>
+            ))}
+          </div>
+          {catalog.data && !matching.length && (
+            <p>Nenhum produto encontrado para este filtro.</p>
+          )}
+        </CardContent>
+      </Card>
+      {!product ? (
+        <p>Selecione um produto para comparar os três cenários.</p>
+      ) : (
+        <>
+          <h2 className="text-xl">{product.name}</h2>
+          <p>
+            NCM: {product.ncm || "ausente"} · CEST: {product.cest || "ausente"}
+          </p>
+          {classification?.review && (
+            <Alert variant="destructive">
+              <AlertTitle>
+                Classificação em revisão — cálculo bloqueado
+              </AlertTitle>
+              <AlertDescription>
+                {classification.reasons.join("; ")}. Nenhuma alíquota foi
+                presumida.
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="price">Preço final de venda (R$)</Label>
+              <Input
+                id="price"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                aria-invalid={parseTaxBase(price) === null}
+              />
+              {parseTaxBase(price) === null && (
+                <p role="alert">
+                  Informe preço válido, com até duas casas decimais.
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="cost">
+                Custo unitário para simular margem (R$)
+              </Label>
+              <Input
+                id="cost"
+                inputMode="decimal"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                aria-invalid={cost !== "" && parseTaxBase(cost) === null}
+              />
+              {cost && parseTaxBase(cost) === null && (
+                <p role="alert">Custo inválido.</p>
+              )}
+            </div>
+          </div>
+          {!!delta && (
+            <Alert>
+              <AlertTitle>Alerta de mudança de alíquota</AlertTitle>
+              <AlertDescription>
+                Esse item {delta > 0 ? "subiu" : "caiu"}{" "}
+                {Math.abs(delta).toLocaleString("pt-BR")} pontos percentuais em
+                2027 ({pct(result!.todayRate)} → {pct(result!.futureRate)}).
+                Impacto no lucro com preço fixo:{" "}
+                {money(result!.todayAmount - result!.futureAmount)} por venda.
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>HOJE</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p>Taxa: {result ? pct(result.todayRate) : "—"}</p>
+                <p>
+                  Valor retido / reservado:{" "}
+                  {result ? money(result.todayAmount) : "—"}
+                </p>
+                <p className="text-sm">
+                  ICMS: {result ? pct(result.icms) : "—"} · PIS/COFINS:{" "}
+                  {result ? pct(result.pisCofins) : "—"}. ST e monofásico: zero
+                  na saída quando classificados; não significa ausência de
+                  tributo na cadeia.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>2027 reforma</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p>Taxa total: {result ? pct(result.futureRate) : "—"}</p>
+                <p>
+                  Valor retido / reservado:{" "}
+                  {result ? money(result.futureAmount) : "—"}
+                </p>
+                <p>
+                  CBS {result ? pct(result.cbs) : "—"} · IBS{" "}
+                  {result ? pct(result.ibs) : "—"} + ICMS{" "}
+                  {result ? pct(result.icms) : "—"}
+                </p>
+                <p>
+                  2026 teste: CBS {result ? money(result.cbs2026) : "—"} (0,9%)
+                  + IBS {result ? money(result.ibs2026) : "—"} (0,1%); sem somar
+                  ao preço.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Split Payment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-lg font-semibold">
+                  Alíquota deste produto na liquidação:{" "}
+                  {result ? pct(result.splitRate) : "—"}
+                </p>
+                <p>
+                  Valor retido na hora da venda:{" "}
+                  {result ? money(result.splitAmount) : "—"}
+                </p>
+                <p className="text-xl font-bold">
+                  Cai na conta do vendedor:{" "}
+                  {result ? money(result.sellerAmount) : "—"}
+                </p>
+                <p>
+                  Saldo de imposto a reservar depois:{" "}
+                  {result
+                    ? money(result.futureAmount - result.splitAmount)
+                    : "—"}
+                  . Não há segundo imposto: a retenção antecipa parte do tributo
+                  de 2027. Sem tarifas do meio de pagamento.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Impacto no preço final e na margem</CardTitle>
+              <CardDescription>
+                Preço final mantido; custo informado manualmente. Sem créditos,
+                frete, tarifas ou outras despesas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {margin ? (
+                <>
+                  <p>Lucro antes dos impostos: {money(margin.beforeTax)}</p>
+                  <p>
+                    Hoje: lucro {money(margin.todayProfit)} · margem{" "}
+                    {pct(margin.todayMargin)}
+                  </p>
+                  <p>
+                    2027 e Split Payment: lucro {money(margin.futureProfit)} ·
+                    margem {pct(margin.futureMargin)}
+                  </p>
+                  <p>
+                    Imposto de 2027 consome{" "}
+                    {margin.profitConsumed === null
+                      ? "percentual indefinido (lucro antes de imposto não positivo)"
+                      : pct(margin.profitConsumed)}{" "}
+                    do lucro antes dos impostos.
+                  </p>
+                  {margin.futureProfit < 0 && (
+                    <p role="alert">
+                      Atenção: venda com prejuízo neste cenário.
+                    </p>
+                  )}
+                  <p>
+                    Preço final teórico para preservar o lucro de hoje:{" "}
+                    {money(margin.priceToKeepProfit)} (variação{" "}
+                    {money(margin.priceToKeepProfit - result!.base)}).
+                  </p>
+                </>
+              ) : (
+                <p>
+                  Informe preço positivo e custo válido para calcular o impacto
+                  na margem; custo ausente não é zero.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </ErpPage>
   );
 }
