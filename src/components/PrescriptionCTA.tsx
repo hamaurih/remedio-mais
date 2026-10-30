@@ -30,7 +30,7 @@ export function PrescriptionCTA() {
             <Button
               asChild
               size="lg"
-              className="font-bold bg-[#25D366] hover:bg-[#1ebe57] text-white"
+              className="hidden md:inline-flex font-bold bg-[#25D366] hover:bg-[#1ebe57] text-white"
             >
               <a href={waLink} target="_blank" rel="noopener">
                 <MessageCircle className="h-5 w-5 mr-2" /> Falar no WhatsApp

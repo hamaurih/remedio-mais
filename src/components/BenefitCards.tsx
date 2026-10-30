@@ -40,7 +40,7 @@ export function BenefitCards() {
             "snap-start shrink-0 w-[60%] sm:w-[40%] md:w-auto bg-card border border-border rounded-xl p-4 flex flex-col items-start gap-2 shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-300";
           if (b.href) {
             return (
-              <a key={b.title} href={b.href} target="_blank" rel="noopener" className={cls}>
+              <a key={b.title} href={b.href} target="_blank" rel="noopener" className={`${cls} hidden md:flex`}>
                 {inner}
               </a>
             );

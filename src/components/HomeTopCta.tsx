@@ -27,7 +27,7 @@ export function HomeTopCta() {
           <Button asChild size="sm" className="rounded-full">
             <Link to="/ofertas"><ShoppingBag className="h-4 w-4 mr-1.5" />Comprar agora</Link>
           </Button>
-          <Button asChild size="sm" variant="outline" className="rounded-full">
+          <Button asChild size="sm" variant="outline" className="hidden md:inline-flex rounded-full">
             <a href={buildPublicWhatsAppLink("Olá! Vim pelo site e preciso de atendimento.")} target="_blank" rel="noopener">
               <MessageCircle className="h-4 w-4 mr-1.5" />WhatsApp
             </a>

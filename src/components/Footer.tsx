@@ -1,6 +1,6 @@
 import { Instagram, Facebook, MessageCircle, MapPin, Phone, Mail, Clock } from "lucide-react";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { buildWhatsAppLink, PUBLIC_WHATSAPP_NUMBER } from "@/lib/store";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import logoRed from "@/assets/logo-red.webp";
@@ -40,6 +40,7 @@ function formatPhone(raw: string | null | undefined) {
 }
 
 export function Footer() {
+  const isHome = useLocation().pathname === "/";
   const { data: s } = useStoreSettings();
   const { data: institutional = [] } = useMenu("footer_institutional");
   const { data: support = [] } = useMenu("footer_support");
@@ -86,7 +87,7 @@ export function Footer() {
                   target="_blank"
                   rel="noopener"
                   aria-label={soc.label}
-                  className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors ${soc.className}`}
+                  className={`h-9 w-9 rounded-full items-center justify-center transition-colors ${soc.className} ${isHome && soc.key === "whatsapp" ? "hidden md:flex" : "flex"}`}
                 >
                   <soc.icon className="h-4 w-4" />
                 </a>
@@ -101,9 +102,10 @@ export function Footer() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <Field icon={MapPin}>{address}</Field>
             <Field icon={Phone}>
-              <a href={waLink} target="_blank" rel="noopener" className="hover:text-primary">
+              <a href={waLink} target="_blank" rel="noopener" className={`hover:text-primary ${isHome ? "hidden md:inline" : ""}`}>
                 {waText}
-              </a>{" "}
+              </a>
+              {isHome && <span className="md:hidden">{waText}</span>}{" "}
               <span className="text-xs">(WhatsApp)</span>
             </Field>
             {s?.contact_email && (
