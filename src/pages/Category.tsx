@@ -1,11 +1,11 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Seo } from "@/components/Seo";
 import { SeoBreadcrumbs } from "@/components/SeoBreadcrumbs";
 import { ProductCard, Product } from "@/components/ProductCard";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,20 +13,45 @@ import {
   MobileFilters,
   ActiveFilterChips,
   defaultFilters,
+  filtersAreDefault,
   ProductFiltersState,
   applyClientFilters,
   buildQuery,
   sortQuery,
   SORT_OPTIONS,
 } from "@/components/ProductFilters";
+import { ListingPagination } from "@/components/ListingPagination";
 import { PUBLIC_PRODUCT_SELECT } from "@/lib/productSelect";
+import { LISTING_PAGE_SIZE, listingRange, pageCount, parseListingPage } from "@/lib/listingPage";
+import { loadManufacturerNames } from "@/lib/loadManufacturers";
 
 const sb = supabase as any;
 
 export default function Category() {
   const { slug, sub } = useParams<{ slug: string; sub?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parseListingPage(searchParams.get("pagina"));
   const [sort, setSort] = useState("popular");
   const [filters, setFilters] = useState<ProductFiltersState>(defaultFilters);
+  const listRef = useRef<HTMLDivElement>(null);
+  const skipScroll = useRef(true);
+
+  const setPage = useCallback((nextPage: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextPage <= 1) next.delete("pagina");
+    else next.set("pagina", String(nextPage));
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const changeFilters = (next: ProductFiltersState) => {
+    setFilters(next);
+    if (page !== 1) setPage(1);
+  };
+
+  const changeSort = (value: string) => {
+    setSort(value);
+    if (page !== 1) setPage(1);
+  };
 
   const { data: cat } = useQuery({
     queryKey: ["cat", slug],
@@ -77,50 +102,80 @@ export default function Category() {
     enabled: !!subcategory?.id,
   });
 
-  const { data: products } = useQuery({
-    queryKey: ["cat_products", slug, sub, sort, filters, siblingIds, subProductIds],
+  const scopeReady = !!slug && (slug === "ofertas" || !!cat) && (!isHub || !!siblingIds) && (!sub || subProductIds !== undefined);
+
+  const applyScope = (q: any) => {
+    let next = q;
+    if (slug === "ofertas") next = next.eq("on_sale", true);
+    else if (cat) {
+      if (isHub && siblingIds && siblingIds.length > 0) next = next.in("category_id", siblingIds);
+      else next = next.eq("category_id", cat.id);
+    }
+    if (subcategory) {
+      if (!subProductIds || subProductIds.length === 0) return next.in("id", ["00000000-0000-0000-0000-000000000000"]);
+      next = next.in("id", subProductIds);
+    }
+    return next;
+  };
+
+  const { data: listing, isLoading, isError, refetch } = useQuery({
+    queryKey: ["cat_products", slug, sub, sort, filters, siblingIds, subProductIds, page],
     queryFn: async () => {
-      let q: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT).eq("active", true);
-      if (slug === "ofertas") q = q.eq("on_sale", true);
-      else if (cat) {
-        if (isHub && siblingIds && siblingIds.length > 0) {
-          q = q.in("category_id", siblingIds);
-        } else {
-          q = q.eq("category_id", cat.id);
-        }
-      } else return [];
-      if (subcategory) {
-        if (!subProductIds || subProductIds.length === 0) return [];
-        q = q.in("id", subProductIds);
-      }
+      const { from, to } = listingRange(page);
+      if (slug !== "ofertas" && !cat) return { rows: [] as Product[], total: 0, fallback: false };
+      if (subcategory && (!subProductIds || subProductIds.length === 0)) return { rows: [] as Product[], total: 0, fallback: false };
+      let q: any = (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT, { count: "exact" }).eq("active", true);
+      q = applyScope(q);
       q = buildQuery(q, filters);
       q = sortQuery(q, sort);
-      const { data } = await q.limit(240);
-      const filtered = applyClientFilters((data || []) as Product[], filters);
-      if (filtered.length > 0 || subcategory) return filtered;
-      // Contingência: a sincronização pode deixar a categoria sem vínculo temporariamente.
-      // Mantemos a loja operacional mostrando itens realmente disponíveis.
-      const { data: fallback } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT)
-        .eq("active", true).gt("stock", 0).gt("price", 0).limit(60);
-      return applyClientFilters((fallback || []) as Product[], filters);
+      const { data, count, error } = await q.range(from, to);
+      if (error) throw new Error(error.message);
+      const total = count ?? 0;
+      if (total === 0 && page === 1 && !subcategory && slug !== "ofertas" && filtersAreDefault(filters)) {
+        const { data: fallback, error: fallbackError } = await (supabase as any).from("products").select(PUBLIC_PRODUCT_SELECT)
+          .eq("active", true).gt("stock", 0).gt("price", 0).limit(LISTING_PAGE_SIZE);
+        if (fallbackError) throw new Error(fallbackError.message);
+        const rows = applyClientFilters((fallback || []) as Product[], filters);
+        return { rows, total: rows.length, fallback: true };
+      }
+      return { rows: applyClientFilters((data || []) as Product[], filters), total, fallback: false };
     },
-    enabled: !!slug && (slug === "ofertas" || !!cat) && (!isHub || !!siblingIds) && (!sub || subProductIds !== undefined),
+    enabled: scopeReady,
   });
 
-  const manufacturers = useMemo(() => {
-    const set = new Set<string>();
-    (products ?? []).forEach((p: any) => p.manufacturer && set.add(p.manufacturer));
-    return Array.from(set).sort();
-  }, [products]);
+  const { data: manufacturers = [] } = useQuery({
+    queryKey: ["cat_manufacturers", slug, sub, siblingIds, subProductIds],
+    queryFn: async () => {
+      if (subcategory && (!subProductIds || subProductIds.length === 0)) return [];
+      return loadManufacturerNames((q) => applyScope(q));
+    },
+    enabled: scopeReady,
+  });
+
+  useEffect(() => {
+    if (!listing) return;
+    const pages = pageCount(listing.total);
+    if (page > pages) setPage(pages);
+  }, [listing, page, setPage]);
+
+  useEffect(() => {
+    if (skipScroll.current) {
+      skipScroll.current = false;
+      return;
+    }
+    listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [page]);
 
   const title = slug === "ofertas" ? "Ofertas" : (subcategory?.name || cat?.name || "Categoria");
-  const count = products?.length ?? 0;
+  const products = listing?.rows ?? [];
+  const total = listing?.total ?? 0;
+  const safePage = Math.min(page, pageCount(total));
 
   return (
     <Layout>
       <Seo
         title={subcategory ? `${subcategory.name} - ${cat?.name ?? ""}` : title}
-        description={`${title} com preço baixo na farmácia Atacadão dos Medicamentos. ${count} produtos disponíveis com entrega em Campina Grande - PB.`}
+        description={`${title} com preço baixo na farmácia Atacadão dos Medicamentos. ${total} produtos disponíveis com entrega em Campina Grande - PB.`}
         path={sub && cat ? `/categoria/${cat.slug}/${sub}` : `/categoria/${slug}`}
       />
       <div className="container py-6 flex items-end justify-between gap-3">
@@ -134,19 +189,19 @@ export default function Category() {
             ]}
           />
           <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>
-          <p className="text-muted-foreground text-sm mt-1">{count} produtos</p>
+          <p className="text-muted-foreground text-sm mt-1">{isLoading && !listing ? "Carregando produtos…" : `${total} produtos`}</p>
           {subcategory?.description && <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{subcategory.description}</p>}
         </div>
-        <MobileFilters value={filters} onChange={setFilters} hideCategories manufacturers={manufacturers} totalCount={count} />
+        <MobileFilters value={filters} onChange={changeFilters} hideCategories manufacturers={manufacturers} totalCount={total} />
       </div>
 
       <div className="container grid md:grid-cols-[240px_1fr] gap-6 pb-10">
-        <ProductFilters value={filters} onChange={setFilters} hideCategories manufacturers={manufacturers} />
+        <ProductFilters value={filters} onChange={changeFilters} hideCategories manufacturers={manufacturers} />
 
-        <div>
+        <div ref={listRef} className="scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <ActiveFilterChips value={filters} onChange={setFilters} />
-            <Select value={sort} onValueChange={setSort}>
+            <ActiveFilterChips value={filters} onChange={changeFilters} manufacturers={manufacturers} />
+            <Select value={sort} onValueChange={changeSort}>
               <SelectTrigger className="w-[200px] ml-auto"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {SORT_OPTIONS.map((o) => (
@@ -155,18 +210,27 @@ export default function Category() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {products?.map((p) => <ProductCard key={p.id} p={p} />)}
-          </div>
-          {count === 0 && (
+          {isError && (
+            <div className="text-center py-16 space-y-3">
+              <p className="text-muted-foreground">Não foi possível carregar os produtos.</p>
+              <Button variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+            </div>
+          )}
+          {!isError && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {products.map((p) => <ProductCard key={p.id} p={p} />)}
+            </div>
+          )}
+          {!isError && !isLoading && total === 0 && (
             <div className="text-center py-16 space-y-4">
               <p className="text-muted-foreground">Nenhum produto encontrado com esses filtros.</p>
               <div className="flex items-center justify-center gap-2">
-                <Button variant="outline" onClick={() => setFilters(defaultFilters)}>Limpar filtros</Button>
+                <Button variant="outline" onClick={() => changeFilters(defaultFilters)}>Limpar filtros</Button>
                 <Button asChild><Link to="/">Ver todos os produtos</Link></Button>
               </div>
             </div>
           )}
+          <ListingPagination page={safePage} pageSize={LISTING_PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
     </Layout>

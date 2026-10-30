@@ -158,22 +158,24 @@ export default function Auth() {
           <form onSubmit={submit} className="space-y-4">
             {mode === "signup" && (
               <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" maxLength={120} />
+                <Label htmlFor="auth-name">Nome</Label>
+                <Input id="auth-name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" maxLength={120} />
               </div>
             )}
 
             <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" maxLength={254} />
+              <Label htmlFor="auth-email">E-mail</Label>
+              <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" maxLength={254} aria-label="E-mail" />
             </div>
 
             {mode !== "forgot" && (
               <div className="space-y-2">
-                <Label>Senha</Label>
+                <Label htmlFor="auth-password">Senha</Label>
                 <div className="relative">
                   <Input
+                    id="auth-password"
                     type={showPassword ? "text" : "password"}
+                    aria-label="Senha"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={mode === "signup" ? 8 : 1}

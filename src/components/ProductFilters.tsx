@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/accordion";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { SlidersHorizontal, X } from "lucide-react";
+import { groupManufacturers, normalizeManufacturerKey, type ManufacturerOption } from "@/lib/manufacturerFacet";
 
 export type ProductFiltersState = {
   onSale: boolean;
@@ -48,7 +49,25 @@ const PRICE_RANGES: { label: string; min: number | null; max: number | null }[] 
   { label: "Acima de R$ 100", min: 100, max: null },
 ];
 
-export function activeChips(f: ProductFiltersState): { label: string; clear: () => Partial<ProductFiltersState> }[] {
+export function filtersAreDefault(f: ProductFiltersState) {
+  return (
+    f.onSale === defaultFilters.onSale
+    && f.noPresc === defaultFilters.noPresc
+    && f.withPresc === defaultFilters.withPresc
+    && f.generic === defaultFilters.generic
+    && f.inStock === defaultFilters.inStock
+    && f.priceMin === defaultFilters.priceMin
+    && f.priceMax === defaultFilters.priceMax
+    && f.categorySlugs.length === 0
+    && f.manufacturers.length === 0
+    && f.saleType === ""
+  );
+}
+
+export function activeChips(
+  f: ProductFiltersState,
+  groups: ManufacturerOption[] = [],
+): { label: string; clear: () => Partial<ProductFiltersState> }[] {
   const chips: { label: string; clear: () => Partial<ProductFiltersState> }[] = [];
   if (f.onSale) chips.push({ label: "Em promoção", clear: () => ({ onSale: false }) });
   if (f.noPresc) chips.push({ label: "Sem receita", clear: () => ({ noPresc: false }) });
@@ -63,9 +82,21 @@ export function activeChips(f: ProductFiltersState): { label: string; clear: () 
         : `≤ R$ ${f.priceMax}`;
     chips.push({ label: lbl, clear: () => ({ priceMin: null, priceMax: null }) });
   }
-  f.manufacturers.forEach((m) =>
-    chips.push({ label: m, clear: () => ({ manufacturers: f.manufacturers.filter((x) => x !== m) }) })
-  );
+  const selected = new Set(f.manufacturers);
+  const consumed = new Set<string>();
+  groups.forEach((group) => {
+    const hits = group.values.filter((value) => selected.has(value));
+    if (hits.length === 0) return;
+    hits.forEach((value) => consumed.add(value));
+    chips.push({
+      label: group.label,
+      clear: () => ({ manufacturers: f.manufacturers.filter((value) => !group.values.includes(value)) }),
+    });
+  });
+  f.manufacturers.forEach((m) => {
+    if (consumed.has(m)) return;
+    chips.push({ label: m, clear: () => ({ manufacturers: f.manufacturers.filter((x) => x !== m) }) });
+  });
   f.categorySlugs.forEach((c) =>
     chips.push({ label: c, clear: () => ({ categorySlugs: f.categorySlugs.filter((x) => x !== c) }) })
   );
@@ -98,6 +129,15 @@ function FilterBody({
   });
 
   const set = (patch: Partial<ProductFiltersState>) => onChange({ ...value, ...patch });
+  const labSearchId = useId();
+  const [labQuery, setLabQuery] = useState("");
+  const labGroups = useMemo(() => groupManufacturers(manufacturers), [manufacturers]);
+  const labNeedle = normalizeManufacturerKey(labQuery);
+  const visibleLabs = labNeedle
+    ? labGroups.filter((group) =>
+      normalizeManufacturerKey(group.label).includes(labNeedle)
+      || group.values.some((value) => normalizeManufacturerKey(value).includes(labNeedle)))
+    : labGroups;
   const togglePrice = (min: number | null, max: number | null) => {
     if (value.priceMin === min && value.priceMax === max) set({ priceMin: null, priceMax: null });
     else set({ priceMin: min, priceMax: max });
@@ -197,28 +237,52 @@ function FilterBody({
 
       <AccordionItem value="marca">
         <AccordionTrigger className="text-sm font-bold">Laboratório / Marca</AccordionTrigger>
-        <AccordionContent className="space-y-2 max-h-64 overflow-y-auto">
-          {manufacturers.length === 0 && (
+        <AccordionContent className="space-y-2">
+          {labGroups.length === 0 && (
             <p className="text-xs text-muted-foreground">Nenhuma marca disponível.</p>
           )}
-          {manufacturers.map((m) => (
-            <div key={m} className="flex items-center gap-2">
-              <Checkbox
-                id={`m-${m}`}
-                checked={value.manufacturers.includes(m)}
-                onCheckedChange={(v) =>
-                  set({
-                    manufacturers: v
-                      ? [...value.manufacturers, m]
-                      : value.manufacturers.filter((x) => x !== m),
-                  })
-                }
+          {labGroups.length > 0 && (
+            <div className="space-y-1">
+              <Label htmlFor={labSearchId} className="sr-only">Buscar laboratório ou marca</Label>
+              <Input
+                id={labSearchId}
+                value={labQuery}
+                onChange={(event) => setLabQuery(event.target.value)}
+                placeholder="Buscar laboratório ou marca"
+                aria-label="Buscar laboratório ou marca"
+                autoComplete="off"
+                className="h-9"
               />
-              <Label htmlFor={`m-${m}`} className="cursor-pointer text-sm truncate">
-                {m}
-              </Label>
             </div>
-          ))}
+          )}
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            {labGroups.length > 0 && visibleLabs.length === 0 && (
+              <p className="text-xs text-muted-foreground">Nenhum laboratório com esse nome.</p>
+            )}
+            {visibleLabs.map((group, index) => {
+              const id = `${labSearchId}-lab-${index}`;
+              const checked = group.values.some((item) => value.manufacturers.includes(item));
+              return (
+                <div key={group.label} className="flex items-start gap-2">
+                  <Checkbox
+                    id={id}
+                    className="mt-0.5"
+                    checked={checked}
+                    onCheckedChange={(v) =>
+                      set({
+                        manufacturers: v
+                          ? Array.from(new Set([...value.manufacturers, ...group.values]))
+                          : value.manufacturers.filter((item) => !group.values.includes(item)),
+                      })
+                    }
+                  />
+                  <Label htmlFor={id} title={group.values.join(" · ")} className="cursor-pointer text-sm leading-snug whitespace-normal break-words">
+                    {group.label}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
         </AccordionContent>
       </AccordionItem>
 
@@ -336,11 +400,14 @@ export function MobileFilters({
 export function ActiveFilterChips({
   value,
   onChange,
+  manufacturers = [],
 }: {
   value: ProductFiltersState;
   onChange: (next: ProductFiltersState) => void;
+  manufacturers?: string[];
 }) {
-  const chips = activeChips(value);
+  const groups = useMemo(() => groupManufacturers(manufacturers), [manufacturers]);
+  const chips = activeChips(value, groups);
   if (chips.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -377,7 +444,7 @@ export function applyClientFilters<T>(rows: T[], f: ProductFiltersState): T[] {
   return rows.filter((p: any) => {
     if (f.generic) {
       const t = `${p.name ?? ""} ${p.manufacturer ?? ""}`.toLowerCase();
-      if (!/gen[eé]rico/.test(t)) return false;
+      if (!p.is_generic && !/gen[eé]rico/.test(t)) return false;
     }
     if (f.saleType === "controlado" && !p.controlled) return false;
     if (f.saleType === "receita" && !p.requires_prescription) return false;
@@ -395,6 +462,12 @@ export function buildQuery(base: any, f: ProductFiltersState) {
   if (f.priceMin != null) q = q.gte("price", f.priceMin);
   if (f.priceMax != null) q = q.lte("price", f.priceMax);
   if (f.manufacturers.length) q = q.in("manufacturer", f.manufacturers);
+  if (f.generic) {
+    q = q.or("is_generic.eq.true,name.ilike.%genérico%,name.ilike.%generico%,manufacturer.ilike.%genérico%,manufacturer.ilike.%generico%");
+  }
+  if (f.saleType === "controlado") q = q.eq("controlled", true);
+  else if (f.saleType === "receita") q = q.eq("requires_prescription", true);
+  else if (f.saleType === "livre") q = q.eq("requires_prescription", false).eq("controlled", false);
   return q;
 }
 
