@@ -21,6 +21,9 @@ import { notifyCartAddition } from "@/lib/cartLiveNotify";
 import { Seo } from "@/components/Seo";
 import { SeoBreadcrumbs } from "@/components/SeoBreadcrumbs";
 import { trackViewContent } from "@/lib/metaEvents";
+import { MedicationFacts } from "@/components/MedicationFacts";
+import { ProductShippingQuote } from "@/components/ProductShippingQuote";
+import { buildMedicationFacts, humanizeCatalogName } from "@/lib/medicationFacts";
 
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
@@ -102,7 +105,12 @@ export default function Product() {
   const safeQty = Math.max(1, Math.min(qty, maxQty));
   const requiresPrescription = !!((p as any).requires_prescription || (p as any).controlled);
   const productUrl = `https://www.atacadaodosmedicamentos.com.br/produto/${p.slug}`;
-  const seoTitle = String((p as any).seo_title || p.name).trim();
+  const facts = buildMedicationFacts(p as any);
+  const displayName = facts.displayName || p.name;
+  const customSeoTitle = String((p as any).seo_title || "").trim();
+  const seoTitle = customSeoTitle && customSeoTitle.toLocaleLowerCase("pt-BR") !== String(p.name).trim().toLocaleLowerCase("pt-BR")
+    ? customSeoTitle
+    : displayName;
   const seoDescription = String(
     (p as any).seo_description ||
       `${p.name}${(p as any).manufacturer ? " - " + (p as any).manufacturer : ""}. Compre na farmácia Atacadão dos Medicamentos com preço baixo e entrega em Campina Grande - PB.`,
@@ -177,7 +185,8 @@ export default function Product() {
           "@context": "https://schema.org",
           "@type": "Product",
           "@id": `${productUrl}#product`,
-          name: p.name,
+          name: displayName,
+          ...(displayName !== p.name ? { alternateName: p.name } : {}),
           description: seoDescription,
           url: productUrl,
           image: p.image_url || undefined,
@@ -210,22 +219,27 @@ export default function Product() {
           items={[
             { name: "Início", path: "/" },
             ...((p as any).category_name ? [{ name: String((p as any).category_name) }] : []),
-            { name: p.name },
+            { name: displayName },
           ]}
         />
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-secondary/40 rounded-2xl p-8 flex items-center justify-center">
-            <img src={displayImage} alt={p.name} width={420} height={420} decoding="async" fetchPriority="high" className="max-h-[420px] object-contain" />
+            <img src={displayImage} alt={displayName} width={420} height={420} decoding="async" fetchPriority="high" className="max-h-[420px] object-contain" />
           </div>
           <div>
-            {(p as any).manufacturer && <div className="text-xs text-muted-foreground">{(p as any).manufacturer}</div>}
-            <h1 className="text-2xl md:text-3xl font-extrabold mt-1">{p.name}</h1>
+            {(p as any).manufacturer && <div className="text-xs text-muted-foreground">{humanizeCatalogName(String((p as any).manufacturer))}</div>}
+            <h1 className="text-2xl md:text-3xl font-extrabold mt-1">{displayName}</h1>
+            {displayName !== p.name && (
+              <p className="text-xs text-muted-foreground mt-1">Nome no cadastro: {p.name}</p>
+            )}
 
             {requiresPrescription && (
               <div className="mt-3 inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold px-3 py-1.5 rounded-full">
                 <AlertCircle className="h-3.5 w-3.5" /> Receita obrigatória — você poderá enviá-la no carrinho
               </div>
             )}
+
+            <MedicationFacts product={p as any} />
 
             <p className="text-xs text-muted-foreground mt-3">{hasVariants && !selectedVariant ? "Selecione uma opção para consultar o estoque" : Number(variantStock) <= 0 ? "Esgotado" : `Só ${variantStock} disponíveis (${inCart} no carrinho)`}</p>
             {hasVariants && (
@@ -294,6 +308,8 @@ export default function Product() {
                 O medicamento ficará no carrinho aguardando a análise. Outros produtos poderão ser comprados normalmente enquanto a receita é conferida.
               </p>
             )}
+
+            <ProductShippingQuote />
 
             {(p as any).description && (
               <div className="mt-8">

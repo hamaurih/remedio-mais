@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,7 @@ function rank(name: string, term: string) {
 
 export function SearchAutocomplete({ className = "", compact = false }: { className?: string; compact?: boolean }) {
   const nav = useNavigate();
+  const searchId = useId();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -154,9 +155,12 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
         }}
         className="relative"
       >
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <label htmlFor={searchId} className="sr-only">Buscar produtos</label>
         <Input
+          id={searchId}
           value={q}
+          aria-label="Buscar produtos por nome, marca, princípio ativo ou código de barras"
           onChange={(e) => {
             setQ(e.target.value);
             setOpen(true);

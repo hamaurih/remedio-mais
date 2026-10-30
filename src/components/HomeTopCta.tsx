@@ -10,6 +10,7 @@ export function HomeTopCta() {
   const responseText = response > 0
     ? `Respondemos normalmente em até ${response} min no horário de atendimento.`
     : "Atendimento pelo WhatsApp durante o horário da loja.";
+  const storeName = settings?.store_name?.trim() || "Atacadão dos Medicamentos";
 
   return (
     <section className="border-b bg-card/95">
@@ -19,8 +20,8 @@ export function HomeTopCta() {
             <Truck className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <div className="font-bold text-sm md:text-base">Compre online, retire na loja ou receba em casa</div>
-            <div className="text-xs text-muted-foreground">{responseText}</div>
+            <h1 className="font-bold text-sm md:text-base leading-snug">{storeName}: compre online, retire na loja ou receba em casa</h1>
+            <p className="text-xs text-muted-foreground">{responseText}</p>
           </div>
         </div>
         <div className="flex gap-2 shrink-0">

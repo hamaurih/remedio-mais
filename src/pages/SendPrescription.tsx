@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { updateCartPrescription } from "@/lib/store";
 import { toast } from "sonner";
 import { z } from "zod";
-import { FileText, ShieldCheck } from "lucide-react";
+import { FileText, ShieldCheck, LogIn } from "lucide-react";
 import { Seo } from "@/components/Seo";
 
 const schema = z.object({
@@ -35,11 +35,10 @@ export default function SendPrescription() {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (loading || user) return;
+  const goToLogin = () => {
     const next = `/enviar-receita${window.location.search}`;
-    nav(`/auth?next=${encodeURIComponent(next)}`, { replace: true });
-  }, [loading, user, nav]);
+    nav(`/auth?next=${encodeURIComponent(next)}`);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -68,7 +67,7 @@ export default function SendPrescription() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast.error("Entre na sua conta para enviar a receita.");
+      goToLogin();
       return;
     }
 
@@ -115,8 +114,6 @@ export default function SendPrescription() {
     }
   };
 
-  if (loading) return <Layout><div className="container py-16 text-center">Carregando...</div></Layout>;
-
   return (
     <Layout>
       <Seo title="Envie sua receita" description="Envie a foto da sua receita médica para análise farmacêutica." path="/enviar-receita" noindex={!!productId} />
@@ -127,9 +124,28 @@ export default function SendPrescription() {
         </div>
         <p className="text-muted-foreground mb-4 text-sm">
           {productId
-            ? "Após o envio, qualquer medicamento com receita pode seguir para compra condicionada. A aprovação farmacêutica acontece durante a separação, antes da entrega ou retirada."
-            : <>Status inicial: <strong>Recebida para análise</strong>. A venda depende da conferência da farmácia.</>}
+            ? "Depois do envio, o medicamento com receita pode seguir para compra condicionada. A aprovação farmacêutica acontece durante a separação, antes da entrega ou retirada."
+            : <>O primeiro status é <strong>recebida para análise</strong>. A venda depende da conferência da farmácia.</>}
         </p>
+
+        <ol data-testid="prescription-explainer" className="mb-6 grid gap-3 sm:grid-cols-3">
+          {[
+            ["1. Entenda o pedido", "A receita precisa estar legível, com o medicamento e os dados de quem prescreveu."],
+            ["2. Entre só para enviar", "A foto ou o PDF só é enviado com a sua conta. Dá para ler esta página sem login."],
+            ["3. A farmácia confere", "A compra de medicamento com receita continua condicionada à análise. O arquivo não libera o produto sozinho."],
+          ].map(([title, text]) => (
+            <li key={title} className="rounded-xl border bg-card p-3 text-sm">
+              <p className="font-semibold">{title}</p>
+              <p className="text-muted-foreground mt-1 text-xs">{text}</p>
+            </li>
+          ))}
+        </ol>
+
+        {!loading && !user && (
+          <div className="mb-6 rounded-xl border bg-secondary/50 px-4 py-3 text-sm">
+            Você está vendo a explicação sem entrar. A conta é pedida apenas no envio da receita.
+          </div>
+        )}
 
         {productId && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 text-sm text-amber-950">
@@ -139,15 +155,17 @@ export default function SendPrescription() {
         )}
 
         <form onSubmit={submit} className="bg-card border rounded-xl p-6 space-y-4 shadow-card">
-          <div className="space-y-2"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required /></div>
-          <div className="space-y-2"><Label>Telefone / WhatsApp</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} placeholder="(83) 99999-9999" required /></div>
-          <div className="space-y-2"><Label>Observações</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Informações adicionais para a equipe farmacêutica" /></div>
+          <div className="space-y-2"><Label htmlFor="rx-name">Nome</Label><Input id="rx-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required={!!user} autoComplete="name" /></div>
+          <div className="space-y-2"><Label htmlFor="rx-phone">Telefone / WhatsApp</Label><Input id="rx-phone" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} placeholder="(83) 99999-9999" required={!!user} autoComplete="tel" /></div>
+          <div className="space-y-2"><Label htmlFor="rx-notes">Observações</Label><Textarea id="rx-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Informações adicionais para a equipe farmacêutica" /></div>
           <div className="space-y-2">
-            <Label>Imagem ou PDF da receita *</Label>
-            <Input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
-            <p className="text-[11px] text-muted-foreground">Formatos aceitos: JPG, PNG ou PDF, até 10 MB.</p>
+            <Label htmlFor="rx-file">Imagem ou PDF da receita *</Label>
+            <Input id="rx-file" type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} required={!!user} />
+            <p className="text-[11px] text-muted-foreground">Formatos aceitos: JPG, PNG ou PDF, até 10 MB. O arquivo só segue para a farmácia depois do login.</p>
           </div>
-          <Button type="submit" size="lg" className="w-full" disabled={submitting || !user}>{submitting ? "Enviando..." : "Enviar receita para análise"}</Button>
+          <Button type="submit" size="lg" className="w-full" disabled={submitting || loading}>
+            {submitting ? "Enviando..." : user ? "Enviar receita para análise" : <><LogIn className="h-4 w-4 mr-2" />Entrar para enviar a receita</>}
+          </Button>
           <p className="text-xs text-muted-foreground">Para medicamentos sujeitos a receita, a compra só é liberada após análise e conferência pela farmácia.</p>
         </form>
       </div>
