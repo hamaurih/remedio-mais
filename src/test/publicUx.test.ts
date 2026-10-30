@@ -3,12 +3,11 @@ import { adminAccess, strongAdminPassword } from '@/lib/adminAccess';
 import { addToCart, getCart, updateQty } from '@/lib/store';
 
 describe('acesso administrativo', () => {
-  it('exige login próprio, papel staff e AAL2', () => {
-    expect(adminAccess(false, false, false, false)).toBe('login');
-    expect(adminAccess(true, false, false, true)).toBe('denied');
-    expect(adminAccess(true, true, false, false)).toBe('login');
-    expect(adminAccess(true, true, false, true)).toBe('allowed');
-    expect(adminAccess(true, false, true, true)).toBe('allowed');
+  it('exige login e papel staff; 2FA é opcional (admin entra só com senha)', () => {
+    expect(adminAccess(false, false, false)).toBe('login');
+    expect(adminAccess(true, false, false)).toBe('denied');
+    expect(adminAccess(true, true, false)).toBe('allowed');
+    expect(adminAccess(true, false, true)).toBe('allowed');
   });
   it('exige senha longa com maiúscula, minúscula, número e símbolo', () => {
     expect(strongAdminPassword('abc12345')).toBe(false);

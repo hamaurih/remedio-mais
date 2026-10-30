@@ -31,3 +31,7 @@ Reuso shadcn: Button, Input, Label, Card e Alert locais; Dialog/Sheet existentes
 - Typecheck adicional: 3 erros preexistentes e fora do diff em `src/components/admin/dashboard/AdminDashboardCharts.tsx:81`, `src/hooks/useStoreSettings.ts:33`, `src/pages/admin/AdminOrders.tsx:256`. Não há script typecheck em package.json; foi usado `npx tsc --noEmit -p tsconfig.app.json`.
 - Playwright: 1 teste aprovado em viewport 390×844, com catálogo real, header <=112px e barra contextual visível. Medição manual no Chromium: header sticky **101px**, redirecionamento `/admin` → `/admin/login`, nenhum erro JavaScript nessa navegação. Preview mobile inspecionado visualmente; FAB geral não aparece junto da barra contextual no mobile.
 - `test-results/` permaneceu fora do commit. Sitemap gerado durante build excluído da entrega.
+
+## Ajuste 30/10/2026 — 2FA opcional
+
+Por decisão do dono, o painel **não exige** 2FA/TOTP: admin e vendedor entram só com e-mail e senha em `/admin/login`. Se a conta já tiver um fator TOTP verificado, o código é pedido; nenhuma conta é obrigada a cadastrar 2FA. O guard `AdminLayout` não checa mais AAL2.

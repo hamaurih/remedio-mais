@@ -8,7 +8,6 @@ import Cart from '@/pages/Cart';
 const mocks = vi.hoisted(() => ({
   auth: { user: null, isAdmin: false, isSeller: false, loading: false },
   stock: vi.fn(),
-  aal: "aal2",
   cart: [{ id: 'p', name: 'Produto', quantity: 2, price: 10 }],
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => mocks.auth }));
@@ -17,26 +16,18 @@ vi.mock('@/lib/liveStock', () => ({ liveCheckProductsDetailed: mocks.stock }));
 vi.mock('@/lib/genericSuggestion', () => ({ fetchGenericSuggestion: async () => null }));
 vi.mock('@/components/Layout', () => ({ Layout: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock('@/components/Seo', () => ({ Seo: () => null }));
-vi.mock('@/integrations/supabase/client', () => ({ supabase: { auth: { mfa: { getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: mocks.aal } }) } } } }));
+vi.mock('@/integrations/supabase/client', () => ({ supabase: { auth: { mfa: {} } } }));
 
 function mount(element: React.ReactNode) {
   return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter>{element}</MemoryRouter></QueryClientProvider>);
 }
 
 describe('guard do painel', () => {
-  beforeEach(() => { mocks.aal = 'aal2'; mocks.auth = { user: null, isAdmin: false, isSeller: false, loading: false }; });
+  beforeEach(() => { mocks.auth = { user: null, isAdmin: false, isSeller: false, loading: false }; });
   it('redireciona visitante para login administrativo', async () => {
     const { Routes, Route } = await import('react-router-dom');
     mount(<Routes><Route path="/" element={<AdminLayout />} /><Route path="/admin/login" element={<p>Login administrativo</p>} /></Routes>);
     expect(await screen.findByText('Login administrativo')).toBeInTheDocument();
-  });
-  it('exige MFA mesmo com sessão administrativa autenticada', async () => {
-    mocks.aal = 'aal1';
-    mocks.auth = { user: { id: 'admin' }, isAdmin: true, isSeller: false, loading: false } as unknown as typeof mocks.auth;
-    const { Routes, Route } = await import('react-router-dom');
-    mount(<Routes><Route path="/" element={<AdminLayout><p>Conteúdo privado</p></AdminLayout>} /><Route path="/admin/login" element={<p>Login administrativo</p>} /></Routes>);
-    expect(await screen.findByText('Login administrativo')).toBeInTheDocument();
-    expect(screen.queryByText('Conteúdo privado')).not.toBeInTheDocument();
   });
   it('bloqueia cliente sem papel staff', async () => {
     mocks.auth = { user: { id: 'cliente' }, isAdmin: false, isSeller: false, loading: false } as unknown as typeof mocks.auth;

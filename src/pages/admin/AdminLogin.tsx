@@ -13,8 +13,6 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [factorId, setFactorId] = useState('');
-  const [qr, setQr] = useState('');
-  const [secret, setSecret] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -36,23 +34,14 @@ export default function AdminLogin() {
         await supabase.auth.signOut();
         throw new Error('Acesso restrito a administradores e vendedores. Use o login da loja para sua conta de cliente.');
       }
-      const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (assurance.error) throw assurance.error;
-      if (assurance.data.currentLevel === 'aal2') { nav('/admin', { replace: true }); return; }
-      const factors = await supabase.auth.mfa.listFactors();
-      if (factors.error) throw factors.error;
-      const verified = factors.data.totp.find(f => f.status === 'verified');
-      if (verified) { setFactorId(verified.id); return; }
-      // Limpa apenas cadastros incompletos para permitir retomar após abandono.
-      for (const factor of factors.data.all.filter(f => f.factor_type === 'totp' && f.status === 'unverified')) {
-        const removed = await supabase.auth.mfa.unenroll({ factorId: factor.id });
-        if (removed.error) throw removed.error;
+      // 2FA opcional: só pede código se a conta já tiver TOTP verificado.
+      const factors = await supabase.auth.mfa.listFactors().catch(() => null);
+      const verified = factors && !factors.error ? factors.data.totp.find(f => f.status === 'verified') : undefined;
+      if (verified) {
+        const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel().catch(() => null);
+        if (assurance?.data?.currentLevel !== 'aal2') { setFactorId(verified.id); return; }
       }
-      const enrolled = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Painel administrativo' });
-      if (enrolled.error) throw enrolled.error;
-      setFactorId(enrolled.data.id);
-      setQr(enrolled.data.totp.qr_code);
-      setSecret(enrolled.data.totp.secret);
+      nav('/admin', { replace: true });
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Não foi possível validar o acesso. Tente novamente.');
     } finally { setBusy(false); }
@@ -68,7 +57,6 @@ export default function AdminLogin() {
             <div><Label htmlFor="admin-email">E-mail</Label><Input id="admin-email" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></div>
             <div><Label htmlFor="admin-password">Senha</Label><Input id="admin-password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></div>
           </> : <>
-            {qr && <><p className="text-sm">Cadastre este QR code no seu aplicativo autenticador.</p><img src={qr.startsWith('data:') ? qr : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qr)}`} alt="QR code para cadastrar autenticação em duas etapas" className="w-48 mx-auto" /><p className="text-xs break-all">Chave para cadastro manual: {secret}</p></>}
             <div><Label htmlFor="admin-totp">Código do autenticador</Label><Input id="admin-totp" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={e => setCode(e.target.value)} /></div>
           </>}
           <Button className="w-full" disabled={busy}>{busy ? 'Validando...' : factorId ? 'Confirmar código' : 'Entrar no painel'}</Button>
