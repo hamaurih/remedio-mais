@@ -213,18 +213,18 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold line-clamp-1">{p.name}</div>
-                        <div className="text-[11px] text-muted-foreground line-clamp-1">
+                        <div className="text-xs text-muted-foreground line-clamp-1">
                           {[p.manufacturer, p.category_name].filter(Boolean).join(" • ")}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-sm font-extrabold text-primary">{formatBRL(final)}</span>
                           {promo && (
-                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary text-primary-foreground">
+                            <span className="text-xs font-bold uppercase px-1.5 py-0.5 rounded bg-primary text-primary-foreground">
                               Promoção
                             </span>
                           )}
                           {p.requires_prescription && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
+                            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
                               Receita
                             </span>
                           )}

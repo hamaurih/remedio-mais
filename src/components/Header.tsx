@@ -38,9 +38,10 @@ export function Header() {
         : "Minha conta";
 
   return (
+    <>
     <header className="sticky top-0 z-40 bg-background border-b shadow-card">
 
-      <div className="container py-3">
+      <div className="container py-2 md:py-3">
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center shrink-0" aria-label="Atacadão dos Medicamentos">
             <img
@@ -50,7 +51,7 @@ export function Header() {
               height={64}
               decoding="async"
               {...({ fetchpriority: "high" } as any)}
-              className="h-12 md:h-16 w-auto object-contain"
+              className="h-8 md:h-16 w-auto object-contain"
               onError={(e) => {
                 const t = e.currentTarget;
                 t.style.display = "none";
@@ -102,7 +103,7 @@ export function Header() {
               <Link to="/carrinho" aria-label="Carrinho">
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 font-bold">
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 font-bold">
                     {cartCount}
                   </span>
                 )}
@@ -112,12 +113,14 @@ export function Header() {
         </div>
 
         {/* Mobile search */}
-        <div className="md:hidden mt-3">
+        <div className="md:hidden mt-1">
           <SearchAutocomplete compact />
         </div>
       </div>
 
-      <CategoryNav />
+      <div className="hidden md:block"><CategoryNav /></div>
     </header>
+    <div className="md:hidden"><CategoryNav /></div>
+    </>
   );
 }

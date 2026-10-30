@@ -281,3 +281,7 @@
 
 /* Container fluido: ocupa a tela toda com um teto em telas gigantes */
 .container { max-width: 1920px; }
+
+/* Contraste secundário apenas na loja pública; mantém o tema do painel. */
+.storefront { --muted-foreground: 215 14% 34%; }
+.dark .storefront { --muted-foreground: 220 8% 75%; }

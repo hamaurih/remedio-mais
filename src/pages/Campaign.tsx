@@ -98,7 +98,7 @@ export default function Campaign() {
         )}
         {(mode === "none" || (!campaign.banner_image_url && mode !== "auto_products")) && (
           <div className="bg-gradient-to-br from-primary/10 to-transparent rounded-2xl p-6 md:p-10">
-            <div className="text-[11px] uppercase tracking-wider font-extrabold text-primary">
+            <div className="text-xs uppercase tracking-wider font-extrabold text-primary">
               Campanha
             </div>
             <h1 className="text-3xl md:text-4xl font-extrabold mt-2">{campaign.name}</h1>

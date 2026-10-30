@@ -1,3 +1,4 @@
+import { useCart } from "@/hooks/useCart";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -5,10 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
-import { addToCart, formatBRL } from "@/lib/store";
+import { addToCart, formatBRL, buildPublicWhatsAppLink } from "@/lib/store";
 import { resolveSitePrice } from "@/lib/pricing";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
-import { ShoppingCart, AlertCircle, Minus, Plus } from "lucide-react";
+import { MessageCircle, ShoppingCart, AlertCircle, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useProductVariants, VariantSelector, buildVariantLabel, type ProductVariant } from "@/components/VariantSelector";
 import { useRelatedProducts } from "@/hooks/useRelatedProducts";
@@ -24,6 +25,7 @@ import { trackViewContent } from "@/lib/metaEvents";
 export default function Product() {
   const { slug } = useParams<{ slug: string }>();
   const { data: _settings } = useStoreSettings();
+  const cart = useCart();
   const [qty, setQty] = useState(1);
   
   const { data: p, isLoading, refetch } = useQuery({
@@ -83,7 +85,7 @@ export default function Product() {
     );
   }
 
-  const hasVariants = !!(p as any).has_variants && variants.length > 0;
+  const hasVariants = !!(p as any).has_variants;
   const resolved = resolveSitePrice(
     p,
     hasVariants && selectedVariant ? { price: selectedVariant.price, promo_price: selectedVariant.promo_price } : null,
@@ -92,9 +94,11 @@ export default function Product() {
   const hasDiscount = resolved.hasDiscount;
   const displayImage = (hasVariants && selectedVariant?.image_url) || p.image_url || productPlaceholder;
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : ((p as any).stock ?? 0);
-  const outOfStock = variantStock <= 0;
+  const inCart = cart.find(i => i.id === (selectedVariant?.id || p.id))?.quantity || 0;
+  const remaining = Math.max(0, Number(variantStock) - inCart);
+  const outOfStock = remaining <= 0;
   const configuredLimit = Number((p as any).cart_quantity_limit || 99);
-  const maxQty = Math.max(1, Math.min(Number(variantStock || 0), Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : 99));
+  const maxQty = Math.max(1, Math.min(remaining, Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : 99));
   const safeQty = Math.max(1, Math.min(qty, maxQty));
   const requiresPrescription = !!((p as any).requires_prescription || (p as any).controlled);
   const productUrl = `https://www.atacadaodosmedicamentos.com.br/produto/${p.slug}`;
@@ -107,6 +111,7 @@ export default function Product() {
 
   const handleAdd = () => {
     if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
+    if (qty > remaining) { toast.error(`Só ${variantStock} disponíveis (${inCart} no carrinho)`); return; }
     if (outOfStock) { toast.error("Sem estoque para esta opção"); return; }
 
     const doAdd = () => {
@@ -118,8 +123,10 @@ export default function Product() {
         prescription_approved_at: null,
       };
 
+      let added: boolean;
       if (hasVariants && selectedVariant) {
-        addToCart({
+        added = addToCart({
+          available_stock: Number(variantStock),
           id: selectedVariant.id,
           product_id: p.id,
           variant_id: selectedVariant.id,
@@ -130,7 +137,8 @@ export default function Product() {
           ...commonPrescription,
         }, safeQty);
       } else {
-        addToCart({
+        added = addToCart({
+          available_stock: Number(variantStock),
           id: p.id,
           product_id: p.id,
           name: p.name,
@@ -140,6 +148,7 @@ export default function Product() {
         }, safeQty);
       }
 
+      if (!added) { toast.error(`Só ${variantStock} disponíveis`); return; }
       toast.success(requiresPrescription
         ? `${safeQty}x adicionado. Envie a receita pelo carrinho para liberar a compra.`
         : `${safeQty}x adicionado ao carrinho`);
@@ -209,7 +218,7 @@ export default function Product() {
             <img src={displayImage} alt={p.name} width={420} height={420} decoding="async" fetchPriority="high" className="max-h-[420px] object-contain" />
           </div>
           <div>
-            {(p as any).manufacturer && <div className="text-sm text-muted-foreground">{(p as any).manufacturer}</div>}
+            {(p as any).manufacturer && <div className="text-xs text-muted-foreground">{(p as any).manufacturer}</div>}
             <h1 className="text-2xl md:text-3xl font-extrabold mt-1">{p.name}</h1>
 
             {requiresPrescription && (
@@ -218,6 +227,7 @@ export default function Product() {
               </div>
             )}
 
+            <p className="text-xs text-muted-foreground mt-3">{hasVariants && !selectedVariant ? "Selecione uma opção para consultar o estoque" : Number(variantStock) <= 0 ? "Esgotado" : `Só ${variantStock} disponíveis (${inCart} no carrinho)`}</p>
             {hasVariants && (
               <div className="mt-5">
                 <VariantSelector
@@ -240,7 +250,7 @@ export default function Product() {
             )}
 
             <div className="mt-5">
-              {hasDiscount && <div className="text-muted-foreground line-through">{formatBRL(resolved.comparePrice ?? Number(p.price))}</div>}
+              {hasDiscount && <div className="text-xs text-muted-foreground line-through">{formatBRL(resolved.comparePrice ?? Number(p.price))}</div>}
               <div className="text-4xl price">{formatBRL(Number(finalPrice))}</div>
               <div className="text-sm text-muted-foreground mt-1">Retire na loja ou receba em casa</div>
             </div>
@@ -274,7 +284,7 @@ export default function Product() {
             )}
 
             <div className="mt-4 flex flex-wrap gap-3">
-              <Button size="lg" onClick={handleAdd} disabled={outOfStock}>
+              <Button size="lg" onClick={handleAdd} disabled={outOfStock || safeQty > remaining}>
                 <ShoppingCart className="h-5 w-5 mr-2" /> {outOfStock ? "Indisponível" : `Adicionar ${safeQty > 1 ? `${safeQty} itens` : "ao carrinho"}`}
               </Button>
             </div>
@@ -308,6 +318,11 @@ export default function Product() {
           backgroundVariant="light"
         />
       )}
+      <div data-testid="product-mobile-bar" className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t bg-background p-2 pb-[max(env(safe-area-inset-bottom),8px)] flex items-center gap-2">
+        <div className="shrink-0"><div className="text-xs text-muted-foreground">Preço</div><strong className="price text-base">{formatBRL(Number(finalPrice))}</strong></div>
+        <Button className="flex-1 px-2 text-xs" onClick={handleAdd} disabled={outOfStock || safeQty > remaining}>{outOfStock ? "Esgotado" : "Adicionar ao carrinho"}</Button>
+        <Button asChild size="icon" variant="ghost" className="shrink-0 text-whatsapp"><a href={buildPublicWhatsAppLink(`Olá! Tenho interesse em ${p.name}`)} target="_blank" rel="noopener" aria-label="Consultar produto no WhatsApp"><MessageCircle className="h-5 w-5" /></a></Button>
+      </div>
     </Layout>
   );
 }

@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { strongAdminPassword } from "@/lib/adminAccess";
 import { toast } from "sonner";
 
 export default function ResetPassword() {
+  const { isAdmin, isSeller, loading: authLoading, rolesResolved } = useAuth();
+  const staff = isAdmin || isSeller;
   const [search] = useSearchParams();
   const nav = useNavigate();
   const changeMode = search.get("mode") === "change";
@@ -18,7 +22,7 @@ export default function ResetPassword() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const valid = useMemo(() => password.length >= 8 && password.length <= 128 && password === confirm, [password, confirm]);
+  const valid = useMemo(() => (!staff || strongAdminPassword(password)) && password.length >= 8 && password.length <= 128 && password === confirm, [password, confirm, staff]);
 
   useEffect(() => {
     let mounted = true;
@@ -49,12 +53,12 @@ export default function ResetPassword() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionReady) {
+    if (!sessionReady || authLoading || !rolesResolved) {
       toast.error("Este link é inválido, expirou ou já foi utilizado. Solicite um novo link.");
       return;
     }
     if (!valid) {
-      toast.error("Use pelo menos 8 caracteres e confirme a mesma senha nos dois campos.");
+      toast.error(staff ? "Use pelo menos 12 caracteres com maiúscula, minúscula, número e símbolo e confirme a senha." : "Use pelo menos 8 caracteres e confirme a mesma senha nos dois campos.");
       return;
     }
 
@@ -77,7 +81,7 @@ export default function ResetPassword() {
 
       await supabase.auth.signOut().catch(() => undefined);
       toast.success("Senha atualizada com segurança. Entre novamente com a nova senha.");
-      nav("/auth", { replace: true });
+      nav(staff ? "/admin/login" : "/auth", { replace: true });
     } catch (e: any) {
       const msg = String(e?.message || "");
       if (msg === "WEAK_PASSWORD") {
@@ -110,6 +114,7 @@ export default function ResetPassword() {
             </div>
           )}
 
+          {sessionReady && !authLoading && !rolesResolved && <p role="alert" className="text-sm text-destructive">Não foi possível verificar o perfil da conta. Recarregue a página para tentar novamente.</p>}
           <form onSubmit={submit} className="space-y-4">
             {changeMode && (
               <div className="space-y-2">
@@ -119,14 +124,14 @@ export default function ResetPassword() {
             )}
             <div className="space-y-2">
               <Label>Nova senha</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} maxLength={128} autoComplete="new-password" />
-              <p className="text-xs text-muted-foreground">Mínimo de 8 caracteres. Não exigimos símbolos, mas bloqueamos senhas comuns e vazadas.</p>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={staff ? 12 : 8} maxLength={128} autoComplete="new-password" />
+              <p className="text-xs text-muted-foreground">{staff ? "Mínimo de 12 caracteres com maiúscula, minúscula, número e símbolo." : "Mínimo de 8 caracteres. Não exigimos símbolos, mas bloqueamos senhas comuns e vazadas."}</p>
             </div>
             <div className="space-y-2">
               <Label>Confirmar nova senha</Label>
-              <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} maxLength={128} autoComplete="new-password" />
+              <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={staff ? 12 : 8} maxLength={128} autoComplete="new-password" />
             </div>
-            <Button type="submit" className="w-full" disabled={loading || !valid || !sessionReady || (changeMode && !currentPassword)}>
+            <Button type="submit" className="w-full" disabled={!rolesResolved || authLoading || loading || !valid || !sessionReady || (changeMode && !currentPassword)}>
               {loading ? "Atualizando..." : "Salvar nova senha"}
             </Button>
           </form>

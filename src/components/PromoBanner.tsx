@@ -364,7 +364,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
             {block.badge_text && (
               <span
                 className={cn(
-                  "self-start text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1",
+                  "self-start text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1",
                   anim.badge,
                 )}
                 style={{ background: styles.badgeBg, color: styles.badgeFg }}
@@ -400,7 +400,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
             {block.badge_text && (
               <span
                 className={cn(
-                  "inline-block max-w-full truncate text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5",
+                  "inline-block max-w-full truncate text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5",
                   anim.badge,
                 )}
                 style={{ background: styles.badgeBg, color: styles.badgeFg }}
@@ -422,7 +422,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
               <p
                 className={cn(
                   "mt-0.5 line-clamp-1",
-                  isFeatured ? "text-[12px] md:text-[13px]" : "text-[11px] md:text-[12px]",
+                  isFeatured ? "text-[12px] md:text-[13px]" : "text-xs md:text-[12px]",
                 )}
                 style={{ color: styles.mutedColor }}
               >
@@ -436,7 +436,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
               <div>
                 {block.price_suffix && (
                   <div
-                    className="text-[9px] md:text-[10px] uppercase tracking-wider leading-tight truncate"
+                    className="text-xs uppercase tracking-wider leading-tight truncate"
                     style={{ color: styles.mutedColor }}
                   >
                     {block.price_suffix}
@@ -444,7 +444,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
                 )}
                 {block.old_price != null && (
                   <div
-                    className="text-[11px] line-through leading-none"
+                    className="text-xs line-through leading-none"
                     style={{ color: styles.mutedColor }}
                   >
                     {brl(Number(block.old_price))}
@@ -466,7 +466,7 @@ function CardInner({ block, type }: { block: PromoBlock; type: BlockType }) {
               <span
                 className={cn(
                   "inline-flex w-fit items-center gap-1 font-extrabold uppercase tracking-wide rounded-full shadow-sm whitespace-nowrap",
-                  isFeatured ? "text-[11px] md:text-[12px] px-3 py-1" : "text-[10px] md:text-[11px] px-2.5 py-1",
+                  isFeatured ? "text-xs md:text-[12px] px-3 py-1" : "text-xs px-2.5 py-1",
                   anim.cta,
                 )}
                 style={{ background: styles.ctaBg, color: styles.ctaFg }}

@@ -80,7 +80,7 @@ export function CampaignShelf() {
         <div className={cn("rounded-2xl p-5 md:p-6 relative overflow-hidden shadow-sm", bg)}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative">
             <div className="min-w-0">
-              <div className="text-[11px] uppercase tracking-wider font-extrabold text-primary">
+              <div className="text-xs uppercase tracking-wider font-extrabold text-primary">
                 Campanha
               </div>
               <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-1">

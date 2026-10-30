@@ -154,22 +154,22 @@ export function Footer() {
         <div className="container py-6">
           <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 text-xs text-muted-foreground">
             {s?.legal_name && (
-              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Razão social</div>{s.legal_name}</div>
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-xs mb-0.5">Razão social</div>{s.legal_name}</div>
             )}
             {s?.cnpj && (
-              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">CNPJ</div>{s.cnpj}</div>
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-xs mb-0.5">CNPJ</div>{s.cnpj}</div>
             )}
             {s?.state_registration && (
-              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Inscrição Estadual</div>{s.state_registration}</div>
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-xs mb-0.5">Inscrição Estadual</div>{s.state_registration}</div>
             )}
             {(s?.pharmacist_name || s?.crf) && (
-              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Farmacêutico responsável</div>{s?.pharmacist_name}{s?.crf ? ` — ${s.crf}` : ""}</div>
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-xs mb-0.5">Farmacêutico responsável</div>{s?.pharmacist_name}{s?.crf ? ` — ${s.crf}` : ""}</div>
             )}
             {s?.sanitary_license && (
-              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">Licença sanitária</div>{s.sanitary_license}</div>
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-xs mb-0.5">Licença sanitária</div>{s.sanitary_license}</div>
             )}
             {s?.afe && (
-              <div><div className="font-semibold text-foreground uppercase tracking-wide text-[10px] mb-0.5">AFE / ANVISA</div>{s.afe}</div>
+              <div><div className="font-semibold text-foreground uppercase tracking-wide text-xs mb-0.5">AFE / ANVISA</div>{s.afe}</div>
             )}
           </div>
         </div>

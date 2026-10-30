@@ -271,7 +271,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         {/* LEFT: tagline */}
         <div className={cn("z-10 flex flex-col justify-center min-w-0 max-w-[360px]", textAlignClass(s.text_position || "left"), style.text)}>
           {s.badge_text && (
-            <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
+            <span className="inline-flex items-center self-start bg-primary text-primary-foreground text-xs font-bold uppercase tracking-[0.12em] px-3 py-1 rounded-full mb-2 shadow-sm">
               {s.badge_text}
             </span>
           )}
@@ -331,7 +331,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
               {s.discount_prefix && (
                 <div
                   className={cn("font-semibold uppercase tracking-wider leading-none", style.accent)}
-                  style={{ ...customAccent, fontSize: "clamp(0.7rem, 1vw, 0.9rem)" }}
+                  style={{ ...customAccent, fontSize: "clamp(12px, 1vw, 14px)" }}
                 >
                   {s.discount_prefix}
                 </div>
@@ -343,7 +343,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
               {s.discount_suffix && (
                 <div
                   className={cn("font-semibold uppercase tracking-wider mt-1", style.accent)}
-                  style={{ ...customAccent, fontSize: "clamp(0.7rem, 1vw, 0.9rem)" }}
+                  style={{ ...customAccent, fontSize: "clamp(12px, 1vw, 14px)" }}
                 >
                   {s.discount_suffix}
                 </div>
@@ -367,7 +367,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         {s.legal_text && (
           <p
             className={cn("absolute bottom-2 right-6 leading-tight text-right opacity-70 z-10", style.legal)}
-            style={{ maxWidth: "260px", fontSize: "clamp(9px, 0.8vw, 11px)", color: s.legal_color || undefined }}
+            style={{ maxWidth: "260px", fontSize: "12px", color: s.legal_color || undefined }}
           >
             {s.legal_text}
           </p>
@@ -403,10 +403,10 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
         <div className="flex flex-col items-center w-full">
           {discount != null && (
             <div className={cn("flex items-end gap-1 font-extrabold leading-none", style.accent)} style={customAccent}>
-              {s.discount_prefix && <span className="text-[10px] uppercase tracking-wider self-end mb-1">{s.discount_prefix}</span>}
+              {s.discount_prefix && <span className="text-xs uppercase tracking-wider self-end mb-1">{s.discount_prefix}</span>}
               <span className="text-5xl">{discount}</span>
               <span className="text-xl mb-1">%</span>
-              {s.discount_suffix && <span className="text-[10px] uppercase tracking-wider self-end mb-1">{s.discount_suffix}</span>}
+              {s.discount_suffix && <span className="text-xs uppercase tracking-wider self-end mb-1">{s.discount_suffix}</span>}
             </div>
           )}
           {s.cta_text && (
@@ -419,7 +419,7 @@ export function HeroSlide({ s }: { s: HeroSlide }) {
               <Link to={link}>{s.cta_text}</Link>
             </Button>
           )}
-          {s.legal_text && <p className={cn("mt-2 text-[10px] leading-tight max-w-[34ch]", style.legal)} style={{ color: s.legal_color || undefined }}>{s.legal_text}</p>}
+          {s.legal_text && <p className={cn("mt-2 text-xs leading-tight max-w-[34ch]", style.legal)} style={{ color: s.legal_color || undefined }}>{s.legal_text}</p>}
         </div>
       </div>
     </div>

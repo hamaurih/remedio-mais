@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
+import { adminAccess } from "@/lib/adminAccess";
 import { TAX_MIGRATION_VISIBLE } from "@/lib/taxMigration";
 
 type Role = "admin" | "seller";
@@ -115,7 +116,16 @@ const groupOrder = [
 export default function AdminLayout({ children }: { children?: ReactNode }) {
   const qc = useQueryClient();
   const location = useLocation();
-  const { user, isAdmin, isSeller, loading } = useAuth();
+  const { user, session, isAdmin, isSeller, loading } = useAuth();
+  const [assurance, setAssurance] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setAssurance(null);
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data, error }) => {
+      if (alive) setAssurance(!error && data?.currentLevel === "aal2");
+    }).catch(() => { if (alive) setAssurance(false); });
+    return () => { alive = false; };
+  }, [user?.id, session?.access_token]);
   const [canAccessPrescriptions, setCanAccessPrescriptions] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -146,10 +156,10 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
     };
   }, [user?.id, isAdmin, isSeller]);
 
-  if (loading) {
+  if (loading || (user && (isAdmin || isSeller) && assurance === null)) {
     return <div className="min-h-screen grid place-items-center bg-muted/20 text-sm text-muted-foreground">Carregando painel...</div>;
   }
-  if (!user) return <Navigate to="/auth" replace />;
+  if (adminAccess(!!user, isAdmin, isSeller, assurance === true) === "login") return <Navigate to="/admin/login" replace />;
   if (!isAdmin && !isSeller) {
     return (
       <div className="container py-20 text-center">

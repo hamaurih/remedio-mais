@@ -218,7 +218,7 @@ function TileCard({ tile, large }: { tile: ResolvedTile; large?: boolean }) {
 
       <div className="relative">
         {tile._resolvedBadge && (
-          <span className="inline-block bg-primary text-primary-foreground text-[11px] font-bold uppercase px-2.5 py-1 rounded-full">
+          <span className="inline-block bg-primary text-primary-foreground text-xs font-bold uppercase px-2.5 py-1 rounded-full">
             {tile._resolvedBadge}
           </span>
         )}
@@ -367,7 +367,7 @@ export function PromoMosaic() {
             ) : null}
             <div className="relative">
               {t._resolvedBadge && (
-                <span className="inline-block bg-primary text-primary-foreground text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mb-1">
+                <span className="inline-block bg-primary text-primary-foreground text-xs font-bold uppercase px-2 py-0.5 rounded-full mb-1">
                   {t._resolvedBadge}
                 </span>
               )}
