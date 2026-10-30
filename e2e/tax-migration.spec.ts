@@ -176,7 +176,9 @@ test("tax migration shows per-product Split Payment and catalog summary", async 
   await expect(
     page.getByText("Alíquota deste produto na liquidação:", { exact: false }),
   ).toBeVisible();
-  await expect(page.getByText("4,52%", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(/Alíquota deste produto na liquidação:\s*4,52%/),
+  ).toBeVisible();
   await expect(
     page.getByText("Valor retido na hora da venda:", { exact: false }),
   ).toBeVisible();
@@ -200,7 +202,9 @@ test("tax migration shows per-product Split Payment and catalog summary", async 
   await expect(
     page.getByText("Alíquota deste produto na liquidação:", { exact: false }),
   ).toBeVisible();
-  await expect(page.getByText("11,3%", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText(/Alíquota deste produto na liquidação:\s*11,3%/),
+  ).toBeVisible();
 
   await expectNoDocumentOverflow(page);
   if ((page.viewportSize()?.width || 1280) < 768) {
