@@ -1,3 +1,4 @@
+import { strongAdminPassword } from "@/lib/adminAccess";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +51,7 @@ export default function AdminRegistrations() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Registration | null>(null);
+  const staffTarget = ["admin", "seller"].includes(selected?.account_role || "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -124,8 +126,8 @@ export default function AdminRegistrations() {
       toast.error("Para sua própria conta, use a opção Alterar senha na área da conta.");
       return;
     }
-    if (password.length < 8 || password.length > 128 || password !== confirm) {
-      toast.error("Use entre 8 e 128 caracteres e confirme a mesma senha.");
+    if ((staffTarget && !strongAdminPassword(password)) || password.length < 8 || password.length > 128 || password !== confirm) {
+      toast.error("Use a senha exigida para o perfil e confirme a mesma senha.");
       return;
     }
 
@@ -390,7 +392,7 @@ export default function AdminRegistrations() {
                     setPasswordSaved(false);
                   }}
                   autoComplete="new-password"
-                  minLength={8}
+                  minLength={staffTarget ? 12 : 8}
                   maxLength={128}
                   className="pr-11"
                 />
@@ -416,11 +418,11 @@ export default function AdminRegistrations() {
                   setPasswordSaved(false);
                 }}
                 autoComplete="new-password"
-                minLength={8}
+                minLength={staffTarget ? 12 : 8}
                 maxLength={128}
               />
               <p className="text-xs text-muted-foreground">
-                Mínimo de 8 caracteres. Senhas comuns ou encontradas em vazamentos são bloqueadas.
+                {staffTarget ? "Mínimo de 12 caracteres com maiúscula, minúscula, número e símbolo." : "Mínimo de 8 caracteres. Senhas comuns ou encontradas em vazamentos são bloqueadas."}
               </p>
             </div>
 
@@ -446,7 +448,7 @@ export default function AdminRegistrations() {
               <Button
                 type="button"
                 onClick={() => void saveNewPassword()}
-                disabled={savingPassword || password.length < 8 || password !== confirm}
+                disabled={(staffTarget && !strongAdminPassword(password)) || savingPassword || password.length < 8 || password !== confirm}
               >
                 {savingPassword ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <KeyRound className="h-4 w-4 mr-1.5" />}
                 {savingPassword ? "Redefinindo..." : "Salvar nova senha"}
@@ -463,7 +465,8 @@ function generateStrongPassword(length = 16) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
   const bytes = new Uint32Array(length);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
+  const generated = Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
+  return strongAdminPassword(generated) ? generated : generateStrongPassword(length);
 }
 
 function formatDateTime(value: string) {

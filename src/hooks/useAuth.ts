@@ -17,14 +17,20 @@ export function useAuth() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
+  const [rolesResolved, setRolesResolved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+    let revision = 0;
 
     async function refreshUser(s: Session | null) {
+      if (!mounted) return;
+      const current = ++revision;
+      setLoading(true);
+      setRolesResolved(false);
       if (!s) {
-        if (!mounted) return;
+        if (!mounted || current !== revision) return;
         setUser(null);
         setProfile(null);
         setIsAdmin(false);
@@ -34,7 +40,7 @@ export function useAuth() {
       }
 
       const { data, error } = await supabase.auth.getUser();
-      if (!mounted) return;
+      if (!mounted || current !== revision) return;
       if (error || !data?.user) {
         setUser(null);
         setProfile(null);
@@ -47,19 +53,20 @@ export function useAuth() {
       setUser(data.user);
       try {
         const context = await customerAccount<{ profile: Profile | null; roles: string[] }>("context");
-        if (!mounted) return;
+        if (!mounted || current !== revision) return;
+        setRolesResolved(true);
         const roles = context.roles || [];
         setIsAdmin(roles.includes("admin"));
         setIsSeller(roles.includes("seller"));
         setProfile(context.profile || null);
       } catch {
-        if (!mounted) return;
+        if (!mounted || current !== revision) return;
         // Falhar fechado: sessão continua identificada, mas nenhum privilégio é concedido.
         setIsAdmin(false);
         setIsSeller(false);
         setProfile(null);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && current === revision) setLoading(false);
       }
     }
 
@@ -77,5 +84,5 @@ export function useAuth() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  return { session, user, profile, isAdmin, isSeller, loading };
+  return { session, user, profile, isAdmin, isSeller, loading, rolesResolved };
 }

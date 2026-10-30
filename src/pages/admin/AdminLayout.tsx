@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { NotificationsBell } from "@/components/admin/NotificationsBell";
 import { CieloPendingReconciler } from "@/components/admin/CieloPendingReconciler";
+import { adminAccess } from "@/lib/adminAccess";
 import { TAX_MIGRATION_VISIBLE } from "@/lib/taxMigration";
 
 type Role = "admin" | "seller";
@@ -149,7 +150,7 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
   if (loading) {
     return <div className="min-h-screen grid place-items-center bg-muted/20 text-sm text-muted-foreground">Carregando painel...</div>;
   }
-  if (!user) return <Navigate to="/auth" replace />;
+  if (adminAccess(!!user, isAdmin, isSeller) === "login") return <Navigate to="/admin/login" replace />;
   if (!isAdmin && !isSeller) {
     return (
       <div className="container py-20 text-center">

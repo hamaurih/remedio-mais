@@ -1,3 +1,4 @@
+import { useCart } from "@/hooks/useCart";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ export function ProductQuickView() {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
   const { data: settings } = useStoreSettings();
+  const cart = useCart();
   const [qty, setQty] = useState(1);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -97,11 +99,13 @@ export function ProductQuickView() {
 
   if (!p) return null;
 
-  const hasVariants = !!p?.has_variants && variants.length > 0;
+  const hasVariants = !!p?.has_variants;
   const baseStock = typeof p.stock === "number" ? p.stock : 0;
   const variantStock = hasVariants ? (selectedVariant?.stock ?? 0) : baseStock;
   const stock = hasVariants ? variantStock : baseStock;
-  const outOfStock = stock <= 0;
+  const inCart = cart.find(i => i.id === (selectedVariant?.id || p.id))?.quantity || 0;
+  const remaining = Math.max(0, Number(stock) - inCart);
+  const outOfStock = remaining <= 0;
   const requiresPrescription = !!(p.controlled || p.requires_prescription);
 
   const resolved = resolveSitePrice(
@@ -113,7 +117,7 @@ export function ProductQuickView() {
   const discount = resolved.discountPercent;
   const pixPct = resolvePixPercentage(p.pix_discount_percentage, (settings as any)?.pix_discount_percentage, (settings as any)?.pix_discount_enabled);
   const pixPrice = calculatePixPrice(finalPrice, pixPct);
-  const maxQty = Math.min(stock || 99, p.cart_quantity_limit || 99) || 99;
+  const maxQty = Math.max(1, Math.min(remaining, p.cart_quantity_limit || 99));
 
   const variantImage = hasVariants && selectedVariant?.image_url ? selectedVariant.image_url : null;
   const displayImage = activeImage || variantImage || p.image_url || productPlaceholder;
@@ -125,6 +129,7 @@ export function ProductQuickView() {
 
   const handleAdd = () => {
     if (hasVariants && !selectedVariant) { toast.error("Selecione uma opção"); return; }
+    if (qty > remaining) { toast.error(`Só ${stock} disponíveis (${inCart} no carrinho)`); return; }
     if (outOfStock) { toast.error("Sem estoque para esta opção."); return; }
 
     const prescriptionMeta = {
@@ -135,8 +140,10 @@ export function ProductQuickView() {
       prescription_approved_at: null,
     };
 
+    let added: boolean;
     if (hasVariants && selectedVariant) {
-      addToCart({
+      added = addToCart({
+        available_stock: Number(stock),
         id: selectedVariant.id,
         product_id: p.id,
         variant_id: selectedVariant.id,
@@ -147,7 +154,8 @@ export function ProductQuickView() {
         ...prescriptionMeta,
       }, qty);
     } else {
-      addToCart({
+      added = addToCart({
+        available_stock: Number(stock),
         id: p.id,
         product_id: p.id,
         name: p.name,
@@ -157,6 +165,7 @@ export function ProductQuickView() {
       }, qty);
     }
 
+    if (!added) { toast.error(`Só ${stock} disponíveis`); return; }
     toast.success(requiresPrescription
       ? `${qty}x adicionado. Envie a receita no carrinho para liberar este item.`
       : `${qty}x adicionado ao carrinho`);
@@ -214,7 +223,7 @@ export function ProductQuickView() {
                   onSelect={(v) => { setSelectedVariantId(v.id); setActiveImage(null); }}
                 />
                 {selectedVariant && (
-                  <div className="text-[11px] text-muted-foreground mt-2 space-y-0.5">
+                  <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
                     <div>
                       {selectedVariant.stock > 0
                         ? <>Estoque: <strong>{selectedVariant.stock}</strong> un.</>
@@ -232,8 +241,8 @@ export function ProductQuickView() {
             <div>
               {hasDiscount && (
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground line-through text-sm">{formatBRL(resolved.comparePrice ?? Number(p.price))}</span>
-                  <span className="text-[11px] font-extrabold bg-primary text-primary-foreground px-2 py-0.5 rounded">-{discount}%</span>
+                  <span className="text-muted-foreground line-through text-xs">{formatBRL(resolved.comparePrice ?? Number(p.price))}</span>
+                  <span className="text-xs font-extrabold bg-primary text-primary-foreground px-2 py-0.5 rounded">-{discount}%</span>
                 </div>
               )}
               <div className="text-3xl md:text-4xl font-extrabold text-primary leading-none mt-1">{formatBRL(finalPrice)}</div>
@@ -241,11 +250,12 @@ export function ProductQuickView() {
               {pixPrice && (
                 <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                   <div className="text-lg font-extrabold text-emerald-700">{formatBRL(pixPrice)}</div>
-                  <div className="text-[11px] font-semibold text-emerald-700/80">no Pix com {pixPct}% de desconto</div>
+                  <div className="text-xs font-semibold text-emerald-700/80">no Pix com {pixPct}% de desconto</div>
                 </div>
               )}
             </div>
 
+            <p className="text-xs text-muted-foreground mt-3">{Number(stock) <= 0 ? "Esgotado" : `Só ${stock} disponíveis (${inCart} no carrinho)`}</p>
             <div className="mt-5 space-y-3">
               {!outOfStock && (
                 <div className="flex items-center gap-3">
@@ -253,7 +263,7 @@ export function ProductQuickView() {
                   <div className="inline-flex items-center border rounded-full">
                     <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-9 w-9 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Diminuir"><Minus className="h-4 w-4" /></button>
                     <span className="w-8 text-center font-bold">{qty}</span>
-                    <button onClick={() => setQty((q) => Math.min(maxQty, q + 1))} className="h-9 w-9 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Aumentar"><Plus className="h-4 w-4" /></button>
+                    <button disabled={qty >= maxQty} onClick={() => setQty((q) => Math.min(maxQty, q + 1))} className="h-9 w-9 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Aumentar"><Plus className="h-4 w-4" /></button>
                   </div>
                 </div>
               )}
@@ -272,7 +282,7 @@ export function ProductQuickView() {
                       Este item ficará aguardando aprovação da receita. Os demais produtos continuam liberados para compra.
                     </div>
                   )}
-                  <Button onClick={handleAdd} className="w-full h-12 rounded-full font-bold text-base bg-primary hover:bg-primary-dark">
+                  <Button disabled={outOfStock || qty > remaining} onClick={handleAdd} className="w-full h-12 rounded-full font-bold text-base bg-primary hover:bg-primary-dark">
                     <ShoppingCart className="h-5 w-5 mr-2" /> Adicionar ao carrinho
                   </Button>
                 </div>

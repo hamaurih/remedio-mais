@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index.tsx";
 import Auth from "./pages/Auth.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
+import AdminLogin from "./pages/admin/AdminLogin";
 import AdminHome from "./pages/admin/AdminHome.tsx";
 
 const lazyWithRetry = <T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) =>
@@ -157,9 +158,10 @@ const App = () => (
             <Route path="/trocas-e-devolucoes" element={<Returns />} />
             <Route path="/politica-de-reembolso" element={<RefundPolicy />} />
             <Route path="/fale-conosco" element={<Contact />} />
-            <Route path="/admin/login" element={<Navigate to="/auth" replace />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminEntry />} />
+              <Route path="*" element={<NotFound />} />
               <Route path="bi" element={<AdminDashboard />} />
               <Route path="migracao-tributaria" element={<AdminTaxMigration />} />
               <Route path="curva-abc" element={<AdminCurveABC />} />

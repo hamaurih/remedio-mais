@@ -8,7 +8,7 @@ export function WhatsAppFab() {
   const location = useLocation();
   const items = useCart();
   const count = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  const hideMobileBar = /^\/(checkout|pedido\/|auth|redefinir-senha)/.test(location.pathname);
+  const hideMobileBar = location.pathname.startsWith("/produto/") || /^\/(checkout|pedido\/|auth|redefinir-senha)/.test(location.pathname);
 
   return (
     <>
@@ -39,7 +39,7 @@ export function WhatsAppFab() {
             >
               <ShoppingCart className="h-4 w-4" /> Carrinho
               {count > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-foreground text-background text-[10px] flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-foreground text-background text-xs flex items-center justify-center">
                   {count > 99 ? "99+" : count}
                 </span>
               )}

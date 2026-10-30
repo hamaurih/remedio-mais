@@ -20,7 +20,7 @@ import productPlaceholder from "@/assets/product-placeholder.jpg";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Sparkles, FileText, Clock3, CheckCircle2, XCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchGenericSuggestion, type GenericSuggestion } from "@/lib/genericSuggestion";
-import { CartLiveAlert } from "@/components/CartLiveAlert";
+import { CartLiveAlert, cartStockKey, type CartStockState } from "@/components/CartLiveAlert";
 import { SecureBadge } from "@/components/SecureBadge";
 import { toast } from "sonner";
 import { Seo } from "@/components/Seo";
@@ -41,14 +41,16 @@ function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) 
   if (!sug) return null;
 
   const swap = () => {
-    removeFromCart(item.id);
-    addToCart({
+    const added = addToCart({
+      available_stock: sug.candidate.stock,
       id: sug.candidate.id,
       product_id: sug.candidate.id,
       name: sug.candidate.name,
       price: resolveSitePrice(sug.candidate).finalPrice,
       image_url: sug.candidate.image_url,
     }, item.quantity);
+    if (!added) { toast.error(`Só ${sug.candidate.stock} disponíveis`); return; }
+    removeFromCart(item.id);
     toast.success(`Trocado pelo genérico — economia de ${formatBRL(sug.savings * item.quantity)}`);
     onSwapped();
   };
@@ -147,6 +149,8 @@ function PrescriptionState({ item }: { item: any }) {
 
 export default function Cart() {
   const items = useCart();
+  const [stockState, setStockState] = useState<CartStockState | null>(null);
+  const stockBlocked = !stockState || stockState.key !== cartStockKey(items) || stockState.blocked;
   const { user } = useAuth();
   const total = cartTotal(items);
   const payableItems = useMemo(() => cartPayableItems(items), [items]);
@@ -204,7 +208,7 @@ export default function Cart() {
         ) : (
           <div className="grid lg:grid-cols-[1fr_360px] gap-6">
             <div>
-              <CartLiveAlert items={items} />
+              <CartLiveAlert items={items} onStockState={setStockState} />
               <div className="space-y-3">
                 {items.map((i) => (
                   <div key={i.id} className={`bg-card border rounded-xl p-3 shadow-card ${isPrescriptionCartItem(i) && !payableItems.some((p) => p.id === i.id) ? "border-amber-200" : ""}`}>
@@ -212,13 +216,14 @@ export default function Cart() {
                       <img src={i.image_url || productPlaceholder} alt={i.name} loading="lazy" decoding="async" className="w-16 h-16 object-contain bg-secondary/40 rounded-lg" />
                       <div className="flex-1">
                         <div className="font-medium text-sm line-clamp-2">{i.name}</div>
-                        {i.variant_label && <div className="text-[11px] text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>}
+                        {i.variant_label && <div className="text-xs text-muted-foreground mt-0.5 font-semibold">{i.variant_label}</div>}
+                        <p className="text-xs text-muted-foreground">{stockState?.stocks[i.id] === undefined ? "Conferindo disponibilidade..." : stockState.stocks[i.id] <= 0 ? "Esgotado" : `Só ${stockState.stocks[i.id]} disponíveis`}</p>
                         <div className="text-primary font-bold mt-1">{formatBRL(i.price)}</div>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity - 1)}><Minus className="h-3 w-3" /></Button>
                         <span className="w-8 text-center font-semibold">{i.quantity}</span>
-                        <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQty(i.id, i.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="outline" className="h-8 w-8" disabled={stockState?.key !== cartStockKey(items) || stockState?.stocks[i.id] === undefined || i.quantity >= stockState.stocks[i.id]} onClick={() => updateQty(i.id, i.quantity + 1, stockState?.stocks[i.id])}><Plus className="h-3 w-3" /></Button>
                       </div>
                       <Button size="icon" variant="ghost" onClick={() => removeFromCart(i.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
                     </div>
@@ -238,7 +243,7 @@ export default function Cart() {
                   <span>{formatBRL(total)}</span>
                 </div>
                 <div className="flex justify-between text-lg">
-                  <span>Liberado para pagar agora</span>
+                  <span>{stockBlocked ? "Confira o estoque e ajuste os itens para continuar" : "Liberado para pagar agora"}</span>
                   <span className="font-extrabold price">{formatBRL(payableTotal)}</span>
                 </div>
                 {pendingItems.length > 0 && (
@@ -252,8 +257,8 @@ export default function Cart() {
               <Button
                 size="lg"
                 className="w-full bg-primary hover:bg-primary-dark font-bold"
-                onClick={() => nav("/checkout")}
-                disabled={payableItems.length === 0}
+                onClick={() => { if (!stockBlocked) nav("/checkout"); }}
+                disabled={stockBlocked || payableItems.length === 0}
               >
                 {payableItems.length > 0 ? <>Finalizar itens liberados <ArrowRight className="h-5 w-5 ml-2" /></> : "Aguardando aprovação da receita"}
               </Button>
@@ -261,7 +266,7 @@ export default function Cart() {
                 <Link to="/">Continuar comprando</Link>
               </Button>
               <div className="flex justify-center"><SecureBadge /></div>
-              <p className="text-[11px] text-muted-foreground text-center">Pagamento seguro via Cielo — Pix ou cartão de crédito.</p>
+              <p className="text-xs text-muted-foreground text-center">Pagamento seguro via Cielo — Pix ou cartão de crédito.</p>
             </aside>
           </div>
         )}

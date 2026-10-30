@@ -154,6 +154,12 @@ Deno.serve(async (req) => {
 
     if (action === "set-password") {
       const password = String(body?.password || "");
+      const { data: targetRoles, error: rolesError } = await admin.from("user_roles").select("role").eq("user_id", targetUserId);
+      if (rolesError) return json(req, { error: "role_check_failed" }, 503);
+      const staff = targetRoles?.some(r => r.role === "admin" || r.role === "seller");
+      if (staff && !(password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^a-zA-Z0-9]/.test(password))) {
+        return json(req, { error: "weak_password", reason: "staff_complexity" }, 400);
+      }
       const reason = passwordReason(password, email);
       if (reason) return json(req, { error: "weak_password", reason }, 400);
       if (await passwordPwned(password)) return json(req, { error: "pwned_password" }, 400);

@@ -77,7 +77,7 @@ export const ProductShelf = memo(function ProductShelf({
               <span className="inline-block w-1 h-6 bg-primary rounded-full" />
               <span className="truncate">{title}</span>
               {badge && (
-                <span className="ml-1 text-[11px] font-bold uppercase tracking-wide bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                <span className="ml-1 text-xs font-bold uppercase tracking-wide bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
                   {badge}
                 </span>
               )}

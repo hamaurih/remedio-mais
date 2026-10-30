@@ -44,13 +44,15 @@ export function GenericSuggestionDialog() {
   const swapForGeneric = () => {
     if (!suggestion) return;
     const c = suggestion.candidate;
-    addToCart({
+    const added = addToCart({
+      available_stock: c.stock,
       id: c.id,
       product_id: c.id,
       name: c.name,
       price: resolveSitePrice(c).finalPrice,
       image_url: c.image_url,
     });
+    if (!added) { toast.error(`Só ${c.stock} disponíveis`); return; }
     toast.success(`Genérico adicionado! Você economizou ${formatBRL(suggestion.savings)}`);
     void notifyCartAddition(c.id, c.id);
     setOpen(false);
@@ -80,7 +82,7 @@ export function GenericSuggestionDialog() {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm line-clamp-2">{suggestion.candidate.name}</div>
                 {suggestion.candidate.manufacturer && (
-                  <div className="text-[11px] text-muted-foreground">{suggestion.candidate.manufacturer}</div>
+                  <div className="text-xs text-muted-foreground">{suggestion.candidate.manufacturer}</div>
                 )}
                 <div className="mt-1 flex items-baseline gap-2">
                   <span className="text-lg font-extrabold text-emerald-700">
@@ -90,7 +92,7 @@ export function GenericSuggestionDialog() {
                     {formatBRL(suggestion.original.finalPrice)}
                   </span>
                 </div>
-                <div className="text-[11px] font-bold text-emerald-700 uppercase">
+                <div className="text-xs font-bold text-emerald-700 uppercase">
                   Economize {formatBRL(suggestion.savings)} ({Math.round(suggestion.pct * 100)}%)
                 </div>
               </div>

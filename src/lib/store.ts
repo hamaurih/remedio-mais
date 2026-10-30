@@ -8,6 +8,7 @@ export type CartItem = {
   price: number;
   image_url?: string | null;
   quantity: number;
+  available_stock?: number;
   requires_prescription?: boolean;
   controlled?: boolean;
   prescription_id?: string | null;
@@ -78,7 +79,10 @@ export function cartPayableTotal(items: CartItem[]) {
 export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
   const items = getCart();
   const existing = items.find((i) => i.id === item.id);
+  const stock = item.available_stock ?? existing?.available_stock;
+  if (!Number.isInteger(qty) || qty <= 0 || (stock !== undefined && (existing?.quantity || 0) + qty > stock)) return false;
   if (existing) {
+    existing.available_stock = stock;
     existing.quantity += qty;
     existing.requires_prescription = item.requires_prescription ?? existing.requires_prescription;
     existing.controlled = item.controlled ?? existing.controlled;
@@ -94,10 +98,15 @@ export function addToCart(item: Omit<CartItem, "quantity">, qty = 1) {
       id: item.id, product_id: item.product_id, name: item.name, price: item.price, quantity: qty,
     })).catch(() => {});
   }
+  return true;
 }
 
-export function updateQty(id: string, qty: number) {
-  const items = getCart().map((i) => (i.id === id ? { ...i, quantity: Math.max(1, qty) } : i));
+export function updateQty(id: string, qty: number, availableStock?: number) {
+  const items = getCart().map((i) => {
+    const stock = availableStock ?? i.available_stock;
+    return i.id === id && Number.isInteger(qty) && (qty <= i.quantity || stock === undefined || qty <= stock)
+      ? { ...i, available_stock: stock, quantity: Math.max(1, qty) } : i;
+  });
   save(items);
 }
 

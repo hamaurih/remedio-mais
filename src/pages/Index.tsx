@@ -353,7 +353,7 @@ export default function Index() {
         <div key={key}>{SECTIONS[key] ?? null}</div>
       ))}
 
-      <p className="container text-[11px] text-muted-foreground pb-6 text-center">
+      <p className="container text-xs text-muted-foreground pb-6 text-center">
         As informações dos produtos são meramente informativas. Consulte o farmacêutico.
       </p>
     </Layout>

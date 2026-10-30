@@ -54,7 +54,7 @@ export function CampaignAutoBanner({
       <div className="relative flex flex-col sm:flex-row items-stretch gap-4 sm:gap-5">
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           {badge && (
-            <span className="inline-block self-start bg-primary text-primary-foreground text-[11px] font-bold uppercase px-2.5 py-1 rounded-full mb-2">
+            <span className="inline-block self-start bg-primary text-primary-foreground text-xs font-bold uppercase px-2.5 py-1 rounded-full mb-2">
               {badge}
             </span>
           )}
@@ -117,7 +117,7 @@ export function CampaignAutoBanner({
                     )}
                   >
                     {hasDiscount && (
-                      <span className="absolute top-0 right-0 z-10 bg-primary text-primary-foreground text-[10px] md:text-[11px] font-extrabold px-1.5 py-0.5 rounded-full shadow-md leading-none">
+                      <span className="absolute top-0 right-0 z-10 bg-primary text-primary-foreground text-xs font-extrabold px-1.5 py-0.5 rounded-full shadow-md leading-none">
                         -{pct}%
                       </span>
                     )}
@@ -132,11 +132,11 @@ export function CampaignAutoBanner({
                     {showPrice && (
                       <div className="mt-1 text-center leading-tight">
                         {hasDiscount && (
-                          <div className="text-[9px] md:text-[10px] line-through text-muted-foreground leading-none">
+                          <div className="text-xs line-through text-muted-foreground leading-none">
                             {base!.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                           </div>
                         )}
-                        <div className="text-[11px] md:text-[13px] font-extrabold text-primary leading-none">
+                        <div className="text-xs md:text-[13px] font-extrabold text-primary leading-none">
                           {(promo ?? base)!.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </div>
                       </div>
