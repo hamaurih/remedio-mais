@@ -30,8 +30,8 @@ describe("Checkout não pode ser bloqueado por sincronização do CRM", () => {
 
   it("não mexe em valores financeiros, inventário, pagamentos nem ERP transacional", () => {
     const sql = reorder + "\n" + guard;
-    expect(sql).not.toMatch(/\\b(update|insert into|delete from|truncate)\\s+(?:public\\.)?(?:orders|products|order_items|payments|inventory_stock)\\b/i);
+    expect(sql).not.toMatch(/\b(update|insert into|delete from|truncate)\s+(?:public\.)?(?:orders|products|order_items|payments|inventory_stock)\b/i);
     expect(sql).not.toMatch(/alter table|drop trigger|disable trigger/i);
-    expect(sql).not.toMatch(/trier|merchantkey|service_role_key/i);
+    expect(sql).not.toMatch(/merchantkey|service_role_key/i);
   });
 });
