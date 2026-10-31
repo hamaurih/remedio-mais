@@ -13,7 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Menu, ChevronDown } from "lucide-react";
+import { Menu, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMenu, resolveMenuHref, type MenuItem } from "@/hooks/useMenu";
 import { usePublicBootstrap } from "@/hooks/usePublicBootstrap";
@@ -261,7 +261,8 @@ export function CategoryNav() {
           <MegaMenuMobile groups={groups} />
         </div>
 
-        <div className="flex-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+        <div className="relative flex-1 min-w-0">
+          <div className="overflow-x-auto scrollbar-hide snap-x snap-mandatory pr-8">
           <ul className="flex gap-2 md:gap-3 whitespace-nowrap text-base md:text-lg items-center">
             {chipList.map((c) => {
               const highlighted = isHighlightChip(c);
@@ -285,6 +286,12 @@ export function CategoryNav() {
               );
             })}
           </ul>
+          </div>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-end bg-gradient-to-l from-background via-background/90 to-transparent pr-1">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border bg-background/95 shadow-sm">
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </span>
+          </div>
         </div>
       </div>
     </nav>

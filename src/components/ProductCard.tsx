@@ -1,5 +1,5 @@
 import { useCart } from "@/hooks/useCart";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import productPlaceholder from "@/assets/product-placeholder.jpg";
@@ -34,6 +34,45 @@ function resolveBadge(p: Product, hasDiscount: boolean): BadgeKind {
     if (days <= 30) return "novo";
   }
   return null;
+}
+
+
+function RxImageFallback({ name, controlled }: { name: string; controlled: boolean }) {
+  const dosage = name.match(/\b\d+(?:[.,]\d+)?\s*(?:mg|g|ml|mcg|ui)\b/i)?.[0] || "";
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-4 text-center">
+      <div className={`mb-3 h-2 w-16 rounded-full ${controlled ? "bg-slate-900" : "bg-red-600"}`} />
+      <div className="line-clamp-3 text-base font-extrabold leading-snug text-foreground">{name}</div>
+      {dosage && <div className="mt-1 text-sm font-semibold text-muted-foreground">{dosage}</div>}
+      <div className="mt-3 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900">
+        Receita obrigatória
+      </div>
+    </div>
+  );
+}
+
+function ProductImage({ product }: { product: Product }) {
+  const [failed, setFailed] = useState(false);
+  const requiresPrescription = !!(product.controlled || product.requires_prescription);
+  const hasImage = !!String(product.image_url || "").trim() && !failed;
+
+  if (!hasImage && requiresPrescription) {
+    return <RxImageFallback name={product.name} controlled={!!product.controlled} />;
+  }
+
+  return (
+    <img
+      src={hasImage ? product.image_url! : productPlaceholder}
+      alt={product.name}
+      loading="lazy"
+      decoding="async"
+      width={300}
+      height={300}
+      sizes="(max-width: 768px) 45vw, 250px"
+      onError={() => setFailed(true)}
+      className="w-full h-full object-contain p-2 md:p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
+    />
+  );
 }
 
 const BADGE_STYLE: Record<Exclude<BadgeKind, null>, { label: string; cls: string }> = {
@@ -102,21 +141,7 @@ export const ProductCard = memo(function ProductCard({ p }: { p: Product }) {
         style={{ aspectRatio: "1 / 1" }}
         aria-label={`Ver ${p.name}`}
       >
-        <img
-          src={p.image_url || productPlaceholder}
-          alt={p.name}
-          loading="lazy"
-          decoding="async"
-          width={300}
-          height={300}
-          sizes="(max-width: 768px) 45vw, 250px"
-          onError={(event) => {
-            const image = event.currentTarget;
-            image.onerror = null;
-            image.src = productPlaceholder;
-          }}
-          className="w-full h-full object-contain p-2 md:p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
-        />
+        <ProductImage product={p} />
         {badge && (
           <span className={`absolute top-2 left-2 ${BADGE_STYLE[badge].cls} text-xs font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shadow-card`}>
             {BADGE_STYLE[badge].label}

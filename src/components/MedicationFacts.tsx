@@ -99,7 +99,7 @@ export function MedicationFacts({ product }: { product: CatalogProduct & { id?: 
             <div key={fact.id} className="min-w-0">
               <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{fact.label}</dt>
               <dd className="text-sm mt-0.5">{fact.value}</dd>
-              <dd className="text-[11px] text-muted-foreground">{sourceLabel(fact.source)}</dd>
+              <dd className="text-xs text-muted-foreground">{sourceLabel(fact.source)}</dd>
             </div>
           ))}
         </dl>
@@ -147,7 +147,7 @@ export function MedicationFacts({ product }: { product: CatalogProduct & { id?: 
                       <Link to={`/produto/${item.slug}`} className="text-sm font-semibold hover:underline">
                         {humanizeCatalogName(item.name)}
                       </Link>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {item.source === "cadastro" ? "Indicado no cadastro" : "Mesmo princípio ativo cadastrado"}
                         {item.manufacturer ? ` · ${humanizeCatalogName(item.manufacturer)}` : ""}
                         {!inStock ? " · sem estoque" : ""}
