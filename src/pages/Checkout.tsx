@@ -25,6 +25,7 @@ import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
 import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
+import { needsPaymentReconciliation } from "@/lib/cieloPaymentSafety";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -34,6 +35,7 @@ export default function Checkout() {
   const { data: settings } = useStoreSettings();
   const nav = useNavigate();
   const paymentCompletedRef = useRef(false);
+  const paymentInFlightRef = useRef(false);
 
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -306,8 +308,16 @@ export default function Checkout() {
     }
   };
 
+  const redirectPaymentReview = (data: unknown) => {
+    if (!needsPaymentReconciliation(data)) return false;
+    paymentCompletedRef.current = true;
+    toast.warning("Pagamento em verificação. Não tente pagar novamente; acompanhe o pedido.", { duration: 12000 });
+    nav(`/pedido/pendente?order=${data.order_id}`, { replace: true });
+    return true;
+  };
+
   const goPay = async () => {
-    if (!user) return;
+    if (!user || paymentInFlightRef.current || paymentCompletedRef.current) return;
     if (hasPrescriptionItems && !acceptedOriginalPrescription) {
       toast.error("Confirme que entregará a receita original à farmácia para continuar.", { duration: 8000 });
       return;
@@ -322,6 +332,7 @@ export default function Checkout() {
       setStep(1);
       return;
     }
+    paymentInFlightRef.current = true;
     setSubmitting(true);
     trackAddPaymentInfo(paymentMethod, total);
     try {
@@ -345,10 +356,12 @@ export default function Checkout() {
 
       if (paymentMethod === "pix") {
         const { data, error } = await supabase.functions.invoke("create-cielo-pix", { body: commonBody });
+        if (redirectPaymentReview(data)) return;
         await parseInvokeError(error, data);
         if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
         sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({ qr_code: data.qr_code, qr_code_base64: data.qr_code_base64, expires_at: data.expires_at, total: data.total }));
         setPendingPixOrder(data.order_id);
+        paymentCompletedRef.current = true;
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         return;
       }
@@ -371,6 +384,7 @@ export default function Checkout() {
           },
         },
       });
+      if (redirectPaymentReview(data)) return;
       await parseInvokeError(error, data);
       if (data?.status === "approved") {
         const orderId = data.order_id;
@@ -383,8 +397,10 @@ export default function Checkout() {
       }
       throw new Error(data?.reason || "Cartão recusado pela operadora. Tente outro cartão ou use Pix.");
     } catch (e: any) {
-      toast.error(e?.message || "Falha ao iniciar pagamento", { duration: 8000 });
-      setSubmitting(false);
+      toast.error(e?.message || "Falha ao iniciar pagamento. Confira seus pedidos antes de tentar novamente.", { duration: 10000 });
+    } finally {
+      paymentInFlightRef.current = false;
+      if (!paymentCompletedRef.current) setSubmitting(false);
     }
   };
 
