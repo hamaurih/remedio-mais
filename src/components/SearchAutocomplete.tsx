@@ -167,7 +167,7 @@ export function SearchAutocomplete({ className = "", compact = false }: { classN
           }}
           onFocus={() => q.trim().length >= 2 && setOpen(true)}
           onKeyDown={onKey}
-          placeholder="Busque por produto, marca, princípio ativo ou código de barras"
+          placeholder={compact ? "Buscar produto, marca ou código" : "Busque por produto, marca, princípio ativo ou código de barras"}
           className={`pl-10 pr-10 ${compact ? "h-10" : "h-11"} rounded-full bg-secondary border-transparent focus-visible:ring-primary w-full`}
           aria-autocomplete="list"
           aria-expanded={open}
