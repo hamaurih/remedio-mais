@@ -1,4 +1,9 @@
 
+alter table public.cart_funnel_sessions
+  add column if not exists tenant_id uuid null references public.tenants(id) on delete cascade;
+create index if not exists cart_funnel_sessions_tenant_idx
+  on public.cart_funnel_sessions(tenant_id,last_activity_at desc);
+
 create table if not exists public.crm_contacts (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -472,8 +477,22 @@ declare
 begin
   select * into v_session from public.cart_funnel_sessions where id=p_session_id;
   if not found then return; end if;
-  v_tenant_id:=private.crm_active_tenant_id();
+  v_tenant_id:=v_session.tenant_id;
+  if v_tenant_id is null and v_session.user_id is not null then
+    select tm.tenant_id into v_tenant_id
+    from public.tenant_memberships tm
+    where tm.user_id=v_session.user_id and tm.active=true
+    order by tm.created_at asc
+    limit 1;
+  end if;
+  v_tenant_id:=coalesce(v_tenant_id,private.crm_active_tenant_id());
   if v_tenant_id is null then return; end if;
+
+  if v_session.tenant_id is null then
+    update public.cart_funnel_sessions
+    set tenant_id=v_tenant_id,updated_at=now()
+    where id=v_session.id and tenant_id is null;
+  end if;
 
   if v_session.user_id is not null then
     v_contact_id:=private.crm_contact_for_user(v_tenant_id,v_session.user_id);
