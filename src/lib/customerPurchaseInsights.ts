@@ -17,6 +17,8 @@ const digits = (value?: string | null) => String(value || "").replace(/\D/g, "")
 const email = (value?: string | null) => String(value || "").trim().toLowerCase();
 
 export function sameCustomer(a: PurchaseOrder, b: PurchaseOrder) {
+  // A guest order belongs to itself even without a reusable customer identity.
+  if (a.id && a.id === b.id) return true;
   if (a.user_id && b.user_id && a.user_id === b.user_id) return true;
 
   const acpf = digits(a.customer_cpf);

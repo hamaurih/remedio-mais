@@ -35,10 +35,11 @@ export function CustomerPurchaseSummary({ order, orders, onOpen, showFinancial =
   );
 }
 
-export function CustomerPurchaseAnalysisDialog({ order, orders, open, onOpenChange, showFinancial = false }: {
+export function CustomerPurchaseAnalysisDialog({ order, orders, open, onOpenChange, showFinancial = false, scopeLabel }: {
   order: any;
   orders: any[];
   open: boolean;
+  scopeLabel?: string;
   onOpenChange: (open: boolean) => void;
   showFinancial?: boolean;
 }) {
@@ -51,6 +52,8 @@ export function CustomerPurchaseAnalysisDialog({ order, orders, open, onOpenChan
         <DialogHeader>
           <DialogTitle>Análise comercial · {order.customer_name || "Cliente"}</DialogTitle>
         </DialogHeader>
+
+        {scopeLabel && <p className="text-sm text-muted-foreground">{scopeLabel}</p>}
 
         <div className={`grid gap-3 sm:grid-cols-2 ${showFinancial ? "lg:grid-cols-4" : "lg:grid-cols-2"}`}>
           <Metric icon={ShoppingBag} label="Compras" value={String(insight.purchaseCount)} />
