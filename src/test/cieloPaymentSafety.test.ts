@@ -20,7 +20,7 @@ describe("Segurança do checkout Cielo", () => {
     expect(s).toContain("payment_reconciliation_required");
     expect(s).toContain("saveError");
     expect(s).toContain("savedOrder");
-    expect(s).toContain("gateway");
+    expect(s).toContain("payment_review");
   });
   it("recupera pagamento pela referência comercial e valida vínculo", () => {
     const s=read("supabase/functions/check-cielo-status/index.ts");
