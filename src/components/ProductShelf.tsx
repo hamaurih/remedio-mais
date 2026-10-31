@@ -87,7 +87,7 @@ export const ProductShelf = memo(function ProductShelf({
           {viewAllLink && (
             <Link
               to={viewAllLink}
-              className="text-sm text-primary font-bold hover:underline whitespace-nowrap"
+              className="inline-flex min-h-11 items-center px-2 -mr-2 text-sm text-primary font-bold hover:underline whitespace-nowrap"
             >
               Ver todos →
             </Link>
