@@ -24,7 +24,7 @@ type Overview = {
   by_stage?: Record<string, number>;
 };
 
-type OpportunityRow = {
+export type OpportunityRow = {
   opportunity_id: string;
   contact_id: string | null;
   customer_name: string | null;
