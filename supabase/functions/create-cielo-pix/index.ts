@@ -46,8 +46,8 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     safeError("[cielo-pix] network error", { message: (e as Error).message });
-    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
-    return jsonResp({ success: false, error: "Falha ao contatar Cielo." }, 502);
+    await admin.from("orders").update({ payment_status: "payment_review" }).eq("id", order.id);
+    return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required", error: "Resposta da Cielo não confirmada. Consulte o pedido antes de gerar outra cobrança." }, 202);
   }
 
   const text = await res.text();
