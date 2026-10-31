@@ -49,3 +49,11 @@ describe("customerPurchaseInsights", () => {
     expect(insight.recurringOpportunities).toHaveLength(0);
   });
 });
+
+it('includes the current unlinked guest order without inventing a contact identity', () => {
+  const guest = order({ id: 'guest', user_id: null, customer_phone: null, customer_email: null, customer_cpf: null });
+  const other = order({ id: 'other', customer_phone: null });
+  expect(buildCustomerPurchaseInsights(guest, [guest, other]).purchaseCount).toBe(1);
+  expect(buildCustomerPurchaseInsights(guest, [guest, other]).totalSpent).toBe(100);
+  expect(sameCustomer(guest, other)).toBe(false);
+});
