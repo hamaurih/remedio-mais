@@ -26,6 +26,7 @@ import {
   FileText,
   Globe2,
   HardDriveDownload,
+  GitBranch,
   LayoutDashboard,
   LockKeyhole,
   Layers3,
@@ -67,6 +68,7 @@ const items: Item[] = [
 
   { to: "/admin/pdv", label: "PDV e Balcão", icon: CreditCard, group: "Vendas", roles: ["admin", "seller"] },
   { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, group: "Vendas", roles: ["admin", "seller"] },
+  { to: "/admin/crm", label: "CRM Omnichannel", icon: GitBranch, group: "Vendas", roles: ["admin"] },
   { to: "/admin/order-command", label: "Order Command", icon: LockKeyhole, group: "Vendas", roles: ["admin"] },
   { to: "/admin/ia-vendas", label: "WhatsApp / IA", icon: Bot, group: "Vendas", roles: ["admin", "seller"] },
   { to: "/admin/funil-carrinhos", label: "Carrinhos e Funil", icon: Activity, group: "Vendas", roles: ["admin"] },
