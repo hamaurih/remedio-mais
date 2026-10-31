@@ -20,7 +20,7 @@ describe("CRM omnichannel phase 1 database contract", () => {
     for (const table of ["crm_contacts","crm_contact_identities","crm_opportunities","crm_events","crm_external_inbox"]) {
       expect(migration).toContain(`alter table public.${table} enable row level security`);
     }
-    expect(migration).toContain("app_security.has_role(auth.uid(),'admin'::app_role)");
+    expect(migration).toContain("app_security.has_role(auth.uid(),'admin'::public.app_role)");
     expect(migration).toContain("grant select on public.crm_contacts");
   });
 
