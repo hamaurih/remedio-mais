@@ -344,47 +344,49 @@ begin
       or lower(coalesce(v_order.order_status,'')) in ('em_separacao','separando','saiu_para_entrega','pronto_retirada','pronto_para_retirada') then 'processing'
     else 'order' end;
 
-  insert into public.crm_opportunities(
-    tenant_id,contact_id,cart_session_id,order_id,conversation_id,status,stage,
-    origin_channel,current_channel,value,first_touch_at,last_touch_at,won_at
-  )
-  values(
-    v_tenant_id,v_contact_id,v_order.cart_session_id,v_order.id,
-    coalesce(v_order.source_conversation_id,v_order.ai_conversation_id),
-    v_status,v_stage,v_channel,v_channel,coalesce(v_order.total,0),
-    coalesce(v_order.created_at,now()),coalesce(v_order.updated_at,v_order.created_at,now()),
-    case when v_status='won' then coalesce(v_order.paid_at,v_order.updated_at,now()) end
-  )
-  on conflict(tenant_id,order_id) where order_id is not null
-  do update set
-    contact_id=coalesce(excluded.contact_id,public.crm_opportunities.contact_id),
-    cart_session_id=coalesce(excluded.cart_session_id,public.crm_opportunities.cart_session_id),
-    conversation_id=coalesce(excluded.conversation_id,public.crm_opportunities.conversation_id),
-    status=excluded.status,
-    stage=excluded.stage,
-    current_channel=excluded.current_channel,
-    value=excluded.value,
-    last_touch_at=greatest(public.crm_opportunities.last_touch_at,excluded.last_touch_at),
-    won_at=coalesce(public.crm_opportunities.won_at,excluded.won_at),
-    updated_at=now()
-  returning id into v_opp_id;
+  select o.id into v_opp_id
+  from public.crm_opportunities o
+  where o.tenant_id=v_tenant_id
+    and (
+      o.order_id=v_order.id
+      or (v_order.cart_session_id is not null and o.cart_session_id=v_order.cart_session_id)
+    )
+  order by (o.order_id=v_order.id) desc, o.created_at asc
+  limit 1
+  for update;
+
+  if v_opp_id is null then
+    insert into public.crm_opportunities(
+      tenant_id,contact_id,cart_session_id,order_id,conversation_id,status,stage,
+      origin_channel,current_channel,value,first_touch_at,last_touch_at,won_at
+    )
+    values(
+      v_tenant_id,v_contact_id,v_order.cart_session_id,v_order.id,
+      coalesce(v_order.source_conversation_id,v_order.ai_conversation_id),
+      v_status,v_stage,v_channel,v_channel,coalesce(v_order.total,0),
+      coalesce(v_order.created_at,now()),coalesce(v_order.updated_at,v_order.created_at,now()),
+      case when v_status='won' then coalesce(v_order.paid_at,v_order.updated_at,now()) end
+    )
+    returning id into v_opp_id;
+  else
+    update public.crm_opportunities
+    set contact_id=coalesce(v_contact_id,contact_id),
+        cart_session_id=coalesce(cart_session_id,v_order.cart_session_id),
+        order_id=v_order.id,
+        conversation_id=coalesce(conversation_id,coalesce(v_order.source_conversation_id,v_order.ai_conversation_id)),
+        status=v_status,
+        stage=v_stage,
+        current_channel=v_channel,
+        value=coalesce(v_order.total,value),
+        last_touch_at=greatest(last_touch_at,coalesce(v_order.updated_at,v_order.created_at,now())),
+        won_at=case when v_status='won' then coalesce(won_at,v_order.paid_at,v_order.updated_at,now()) else won_at end,
+        updated_at=now()
+    where id=v_opp_id;
+  end if;
 
   if v_order.cart_session_id is not null then
     update public.crm_events
-    set contact_id=coalesce(contact_id,v_contact_id),opportunity_id=coalesce(opportunity_id,v_opp_id)
-    where tenant_id=v_tenant_id and cart_session_id=v_order.cart_session_id;
-
-    update public.crm_opportunities
-    set contact_id=coalesce(contact_id,v_contact_id),
-        order_id=coalesce(order_id,v_order.id),
-        conversation_id=coalesce(conversation_id,coalesce(v_order.source_conversation_id,v_order.ai_conversation_id)),
-        current_channel=v_channel,
-        status=v_status,
-        stage=v_stage,
-        value=coalesce(v_order.total,value),
-        won_at=case when v_status='won' then coalesce(won_at,v_order.paid_at,now()) else won_at end,
-        last_touch_at=greatest(last_touch_at,coalesce(v_order.updated_at,now())),
-        updated_at=now()
+    set contact_id=coalesce(contact_id,v_contact_id),opportunity_id=coalesce(opportunity_id,v_opp_id),order_id=coalesce(order_id,v_order.id)
     where tenant_id=v_tenant_id and cart_session_id=v_order.cart_session_id;
   end if;
 
