@@ -231,13 +231,17 @@ export const HeroPromoCarousel = memo(function HeroPromoCarousel({ slides, defau
                   aria-label={`Ir para o banner ${i + 1}`}
                   aria-selected={i === selected}
                   role="tab"
-                  className={cn(
-                    "h-2 rounded-full transition-all",
-                    i === selected
-                      ? "bg-primary w-6"
-                      : "bg-background/80 w-2 hover:bg-background",
-                  )}
-                />
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-full"
+                >
+                  <span
+                    className={cn(
+                      "h-2 rounded-full transition-all",
+                      i === selected
+                        ? "bg-primary w-6"
+                        : "bg-background/80 w-2 hover:bg-background",
+                    )}
+                  />
+                </button>
               ))}
             </div>
           </>
