@@ -222,11 +222,11 @@ export default function Product() {
             { name: displayName },
           ]}
         />
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-secondary/40 rounded-2xl p-8 flex items-center justify-center">
+        <div className="grid md:grid-cols-12 gap-8">
+          <div className="md:col-span-5 bg-secondary/40 rounded-2xl p-8 flex items-center justify-center">
             <img src={displayImage} alt={displayName} width={420} height={420} decoding="async" fetchPriority="high" className="max-h-[420px] object-contain" />
           </div>
-          <div>
+          <div className="md:col-span-7">
             {(p as any).manufacturer && <div className="text-xs text-muted-foreground">{humanizeCatalogName(String((p as any).manufacturer))}</div>}
             <h1 className="text-2xl md:text-3xl font-extrabold mt-1">{displayName}</h1>
             {displayName !== p.name && (
