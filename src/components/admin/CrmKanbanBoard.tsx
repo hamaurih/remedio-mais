@@ -5,17 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GripVertical, LockKeyhole, ArrowUpRight } from "lucide-react";
 import { formatBRL } from "@/lib/store";
-import { CRM_KANBAN_COLUMNS, CRM_MANUAL_TARGETS, canMoveCrmOpportunity, canMoveCrmTo, kanbanColumnOf, type KanbanOpportunity } from "@/lib/crmKanban";
+import { CRM_KANBAN_COLUMNS, CRM_MANUAL_TARGETS, canMoveCrmOpportunity, canMoveCrmTo, kanbanColumnOf } from "@/lib/crmKanban";
+import type { OpportunityRow } from "@/pages/admin/AdminCRM";
 
 type Props = {
-  rows: KanbanOpportunity[];
+  rows: OpportunityRow[];
   busy: boolean;
-  onOpen: (row: KanbanOpportunity) => void;
-  onMove: (row: KanbanOpportunity, target: string) => Promise<void>;
+  onOpen: (row: OpportunityRow) => void;
+  onMove: (row: OpportunityRow, target: string) => Promise<void>;
 };
 const CHANNELS: Record<string, string> = { site: "Site", whatsapp: "WhatsApp", balcao: "Balcão", pdv: "Balcão", erp: "ERP", vendedor: "Vendedor", telefone: "Telefone" };
 
-function OpportunityCard({ row, busy, onOpen, onMove }: Props & { row: KanbanOpportunity }) {
+function OpportunityCard({ row, busy, onOpen, onMove }: Props & { row: OpportunityRow }) {
   const eligible = canMoveCrmOpportunity(row);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: row.opportunity_id, disabled: busy || !eligible });
   const style = { transform: CSS.Translate.toString(transform), zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.65 : 1, position: "relative" as const };
