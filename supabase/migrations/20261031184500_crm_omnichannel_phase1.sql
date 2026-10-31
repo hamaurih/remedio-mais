@@ -126,35 +126,35 @@ alter table public.crm_external_inbox enable row level security;
 create policy crm_contacts_admin_read_v1 on public.crm_contacts
 for select to authenticated
 using (
-  app_security.has_role(auth.uid(),'admin'::app_role)
+  app_security.has_role(auth.uid(),'admin'::public.app_role)
   or private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager'])
 );
 
 create policy crm_identities_admin_read_v1 on public.crm_contact_identities
 for select to authenticated
 using (
-  app_security.has_role(auth.uid(),'admin'::app_role)
+  app_security.has_role(auth.uid(),'admin'::public.app_role)
   or private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager'])
 );
 
 create policy crm_opportunities_admin_read_v1 on public.crm_opportunities
 for select to authenticated
 using (
-  app_security.has_role(auth.uid(),'admin'::app_role)
+  app_security.has_role(auth.uid(),'admin'::public.app_role)
   or private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager'])
 );
 
 create policy crm_events_admin_read_v1 on public.crm_events
 for select to authenticated
 using (
-  app_security.has_role(auth.uid(),'admin'::app_role)
+  app_security.has_role(auth.uid(),'admin'::public.app_role)
   or private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager'])
 );
 
 create policy crm_external_inbox_admin_read_v1 on public.crm_external_inbox
 for select to authenticated
 using (
-  app_security.has_role(auth.uid(),'admin'::app_role)
+  app_security.has_role(auth.uid(),'admin'::public.app_role)
   or private.has_tenant_role(tenant_id,auth.uid(),array['owner','admin','manager'])
 );
 
@@ -589,7 +589,7 @@ declare
   v_tenant_id uuid;
   v_cutoff timestamptz:=now()-make_interval(days=>greatest(1,least(coalesce(p_days,30),365)));
 begin
-  if not app_security.has_role(auth.uid(),'admin'::app_role) then
+  if not app_security.has_role(auth.uid(),'admin'::public.app_role) then
     select tm.tenant_id into v_tenant_id
     from public.tenant_memberships tm
     where tm.user_id=auth.uid() and tm.active=true and tm.role::text in ('owner','admin','manager')
@@ -685,7 +685,7 @@ declare
   v_tenant_id uuid;
   v_search text:=nullif(trim(coalesce(p_search,'')),'');
 begin
-  if app_security.has_role(auth.uid(),'admin'::app_role) then
+  if app_security.has_role(auth.uid(),'admin'::public.app_role) then
     v_tenant_id:=private.crm_active_tenant_id();
   else
     select tm.tenant_id into v_tenant_id
@@ -755,7 +755,7 @@ as $$
 declare
   v_tenant_id uuid;
 begin
-  if app_security.has_role(auth.uid(),'admin'::app_role) then
+  if app_security.has_role(auth.uid(),'admin'::public.app_role) then
     v_tenant_id:=private.crm_active_tenant_id();
   else
     select tm.tenant_id into v_tenant_id
