@@ -95,7 +95,7 @@ export function CrmKanbanBoard({ rows, busy, onOpen, onMove }: Props) {
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3" aria-label="Quadro Kanban CRM">
           {CRM_KANBAN_COLUMNS.map(column => <KanbanLane key={column.id} column={column} rows={rows} busy={busy} onOpen={onOpen} onMove={onMove} />)}
-          {rows.some(row => kanbanColumnOf(row) === "unknown") && <section className="w-[276px] shrink-0 rounded-xl border bg-muted/30 p-3"><h3 className="font-bold">A reconciliar</h3><p className="text-xs text-muted-foreground">Oportunidades com etapas ainda não mapeadas: {rows.filter(row => kanbanColumnOf(row) === "unknown").length}</p></section>}
+          {rows.some(row => kanbanColumnOf(row) === "unknown") && <section className="w-[276px] shrink-0 space-y-2 rounded-xl border bg-muted/30 p-3"><h3 className="font-bold">A reconciliar</h3><p className="text-xs text-muted-foreground">Etapa não mapeada; verifique a jornada antes de agir.</p>{rows.filter(row => kanbanColumnOf(row) === "unknown").map(row => <OpportunityCard key={row.opportunity_id} row={row} rows={rows} busy={busy} onOpen={onOpen} onMove={onMove} />)}</section>}
         </div>
       </DndContext>
       <p className="text-xs text-muted-foreground">Contagem e valores de cada coluna correspondem apenas aos cartões carregados nesta página. Use os filtros e a paginação para consultar mais registros.</p>
