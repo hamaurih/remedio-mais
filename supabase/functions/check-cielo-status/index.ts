@@ -33,14 +33,28 @@ Deno.serve(async(req)=>{
     const {data:roles}=await admin.from("user_roles").select("role").eq("user_id",userId);
     const privileged=(roles||[]).some((r:any)=>["admin","gerente"].includes(String(r.role)));
     if(!privileged&&order.user_id!==userId) return json({error:"Forbidden"},403);
-    if(!order.cielo_payment_id) return json({order_id:order.id,payment_status:order.payment_status,cielo_status:order.cielo_status});
     const {data:settings}=await admin.from("payment_settings").select("environment").eq("id",1).maybeSingle();
     const env=settings?.environment==="sandbox"?"sandbox":"production";
+    let paymentId=String(order.cielo_payment_id||"");
+    if(!paymentId){
+      // Cielo permite recuperar PaymentId por MerchantOrderId quando a gravação do pedido falha.
+      try{
+        const lookup=await fetch(`${CIELO_QUERY[env]}/1/sales?merchantOrderId=${encodeURIComponent(order.id)}`,{headers:{MerchantId:MERCHANT_ID,MerchantKey:MERCHANT_KEY,Accept:"application/json"}});
+        if(!lookup.ok)return json({order_id:order.id,payment_status:order.payment_status,reconciliation:"reference_not_found"});
+        const found=await lookup.json().catch(()=>null);
+        const candidates=Array.isArray(found)?found:[found];
+        const ids=Array.from(new Set(candidates.map((entry:any)=>String(entry?.PaymentId||entry?.Payment?.PaymentId||"")).filter((id:string)=>/^[0-9a-f-]{36}$/i.test(id))));
+        if(ids.length!==1)return json({order_id:order.id,payment_status:order.payment_status,reconciliation:ids.length>1?"multiple_gateway_references":"reference_not_found"});
+        paymentId=ids[0];
+      }catch{return json({order_id:order.id,payment_status:order.payment_status,reconciliation:"gateway_unreachable"});}
+    }
     let response:Response;
-    try{response=await fetch(`${CIELO_QUERY[env]}/1/sales/${encodeURIComponent(order.cielo_payment_id)}`,{headers:{MerchantId:MERCHANT_ID,MerchantKey:MERCHANT_KEY,Accept:"application/json"}})}
+    try{response=await fetch(`${CIELO_QUERY[env]}/1/sales/${encodeURIComponent(paymentId)}`,{headers:{MerchantId:MERCHANT_ID,MerchantKey:MERCHANT_KEY,Accept:"application/json"}})}
     catch{return json({order_id:order.id,payment_status:order.payment_status,cielo_status:order.cielo_status,reconciliation:"gateway_unreachable"})}
     if(!response.ok) return json({order_id:order.id,payment_status:order.payment_status,cielo_status:order.cielo_status,reconciliation:"gateway_error",gateway_http_status:response.status});
-    const data=await response.json().catch(()=>({})); const code=Number(data?.Payment?.Status??order.cielo_status??0); const paymentStatus=STATUS[code]??"pending";
+    const data=await response.json().catch(()=>({}));
+    if(data?.MerchantOrderId&&String(data.MerchantOrderId)!==order.id)return json({order_id:order.id,payment_status:order.payment_status,reconciliation:"merchant_order_mismatch"});
+    const code=Number(data?.Payment?.Status??order.cielo_status??0); const paymentStatus=STATUS[code]??"pending";
     const paidAmount=Number(data?.Payment?.Amount??0)/100; const expected=Number(order.total??0);
     if(paymentStatus==="approved" && Math.abs(paidAmount-expected)>0.5){
       await admin.from("payment_errors").insert({stage:"reconciliation_amount",error_code:"amount_mismatch",message:"Valor confirmado pela Cielo diverge do total do pedido",payload_summary:{paid:paidAmount,expected},order_id:order.id});
@@ -49,7 +63,7 @@ Deno.serve(async(req)=>{
       return json({order_id:order.id,payment_status:"payment_review",cielo_status:code,reconciliation:"amount_mismatch"});
     }
     const firstApproval=paymentStatus==="approved"&&order.payment_status!=="approved";
-    const update:Record<string,unknown>={payment_status:paymentStatus,cielo_status:code};
+    const update:Record<string,unknown>={payment_status:paymentStatus,cielo_status:code,cielo_payment_id:paymentId};
     if(firstApproval){update.order_status="pago";update.status="em_atendimento";update.paid_at=new Date().toISOString()}
     else if(["cancelled","rejected"].includes(paymentStatus)&&!order.cancelled_at) update.cancelled_at=new Date().toISOString();
     const {error:updateError}=await admin.from("orders").update(update).eq("id",order.id); if(updateError) return json({error:"Falha ao atualizar conciliação"},500);
