@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { CrmKanbanBoard } from "@/components/admin/CrmKanbanBoard";
+import { canMoveCrmTo } from "@/lib/crmKanban";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErpMetricCard, ErpPage, ErpPageHeader, ErpPanel, ErpPanelHeader } from "@/components/admin/ErpPageShell";
-import { Activity, CircleDollarSign, GitBranch, MessageCircle, Search, ShoppingCart, UsersRound } from "lucide-react";
+import { Activity, CircleDollarSign, Columns3, GitBranch, List, MessageCircle, Search, ShoppingCart, UsersRound } from "lucide-react";
 import { formatBRL } from "@/lib/store";
 
 type Overview = {
@@ -105,6 +108,7 @@ const EVENT_LABELS: Record<string, string> = {
   message_sent: "Mensagem enviada",
   human_handoff: "Transferido para atendimento humano",
   quote_created: "Orçamento criado",
+  crm_stage_moved: "Etapa comercial movida no Kanban",
 };
 
 const dt = (v?: string | null) => v ? new Date(v).toLocaleString("pt-BR") : "—";
@@ -114,7 +118,10 @@ export default function AdminCRM() {
   const [search, setSearch] = useState("");
   const [channel, setChannel] = useState("all");
   const [stage, setStage] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState("open");
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const queryClient = useQueryClient();
+  const pageSize = viewMode === "kanban" ? 200 : PAGE_SIZE;
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<OpportunityRow | null>(null);
 
@@ -129,11 +136,11 @@ export default function AdminCRM() {
   });
 
   const listQ = useQuery({
-    queryKey: ["crm-opportunities", page, search, channel, stage, status],
+    queryKey: ["crm-opportunities", page, pageSize, search, channel, stage, status],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("admin_crm_opportunity_list", {
-        p_limit: PAGE_SIZE,
-        p_offset: page * PAGE_SIZE,
+        p_limit: pageSize,
+        p_offset: page * pageSize,
         p_search: search.trim() || null,
         p_channel: channel,
         p_stage: stage,
@@ -143,7 +150,39 @@ export default function AdminCRM() {
       return (data || []) as OpportunityRow[];
     },
     placeholderData: (previous) => previous,
+    refetchInterval: 60_000,
   });
+
+  const moveQ = useMutation({
+    mutationFn: async ({ row, target }: { row: OpportunityRow; target: string }) => {
+      if (!canMoveCrmTo(row, target)) throw new Error("Etapa controlada pelo sistema.");
+      const { data, error } = await (supabase as any).rpc("admin_crm_move_opportunity", {
+        p_opportunity_id: row.opportunity_id,
+        p_expected_stage: row.stage,
+        p_new_stage: target,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["crm-opportunities"] }),
+        queryClient.invalidateQueries({ queryKey: ["crm-overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["crm-timeline"] }),
+      ]);
+    },
+  });
+  const moveOpportunity = async (row: OpportunityRow, target: string) => {
+    if (!canMoveCrmTo(row, target)) return;
+    try {
+      await moveQ.mutateAsync({ row, target });
+      toast.success("Etapa comercial atualizada.");
+    } catch (error) {
+      console.error("CRM Kanban move failed", error);
+      toast.error("Não foi possível mover o cartão. Atualize o quadro e tente novamente.");
+      void listQ.refetch();
+    }
+  };
 
   const timelineQ = useQuery({
     queryKey: ["crm-timeline", selected?.contact_id, selected?.opportunity_id],
@@ -161,7 +200,7 @@ export default function AdminCRM() {
 
   const rows = listQ.data || [];
   const total = Number(rows[0]?.total_count || 0);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const overview = overviewQ.data || {};
   const channelEntries = useMemo(() => Object.entries(overview.by_channel || {}).sort((a,b) => b[1]-a[1]), [overview.by_channel]);
 
@@ -224,7 +263,11 @@ export default function AdminCRM() {
       <ErpPanel>
         <ErpPanelHeader
           title="Jornadas e oportunidades"
-          description="Busca e filtros executados no banco, sem limitar a análise aos 50 registros exibidos."
+          description="Busca e filtros executados no banco. Kanban por padrão, lista disponível para conferência."
+          actions={<div role="group" aria-label="Modo de visualização do CRM" className="flex gap-1 rounded-lg border p-1">
+            <Button size="sm" variant={viewMode === "kanban" ? "secondary" : "ghost"} onClick={() => { setViewMode("kanban"); setPage(0); }}><Columns3 className="mr-1.5 h-4 w-4" />Kanban</Button>
+            <Button size="sm" variant={viewMode === "table" ? "secondary" : "ghost"} onClick={() => { setViewMode("table"); setPage(0); }}><List className="mr-1.5 h-4 w-4" />Lista</Button>
+          </div>}
         />
         <div className="grid gap-2 border-b p-4 md:grid-cols-[minmax(240px,1fr)_180px_180px_160px]">
           <div className="relative">
@@ -268,6 +311,8 @@ export default function AdminCRM() {
 
         {listQ.isError ? (
           <div className="p-8 text-center text-sm text-destructive">Não foi possível carregar o CRM. Verifique as permissões e tente novamente.</div>
+        ) : listQ.isPending ? <div role="status" className="p-8 text-center text-sm text-muted-foreground">Carregando oportunidades reais…</div> : viewMode === "kanban" ? (
+          <CrmKanbanBoard rows={rows} busy={listQ.isFetching || moveQ.isPending} onOpen={setSelected} onMove={moveOpportunity} />
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -299,7 +344,7 @@ export default function AdminCRM() {
         )}
 
         <div className="flex items-center justify-between border-t p-4 text-sm">
-          <span className="text-muted-foreground">{total} oportunidade(s) · página {page + 1} de {totalPages}</span>
+          <span className="text-muted-foreground">{total} oportunidade(s) · página {page + 1} de {totalPages} · até {pageSize} por página</span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page === 0 || listQ.isFetching} onClick={() => setPage((p) => Math.max(0,p-1))}>Anterior</Button>
             <Button variant="outline" size="sm" disabled={page + 1 >= totalPages || listQ.isFetching} onClick={() => setPage((p) => p+1)}>Próxima</Button>
