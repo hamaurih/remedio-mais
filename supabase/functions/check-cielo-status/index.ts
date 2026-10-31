@@ -55,9 +55,9 @@ Deno.serve(async(req)=>{
     const data=await response.json().catch(()=>({}));
     if(data?.MerchantOrderId&&String(data.MerchantOrderId)!==order.id)return json({order_id:order.id,payment_status:order.payment_status,reconciliation:"merchant_order_mismatch"});
     const code=Number(data?.Payment?.Status??order.cielo_status??0); const paymentStatus=STATUS[code]??"pending";
-    const paidAmount=Number(data?.Payment?.Amount??0)/100; const expected=Number(order.total??0);
-    if(paymentStatus==="approved" && Math.abs(paidAmount-expected)>0.5){
-      await admin.from("payment_errors").insert({stage:"reconciliation_amount",error_code:"amount_mismatch",message:"Valor confirmado pela Cielo diverge do total do pedido",payload_summary:{paid:paidAmount,expected},order_id:order.id});
+    const paidCents=Number(data?.Payment?.Amount); const expectedCents=Math.round(Number(order.total??0)*100);
+    if(paymentStatus==="approved" && (!Number.isSafeInteger(paidCents) || paidCents!==expectedCents)){
+      await admin.from("payment_errors").insert({stage:"reconciliation_amount",error_code:"amount_mismatch",message:"Valor confirmado pela Cielo diverge do total do pedido",payload_summary:{paid_cents:paidCents,expected_cents:expectedCents},order_id:order.id});
       await admin.from("orders").update({payment_status:"payment_review",cielo_status:code}).eq("id",order.id);
       await admin.from("admin_notifications").insert({type:"payment_review",title:"Pagamento em revisão — divergência de valor",message:`Pedido #${String(order.id).slice(0,6)} requer conferência.`,order_id:order.id});
       return json({order_id:order.id,payment_status:"payment_review",cielo_status:code,reconciliation:"amount_mismatch"});
