@@ -69,8 +69,8 @@ Deno.serve(async (req) => {
   if (!qr || !qrBase64 || !paymentId) return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
 
   const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000).toISOString();
-  const { error: saveError } = await admin.from("orders").update({ cielo_payment_id: paymentId, cielo_status: statusCode, pix_qr_code: qr, pix_qr_code_base64: qrBase64, pix_expires_at: expiresAt, payment_status: status, external_reference: order.id }).eq("id", order.id);
-  if (saveError) {
+  const { data: savedOrder, error: saveError } = await admin.from("orders").update({ cielo_payment_id: paymentId, cielo_status: statusCode, pix_qr_code: qr, pix_qr_code_base64: qrBase64, pix_expires_at: expiresAt, payment_status: status, external_reference: order.id }).eq("id", order.id).select("id").maybeSingle();
+  if (saveError || !savedOrder) {
     safeError("[cielo-pix] order persistence failed", { order_id: order.id, code: saveError.code });
     return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required", error: "Pagamento em verificação. Não gere outro Pix antes de consultar o pedido." }, 202);
   }
