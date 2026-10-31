@@ -640,3 +640,145 @@ begin
   end loop;
 end
 $$;
+
+
+create or replace function public.admin_crm_opportunity_list(
+  p_limit integer default 50,
+  p_offset integer default 0,
+  p_search text default null,
+  p_channel text default 'all',
+  p_stage text default 'all',
+  p_status text default 'all'
+)
+returns table(
+  opportunity_id uuid,
+  contact_id uuid,
+  customer_name text,
+  customer_email text,
+  customer_phone text,
+  customer_cpf text,
+  contact_kind text,
+  stage text,
+  status text,
+  origin_channel text,
+  current_channel text,
+  value numeric,
+  order_id uuid,
+  order_code text,
+  cart_session_id uuid,
+  conversation_id text,
+  first_touch_at timestamptz,
+  last_touch_at timestamptz,
+  won_at timestamptz,
+  lost_at timestamptz,
+  loss_reason text,
+  total_count bigint
+)
+language plpgsql
+stable
+security invoker
+set search_path=''
+as $$
+declare
+  v_tenant_id uuid;
+  v_search text:=nullif(trim(coalesce(p_search,'')),'');
+begin
+  if app_security.has_role(auth.uid(),'admin'::app_role) then
+    v_tenant_id:=private.crm_active_tenant_id();
+  else
+    select tm.tenant_id into v_tenant_id
+    from public.tenant_memberships tm
+    where tm.user_id=auth.uid() and tm.active=true and tm.role::text in ('owner','admin','manager')
+    order by tm.created_at asc limit 1;
+  end if;
+  if v_tenant_id is null then raise exception 'forbidden'; end if;
+
+  return query
+  select
+    o.id,c.id,c.full_name,c.email,c.phone,c.cpf,c.contact_kind,
+    o.stage,o.status,o.origin_channel,o.current_channel,o.value,
+    o.order_id,ord.order_code,o.cart_session_id,o.conversation_id,
+    o.first_touch_at,o.last_touch_at,o.won_at,o.lost_at,o.loss_reason,
+    count(*) over()
+  from public.crm_opportunities o
+  left join public.crm_contacts c on c.id=o.contact_id
+  left join public.orders ord on ord.id=o.order_id
+  where o.tenant_id=v_tenant_id
+    and (coalesce(p_channel,'all')='all' or o.current_channel=p_channel)
+    and (coalesce(p_stage,'all')='all' or o.stage=p_stage)
+    and (coalesce(p_status,'all')='all' or o.status=p_status)
+    and (
+      v_search is null
+      or coalesce(c.full_name,'') ilike '%'||v_search||'%'
+      or coalesce(c.email,'') ilike '%'||v_search||'%'
+      or coalesce(c.phone,'') ilike '%'||v_search||'%'
+      or coalesce(c.cpf,'') ilike '%'||v_search||'%'
+      or coalesce(ord.order_code,'') ilike '%'||v_search||'%'
+      or o.id::text ilike '%'||v_search||'%'
+    )
+  order by o.last_touch_at desc
+  limit greatest(1,least(coalesce(p_limit,50),200))
+  offset greatest(0,coalesce(p_offset,0));
+end
+$$;
+
+revoke all on function public.admin_crm_opportunity_list(integer,integer,text,text,text,text) from public;
+revoke all on function public.admin_crm_opportunity_list(integer,integer,text,text,text,text) from anon;
+grant execute on function public.admin_crm_opportunity_list(integer,integer,text,text,text,text) to authenticated;
+
+create or replace function public.admin_crm_timeline(
+  p_contact_id uuid default null,
+  p_opportunity_id uuid default null,
+  p_limit integer default 300
+)
+returns table(
+  event_id uuid,
+  event_type text,
+  channel text,
+  source text,
+  occurred_at timestamptz,
+  order_id uuid,
+  order_code text,
+  cart_session_id uuid,
+  conversation_id text,
+  value numeric,
+  path text,
+  metadata jsonb
+)
+language plpgsql
+stable
+security invoker
+set search_path=''
+as $$
+declare
+  v_tenant_id uuid;
+begin
+  if app_security.has_role(auth.uid(),'admin'::app_role) then
+    v_tenant_id:=private.crm_active_tenant_id();
+  else
+    select tm.tenant_id into v_tenant_id
+    from public.tenant_memberships tm
+    where tm.user_id=auth.uid() and tm.active=true and tm.role::text in ('owner','admin','manager')
+    order by tm.created_at asc limit 1;
+  end if;
+  if v_tenant_id is null then raise exception 'forbidden'; end if;
+  if p_contact_id is null and p_opportunity_id is null then raise exception 'contact_or_opportunity_required'; end if;
+
+  return query
+  select e.id,e.event_type,e.channel,e.source,e.occurred_at,e.order_id,o.order_code,
+         e.cart_session_id,e.conversation_id,e.value,e.path,e.metadata
+  from public.crm_events e
+  left join public.orders o on o.id=e.order_id
+  where e.tenant_id=v_tenant_id
+    and (
+      (p_contact_id is not null and e.contact_id=p_contact_id)
+      or (p_contact_id is null and p_opportunity_id is not null and e.opportunity_id=p_opportunity_id)
+    )
+  order by e.occurred_at desc
+  limit greatest(1,least(coalesce(p_limit,300),1000));
+end
+$$;
+
+revoke all on function public.admin_crm_timeline(uuid,uuid,integer) from public;
+revoke all on function public.admin_crm_timeline(uuid,uuid,integer) from anon;
+grant execute on function public.admin_crm_timeline(uuid,uuid,integer) to authenticated;
