@@ -13,10 +13,10 @@ function renderFooterLinks(items: MenuItem[], fallback: { label: string; href: s
   return list.map((l) =>
     l.href.startsWith("http") || l.newTab ? (
       <li key={l.href + l.label}>
-        <a className="hover:text-primary" href={l.href} target={l.newTab ? "_blank" : undefined} rel={l.newTab ? "noopener" : undefined}>{l.label}</a>
+        <a className="inline-flex min-h-11 items-center hover:text-primary" href={l.href} target={l.newTab ? "_blank" : undefined} rel={l.newTab ? "noopener" : undefined}>{l.label}</a>
       </li>
     ) : (
-      <li key={l.href + l.label}><Link className="hover:text-primary" to={l.href}>{l.label}</Link></li>
+      <li key={l.href + l.label}><Link className="inline-flex min-h-11 items-center hover:text-primary" to={l.href}>{l.label}</Link></li>
     ),
   );
 }

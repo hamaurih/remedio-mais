@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { MessageCircle, ShoppingCart } from "lucide-react";
 import { buildPublicWhatsAppLink } from "@/lib/store";
 import { useCart } from "@/hooks/useCart";
@@ -8,6 +9,15 @@ export function WhatsAppFab() {
   const location = useLocation();
   const items = useCart();
   const count = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const [footerVisible, setFooterVisible] = useState(false);
+
+  useEffect(() => {
+    const footer = document.querySelector("footer");
+    if (!footer || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setFooterVisible(entry.isIntersecting), { threshold: 0.05 });
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
   const hideMobileBar = location.pathname.startsWith("/produto/") || /^\/(checkout|pedido\/|auth|redefinir-senha)/.test(location.pathname);
 
   return (
@@ -17,7 +27,7 @@ export function WhatsAppFab() {
         target="_blank"
         rel="noopener"
         aria-label="Falar no WhatsApp"
-        className="hidden md:flex fixed bottom-5 right-5 z-50 bg-whatsapp text-whatsapp-foreground rounded-full p-4 shadow-elevated hover:scale-110 transition-transform"
+        className={`${footerVisible ? "md:hidden" : "hidden md:flex"} fixed bottom-6 right-6 z-50 bg-whatsapp text-whatsapp-foreground rounded-full p-4 shadow-elevated hover:scale-110 transition-transform`}
       >
         <MessageCircle className="h-6 w-6" />
       </a>

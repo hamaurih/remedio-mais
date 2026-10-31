@@ -144,7 +144,7 @@ function FilterBody({
   };
 
   return (
-    <Accordion type="multiple" defaultValue={["principal", "preco", "marca"]} className="w-full">
+    <Accordion type="multiple" defaultValue={["principal"]} className="w-full">
       <AccordionItem value="principal">
         <AccordionTrigger className="text-sm font-bold">Filtros principais</AccordionTrigger>
         <AccordionContent className="space-y-2.5">
