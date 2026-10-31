@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +28,8 @@ import { Seo } from "@/components/Seo";
 import { supabase } from "@/integrations/supabase/client";
 import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
 import { resolveSitePrice } from "@/lib/pricing";
+import { fetchBestsellers } from "@/lib/collections";
+import { ProductCard } from "@/components/ProductCard";
 
 function GenericLine({ item, onSwapped }: { item: any; onSwapped: () => void }) {
   const [sug, setSug] = useState<GenericSuggestion | null>(null);
@@ -158,6 +161,12 @@ export default function Cart() {
   const payableTotal = useMemo(() => cartPayableTotal(items), [items]);
   const nav = useNavigate();
   const [tick, setTick] = useState(0);
+  const emptySuggestions = useQuery({
+    queryKey: ["empty-cart-bestsellers"],
+    queryFn: () => fetchBestsellers(30, 4),
+    enabled: items.length === 0,
+    staleTime: 5 * 60_000,
+  });
 
   // Reconciliação por (dono, produto): a aprovação acontece no admin, então o
   // carrinho precisa buscar o estado real no servidor — não basta atualizar
@@ -200,10 +209,30 @@ export default function Cart() {
       <div className="container py-8">
         <h1 className="text-2xl md:text-3xl font-extrabold mb-6">Seu carrinho</h1>
         {items.length === 0 ? (
-          <div className="text-center py-16">
-            <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">Seu carrinho está vazio.</p>
-            <Button asChild><Link to="/">Continuar comprando</Link></Button>
+          <div className="space-y-10">
+            <div className="text-center py-10 md:py-14">
+              <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-secondary/70">
+                <ShoppingBag className="h-16 w-16 text-muted-foreground" />
+              </div>
+              <h2 className="text-xl font-bold">Seu carrinho está vazio</h2>
+              <p className="text-muted-foreground mt-2 mb-5">Veja as ofertas ou escolha um dos produtos mais vendidos.</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button asChild><Link to="/ofertas">Ver ofertas</Link></Button>
+                <Button asChild variant="outline"><Link to="/">Continuar comprando</Link></Button>
+              </div>
+            </div>
+
+            {(emptySuggestions.data?.length ?? 0) > 0 && (
+              <section aria-labelledby="empty-cart-suggestions">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <h2 id="empty-cart-suggestions" className="text-xl md:text-2xl font-bold">Mais vendidos</h2>
+                  <Link to="/mais-vendidos" className="inline-flex min-h-11 items-center px-2 text-sm font-bold text-primary hover:underline">Ver todos →</Link>
+                </div>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+                  {emptySuggestions.data!.map((product) => <ProductCard key={product.id} p={product} />)}
+                </div>
+              </section>
+            )}
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_360px] gap-6">
