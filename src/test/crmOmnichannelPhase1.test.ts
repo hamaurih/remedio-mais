@@ -9,6 +9,7 @@ const customers = readFileSync("src/pages/admin/AdminCustomers.tsx","utf8");
 
 describe("CRM omnichannel phase 1 database contract", () => {
   it("creates canonical contacts, identities, opportunities, events and external inbox", () => {
+    expect(migration).toContain("add column if not exists tenant_id uuid");
     expect(migration).toContain("create table if not exists public.crm_contacts");
     expect(migration).toContain("create table if not exists public.crm_contact_identities");
     expect(migration).toContain("create table if not exists public.crm_opportunities");
@@ -27,6 +28,7 @@ describe("CRM omnichannel phase 1 database contract", () => {
   it("reuses a cart opportunity when the order is created", () => {
     expect(migration).toContain("o.order_id=v_order.id");
     expect(migration).toContain("o.cart_session_id=v_order.cart_session_id");
+    expect(migration).toContain("v_session.tenant_id");
     expect(migration).toContain("order_id=v_order.id");
     expect(migration).toContain("update public.crm_events");
   });
