@@ -509,30 +509,47 @@ begin
                 when v_session.cleared_at is not null then 'lost'
                 else 'engaged' end;
 
-  insert into public.crm_opportunities(
-    tenant_id,contact_id,cart_session_id,order_id,status,stage,origin_channel,current_channel,
-    value,first_touch_at,last_touch_at,won_at,lost_at,loss_reason
-  )
-  values(
-    v_tenant_id,v_contact_id,v_session.id,v_session.order_id,v_status,v_stage,'site','site',
-    coalesce(v_session.cart_value,0),coalesce(v_session.first_item_at,v_session.created_at,now()),
-    v_session.last_activity_at,v_session.converted_at,
-    case when v_status='lost' then coalesce(v_session.cleared_at,now()) end,
-    case when v_status='lost' then 'cart_cleared' end
-  )
-  on conflict(tenant_id,cart_session_id) where cart_session_id is not null
-  do update set
-    contact_id=coalesce(excluded.contact_id,public.crm_opportunities.contact_id),
-    order_id=coalesce(excluded.order_id,public.crm_opportunities.order_id),
-    status=excluded.status,
-    stage=excluded.stage,
-    value=excluded.value,
-    last_touch_at=greatest(public.crm_opportunities.last_touch_at,excluded.last_touch_at),
-    won_at=coalesce(public.crm_opportunities.won_at,excluded.won_at),
-    lost_at=coalesce(public.crm_opportunities.lost_at,excluded.lost_at),
-    loss_reason=coalesce(excluded.loss_reason,public.crm_opportunities.loss_reason),
-    updated_at=now()
-  returning id into v_opp_id;
+  select o.id into v_opp_id
+  from public.crm_opportunities o
+  where o.tenant_id=v_tenant_id
+    and (
+      o.cart_session_id=v_session.id
+      or (v_session.order_id is not null and o.order_id=v_session.order_id)
+    )
+  order by (o.cart_session_id=v_session.id) desc,o.created_at asc
+  limit 1
+  for update;
+
+  if v_opp_id is null then
+    insert into public.crm_opportunities(
+      tenant_id,contact_id,cart_session_id,order_id,status,stage,origin_channel,current_channel,
+      value,first_touch_at,last_touch_at,won_at,lost_at,loss_reason
+    )
+    values(
+      v_tenant_id,v_contact_id,v_session.id,v_session.order_id,v_status,v_stage,'site','site',
+      coalesce(v_session.cart_value,0),coalesce(v_session.first_item_at,v_session.created_at,now()),
+      v_session.last_activity_at,v_session.converted_at,
+      case when v_status='lost' then coalesce(v_session.cleared_at,now()) end,
+      case when v_status='lost' then 'cart_cleared' end
+    )
+    returning id into v_opp_id;
+  else
+    update public.crm_opportunities
+    set contact_id=coalesce(v_contact_id,contact_id),
+        cart_session_id=coalesce(cart_session_id,v_session.id),
+        order_id=coalesce(order_id,v_session.order_id),
+        status=v_status,
+        stage=v_stage,
+        current_channel='site',
+        value=coalesce(v_session.cart_value,value),
+        first_touch_at=least(first_touch_at,coalesce(v_session.first_item_at,v_session.created_at,first_touch_at)),
+        last_touch_at=greatest(last_touch_at,v_session.last_activity_at),
+        won_at=coalesce(won_at,v_session.converted_at),
+        lost_at=coalesce(lost_at,case when v_status='lost' then coalesce(v_session.cleared_at,now()) end),
+        loss_reason=coalesce(loss_reason,case when v_status='lost' then 'cart_cleared' end),
+        updated_at=now()
+    where id=v_opp_id;
+  end if;
 
   if v_contact_id is not null then
     update public.crm_events
