@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { groupManufacturers } from "@/lib/manufacturerFacet";
 import { listingRange, pageCount } from "@/lib/listingPage";
 import { buildMedicationFacts, humanizeCatalogName, readCatalogName } from "@/lib/medicationFacts";
+// Pure filter serialization tests do not initialize auth or a real backend.
+vi.mock("@/integrations/supabase/client", () => ({ supabase: new Proxy({}, { get() { throw new Error("Backend disabled in filter unit tests"); } }) }));
 import { buildQuery, defaultFilters } from "@/components/ProductFilters";
 
 describe("paginação da vitrine", () => {

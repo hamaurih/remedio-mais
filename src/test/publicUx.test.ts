@@ -1,5 +1,7 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { adminAccess, strongAdminPassword } from '@/lib/adminAccess';
+// Stock tests exercise the cart, not the live analytics RPC.
+vi.mock('@/lib/cartFunnel', () => ({ trackCartFunnel: vi.fn().mockResolvedValue(undefined) }));
 import { addToCart, getCart, updateQty } from '@/lib/store';
 
 describe('acesso administrativo', () => {
