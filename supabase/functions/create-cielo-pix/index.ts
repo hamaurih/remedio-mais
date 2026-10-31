@@ -54,10 +54,10 @@ Deno.serve(async (req) => {
   let cielo: any = null;
   try { cielo = JSON.parse(text); } catch { cielo = { raw: text }; }
   if (!res.ok) {
-    safeError("[cielo-pix] rejected", { status: res.status, body: cielo });
+    safeError("[cielo-pix] rejected", { status: res.status });
     await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
     const firstErr = Array.isArray(cielo) ? cielo[0] : cielo;
-    return jsonResp({ success: false, error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento Pix.", details: cielo }, 502);
+    return jsonResp({ success: false, error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento Pix." }, 502);
   }
 
   const pay = cielo?.Payment || {};
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
   const paymentId = pay.PaymentId as string | undefined;
   const statusCode = Number(pay.Status ?? 12);
   const status = mapCieloStatus(statusCode);
-  if (!qr || !qrBase64 || !paymentId) return jsonResp({ success: false, error: "Cielo não retornou o QR Code do Pix." }, 502);
+  if (!qr || !qrBase64 || !paymentId){ await admin.from("orders").update({payment_status:"payment_review",cielo_payment_id:paymentId||null}).eq("id",order.id);return jsonResp({success:false,order_id:order.id,error_code:"payment_reconciliation_required",error:"QR Code ainda não confirmado. Verifique seu pedido antes de gerar um novo Pix."},202); }
 
   const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000).toISOString();
   const { data: savedOrder, error: saveError } = await admin.from("orders").update({ cielo_payment_id: paymentId, cielo_status: statusCode, pix_qr_code: qr, pix_qr_code_base64: qrBase64, pix_expires_at: expiresAt, payment_status: status, external_reference: order.id }).eq("id", order.id).select("id").maybeSingle();
