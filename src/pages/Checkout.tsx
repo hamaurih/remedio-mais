@@ -25,7 +25,7 @@ import { CpfInput } from "@/components/CpfInput";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
 import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
-import { needsPaymentReconciliation } from "@/lib/cieloPaymentSafety";
+import { isConfirmedCieloDecline, needsPaymentReconciliation } from "@/lib/cieloPaymentSafety";
 import { getCheckoutAttemptKey, linkCheckoutAttemptToOrder, completeCheckoutAttempt } from "@/lib/checkoutAttempt";
 
 // The browser token stays OFF until both Cielo Edge Functions support dedupe.
@@ -287,7 +287,15 @@ export default function Checkout() {
     }
   };
 
-  const parseInvokeError = async (error: any, data: any) => {
+  const releaseDeclinedPaymentAttempt = (payload: unknown, attemptKey?: string | null) => {
+    // Result ambiguity must keep the original idempotency key; only a
+    // confirmed and persisted gateway decline permits a new checkout attempt.
+    if (!attemptKey || !isConfirmedCieloDecline(payload)) return;
+    linkCheckoutAttemptToOrder(payload.order_id, attemptKey);
+    completeCheckoutAttempt(payload.order_id);
+  };
+
+  const parseInvokeError = async (error: any, data: any, attemptKey?: string | null) => {
     if (error) {
       let parsed: any = null;
       try {
@@ -297,11 +305,13 @@ export default function Checkout() {
           try { parsed = JSON.parse(text); } catch { parsed = { error: text }; }
         }
       } catch { /* ignore */ }
+      releaseDeclinedPaymentAttempt(parsed, attemptKey);
       const msg = parsed?.error || parsed?.message || (error as any)?.message || "Falha ao iniciar pagamento";
       const code = parsed?.error_code ? ` [${parsed.error_code}]` : "";
       throw new Error(`${msg}${code}`);
     }
     if (data && data.success === false) {
+      releaseDeclinedPaymentAttempt(data, attemptKey);
       const code = data.error_code ? ` [${data.error_code}]` : "";
       const reason = data.error || data.reason;
       const friendly = data.status === "rejected"
@@ -411,7 +421,7 @@ export default function Checkout() {
         },
       });
       if (redirectPaymentReview(data, idempotencyKey)) return;
-      await parseInvokeError(error, data);
+      await parseInvokeError(error, data, idempotencyKey);
       if (data?.status === "approved") {
         const orderId = data.order_id;
         if (!orderId) throw new Error("Pagamento aprovado, mas o pedido não foi identificado.");
