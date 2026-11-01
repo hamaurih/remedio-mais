@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { completeCheckoutAttempt } from "@/lib/checkoutAttempt";
 import { customerAccount } from "@/lib/customerAccountApi";
 import { clearCart, clearPendingPixOrder, formatBRL } from "@/lib/store";
 import { Copy, Check, Loader2, QrCode, Clock, CheckCircle2, XCircle } from "lucide-react";
@@ -84,6 +85,7 @@ export default function PixPayment() {
         if (data.payment_status === "approved") {
           sessionStorage.removeItem(`pix:${orderId}`);
           clearPendingPixOrder();
+          completeCheckoutAttempt(orderId);
           clearCart();
           setTimeout(() => nav(`/pedido/sucesso?order=${orderId}`, { replace: true }), 1500);
         } else if (data.payment_status === "rejected" || data.payment_status === "cancelled") {
