@@ -67,3 +67,30 @@ export async function getCheckoutAttemptKey(intent: CheckoutAttemptIntent): Prom
   if (locks?.request) return locks.request(storageKey, claim);
   return claim();
 }
+
+/** Remove an old attempt only after confirmed purchase; a new purchase can then use a new key. */
+export function linkCheckoutAttemptToOrder(orderId: string, token: string): void {
+  if (!TOKEN_RE.test(orderId) || !TOKEN_RE.test(token)) return;
+  try { localStorage.setItem("cielo-checkout-order-v1:" + orderId, token); }
+  catch { /* closed storage is handled by the next checkout attempt */ }
+}
+export function completeCheckoutAttempt(orderId: string): void {
+  if (!TOKEN_RE.test(orderId)) return;
+  try {
+    const mapping = "cielo-checkout-order-v1:" + orderId;
+    const token = localStorage.getItem(mapping);
+    if (!token) return;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("cielo-checkout-intent-v1:")) keys.push(key);
+    }
+    for (const key of keys) {
+      const value = localStorage.getItem(key);
+      try {
+        if (value && (JSON.parse(value) as { key?: string }).key === token) localStorage.removeItem(key);
+      } catch { /* ignore malformed values */ }
+    }
+    localStorage.removeItem(mapping);
+  } catch { /* checkout remains safe; stale entries expire automatically */ }
+}
