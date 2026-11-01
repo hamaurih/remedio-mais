@@ -85,7 +85,7 @@ export default function PixPayment() {
         if (data.payment_status === "approved") {
           sessionStorage.removeItem(`pix:${orderId}`);
           clearPendingPixOrder();
-          completeCheckoutAttempt(orderId);
+          if (orderId) completeCheckoutAttempt(orderId);
           clearCart();
           setTimeout(() => nav(`/pedido/sucesso?order=${orderId}`, { replace: true }), 1500);
         } else if (data.payment_status === "rejected" || data.payment_status === "cancelled") {
