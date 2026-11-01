@@ -1,5 +1,19 @@
 # Idempotência do checkout Pix/cartão — 01/11/2026
 
+## Bloqueio de ativação em produção
+No dia 01/11/2026, a criação de cobrança Pix foi publicada em v15 (tratamento
+de timeout/persistência do PR #84), e a criação de cartão permanece v14.
+O deploy da idempotência (novo prepare-order + handlers reutilizando `reused`)
+foi bloqueado nas permissões da integração. Portanto, **o backend ainda não
+está idempotente** e o novo código do navegador está protegido por
+`VITE_CIELO_CHECKOUT_IDEMPOTENCY=true`, com default OFF. Não habilitar a
+flag enquanto ambos os endpoints não estiverem ativos e validados.
+
+A operação normal não pode depender de um recurso ainda não instalado.
+Após desbloqueio, publicar os dois endpoints de pagamento, conferir versão,
+executar testes de concorrência/reenvio em ambiente isolado e só então
+habilitar a flag e publicar o frontend com rollback pronto.
+
 ## Situação anterior
 O checkout bloqueava clique duplo por instância React, mas reenvio da mesma intenção
 após refresh, outra aba ou instabilidade de rede podia criar outro pedido e outra cobrança.

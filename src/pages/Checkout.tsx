@@ -28,6 +28,8 @@ import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
 import { needsPaymentReconciliation } from "@/lib/cieloPaymentSafety";
 import { getCheckoutAttemptKey, linkCheckoutAttemptToOrder, completeCheckoutAttempt } from "@/lib/checkoutAttempt";
 
+// The browser token stays OFF until both Cielo Edge Functions support dedupe.
+const CIELO_IDEMPOTENCY_ACTIVE = import.meta.env.VITE_CIELO_CHECKOUT_IDEMPOTENCY === "true";
 type Step = 1 | 2 | 3 | 4;
 
 export default function Checkout() {
@@ -309,10 +311,10 @@ export default function Checkout() {
     }
   };
 
-  const redirectPaymentReview = (data: unknown, attemptKey: string) => {
+  const redirectPaymentReview = (data: unknown, attemptKey: string | null) => {
     if (!needsPaymentReconciliation(data)) return false;
     paymentCompletedRef.current = true;
-    linkCheckoutAttemptToOrder(data.order_id, attemptKey);
+    if (attemptKey) linkCheckoutAttemptToOrder(data.order_id, attemptKey);
     toast.warning("Pagamento em verificação. Não tente pagar novamente; acompanhe o pedido.", { duration: 12000 });
     nav(`/pedido/pendente?order=${data.order_id}`, { replace: true });
     return true;
@@ -340,7 +342,7 @@ export default function Checkout() {
     try {
       await persistCustomerData();
 
-      const idempotencyKey = await getCheckoutAttemptKey({
+      const idempotencyKey = CIELO_IDEMPOTENCY_ACTIVE ? await getCheckoutAttemptKey({
         userId: user.id,
         paymentMethod,
         products: checkoutItems.map((item) => ({
@@ -358,10 +360,10 @@ export default function Checkout() {
         installments: paymentMethod === "credit_card" ? installments : 1,
         cardLast4: paymentMethod === "credit_card" ? cardNumber.replace(/\D/g, "").slice(-4) : "",
         cardExpiration: paymentMethod === "credit_card" ? cardExpiration : "",
-      });
+      }) : null;
 
       const commonBody = {
-        idempotency_key: idempotencyKey,
+        idempotency_key: idempotencyKey || undefined,
         items: checkoutItems.map((i) => ({
           id: i.product_id || i.id,
           variant_id: i.variant_id || null,
@@ -384,7 +386,7 @@ export default function Checkout() {
         if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
         sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({ qr_code: data.qr_code, qr_code_base64: data.qr_code_base64, expires_at: data.expires_at, total: data.total }));
         setPendingPixOrder(data.order_id);
-        linkCheckoutAttemptToOrder(data.order_id, idempotencyKey);
+        if (idempotencyKey) linkCheckoutAttemptToOrder(data.order_id, idempotencyKey);
         paymentCompletedRef.current = true;
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         return;
@@ -414,8 +416,10 @@ export default function Checkout() {
         const orderId = data.order_id;
         if (!orderId) throw new Error("Pagamento aprovado, mas o pedido não foi identificado.");
         paymentCompletedRef.current = true;
-        linkCheckoutAttemptToOrder(orderId, idempotencyKey);
-        completeCheckoutAttempt(orderId);
+        if (idempotencyKey) {
+          linkCheckoutAttemptToOrder(orderId, idempotencyKey);
+          completeCheckoutAttempt(orderId);
+        }
         clearCart();
         toast.success("Pagamento aprovado!");
         nav(`/pedido/sucesso?order=${orderId}`, { replace: true });
