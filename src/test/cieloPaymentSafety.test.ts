@@ -12,7 +12,7 @@ describe("Segurança do checkout Cielo", () => {
   it("impede submit simultâneo e redireciona incerteza para acompanhamento", () => {
     const s = read("src/pages/Checkout.tsx");
     expect(s).toContain("paymentInFlightRef.current");
-    expect(s).toContain("if (redirectPaymentReview(data)) return;");
+    expect(s).toContain("if (redirectPaymentReview(data, idempotencyKey)) return;");
     expect(s).toContain("/pedido/pendente?order=");
   });
   it.each(["create-cielo-pix", "create-cielo-card"])("não confirma sucesso sem gravar pedido (%s)", name => {
