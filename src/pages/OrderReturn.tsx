@@ -3,6 +3,7 @@ import { useLocation, Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { completeCheckoutAttempt } from "@/lib/checkoutAttempt";
 import { customerAccount } from "@/lib/customerAccountApi";
 import { formatBRL } from "@/lib/store";
 import { trackPurchase } from "@/lib/metaEvents";
@@ -81,6 +82,7 @@ export default function OrderReturn({ status }: { status: Status }) {
 
   useEffect(() => {
     if (!isPaid || !order?.id) return;
+    completeCheckoutAttempt(String(order.id));
     trackPurchase({
       id: order.id,
       total: Number(order.total ?? 0),
