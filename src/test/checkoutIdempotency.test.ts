@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { canonicalCheckoutAttempt, type CheckoutAttemptIntent } from "@/lib/checkoutAttempt";
+import { canonicalCheckoutAttempt, linkCheckoutAttemptToOrder, completeCheckoutAttempt, type CheckoutAttemptIntent } from "@/lib/checkoutAttempt";
 
 const source = (path: string) => readFileSync(path, "utf8");
 const base: CheckoutAttemptIntent = {
@@ -36,6 +36,26 @@ describe("Checkout — idempotência forte por tentativa", () => {
     expect(helper).toContain("SHA-256");
     expect(helper).toContain("randomUUID");
     expect(helper).toContain("localStorage");
+  });
+  it("encerra somente a chave da compra efetivamente aprovada", () => {
+    const orderId = "123e4567-e89b-42d3-a456-426614174000";
+    const token = "123e4567-e89b-42d3-a456-426614174111";
+    const other = "123e4567-e89b-42d3-a456-426614174222";
+    const one = "cielo-checkout-intent-v1:one";
+    const two = "cielo-checkout-intent-v1:two";
+    localStorage.setItem(one, JSON.stringify({ key: token, created: Date.now() }));
+    localStorage.setItem(two, JSON.stringify({ key: other, created: Date.now() }));
+    try {
+      linkCheckoutAttemptToOrder(orderId, token);
+      completeCheckoutAttempt(orderId);
+      expect(localStorage.getItem(one)).toBeNull();
+      expect(localStorage.getItem(two)).not.toBeNull();
+      expect(localStorage.getItem("cielo-checkout-order-v1:" + orderId)).toBeNull();
+    } finally {
+      localStorage.removeItem(one);
+      localStorage.removeItem(two);
+      localStorage.removeItem("cielo-checkout-order-v1:" + orderId);
+    }
   });
   it("utiliza índice único existente, recupera corrida e preserva pedido original", () => {
     const migration = source("supabase/migrations/20260919210000_whatsapp_ia_order_identity.sql");
