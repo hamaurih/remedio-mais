@@ -11,7 +11,15 @@ Deno.serve(async(req)=>{
  const card=(raw as CardBody).card;if(!card?.number||!card?.holder||!card?.expiration||!card?.security_code)return jsonResp({success:false,error:"Dados do cartão incompletos."},400);
  const cardDigits=String(card.number).replace(/\D/g,"");if(cardDigits.length<13||cardDigits.length>19)return jsonResp({success:false,error:"Número de cartão inválido."},400);
  const expiration=normalizeExpiration(String(card.expiration));if(!expiration)return jsonResp({success:false,error:"Validade do cartão inválida (use MM/AAAA)."},400);const cvv=String(card.security_code).replace(/\D/g,"");if(cvv.length<3||cvv.length>4)return jsonResp({success:false,error:"CVV inválido."},400);
- const forwarded=new Request(req.url,{method:"POST",headers:req.headers,body:JSON.stringify(raw)});const prep=await prepareOrder(forwarded,"credit_card");if(!prep.ok)return jsonResp(prep.body,prep.status);const{admin,order,total}=prep;
+ const forwarded=new Request(req.url,{method:"POST",headers:req.headers,body:JSON.stringify(raw)});const prep=await prepareOrder(forwarded,"credit_card");if(!prep.ok)return jsonResp(prep.body,prep.status);const{admin,order,total,reused}=prep;
+ if(reused){
+   // A retry or parallel request must not create another payment at Cielo.
+   if(order.payment_status==="approved"&&order.cielo_payment_id)
+     return jsonResp({success:true,order_id:order.id,payment_id:order.cielo_payment_id,status:"approved",total:Number(order.total)});
+   return jsonResp({success:false,order_id:order.id,status:order.payment_status,
+     error_code:"payment_reconciliation_required",
+     error:"Já existe uma tentativa de pagamento para este pedido. Consulte o acompanhamento."},202);
+ }
  const{merchantId:MERCHANT_ID,merchantKey:MERCHANT_KEY}=await getCieloCredentials(admin);if(!MERCHANT_ID||!MERCHANT_KEY){await admin.from("orders").delete().eq("id",order.id);return jsonResp({success:false,error:"Cielo não configurada (credenciais ausentes)."},500);}
  const maxAllowed=maxInstallmentsForTotal(total);let installments=Math.floor(Number(card.installments)||1);if(installments<1)installments=1;if(installments>maxAllowed)installments=maxAllowed;const brand=detectBrand(cardDigits);
  const{data:pset}=await admin.from("payment_settings").select("environment").eq("id",1).maybeSingle();const env:CieloEnv=((pset as any)?.environment==="sandbox"?"sandbox":"production"),base=CIELO_BASES[env].transaction,softDescriptor="AtacadaoMed".slice(0,13);
