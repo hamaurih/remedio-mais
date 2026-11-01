@@ -16,7 +16,22 @@ Deno.serve(async (req) => {
 
   const prep = await prepareOrder(req, "pix");
   if (!prep.ok) return jsonResp(prep.body, prep.status);
-  const { admin, order, total } = prep;
+  const { admin, order, total, reused } = prep;
+  if (reused) {
+    // A Cielo may already have received this request. Never create another charge.
+    const validQr = order.cielo_payment_id && order.pix_qr_code && order.pix_qr_code_base64
+      && Date.parse(String(order.pix_expires_at || "")) > Date.now()
+      && order.payment_status === "pending";
+    if (validQr) return jsonResp({
+      success: true, order_id: order.id, payment_id: order.cielo_payment_id,
+      status: order.payment_status, qr_code: order.pix_qr_code,
+      qr_code_base64: order.pix_qr_code_base64, expires_at: order.pix_expires_at,
+      total: Number(order.total),
+    });
+    return jsonResp({ success: false, order_id: order.id,
+      status: order.payment_status, error_code: "payment_reconciliation_required",
+      error: "Já existe uma tentativa de pagamento para este pedido. Consulte o acompanhamento antes de repetir." }, 202);
+  }
 
   const { merchantId: MERCHANT_ID, merchantKey: MERCHANT_KEY } = await getCieloCredentials(admin);
   if (!MERCHANT_ID || !MERCHANT_KEY) {
