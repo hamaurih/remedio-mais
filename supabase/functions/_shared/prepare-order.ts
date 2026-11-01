@@ -22,10 +22,11 @@ export type OrderBody = {
   };
   // Identificadores Meta (não sensíveis) para deduplicação do Purchase na CAPI.
   meta?: { fbp?: string | null; fbc?: string | null };
+  idempotency_key?: string;
 };
 
 export type PrepareResult =
-  | { ok: true; admin: SupabaseClient; userId: string; userEmail: string; order: any; total: number; subtotal: number; deliveryFee: number }
+  | { ok: true; admin: SupabaseClient; userId: string; userEmail: string; order: any; total: number; subtotal: number; deliveryFee: number; reused: boolean }
   | { ok: false; status: number; body: unknown };
 
 export async function prepareOrder(
@@ -56,6 +57,31 @@ export async function prepareOrder(
   let body: OrderBody;
   try { body = await req.json() as OrderBody; }
   catch { return { ok: false, status: 400, body: { success: false, error: "Corpo inválido." } }; }
+
+  // Idempotent before rechecking the catalog: a retry must recover its original
+  // order even if stock, prices, or product availability have changed since the charge.
+  const attemptToken = body.idempotency_key == null ? null : String(body.idempotency_key).trim().toLowerCase();
+  if (attemptToken && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(attemptToken)) {
+    return { ok: false, status: 400, body: { success: false, error: "Identificador da tentativa inválido." } };
+  }
+  const orderIdempotencyKey = attemptToken ? `cielo:checkout:${userId}:${paymentMethod}:${attemptToken}` : null;
+  const recoverExisting = async (): Promise<PrepareResult | null> => {
+    if (!orderIdempotencyKey) return null;
+    const { data: existing, error } = await admin.from("orders")
+      .select("*").eq("external_idempotency_key", orderIdempotencyKey).maybeSingle();
+    if (error) return { ok: false, status: 503, body: { success: false, error: "Não foi possível conferir a tentativa anterior." } };
+    if (!existing) return null;
+    if (existing.user_id !== userId || existing.payment_method !== paymentMethod || existing.payment_gateway !== "cielo") {
+      return { ok: false, status: 409, body: { success: false, error: "Tentativa de pagamento incompatível com o pedido." } };
+    }
+    return {
+      ok: true, admin, userId, userEmail, order: existing,
+      total: Number(existing.total), subtotal: Number(existing.subtotal),
+      deliveryFee: Number(existing.delivery_fee || 0), reused: true,
+    };
+  };
+  const prior = await recoverExisting();
+  if (prior) return prior;
 
   if (!Array.isArray(body.items) || body.items.length === 0) {
     return { ok: false, status: 400, body: { success: false, error: "Carrinho vazio." } };
@@ -251,11 +277,18 @@ export async function prepareOrder(
     prescription_original_required: prescriptionOriginalRequired,
     prescription_original_status: prescriptionOriginalRequired ? "pending_collection" : "not_required",
     external_reference: null,
+    external_idempotency_key: orderIdempotencyKey,
     meta_fbp: typeof body.meta?.fbp === "string" ? body.meta.fbp.slice(0, 128) : null,
     meta_fbc: typeof body.meta?.fbc === "string" ? body.meta.fbc.slice(0, 256) : null,
   }).select().single();
   if (orderErr || !order) {
-    safeError("[prepareOrder] order insert failed", { msg: orderErr?.message });
+    // Another tab/request may have won the UNIQUE(external_idempotency_key) race.
+    // Recover its existing order; never create a second Cielo charge.
+    if (orderErr?.code === "23505" && orderIdempotencyKey) {
+      const raced = await recoverExisting();
+      if (raced) return raced;
+    }
+    safeError("[prepareOrder] order insert failed", { code: orderErr?.code, msg: orderErr?.message });
     return { ok: false, status: 500, body: { success: false, error: "Não foi possível criar o pedido." } };
   }
 
@@ -266,7 +299,7 @@ export async function prepareOrder(
     return { ok: false, status: 500, body: { success: false, error: "Não foi possível gravar os itens." } };
   }
 
-  return { ok: true, admin, userId, userEmail, order, total, subtotal, deliveryFee };
+  return { ok: true, admin, userId, userEmail, order, total, subtotal, deliveryFee, reused: false };
 }
 
 export function jsonResp(body: unknown, status = 200, extraCors?: Record<string, string>) {
