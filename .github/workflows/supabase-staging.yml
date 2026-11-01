@@ -48,9 +48,26 @@ jobs:
       - name: Link staging project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
 
+      - name: Show local and remote migration history
+        run: supabase migration list
+
       - name: Preview pending migrations
         run: supabase db push --linked --dry-run
 
       - name: Apply pending migrations
         if: ${{ inputs.mode == 'apply' }}
         run: supabase db push --linked
+
+      - name: Verify applied migration history
+        if: ${{ inputs.mode == 'apply' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_LATEST="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort | tail -1 | cut -c1-14)"
+          HISTORY="$(supabase migration list)"
+          printf '%s\n' "$HISTORY"
+          MATCHES="$(printf '%s\n' "$HISTORY" | grep -o "$EXPECTED_LATEST" | wc -l | tr -d ' ')"
+          if [ "$MATCHES" -lt 2 ]; then
+            echo "Latest migration $EXPECTED_LATEST is not aligned locally/remotely." >&2
+            exit 1
+          fi
