@@ -78,6 +78,7 @@ describe("Checkout — idempotência forte por tentativa", () => {
       expect(reuseAt).toBeLessThan(gatewayAt);
     }
     const checkout = source("src/pages/Checkout.tsx");
-    expect(checkout).toContain("idempotency_key: idempotencyKey");
+    expect(checkout).toContain("idempotency_key: idempotencyKey || undefined");
+    expect(checkout).toContain('import.meta.env.VITE_CIELO_CHECKOUT_IDEMPOTENCY === "true"');
   });
 });
