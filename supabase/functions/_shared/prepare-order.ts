@@ -156,7 +156,7 @@ export async function prepareOrder(
 
       // O pagamento não espera a aprovação. A conferência farmacêutica ocorre
       // durante a separação, antes de liberar a dispensação/entrega.
-      const covering = (await findReceived(ci.prescription_id))
+      const covering = (await findReceived(ci.prescription_id ?? undefined))
         || (ci.prescription_id ? await findReceived() : null);
       if (!covering) {
         return {
