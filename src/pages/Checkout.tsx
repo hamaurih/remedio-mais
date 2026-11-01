@@ -26,6 +26,7 @@ import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
 import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
 import { needsPaymentReconciliation } from "@/lib/cieloPaymentSafety";
+import { getCheckoutAttemptKey } from "@/lib/checkoutAttempt";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -338,7 +339,28 @@ export default function Checkout() {
     try {
       await persistCustomerData();
 
+      const idempotencyKey = await getCheckoutAttemptKey({
+        userId: user.id,
+        paymentMethod,
+        products: checkoutItems.map((item) => ({
+          id: String(item.product_id || item.id),
+          variantId: item.variant_id || null,
+          quantity: item.quantity,
+          unitCents: Math.round(Number(item.price) * 100),
+        })),
+        deliveryType,
+        delivery: deliveryType === "delivery"
+          ? { cep, street, number, complement, neighborhood, city, state, reference, lat, lng, place_id: placeId }
+          : null,
+        customer: { name, phone, cpf: cpfDigits },
+        totalCents: Math.round(total * 100),
+        installments: paymentMethod === "credit_card" ? installments : 1,
+        cardLast4: paymentMethod === "credit_card" ? cardNumber.replace(/\D/g, "").slice(-4) : "",
+        cardExpiration: paymentMethod === "credit_card" ? cardExpiration : "",
+      });
+
       const commonBody = {
+        idempotency_key: idempotencyKey,
         items: checkoutItems.map((i) => ({
           id: i.product_id || i.id,
           variant_id: i.variant_id || null,
