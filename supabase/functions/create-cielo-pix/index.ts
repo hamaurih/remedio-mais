@@ -65,12 +65,29 @@ Deno.serve(async (req) => {
     return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required", error: "Resposta da Cielo não confirmada. Consulte o pedido antes de gerar outra cobrança." }, 202);
   }
 
-  const text = await res.text();
+  let text: string;
+  try { text = await res.text(); } catch {
+    safeError("[cielo-pix] response body unavailable", { order_id: order.id });
+    await admin.from("orders").update({ payment_status: "payment_review" }).eq("id", order.id);
+    return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required",
+      error: "Não foi possível confirmar a cobrança na Cielo. Confira o pedido antes de tentar novamente." }, 202);
+  }
   let cielo: any = null;
   try { cielo = JSON.parse(text); } catch { cielo = { raw: text }; }
   if (!res.ok) {
-    safeError("[cielo-pix] rejected", { status: res.status });
-    await admin.from("orders").update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    safeError("[cielo-pix] gateway response", { status: res.status });
+    if (res.status >= 500 || res.status === 408 || res.status === 429) {
+      await admin.from("orders").update({ payment_status: "payment_review" }).eq("id", order.id);
+      return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required",
+        error: "A resposta da Cielo está indefinida. Consulte o pedido antes de gerar outro Pix." }, 202);
+    }
+    const { error: rejectWriteError } = await admin.from("orders")
+      .update({ payment_status: "rejected", cancelled_at: new Date().toISOString() }).eq("id", order.id);
+    if (rejectWriteError) {
+      safeError("[cielo-pix] rejection persistence failed", { order_id: order.id, code: rejectWriteError.code });
+      return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required",
+        error: "Não foi possível registrar a recusa com segurança. Consulte o pedido." }, 202);
+    }
     const firstErr = Array.isArray(cielo) ? cielo[0] : cielo;
     return jsonResp({ success: false, error: firstErr?.Message || firstErr?.error || "Cielo rejeitou o pagamento Pix." }, 502);
   }
@@ -86,7 +103,7 @@ Deno.serve(async (req) => {
   const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000).toISOString();
   const { data: savedOrder, error: saveError } = await admin.from("orders").update({ cielo_payment_id: paymentId, cielo_status: statusCode, pix_qr_code: qr, pix_qr_code_base64: qrBase64, pix_expires_at: expiresAt, payment_status: status, external_reference: order.id }).eq("id", order.id).select("id").maybeSingle();
   if (saveError || !savedOrder) {
-    safeError("[cielo-pix] order persistence failed", { order_id: order.id, code: saveError.code });
+    safeError("[cielo-pix] order persistence failed", { order_id: order.id, code: saveError?.code || "order_not_updated" });
     return jsonResp({ success: false, order_id: order.id, error_code: "payment_reconciliation_required", error: "Pagamento em verificação. Não gere outro Pix antes de consultar o pedido." }, 202);
   }
   safeLog("[cielo-pix] success", { order_id: order.id, paymentId, statusCode });
