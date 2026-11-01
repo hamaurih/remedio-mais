@@ -26,6 +26,7 @@ import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import { lookupCep as lookupCepAddress, onlyDigits, formatCep } from "@/lib/addressLookup";
 import { syncCartPrescriptionsFromServer } from "@/lib/prescriptionSync";
 import { needsPaymentReconciliation } from "@/lib/cieloPaymentSafety";
+import { getCheckoutAttemptKey, linkCheckoutAttemptToOrder, completeCheckoutAttempt } from "@/lib/checkoutAttempt";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -308,9 +309,10 @@ export default function Checkout() {
     }
   };
 
-  const redirectPaymentReview = (data: unknown) => {
+  const redirectPaymentReview = (data: unknown, attemptKey: string) => {
     if (!needsPaymentReconciliation(data)) return false;
     paymentCompletedRef.current = true;
+    linkCheckoutAttemptToOrder(data.order_id, attemptKey);
     toast.warning("Pagamento em verificação. Não tente pagar novamente; acompanhe o pedido.", { duration: 12000 });
     nav(`/pedido/pendente?order=${data.order_id}`, { replace: true });
     return true;
@@ -338,7 +340,28 @@ export default function Checkout() {
     try {
       await persistCustomerData();
 
+      const idempotencyKey = await getCheckoutAttemptKey({
+        userId: user.id,
+        paymentMethod,
+        products: checkoutItems.map((item) => ({
+          id: String(item.product_id || item.id),
+          variantId: item.variant_id || null,
+          quantity: item.quantity,
+          unitCents: Math.round(Number(item.price) * 100),
+        })),
+        deliveryType,
+        delivery: deliveryType === "delivery"
+          ? { cep, street, number, complement, neighborhood, city, state, reference, lat, lng, place_id: placeId }
+          : null,
+        customer: { name, phone, cpf: cpfDigits },
+        totalCents: Math.round(total * 100),
+        installments: paymentMethod === "credit_card" ? installments : 1,
+        cardLast4: paymentMethod === "credit_card" ? cardNumber.replace(/\D/g, "").slice(-4) : "",
+        cardExpiration: paymentMethod === "credit_card" ? cardExpiration : "",
+      });
+
       const commonBody = {
+        idempotency_key: idempotencyKey,
         items: checkoutItems.map((i) => ({
           id: i.product_id || i.id,
           variant_id: i.variant_id || null,
@@ -356,11 +379,12 @@ export default function Checkout() {
 
       if (paymentMethod === "pix") {
         const { data, error } = await supabase.functions.invoke("create-cielo-pix", { body: commonBody });
-        if (redirectPaymentReview(data)) return;
+        if (redirectPaymentReview(data, idempotencyKey)) return;
         await parseInvokeError(error, data);
         if (!data?.order_id || !data?.qr_code_base64) throw new Error("Resposta inválida do servidor Pix.");
         sessionStorage.setItem(`pix:${data.order_id}`, JSON.stringify({ qr_code: data.qr_code, qr_code_base64: data.qr_code_base64, expires_at: data.expires_at, total: data.total }));
         setPendingPixOrder(data.order_id);
+        linkCheckoutAttemptToOrder(data.order_id, idempotencyKey);
         paymentCompletedRef.current = true;
         nav(`/pedido/pix/${data.order_id}`, { replace: true });
         return;
@@ -384,12 +408,14 @@ export default function Checkout() {
           },
         },
       });
-      if (redirectPaymentReview(data)) return;
+      if (redirectPaymentReview(data, idempotencyKey)) return;
       await parseInvokeError(error, data);
       if (data?.status === "approved") {
         const orderId = data.order_id;
         if (!orderId) throw new Error("Pagamento aprovado, mas o pedido não foi identificado.");
         paymentCompletedRef.current = true;
+        linkCheckoutAttemptToOrder(orderId, idempotencyKey);
+        completeCheckoutAttempt(orderId);
         clearCart();
         toast.success("Pagamento aprovado!");
         nav(`/pedido/sucesso?order=${orderId}`, { replace: true });
