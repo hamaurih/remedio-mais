@@ -1,0 +1,28 @@
+name: Cielo Edge Runtime Check
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cielo-edge-runtime-check.yml'
+      - 'supabase/functions/create-cielo-pix/**'
+      - 'supabase/functions/create-cielo-card/**'
+      - 'supabase/functions/_shared/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deno-typecheck:
+    name: Deno typecheck Pix and card
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check Pix Edge Function
+        run: deno check supabase/functions/create-cielo-pix/index.ts
+      - name: Check card Edge Function
+        run: deno check supabase/functions/create-cielo-card/index.ts
