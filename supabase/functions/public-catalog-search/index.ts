@@ -4,6 +4,17 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { safeLog, safeError, maskToken } from "../_shared/mask.ts";
+import {
+  STOCK_DISCLAIMER,
+  STOCK_SOURCE,
+  buildCatalogPlans,
+  buildPostgrestFilter,
+  catalogEnvelopeMessage,
+  scoreCatalogProduct,
+  selectCatalogHits,
+  stockSystemMessage,
+  type CatalogHit,
+} from "../_shared/catalog-search.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,10 +73,11 @@ function shortDesc(p: any, available: boolean): string {
   return "Produto disponível para venda assistida pelo WhatsApp.";
 }
 
-// Detect numeric (barcode) terms
-function digitsOnly(s: string) {
-  return s.replace(/\D+/g, "");
-}
+const PRODUCT_COLUMNS =
+  "id, name, slug, manufacturer, active_ingredient, tags, barcode, image_url, short_description, " +
+  "requires_prescription, controlled, stock, active, " +
+  "price, price_base, site_price, whatsapp_price, pdv_price, site_promo_price, whatsapp_promo_price, pdv_promo_price, " +
+  "promo_price, ecommerce_price, discount_percentage, category_id, categories(name)";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -101,9 +113,27 @@ Deno.serve(async (req) => {
       success: true,
       channel,
       query: "",
+      queries: [],
       count: 0,
       results: [],
+      stock_source: STOCK_SOURCE,
+      stock_disclaimer: STOCK_DISCLAIMER,
       message: "Informe um termo de busca.",
+    });
+  }
+
+  const plans = buildCatalogPlans(term);
+  if (plans.length === 0) {
+    return json({
+      success: true,
+      channel,
+      query: term,
+      queries: [],
+      count: 0,
+      results: [],
+      stock_source: STOCK_SOURCE,
+      stock_disclaimer: STOCK_DISCLAIMER,
+      message: catalogEnvelopeMessage(0, false),
     });
   }
 
@@ -113,57 +143,54 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
-  // --- Build search ---
-  const like = `%${term.replace(/[%_]/g, "")}%`;
-  const barcode = digitsOnly(term);
-  const orParts = [
-    `name.ilike.${like}`,
-    `manufacturer.ilike.${like}`,
-    `active_ingredient.ilike.${like}`,
-    `tags.ilike.${like}`,
-  ];
-  if (barcode.length >= 8) orParts.push(`barcode.eq.${barcode}`);
+  const batches = await Promise.all(plans.map(async (plan) => {
+    const filter = buildPostgrestFilter(plan);
+    const { data, error } = await supabase
+      .from("products")
+      .select(PRODUCT_COLUMNS)
+      .eq("active", true)
+      .gt("stock", 0)
+      .or(filter)
+      .order("name", { ascending: true })
+      .limit(60);
+    return { plan, data, error };
+  }));
 
-  const { data, error } = await supabase
-    .from("products")
-    .select(
-      "id, name, slug, manufacturer, active_ingredient, image_url, short_description, " +
-      "requires_prescription, controlled, stock, active, " +
-      "price, price_base, site_price, whatsapp_price, pdv_price, site_promo_price, whatsapp_promo_price, pdv_promo_price, " +
-      "promo_price, ecommerce_price, discount_percentage, category_id, categories(name)",
-    )
-    .eq("active", true)
-    .gt("stock", 0)
-    .or(orParts.join(","))
-    .limit(limit * 3); // over-fetch, we re-rank/filter
-
-  if (error) {
-    safeError("public-catalog-search query error", { msg: error.message });
+  const okBatches = batches.filter((batch) => !batch.error);
+  const failed = batches.find((batch) => batch.error);
+  if (okBatches.length === 0 && failed?.error) {
+    safeError("public-catalog-search query error", { msg: failed.error.message });
     return json({ success: false, error: "query_failed" }, 500);
   }
-
-  const lowerTerm = term.toLowerCase();
-  const rows = (data || []).filter((p: any) => {
-    const eff = effectivePrice(p, channel);
-    return eff !== null && eff > 0;
-  });
-
-  function rank(p: any): number {
-    const n = (p.name || "").toLowerCase();
-    const m = (p.manufacturer || "").toLowerCase();
-    const cat = (p.categories?.name || "").toLowerCase();
-    const tg = (p.tags || "").toLowerCase();
-    const ai = (p.active_ingredient || "").toLowerCase();
-    if (barcode && barcode.length >= 8 && p.barcode === barcode) return 0;
-    if (n.startsWith(lowerTerm)) return 1;
-    if (n.includes(lowerTerm)) return 2;
-    if (m.includes(lowerTerm)) return 3;
-    if (cat.includes(lowerTerm)) return 4;
-    if (tg.includes(lowerTerm) || ai.includes(lowerTerm)) return 5;
-    return 9;
+  if (failed?.error) {
+    safeError("public-catalog-search partial query error", { msg: failed.error.message });
   }
-  rows.sort((a: any, b: any) => rank(a) - rank(b));
-  const top = rows.slice(0, limit);
+
+  const hits: CatalogHit<any>[] = [];
+  for (const batch of okBatches) {
+    for (const row of batch.data || []) {
+      const score = scoreCatalogProduct({
+        name: row.name,
+        manufacturer: row.manufacturer,
+        active_ingredient: row.active_ingredient,
+        tags: row.tags,
+        barcode: row.barcode,
+      }, batch.plan);
+      if (score === null) continue;
+      const eff = effectivePrice(row, channel);
+      if (eff === null || eff <= 0) continue;
+      hits.push({
+        id: String(row.id),
+        itemIndex: batch.plan.itemIndex,
+        planKind: batch.plan.kind,
+        aliasKey: batch.plan.text,
+        score,
+        row,
+      });
+    }
+  }
+
+  const top = selectCatalogHits(hits, limit).map((hit) => hit.row);
 
   const results = top.map((p: any) => {
     const base = num(p.price_base) ?? num(p.price);
@@ -200,6 +227,8 @@ Deno.serve(async (req) => {
       discount_percentage: discount,
       stock,
       available,
+      stock_source: STOCK_SOURCE,
+      stock_message: stockSystemMessage(stock),
       requires_prescription: !!p.requires_prescription,
       controlled: !!p.controlled,
       image_url: p.image_url || null,
@@ -207,11 +236,11 @@ Deno.serve(async (req) => {
     };
   });
 
-  const message = results.length === 0
-    ? "Nenhum produto encontrado com esse nome no catálogo disponível."
-    : (results.some((r) => r.requires_prescription || r.controlled)
-        ? "Produtos encontrados. Há itens sujeitos à apresentação de receita."
-        : "Produtos encontrados.");
+  const literalQueries = plans.filter((plan) => plan.kind === "literal").map((plan) => plan.text);
+  const message = catalogEnvelopeMessage(
+    results.length,
+    results.some((r) => r.requires_prescription || r.controlled),
+  );
 
   safeLog("public-catalog-search", {
     source: "whatsapp_agent",
@@ -225,8 +254,11 @@ Deno.serve(async (req) => {
     success: true,
     channel,
     query: term,
+    queries: literalQueries,
     count: results.length,
     results,
+    stock_source: STOCK_SOURCE,
+    stock_disclaimer: STOCK_DISCLAIMER,
     message,
   });
 });
